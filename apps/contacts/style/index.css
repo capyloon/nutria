@@ -1,0 +1,101 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: "Open Sans", "sans serif";
+  user-select: none;
+  background-color: var(--background-color);
+  color: var(--light-color);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --background-color: #1b262c;
+  --dark-color: #0f4c75;
+  --medium-color: #3282b8;
+  --light-color: #bbe1fa;
+}
+
+#floating-menu {
+  position: absolute;
+  bottom: 1em;
+  right: 1em;
+  background-color: var(--dark-color);
+  color: var(--light-color);
+  display: flex;
+  align-items: center;
+  padding: 0.5em;
+  grid-gap: 0.5em;
+  border-radius: 1em;
+  transition: all 0.5s linear;
+}
+
+#floating-menu.hidden {
+  display: none;
+}
+
+#floating-menu:not(.selecting) .on-selection {
+  display: none;
+}
+
+#edit-dialog {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  transition: all 0.5s linear;
+}
+
+#edit-dialog.hidden {
+  display: none;
+}
+
+#edit-dialog > div {
+  margin: 0.5em;
+  padding: 0.5em;
+  background-color: var(--medium-color);
+  color: var(--dark-color);
+  border-radius: 0.5em;
+  margin: auto;
+}
+
+#edit-dialog label {
+  display: block;
+}
+
+.button-container {
+  display: flex;
+  justify-content: space-around;
+  margin: 0.5em;
+}
+
+#contacts {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow-y: scroll;
+}
+
+.fading {
+  transform: scale(0.8);
+  opacity: 0.5;
+  transition: all 0.5s linear;
+}
+
+lucide-icon {
+  font-size: 1.5em;
+}
+
+.contact lucide-icon {
+  font-size: 1em;
+}

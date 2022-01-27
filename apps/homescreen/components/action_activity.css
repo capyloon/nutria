@@ -1,0 +1,48 @@
+/* Style specific to <action-activity> */
+
+:host div {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+  text-align: center;
+  text-decoration: none;
+  width: 100%;
+  height: 100%;
+}
+
+:host div span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  font-size: smaller;
+  text-decoration: none;
+  color: var(--default-color);
+}
+
+:host div img {
+  width: calc(var(--action-box-width) - 1.75em);
+  height: calc(var(--action-box-width) - 1.75em);
+  border-radius: 40%;
+  box-shadow: 2px 2px 3px black;
+}
+
+:host div img.animate {
+    animation: box-anim 1s linear;
+}
+
+@keyframes box-anim {
+  25% {
+    transform: rotate(-25deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(25deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}

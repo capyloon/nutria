@@ -1,0 +1,21 @@
+/* Styling for the <default-results> component */
+
+:host {
+  display: flex;
+  cursor: pointer;
+  font-size: 1em;
+  gap: 0.5em;
+  padding: 0.5em;
+}
+
+:host(:hover),
+:host(.selected) {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+:host span.name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

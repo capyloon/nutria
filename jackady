@@ -1,0 +1,6 @@
+#!/bin/bash
+
+cd builder
+
+export RUST_LOG=${RUST_LOG:-info}
+cargo run --release -- $@

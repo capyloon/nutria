@@ -1,0 +1,140 @@
+content-window.not-homescreen {
+  background-color: white;
+}
+
+content-window > .container {
+  height: 100%;
+  display: grid;
+}
+
+content-window.keyboard-open > .container {
+  /* 100% - (height(keyboard) - height(statusbar)) */
+  height: calc(100% - var(--keyboard-height) + 2.5em);
+}
+
+/* We create a stack by putting all the grid elements at the same place */
+content-window > .container > * {
+  grid-row: 1;
+  grid-column: 1;
+  height: 100%;
+  width: 100%;
+}
+
+content-window .loader,
+content-window .content-crash {
+  height: 100%;
+  background: var(--loader-background);
+  color: var(--loader-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 1em;
+}
+
+content-window .select-ui {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+content-window .loader.running lucide-icon {
+  animation: spin 2s linear infinite;
+  font-size: 4em;
+}
+
+content-window .loader img {
+  width: 4em;
+  border-radius: 40%;
+  box-shadow: 2px 2px 3px black;
+  animation: pulse 1s linear infinite;
+}
+
+content-window .loader img.hidden {
+  animation: none;
+}
+
+content-window .loader .title {
+  font-size: 1em;
+  margin-top: 0.5em;
+  filter: invert(100%);
+}
+
+@keyframes pulse {
+  100% {
+    transform: scale(120%);
+  }
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+content-window .hidden,
+content-window .navigation.hidden {
+  display: none;
+}
+
+content-window .navigation {
+  display: flex;
+  flex-direction: column;
+  grid-gap: 1.5em;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  top: 0;
+  left: calc(100% - 3em); /* TODO: figure out why 'right: 3em;' doesn't work */
+  height: 100%;
+  width: 3em;
+}
+
+content-window .navigation lucide-icon {
+  background-color: white;
+  border-radius: 50%;
+  font-size: 2em;
+  box-shadow: 1px 1px 2px black;
+}
+
+content-window .overscroll {
+  position: relative;
+  top: 1em;
+  left: 0;
+  height: max-content;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 1;
+  transition: opacity 1s;
+  pointer-events: none;
+}
+
+content-window .overscroll.hidden {
+  opacity: 0;
+  transition: opacity 1s;
+}
+
+content-window .overscroll.will-reload lucide-icon {
+  color: var(--icon-background-active);
+  transition: none;
+}
+
+content-window .overscroll.hidden lucide-icon {
+  transform: rotate(360deg);
+  transition: all 3s;
+  background-color: white;
+}
+
+content-window .overscroll lucide-icon {
+  background-color: black;
+  color: white;
+  border-radius: 50%;
+  font-size: 1.5em;
+  box-shadow: 1px 1px 2px black;
+  padding: 0.25em;
+  transform: none;
+  transition: transform 1s, color 2s, background-color 2s;
+}

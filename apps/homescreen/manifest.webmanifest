@@ -1,0 +1,32 @@
+{
+  "name": "Homescreen",
+  "description": "b2gOS Homescreen",
+  "orientation": "default",
+  "start_url": "/index.html",
+  "b2g_features": {
+    "core": true,
+    "role": "homescreen",
+    "developer": {
+      "name": "The b2gOS Team"
+    },
+    "permissions": {
+      "contacts": { "access": "readwrite" },
+      "content-manager": {},
+      "settings": { "access": "readwrite" },
+      "systemXHR": {},
+      "webapps-manage": {},
+      "web-view": {}
+    },
+    "serviceworker": {
+      "script_url": "sw.js"
+    },
+    "activities": {
+      "add-to-home": {
+        "returnValue": true
+      },
+      "new-tab": {},
+      "toggle-app-list": {}
+    }
+  },
+  "version": "1.0"
+}

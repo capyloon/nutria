@@ -1,0 +1,42 @@
+/* <audio-volume> styling */
+
+:host {
+  position: absolute;
+  top: 30%; /* TODO: device specific positioning */
+  right: 1em;
+  padding: 0.4em;
+  border-radius: 5px;
+  background-color: var(--dialog-background);
+  color: var(--dialog-text);
+
+  transform: translateX(45%) rotate(-90deg);
+  transition: transform 0.25s;
+  z-index: 50000;
+}
+
+:host div {
+  display: flex;
+  align-items: center;
+}
+
+:host(.offscreen) {
+  transform: translateX(calc(100% + 1em)) rotate(-90deg);
+  transition: transform 0.25s, opacity 0.25s;
+  opacity: 0.5;
+}
+
+:host lucide-icon {
+  font-size: 1.5em;
+  transform: rotate(90deg);
+}
+
+:host meter {
+  flex: 1;
+  min-width: 25vh;
+  height: 5px;
+  background: rgb(30, 30, 30);
+}
+
+:host meter::-moz-meter-bar {
+  background: var(--button-background-active);
+}

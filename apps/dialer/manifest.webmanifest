@@ -1,0 +1,25 @@
+{
+  "name": "Dialer",
+  "description": "Receive and Send Calls",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "/icons/dialer.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "developer": {
+      "name": "The b2gOS team"
+    },
+    "permissions": {
+      "audio-channel-telephony": {},
+      "contacts": { "access": "read" },
+      "desktop-notification": {},
+      "telephony": {}
+    }
+  },
+  "version": "1.0"
+}

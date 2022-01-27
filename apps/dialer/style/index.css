@@ -1,0 +1,148 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  font-family: "Open Sans", "sans serif";
+  overflow-x: hidden;
+  color: lightgrey;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: linear-gradient(
+    0deg,
+    rgba(50, 50, 50, 1) 0%,
+    rgba(10, 10, 10, 1) 100%
+  );
+  padding: 1em;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.filler {
+  flex: 1;
+}
+
+body button {
+  font-size: 2em;
+  color: lightgrey;
+  min-width: 4em;
+  display: flex;
+  justify-content: center;
+}
+
+#accept-reject,
+#on-call,
+#wait-outgoing {
+  display: flex;
+  justify-content: space-around;
+}
+
+#btn-accept,
+#btn-dial {
+  background-color: darkgreen;
+}
+
+#btn-dial {
+  min-width: 2em;
+  border-radius: 40%;
+}
+
+#btn-reject,
+#btn-reject2,
+#btn-hangup {
+  background-color: darkred;
+}
+
+#accept-reject.hidden,
+#on-call.hidden,
+#dialpad-container.hidden,
+#wait-outgoing.hidden {
+  display: none;
+}
+
+#on-call {
+  flex-direction: column;
+  align-items: center;
+  grid-gap: 2em;
+}
+
+#call-controls {
+  display: flex;
+  justify-content: space-around;
+  grid-gap: 2em;
+}
+
+#call-controls lucide-icon {
+  padding: 0.5em;
+  border-radius: 40%;
+  font-size: 1.5em;
+
+  background-color: var(--icon-background-inactive);
+  color: var(--icon-color-inactive);
+}
+
+#call-controls lucide-icon.active {
+  background-color: var(--icon-background-active);
+  color: var(--icon-color-active);
+}
+
+/* dialpad */
+
+#dialpad-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+#dialpad {
+  width: 90%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  text-align: center;
+  font-size: 2rem;
+  padding-bottom: 1em;
+}
+
+.number-display {
+  grid-column: 1 / span 3;
+  border-bottom: 1px solid;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  font-size: 1.25em;
+}
+
+.value {
+  flex: 1;
+  font-size: 2.25rem;
+  letter-spacing: 3px;
+}
+
+.digit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 0.3em;
+}
+
+.digit lucide-icon {
+  padding: 0;
+}
+
+.digit:active,
+.delete-key:active {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+}
+
+.letters {
+  font-size: small;
+}

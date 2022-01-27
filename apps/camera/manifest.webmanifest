@@ -1,0 +1,23 @@
+{
+  "name": "camera",
+  "description": "Take Beautiful Pictures",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "/icons/camera.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "developer": {
+      "name": "The b2gOS team"
+    },
+    "permissions": {
+      "camera": {},
+      "content-manager": {}
+    }
+  },
+  "version": "1.0"
+}

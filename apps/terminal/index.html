@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>WebPTY</title>
+    <meta charset="utf8" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="icons/terminal-square.svg" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="style/main.css" />
+    <link rel="stylesheet" href="xterm.js/xterm.css" />
+
+    <meta name="defaultLanguage" content="en-US" />
+    <meta name="availableLanguages" content="en-US" />
+    <link rel="localization" href="./locales/{locale}/main.ftl" />
+
+    <script src="xterm.js/xterm.js"></script>
+    <script src="xterm.js/xterm-addon-fit.js"></script>
+    <script src="xterm.js/xterm-addon-web-links.js"></script>
+    <script src="js/main.js"></script>
+  </head>
+  <body>
+    <div id="welcome">
+      <pre>
+    __    ___          ____  _____
+   / /_  |__ \ ____ _ / __ \/ ___/
+  / __ \ __/ // __ `// / / /\__ \ 
+ / /_/ // __// /_/ // /_/ /___/ / 
+/_.___//____/\__, / \____//____/  
+            /____/      
+        </pre
+      >
+      <button id="reconnect" data-l10n-id="open-terminal"></button>
+    </div>
+    <div id="xterm" class="hidden"></div>
+  </body>
+</html>

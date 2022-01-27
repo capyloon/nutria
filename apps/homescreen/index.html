@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
+    />
+    <meta id="theme-color" name="theme-color" content="transparent" />
+    <title>Home sweet home</title>
+
+    <meta name="defaultLanguage" content="en-US" />
+    <meta name="availableLanguages" content="en-US" />
+    <link rel="localization" href="./locales/{locale}/main.ftl" />
+    <link rel="stylesheet" href="style/index.css" type="text/css" />
+
+    <script src="js/config.js" defer></script>
+    <script src="js/dependencies.js"></script>
+    <script src="js/bootstrap.js"></script>
+  </head>
+  <body>
+    <section id="actions-panel">
+      <actions-wall id="actions-wall">
+        <!-- <action-box></action-box> components go here. -->
+      </actions-wall>
+    </section>
+    <section id="search-panel">
+      <div class="input no-blur">
+        <input data-l10n-id="search-box-placeholder" id="search-box" />
+        <lucide-icon
+          id="clear-search"
+          kind="x-circle"
+          class="hidden"
+        ></lucide-icon>
+      </div>
+      <div id="search-results" class="hidden">
+        <default-results id="default-search-results" class="no-blur hidden"></default-results>
+      </div>
+    </section>
+    <apps-list id="apps-list"></apps-list>
+  </body>
+</html>

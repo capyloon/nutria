@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
+    />
+    <meta name="theme-color" content="black" />
+    <title data-l10n-id="page-title"></title>
+
+    <meta name="defaultLanguage" content="en-US" />
+    <meta name="availableLanguages" content="en-US" />
+    <link rel="icon" href="icons/camera.svg" />
+    <link rel="localization" href="./locales/{locale}/main.ftl" />
+
+    <link rel="stylesheet" href="style/index.css" type="text/css" />
+
+    <script src="js/config.js"></script>
+    <script src="js/bootstrap.js"></script>
+  </head>
+  <body>
+    <video id="preview" class="center" controls autoplay></video>
+    <div id="controls">
+      <div class="left">
+        <lucide-icon id="front-back" kind="switch-camera"></lucide-icon>
+      </div>
+      <div class="center">
+        <lucide-icon id="shutter" kind="aperture"></lucide-icon>
+      </div>
+      <div class="right"></div>
+    </div>
+  </body>
+</html>

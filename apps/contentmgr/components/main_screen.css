@@ -1,0 +1,47 @@
+/* <main-screen> element styling */
+
+:host {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:host header {
+  padding: 0.5em;
+  overflow-x: scroll;
+  font-size: smaller;
+  display: flex;
+}
+
+:host header span:not(:last-child) {
+  cursor: pointer;
+}
+
+:host header span:hover:not(:last-child) {
+  text-decoration: underline;
+}
+
+:host .hidden {
+  display: none;
+}
+
+:host #main {
+  flex: 1;
+  overflow: hidden;
+}
+
+:host footer {
+  display: flex;
+}
+
+:host footer div {
+  font-size: 1.5em;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  flex: 1;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}

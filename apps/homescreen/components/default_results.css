@@ -1,0 +1,42 @@
+/* Styling for the <default-results> component */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+:host .icons {
+  display: flex;
+  border-top: 1px solid var(--light-color);
+  justify-content: space-evenly;
+}
+
+:host .icons div {
+  flex: 1;
+  font-size: 1.5em;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+}
+
+:host .icons .active {
+  background-color: var(--light-color);
+  color: var(--default-color);
+}
+
+:host .icons .go-home {
+  flex: 0;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+:host .results {
+  overflow: scroll;
+}
+
+:host .breadcrumb {
+  font-weight: bolder;
+  border-bottom: 1px solid currentColor;
+}

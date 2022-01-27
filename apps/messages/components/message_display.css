@@ -1,0 +1,41 @@
+/* Styling for <thread-head> */
+
+:host {
+  display: flex;
+}
+
+:host(.sent) {
+  justify-content: end;
+}
+
+:host .message {
+  max-width: 70%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  padding: 0.5em;
+  margin: 0.5em;
+  border-radius: 5px;
+}
+
+:host .timestamp {
+  font-size: x-small;
+}
+
+:host(.sent) .timestamp {
+  text-align: end;
+}
+
+:host .body {
+  font-size: smaller;
+  font-weight: bolder;
+}
+
+:host(.received) .message {
+  background-color: darkgray;
+}
+
+:host(.sent) .message {
+  background-color: lightsteelblue;
+  align-items: flex-end;
+}

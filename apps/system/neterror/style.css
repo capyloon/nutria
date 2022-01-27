@@ -1,0 +1,22 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  font-family: "Open Sans", "sans serif";
+}
+
+body {
+  padding: 1em;
+}
+
+#view {
+  border-left: 3px solid gray;
+  padding-left: 0.5em;
+  margin: 1em;
+}
+
+button {
+  font-size: larger;
+  padding: 0.4em;
+}

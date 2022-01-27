@@ -1,0 +1,104 @@
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  font-family: sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  display: flex;
+  flex-direction: column-reverse;
+  pointer-events: none;
+}
+
+#vkb {
+  font-family: sans-serif;
+  background: rgb(233, 237, 244);
+  user-select: none;
+  pointer-events: auto;
+  height: 180px; /* Same as keyboard-height in shared/style/themes/default/theme.css */
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+#vkb div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#vkb span.outer {
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#vkb span.keycap,
+.bubble {
+  font-size: larger;
+  width: calc((100vw - 4px) / 10 - 4px);
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: rgba(0, 0, 0, 0.7);
+  background-color: white;
+  box-shadow: 0 0 3px -1px rgba(0, 0, 0, 0.3);
+  border-radius: 5px;
+  border-bottom: 1px solid #b5b5b5;
+}
+
+#vkb span.keycap:active {
+  background-color: rgb(230, 234, 241);
+}
+
+#vkb span.keycap.style-secondary {
+  background-color: rgb(173, 181, 187);
+}
+
+#vkb span.keycap.style-primary {
+  background-color: teal;
+}
+
+#vkb span.size-large {
+  width: 15vw;
+}
+
+#vkb span.size-wide {
+  width: initial;
+  flex: 1;
+}
+
+#vkb span.keycap.reduce-font-size {
+  font-size: initial;
+}
+
+#vkb span.keycap.layout-description {
+  font-size: small;
+  animation: desctext 1s both ease;
+}
+
+@keyframes desctext {
+  0% {
+    color: rgba(0, 0, 0, 1);
+  }
+  100% {
+    color: rgba(0, 0, 0, 0.25);
+  }
+}
+
+.bubble {
+  position: absolute;
+  background-color: rgb(30, 34, 41);
+  color: white;
+}

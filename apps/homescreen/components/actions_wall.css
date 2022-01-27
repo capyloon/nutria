@@ -1,0 +1,8 @@
+/* styling for <actions-wall> */
+
+:host {
+  background: none;
+  position: relative;
+  min-height: 100%;
+  display: block;
+}

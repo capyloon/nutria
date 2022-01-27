@@ -1,0 +1,65 @@
+/* <context-menu> styling */
+
+:host {
+  max-width: 100%;
+  max-height: 100%;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 1em;
+  border-radius: 5px;
+  background-color: var(--dialog-background);
+  color: var(--dialog-text);
+  font-size: larger;
+  -moz-user-focus: ignore;
+}
+
+:host h4 {
+  width: 100%;
+  border-bottom: 2px solid var(--dialog-text);
+  padding-bottom: 0.5em;
+  margin-bottom: 0;
+  margin-top: 0;
+  text-align: center;
+}
+
+:host li {
+  padding: 0.25em;
+  overflow: scroll;
+  max-width: 90%;
+}
+
+:host li.selected {
+  background-color: var(--button-background-active);
+  color: var(--dialog-background);
+}
+
+:host ul {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0.5em;
+  margin-top: 0.5em;
+  flex: 1;
+  overflow-y: scroll;
+}
+
+/* Using <button> always steals the focus, so we create a fake button look and feel here :( */
+:host .button-ok {
+  -moz-appearance: none;
+  max-width: 10rem;
+  min-width: 5rem;
+  border: none;
+  border-radius: 0.5em;
+  background: var(--button-background-active, gray);
+  color: var(--button-color-active);
+  outline: none;
+  padding: 0.75rem;
+  font-size: 1rem;
+  text-align: center;
+}
+
+:host .button-ok:active {
+  filter: brightness(1.2);
+}

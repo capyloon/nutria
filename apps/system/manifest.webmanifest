@@ -1,0 +1,46 @@
+{
+  "name": "System",
+  "description": "System UI",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "/style/icons/system.png",
+      "type": "image/png",
+      "sizes": "84x84"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "role": "system",
+    "developer": {
+      "name": "The b2gOS Team"
+    },
+    "permissions": {
+      "content-manager": {},
+      "datacall": {},
+      "downloads": {},
+      "flashlight": {},
+      "power": {},
+      "process-manager": {},
+      "settings": { "access": "readwrite" },
+      "telephony": {},
+      "webapps-manage": {},
+      "wifi-manage": {}
+    },
+    "serviceworker": {
+      "script_url": "swproxy/sw.js",
+      "options": {
+        "scope": "swproxy/"
+      }
+    },
+    "activities": {
+      "launch": {
+        "filters": {
+          "url": { "required": true }
+        },
+        "returnValue": false
+      }
+    }
+  },
+  "version": "1.0"
+}

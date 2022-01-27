@@ -1,0 +1,28 @@
+/* Styling for <thread-head> */
+
+:host .container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em;
+    padding: 0.5em;
+}
+
+:host .container .head{
+    display: flex;
+}
+
+:host .participants {
+    flex: 1;
+    font-weight: bold;
+}
+
+:host .timestamp {
+    font-size: smaller;
+}
+
+:host .summary {
+    font-size: smaller;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

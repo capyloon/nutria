@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
+    />
+    <meta name="theme-color" content="#1b262c" />
+    <title data-l10n-id="page-title"></title>
+
+    <meta name="defaultLanguage" content="en-US" />
+    <meta name="availableLanguages" content="en-US" />
+    <link rel="icon" href="icons/contacts.svg" />
+    <link rel="localization" href="./locales/{locale}/main.ftl" />
+
+    <link rel="stylesheet" href="style/index.css" type="text/css" />
+
+    <script src="js/config.js"></script>
+    <script src="js/bootstrap.js"></script>
+  </head>
+  <body>
+    <div id="contacts"></div>
+    <div id="edit-dialog" class="hidden">
+      <div>
+        <h4 data-l10n-id="new-contact-title"></h4>
+        <label for="name-input" data-l10n-id="label-name"></label>
+        <input id="name-input" />
+        <label for="phone-input" data-l10n-id="label-phone"></label>
+        <input id="phone-input" />
+        <label for="email-input" data-l10n-id="label-email"></label>
+        <input id="email-input" />
+        <div class="button-container">
+          <button data-l10n-id="button-ok" id="button-ok"></button>
+          <button data-l10n-id="button-cancel" id="button-cancel"></button>
+        </div>
+      </div>
+    </div>
+    <div id="floating-menu">
+      <lucide-icon
+        id="edit-icon"
+        kind="edit"
+        size="1.5em"
+        class="on-selection"
+      ></lucide-icon>
+      <lucide-icon
+        id="trash-icon"
+        kind="trash-2"
+        size="1.5em"
+        class="on-selection"
+      ></lucide-icon>
+      <lucide-icon
+        id="create-icon"
+        kind="plus-circle"
+        size="1.5em"
+      ></lucide-icon>
+    </div>
+  </body>
+</html>

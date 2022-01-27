@@ -1,0 +1,26 @@
+{
+  "name": "UITests",
+  "description": "Playground for UI features",
+  "start_url": "/index.html",
+  "b2g_features": {
+    "core": true,
+    "developer": {
+      "name": "The b2gOS team"
+    },
+    "permissions": {
+      "audio-channel-normal": {
+        "description": "Needed to play this app's audio content on the normal channel"
+      },
+      "audio-channel-content": {
+        "description": "Needed to play this app's audio content on the content channel"
+      },
+      "desktop-notification": {},
+      "systemXHR": {},
+      "web-view": {}
+    },
+    "serviceworker": {
+      "script_url": "sw.js"
+    }
+  },
+  "version": "1.0"
+}

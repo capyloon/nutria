@@ -1,0 +1,31 @@
+/* Styling for a media-item search result */
+
+:host {
+  padding: 0.5em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  background-color: gray;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  margin-top: 0.5em;
+  border-radius: 1em;
+  cursor: pointer;
+}
+
+:host .icon {
+  width: 1.5em;
+  border-radius: 40%;
+  backdrop-filter: blur(3px);
+}
+
+:host .text {
+  backdrop-filter: blur(3px);
+  text-shadow: black 1px 1px;
+  /* See https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-line-clamp */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}

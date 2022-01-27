@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
+    />
+    <title>b2gOS</title>
+
+    <meta name="defaultLanguage" content="en-US" />
+    <meta name="availableLanguages" content="en-US" />
+    <link rel="localization" href="main.ftl" />
+    <link rel="stylesheet" href="style/index.css" />
+
+    <!-- embedding API provider -->
+    <script src="chrome://b2g/content/embedding/web-embedder.js"></script>
+
+    <!--
+      Fluent l10n setup
+      We don't lazy load it because it's needed at startup to localize the boot screen.
+    -->
+    <script src="js/config.js"></script>
+    <script src="js/fluent.js"></script>
+
+    <script src="js/embedding.js"></script>
+    <script src="js/dependencies.js"></script>
+    <script src="js/bootstrap.js" type="module"></script>
+  </head>
+  <body>
+    <div id="logo" class="starting">
+      <div class="title">b2gOS</div>
+      <div class="powered-by" data-l10n-id="logo-powered-by"></div>
+      <img src="resources/logo-b2g.webp" />
+      <div class="action starting" data-l10n-id="logo-starting"></div>
+      <div class="action shutdown" data-l10n-id="logo-shutdown"></div>
+      <div class="action reboot" data-l10n-id="logo-reboot"></div>
+    </div>
+
+    <div id="screen">
+      <div id="status-top"></div>
+      <window-manager id="wm"></window-manager>
+      <status-bar id="statusbar"></status-bar>
+    </div>
+
+    <div id="backdrop" class="hidden">
+      <reboot-menu class="offscreen"></reboot-menu>
+      <quick-settings class="offscreen"></quick-settings>
+      <context-menu class="offscreen"></context-menu>
+      <site-info class="offscreen"></site-info>
+    </div>
+
+    <url-edit class="offscreen"></url-edit>
+    <webext-browser-action class="offscreen"></webext-browser-action>
+
+    <input-method class="offscreen"></input-method>
+    <lock-screen id="lockscreen" class="hidden"></lock-screen>
+    <audio-volume id="audiovolume" class="offscreen" hidden></audio-volume>
+    <toaster-container id="toaster" class="offscreen"></toaster-container>
+  </body>
+</html>

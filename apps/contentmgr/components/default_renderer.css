@@ -1,0 +1,23 @@
+/* <default-renderer> styling */
+
+default-renderer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+default-renderer web-view,
+default-renderer iframe {
+  flex: 1;
+  object-position: center;
+  object-fit: contain;
+  background-color: white;
+  border: none;
+  margin: 0 0.5em 0 0.5em;
+}
+
+default-renderer .info {
+  font-size: smaller;
+  padding: 0.5em;
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Keyboard",
+  "description": "Virtual Keyboard",
+  "start_url": "/index.html",
+  "b2g_features": {
+    "core": true,
+    "role": "input",
+    "developer": {
+      "name": "The b2gOS team"
+    },
+    "permissions": {
+      "input": {}
+    }
+  },
+  "version": "1.0"
+}

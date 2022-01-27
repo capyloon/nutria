@@ -1,0 +1,93 @@
+:host {
+  display: flex;
+  border-radius: 0.5em;
+  background-color: rgba(0, 0, 0, 0.5);
+  height: 95vh;
+  width: 90vw;
+  position: absolute;
+  top: 5vh;
+  left: 5vw;
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+/* Desktop mode */
+@media (min-width: 800px) {
+  :host {
+    width: 70vw;
+    left: 15vw;
+    height: 90vh;
+    top: 10vh;
+  }
+}
+
+:host(.open) {
+  flex-direction: column;
+  opacity: 1;
+  transform: none;
+  transition: all 0.3s;
+}
+
+:host .container {
+  overflow-y: scroll;
+  display: grid;
+  gap: 1em;
+  padding: 1em;
+  place-items: center;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(var(--action-box-width), 1fr)
+  );
+  grid-auto-rows: fit-content(100%);
+  height: 100%;
+}
+
+:host .container > action-bookmark {
+  width: var(--action-box-width);
+  height: var(--action-box-height);
+  cursor: pointer;
+}
+
+:host .menu {
+  position: absolute;
+  background-color: var(--dialog-background);
+  color: var(--dialog-text);
+  border-radius: 5px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0.5em;
+  border-radius: 5px;
+  font-size: larger;
+}
+
+:host .menu h4 {
+  border-bottom: 1px solid var(--dialog-text);
+  padding-bottom: 0.25em;
+  margin-bottom: 0;
+  margin-top: 0;
+  width: 100%;
+}
+
+:host .menu li {
+  padding-bottom: 0.35em;
+  padding-top: 0.35em;
+  font-size: 0.9em;
+  display: flex;
+  gap: 0.5em;
+  cursor: pointer;
+}
+
+:host .menu ul {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+:host .hidden,
+:host li.hidden {
+  display: none;
+}

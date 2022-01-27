@@ -1,0 +1,50 @@
+/* <web-notification> style */
+
+/*
+   Uses the technique described in https://nemzes.net/posts/animating-height-auto/
+   to animate into a closing state.
+*/
+
+:host {
+  display: grid;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+  visibility: visible;
+  transition: grid-template-rows 0.25s, visibility 0.25s;
+}
+
+:host .notification {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5em;
+  align-items: center;
+  max-height: 20vh; /* arbitrary large value */
+
+  align-self: start;
+  min-height: 0;
+}
+
+:host .icon {
+  width: 3em;
+}
+
+:host .center {
+  flex: 1;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+:host .title {
+  font-weight: bold;
+}
+
+:host .close-icon {
+  font-size: 1.5em;
+  padding-left: 0.25em;
+}
+
+:host(.closing) {
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  opacity: 0.5;
+}

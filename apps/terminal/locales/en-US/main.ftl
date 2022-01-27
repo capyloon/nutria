@@ -1,0 +1,1 @@
+open-terminal = Open Terminal

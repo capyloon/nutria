@@ -1,0 +1,67 @@
+/* <webext-browser-action> styling */
+
+webext-browser-action {
+  --margin: 1.5em;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.25s;
+  backdrop-filter: blur(5px);
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+webext-browser-action.keyboard-open {
+  /* 100% - height(keyboard) + margin
+       We add the margin to visually remove the bottom margin and keep a bit more height.
+    */
+  height: calc(100% - var(--keyboard-height) + var(--margin));
+}
+
+webext-browser-action.offscreen {
+  transform: translateY(calc(100% + 1em));
+  transition: transform 0.25s;
+}
+
+webext-browser-action .container {
+  margin: var(--margin);
+  border-radius: 5px;
+  padding: 1em;
+  font-size: smaller;
+  font-family: sans-serif;
+  color: var(--dialog-text);
+  background-color: var(--dialog-background);
+  width: calc(100% - 2 * var(--margin));
+  height: calc(100% - 2 * var(--margin));
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+/* Desktop mode */
+@media (min-width: 800px) {
+  webext-browser-action .container {
+    width: 50%;
+    margin-left: auto;
+  }
+}
+
+webext-browser-action web-view {
+  flex: 1;
+  border: 1px solid currentColor;
+  background-color: currentColor;
+}
+
+webext-browser-action footer {
+  display: flex;
+  align-items: center;
+}
+
+webext-browser-action footer lucide-icon {
+  font-size: 1.5em;
+}
+
+webext-browser-action footer browser-action {
+  flex: 1;
+}

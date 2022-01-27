@@ -1,0 +1,19 @@
+{
+  "name": "Terminal",
+  "description": "Because you like the command line",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "/icons/terminal-square.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "developer": {
+      "name": "The b2gOS team"
+    }
+  },
+  "version": "1.0"
+}

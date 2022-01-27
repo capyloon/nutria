@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
+    />
+    <meta name="theme-color" content="#323232" />
+    <title data-l10n-id="page-title"></title>
+
+    <meta name="defaultLanguage" content="en-US" />
+    <meta name="availableLanguages" content="en-US" />
+    <link rel="icon" href="icons/dialer.svg" />
+    <link rel="localization" href="./locales/{locale}/main.ftl" />
+
+    <link rel="stylesheet" href="style/index.css" type="text/css" />
+
+    <script src="js/config.js"></script>
+    <script src="js/main.js"></script>
+  </head>
+  <body>
+    <h1 id="page-title"></h1>
+    <h2 id="number"></h2>
+    <div class="filler"></div>
+    <!-- UI panel to dial an outgoing call -->
+    <div id="dialpad-container" class="hidden">
+      <div id="dialpad">
+        <div class="number-display">
+          <div id="dialed-number" class="value"></div>
+          <lucide-icon kind="delete" class="delete-key"></lucide-icon>
+        </div>
+        <div class="digit" data-digit="1">1</div>
+        <div class="digit" data-digit="2">2<div class="letters">abc</div></div>
+        <div class="digit" data-digit="3">3<div class="letters">def</div></div>
+        <div class="digit" data-digit="4">4<div class="letters">ghi</div></div>
+        <div class="digit" data-digit="5">5<div class="letters">jkl</div></div>
+        <div class="digit" data-digit="6">6<div class="letters">mno</div></div>
+        <div class="digit" data-digit="7">7<div class="letters">pqrs</div></div>
+        <div class="digit" data-digit="8">8<div class="letters">tuv</div></div>
+        <div class="digit" data-digit="9">9<div class="letters">wxyz</div></div>
+        <div class="digit" data-digit="*" data-secdigit="*">&nbsp;<div class="letters">*</div></div>
+        <div class="digit" data-digit="0" data-secdigit="+">0<div class="letters">+</div></div>
+        <div class="digit" data-digit="#" data-secdigit="#">&nbsp<div class="letters">#</div></div>
+      </div>
+      <!-- <div class="digit"><lucide-icon kind="check"></lucide-icon></div> -->
+      <button id="btn-dial" data-l10n-id="dial">
+        <lucide-icon kind="phone"></lucide-icon>
+      </button>
+    </div>
+    <!-- UI panel when an incoming call needs to be accepted or rejected -->
+    <div id="accept-reject" class="hidden">
+      <button id="btn-accept" data-l10n-id="accept">
+        <lucide-icon kind="phone"></lucide-icon>
+      </button>
+      <button id="btn-reject" data-l10n-id="reject">
+        <lucide-icon kind="phone-off"></lucide-icon>
+      </button>
+    </div>
+    <!-- UI panel when an outgoing call is waiting to be accepted or rejected -->
+    <div id="wait-outgoing" class="hidden">
+      <button id="btn-reject2" data-l10n-id="reject">
+        <lucide-icon kind="phone-off"></lucide-icon>
+      </button>
+    </div>
+    <!-- UI panel when on a call -->
+    <div id="on-call" class="hidden">
+      <div id="call-controls">
+        <lucide-icon id="btn-mute" kind="mic-off" class="inactive">
+        </lucide-icon>
+        <lucide-icon id="btn-dialpad" kind="grid" class="inactive">
+        </lucide-icon>
+        <lucide-icon id="btn-speaker" kind="volume-1" class="inactive">
+        </lucide-icon>
+      </div>
+      <button id="btn-hangup" data-l10n-id="hangup">
+        <lucide-icon kind="phone-off"></lucide-icon>
+      </button>
+    </div>
+  </body>
+</html>

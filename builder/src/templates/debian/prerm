@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Remove icons from the system icons
+
+for icon in default128.png default16.png default256.png default32.png default48.png default64.png ; do
+  size="$(echo ${icon} | sed 's/[^0-9]//g')"
+  rm "/usr/share/icons/hicolor/${size}x${size}/apps/b2g-os.png" || true
+done
+
+UPDATE_MENUS="`which update-menus 2> /dev/null || true`"
+if [ -x "$UPDATE_MENUS" ]; then
+  update-menus
+fi
+
+# Update cache of .desktop file MIME types. Non-fatal since it's just a cache.
+update-desktop-database > /dev/null 2>&1 || true
+
+systemctl stop b2ghald || true
+systemctl disable b2ghald || true

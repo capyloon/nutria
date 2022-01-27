@@ -1,0 +1,42 @@
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  font-family: "Open Sans", "sans serif";
+  background-color: rgba(0, 0, 0, 0.2);
+  color: white;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.name {
+  font-weight: bold;
+}
+
+.date {
+  font-size: x-small;
+}
+
+#container {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  width: 100%;
+  height: 100%;
+}
+
+#container > * {
+  padding: 0.25em;
+  scroll-snap-align: start;
+  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}

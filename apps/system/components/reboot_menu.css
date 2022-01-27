@@ -1,0 +1,50 @@
+/* <reboot-menu> styling */
+
+:host {
+  position: absolute;
+  top: 30%; /* TODO: device specific positioning */
+  right: 1em;
+  width: min-content;
+  white-space: nowrap;
+  padding: 1em;
+  border-radius: 5px;
+  font-size: smaller;
+  background-color: var(--dialog-background);
+  color: var(--dialog-text);
+
+  transform: translateX(0);
+  transition: transform 0.25s;
+}
+
+:host div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+:host(.offscreen) {
+  transform: translateX(calc(100% + 1em));
+  transition: transform 0.25s;
+}
+
+:host div.shutdown {
+  border-bottom: 1px solid var(--dialog-text);
+  padding-bottom: 1em;
+  width: 100%;
+}
+
+:host div.reboot {
+  padding-top: 1em;
+  padding-bottom: 1em;
+  width: 100%;
+}
+
+:host div.screenshot {
+  border-top: 1px solid var(--dialog-text);
+  padding-top: 1em;
+  width: 100%;
+}
+
+:host lucide-icon {
+  font-size: 1.5em;
+}

@@ -1,0 +1,22 @@
+[package]
+authors = ["Fabrice Desré <fabrice@desre.org>"]
+edition = "2021"
+license = "AGPL-3.0-only"
+name = "jackady"
+version = "0.1.0"
+
+[dependencies]
+blake2 = "0.10"
+clap = {version = "3.0", features = ["derive"]}
+env_logger = "0.9"
+fs_extra = "1.2"
+log = "0.4"
+mozdevice = "0.4"
+rayon = "1.5"
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+signal-hook = "0.3"
+target = "2.0"
+toml = "0.5"
+walkdir = "2.3"
+zip = {version = "0.5", default-features = false, features = ["deflate"]}

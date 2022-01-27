@@ -1,0 +1,58 @@
+/* <url-edit> styling */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: absolute;
+  bottom: 2.5em; /* TODO: don't hardcode statusbar height */
+  left: 0;
+  width: calc(100% - 2em);
+  max-height: 50vh;
+  padding: 1em;
+  border-radius: 5px;
+  font-size: smaller;
+  font-family: "Open Sans", "sans serif";
+  background-color: var(--dialog-background);
+  backdrop-filter: blur(10px);
+  color: white;
+  margin: 1em 1em 0 1em;
+  transition: transform 0.25s;
+  display: flex;
+  flex-direction: column;
+  -moz-user-focus: ignore;
+}
+
+/* Desktop mode */
+@media (min-width: 800px) {
+  :host {
+    width: 70%;
+    left: 15%;
+  }
+}
+
+:host(.offscreen) {
+  transform: translateY(calc(100% + 100vh));
+  transition: transform 0.25s;
+}
+
+:host(.keyboard-open) {
+  bottom: calc(var(--keyboard-height) + 2em);
+}
+
+/* similar to the one in the homescreen */
+:host input {
+  width: calc(100% - 1em);
+  font-size: 1rem;
+  background-color: rgba(255, 255, 255, 0.25);
+  color: white;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  padding: 0.5em;
+}
+
+:host #results {
+  overflow: scroll;
+  flex: 1;
+}

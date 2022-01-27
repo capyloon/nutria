@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=b2gOS
+Comment=Long Live The Web!
+Exec=/opt/b2gos/start.sh --type=session
+Icon=b2g-os
+Type=Application
+Categories=Network;

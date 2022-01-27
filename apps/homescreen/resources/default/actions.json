@@ -1,0 +1,58 @@
+[
+  {
+    "id": "default-1",
+    "kind": "bookmark",
+    "title": "Apps",
+    "url": "https://appsco.pe/",
+    "icon": "./resources/appscope.png",
+    "position": "0, 0"
+  },
+  {
+    "id": "default-2",
+    "kind": "bookmark",
+    "title": "Wikipedia",
+    "url": "https://en.wikipedia.org",
+    "icon": "./resources/wikipedia.png",
+    "position": "0, 1"
+  },
+  {
+    "id": "default-3",
+    "kind": "bookmark",
+    "title": "Matrix",
+    "url": "https://hydrogen.element.io/",
+    "icon": "./resources/matrix.png",
+    "position": "0, 2"
+  },
+  {
+    "id": "default-6",
+    "kind": "bookmark",
+    "title": "IPNS Filecoin",
+    "url": "ipns://filecoin.io",
+    "icon": "./resources/filecoin-logo.svg",
+    "position": "3, 1"
+  },
+  {
+    "id": "default-7",
+    "kind": "bookmark",
+    "title": "IPFS Wiki",
+    "url": "ipfs://bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq/wiki/",
+    "icon": "./resources/wikipedia.png",
+    "position": "3, 0"
+  },
+  {
+    "id": "default-4",
+    "kind": "widget",
+    "title": "World Clock",
+    "url": "http://widgets.localhost:__LOCAL_PORT__/worldclock/index.html",
+    "size": "2x1",
+    "position": "2, 4"
+  },
+  {
+    "id": "default-5",
+    "kind": "widget",
+    "title": "Weather",
+    "url": "http://widgets.localhost:__LOCAL_PORT__/weather/index.html",
+    "size": "2x2",
+    "position": "0, 3"
+  }
+]

@@ -1,0 +1,166 @@
+/* <lock-screen> styling */
+
+:host {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: rgb(200, 200, 200);
+}
+
+:host div.container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+:host .center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+}
+
+:host .left,
+:host .right {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  align-items: center;
+}
+
+.flex-fill {
+  flex: 1;
+}
+
+:host lucide-icon {
+  padding: 0.5em;
+  font-size: 1.5em;
+}
+
+:host lucide-icon.active {
+  color: var(--icon-background-active);
+}
+
+.clock {
+  text-align: center;
+  flex: 0.5;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.time {
+  font-weight: bold;
+  font-size: xx-large;
+}
+
+.slider {
+  flex: 1;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  width: 100%;
+  scrollbar-width: none;
+}
+
+.slider > div {
+  scroll-snap-align: start;
+  height: 100%;
+  width: 100%;
+}
+
+.slider-fill {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  align-items: center;
+  padding-bottom: 0.5em;
+}
+
+.lockpad {
+  width: 80%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  text-align: center;
+}
+
+.lockpad.disabled {
+  opacity: 0;
+}
+
+.code-display {
+  grid-column: 1 / span 3;
+  border-bottom: 1px solid;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.wrong-pin {
+  display: none;
+}
+
+.value {
+  flex: 1;
+  font-size: xx-large;
+  letter-spacing: 0.35em;
+}
+
+.code-display.error .value {
+  display: none;
+}
+
+.code-display.error .wrong-pin {
+  display: initial;
+  color: orange;
+  flex: 1;
+  font-size: x-large;
+}
+
+.emergency-display {
+  grid-column: 1 / span 3;
+}
+
+.digit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: larger;
+  padding-top: 1em;
+}
+
+.digit lucide-icon {
+  padding: 0;
+}
+
+.digit:active,
+.delete-key:active {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 25%;
+}
+
+.letters {
+  font-size: x-small;
+}
+
+.battery-icon {
+  transform: rotate(-90deg);
+  padding-right: 0;
+}
+
+.battery-level {
+  font-size: smaller;
+  transform: translateY(-1em);
+}
+
+.low-battery {
+  color: red;
+}

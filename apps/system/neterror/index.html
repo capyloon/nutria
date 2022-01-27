@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src http://system.localhost:8081; object-src 'none'"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
+    />
+    <meta charset="utf-8" />
+    <meta name="defaultLanguage" content="en-US" />
+    <!--
+      We can't use relative URLs, so we load both device and desktop
+      urls. Only one will load on each platform.
+    -->
+    <link
+      rel="stylesheet"
+      href="http://system.localhost:8081/neterror/style.css"
+    />
+    <link rel="stylesheet" href="http://system.localhost/neterror/style.css" />
+    <script src="http://system.localhost:8081/neterror/main.js"></script>
+    <script src="http://system.localhost/neterror/main.js"></script>
+  </head>
+  <body id="net-error">
+    <h1>Oops, we failed to load the site :(</h1>
+    <div id="view"></div>
+    <button id="reload">Reload</button>
+  </body>
+</html>

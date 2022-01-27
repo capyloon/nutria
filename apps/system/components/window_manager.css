@@ -1,0 +1,161 @@
+/* <window-manager> styling */
+
+window-manager > div.main {
+  height: 100%;
+  display: grid;
+}
+
+/* We create a stack by putting all the grid elements at the same place */
+window-manager > div.main > * {
+  grid-row: 1;
+  grid-column: 1;
+  height: 100%;
+  width: 100%;
+}
+
+window-manager .windows {
+  height: 100%;
+  /* Each child element is as wide as main in a single row */
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: min-content;
+  grid-template-rows: 1fr;
+
+  /* This element will overflow scroll and scroll-snap */
+  overflow-x: scroll;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+window-manager.lock-swipe .windows {
+  overflow-x: hidden;
+}
+
+window-manager .windows > content-window {
+  scroll-snap-align: start;
+  height: 100%;
+  width: 100vw;
+  overflow-y: hidden;
+}
+
+window-manager .windows > content-window.split {
+  width: 50vw;
+}
+
+window-manager .carousel {
+  height: 100%;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: 1fr;
+  grid-gap: 1em;
+
+  /* This element will overflow scroll and scroll-snap */
+  overflow-x: scroll;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+window-manager .carousel > div:not(.empty-carousel) {
+  scroll-snap-align: center;
+  height: 75%;
+  margin-top: auto;
+  margin-bottom: auto;
+  background-size: contain;
+}
+
+/* Desktop mode */
+@media (min-width: 800px) {
+  window-manager .carousel > div:not(.empty-carousel) {
+    height: 50%;
+  }
+}
+
+window-manager .carousel > div.screenshot {
+  background-color: rgba(255, 255, 255, 0.5);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: all 0.1s linear;
+  border-radius: 0.5em;
+}
+
+window-manager .carousel > div.screenshot.middle {
+  transform: scale(0.975);
+  filter: brightness(90%);
+  transition: all 0.1s linear;
+}
+
+window-manager .carousel > div.screenshot.sideline {
+  transform: scale(0.95);
+  filter: brightness(80%);
+  transition: all 0.1s linear;
+}
+
+window-manager .carousel > div.screenshot.closing {
+  transform: scale(0.75);
+  opacity: 0.5;
+  transition: all 0.1s linear;
+}
+
+window-manager .carousel > div.empty-carousel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+window-manager .carousel > div .head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+window-manager .carousel > div .head .close-icon {
+  background-color: var(--dialog-background);
+  color: var(--dialog-text);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 40%;
+  box-shadow: 2px 2px 3px black;
+  transform: translateY(1em);
+  font-size: 1.5em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+window-manager .carousel > div .head .favicon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 40%;
+  box-shadow: 2px 2px 3px black;
+  background-color: white;
+  transform: translateY(-1em);
+}
+
+window-manager .carousel .empty-carousel {
+  text-align: center;
+  color: var(--button-background-active);
+  text-shadow: black 1px 1px;
+}
+
+window-manager .carousel .empty-carousel img {
+  width: 128px;
+  height: 128px;
+  animation: logo-anim 6s linear infinite;
+}
+
+window-manager .carousel .empty-carousel .learn-something {
+  padding: 1em;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: bolder;
+}
+
+window-manager .hidden {
+  display: none;
+}

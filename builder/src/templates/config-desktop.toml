@@ -1,0 +1,35 @@
+# Configuration used for developement purposes, where apps are not zipped.
+[general]
+host = "0.0.0.0"
+port = 8081
+message_max_time = 5 # In ms.
+verbose_log = true
+log_path = "/tmp"
+remote_services_config = "./remote/config.toml"
+remote_services_path = "./remote"
+socket_path = "/tmp/api-daemon-socket"
+
+[http]
+root_path = "../prebuilts/http_root"
+
+[vhost]
+root_path = "../prebuilts/http_root/webapps/vroot"
+csp = "default-src * data: blob:; script-src 'self' http://127.0.0.1:8081 http://shared.localhost:8081; object-src 'none'; style-src 'self' http://shared.localhost:8081"
+report_csp = true
+
+[apps_service]
+root_path = "/home/fabrice/dev/otteros/scripts/profile/webapps"
+data_path = "../prebuilts/http_root/webapps"
+uds_path = "/tmp/apps_service_uds.sock"
+cert_type = "production"
+updater_socket = "/dev/socket/updater_socket"
+user_agent = "Mozilla/5.0 (Mobile; rv:98.0) Gecko/98.0 Firefox/98.0 B2GOS/2022.1"
+allow_remove_preloaded = true
+
+[procmanager_service]
+socket_path = "/tmp/b2gkiller_hints"
+hints_path = "/tmp/prochints.dat"
+
+[content_manager]
+storage_path = "/home/xxx/costaeres"
+metadata_cache_capacity = 250

@@ -1,0 +1,27 @@
+/* System UI theme */
+
+/* darkish theme */
+:root {
+    --default-text-color: darkslategray;
+
+    --dialog-background: rgb(50, 50, 50);
+    --dialog-text: lightgray;
+
+    --loader-background: rgba(0,0,0,0.5);
+    --loader-color: white;
+
+    --status-text-normal: lightslategray;
+    --status-text-highlum: rgb(50, 50, 50);
+
+    --icon-background-active: skyblue;
+    --icon-color-active: rgb(50, 50, 50);
+    --icon-background-inactive: lightslategray;
+    --icon-color-inactive: lightgray;
+
+    --button-background-active: skyblue;
+    --button-color-active: rgb(50, 50, 50);
+    --button-background-inactive: lightslategray;
+    --button-color-inactive: lightgray;
+
+    --keyboard-height: 180px;
+}

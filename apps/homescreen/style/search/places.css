@@ -1,0 +1,32 @@
+/* Styling for a places-item search result */
+
+:host {
+  display: flex;
+}
+
+:host .entry {
+  display: flex;
+  padding: 0.25em;
+  align-items: center;
+  grid-gap: 0.5em;
+  cursor: pointer;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+:host(:hover),
+:host(.selected) {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+:host .title {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:host img {
+  width: 1.5em;
+  border-radius: 40%;
+}

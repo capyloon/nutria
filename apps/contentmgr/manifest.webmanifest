@@ -1,0 +1,39 @@
+{
+  "name": "Content Manager",
+  "description": "Manage your data",
+  "start_url": "/index.html#root",
+  "icons": [
+    {
+      "src": "/icons/contentmgr.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "developer": {
+      "name": "The b2gOS team"
+    },
+    "permissions": {
+      "content-manager": {},
+      "web-view": {}
+    },
+    "serviceworker": {
+      "script_url": "sw.js"
+    },
+    "activities": {
+      "view-resource": {
+        "filters": {
+          "id": { "required": true }
+        }
+      },
+      "install-wasm-plugin": {
+        "filters": {
+          "url": { "required": true },
+          "json": { "required": true }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

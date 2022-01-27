@@ -1,0 +1,28 @@
+{
+  "name": "Messages",
+  "description": "Receive and Send SMS and MMS messages",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "/icons/messages.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "developer": {
+      "name": "The b2gOS team"
+    },
+    "permissions": {
+      "contacts": { "access": "read" },
+      "desktop-notification": {},
+      "sms": {}
+    },
+    "serviceworker": {
+      "script_url": "sw.js"
+    },
+    "messages": ["sms-received", "sms-delivery-success"]
+  },
+  "version": "1.0"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Shared",
+  "description": "Shared Code",
+  "start_url": "/index.html",
+  "b2g_features": {
+    "core": true,
+    "role": "system",
+    "developer": {
+      "name": "The b2gOS team"
+    }
+  },
+  "version": "1.0"
+}

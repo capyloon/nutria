@@ -1,0 +1,100 @@
+/* <site-info> styling */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: calc(100% - 2em);
+  padding: 1em;
+  border-radius: 5px;
+  font-size: smaller;
+  font-family: "Open Sans", "sans serif";
+  background-color: var(--dialog-background);
+  color: var(--dialog-text);
+  margin: 1em;
+  transition: transform 0.25s;
+}
+
+/* Desktop mode */
+@media (min-width: 800px) {
+  :host {
+    max-width: calc(min(50%, 400px));
+  }
+}
+
+:host(.offscreen) {
+  transform: translateY(calc(100% + 1em));
+  transition: transform 0.25s;
+}
+
+:host h4 {
+  border-bottom: 2px solid var(--dialog-text);
+  padding-bottom: 0.5em;
+  margin-bottom: 0.5em;
+  margin-top: 0;
+  display: flex;
+  column-gap: 0.5em;
+  align-items: center;
+}
+
+.favicon {
+  width: 2em;
+  border-radius: 40%;
+}
+
+.url {
+  font-style: italic;
+  font-weight: lighter;
+}
+
+.utils {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  grid-gap: 0.5em;
+  margin-top: 0.35em;
+}
+
+.utils:not(:last-of-type) {
+  margin-bottom: 0.35em;
+}
+
+:host lucide-icon {
+  font-size: 2em;
+}
+
+.flex-fill {
+  flex: 1;
+}
+
+.hidden {
+  display: none;
+}
+
+:host lucide-icon.active {
+  background-color: var(--icon-background-active);
+  color: var(--icon-color-active);
+  border-radius: 40%;
+}
+
+.nav-forward.disabled,
+.nav-back.disabled {
+  opacity: 20%;
+}
+
+.zoom-level {
+  font-size: smaller;
+  border-radius: 0.5em;
+  padding-left: 0.5em;
+  padding-right: 0.25em;
+  color: var(--dialog-background);
+  background-color: var(--dialog-text);
+  font-weight: bolder;
+}
+
+.tosdr-img {
+  cursor: pointer;
+}

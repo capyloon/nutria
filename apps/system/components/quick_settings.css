@@ -1,0 +1,129 @@
+/* <quick-settings> styling */
+
+:host {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: calc(100% - 2em);
+  padding: 1em;
+  border-radius: 5px;
+  font-size: smaller;
+  font-family: sans-serif;
+  background-color: var(--dialog-background);
+  color: var(--dialog-text);
+  margin: 1em;
+  transition: transform 0.25s;
+}
+
+/* Desktop mode */
+@media (min-width: 800px) {
+  :host {
+    margin-left: unset;
+    max-width: calc(min(50%, 400px));
+  }
+}
+
+:host(.offscreen) {
+  transform: translateY(calc(100% + 1em));
+  transition: transform 0.25s;
+}
+
+:host .container {
+  display: flex;
+  flex-direction: column;
+}
+
+:host .flex-fill {
+  flex: 1;
+}
+
+:host section.switches {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding-bottom: 1em;
+}
+
+:host section.switches lucide-icon:not(:last-child) {
+  margin-right: 0.5em;
+}
+
+:host section.notifications:not(:empty) {
+  border-top: 1px solid var(--dialog-text);
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  max-height: 40vh;
+  overflow-y: scroll;
+}
+
+:host section.notifications:not(:empty) > * {
+  padding-bottom: 0.5em;
+}
+
+:host lucide-icon {
+  padding: 0.5em;
+  border-radius: 40%;
+  font-size: 1.5em;
+}
+
+:host lucide-icon.active {
+  background-color: var(--icon-background-active);
+  color: var(--icon-color-active);
+}
+
+:host lucide-icon.inactive {
+  background-color: var(--icon-background-inactive);
+  color: var(--icon-color-inactive);
+}
+
+:host #brightness-section {
+  display: flex;
+}
+
+:host #brightness-section input {
+  flex: 1;
+}
+
+:host .telephony-info {
+  padding-left: 0.5em;
+  padding-bottom: 0.5em;
+  display: flex;
+  align-items: baseline;
+}
+
+:host .bars {
+  height: 1.25em;
+  display: flex;
+  align-items: end;
+  margin-right: 0.5em;
+}
+
+:host .bars > div {
+  width: 0.25em;
+  margin-left: 0.15em;
+  background-color: var(--dialog-text);
+}
+
+:host .bars > div.inactive {
+  filter: brightness(50%);
+}
+
+:host .bar0 {
+  height: 25%;
+}
+
+:host .bar1 {
+  height: 50%;
+}
+
+:host .bar2 {
+  height: 75%;
+}
+
+:host .bar3 {
+  height: 100%;
+}
+
+:host .adjust-brightness > :not(#brightness-section) {
+  display: none;
+}

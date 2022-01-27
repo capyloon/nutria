@@ -1,0 +1,35 @@
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  background-color: black;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#welcome {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  height: 100%;
+  width: 100%;
+}
+
+#xterm {
+  height: 100%;
+  width: 100%;
+}
+
+pre {
+  font-size: large;
+}
+
+#welcome.hidden,
+#xterm.hidden {
+  display: none;
+}

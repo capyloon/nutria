@@ -1,0 +1,8 @@
+Package: ${PKG_NAME}
+Version: ${VERSION}
+Maintainer: Fabrice Desré <fabrice@desre.org>
+Section: misc
+Priority: optional
+Standards-Version: 0.1
+Description: Long Live The Web!
+Architecture: ${ARCH}
