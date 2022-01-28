@@ -1,0 +1,12 @@
+{
+  "ums.enabled": false,
+  "ums.volume.external.enabled": true,
+  "ums.volume.extsdcard.enabled": true,
+  "ums.volume.sdcard.enabled": true,
+  "ums.volume.sdcard1.enabled": true,
+  "time.clock.automatic-update.enabled": true,
+  "time.timezone.automatic-update.enabled": true,
+  "ril.data.defaultServiceId": 0,
+  "geolocation.enabled": true,
+  "geolocation.debugging.enabled": true
+}
