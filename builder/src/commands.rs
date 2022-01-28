@@ -349,7 +349,7 @@ impl PushB2gCommand {
     }
 
     fn unpack(&self) {
-        let unpack_dest = std::env::temp_dir().join("capyloon").join("gecko");
+        let unpack_dest = std::env::temp_dir().join("nutria").join("gecko");
         // Try to remove any old one, and recreate it.
         let _ = std::fs::remove_dir_all(&unpack_dest);
         let _ = std::fs::create_dir_all(&unpack_dest);
@@ -394,7 +394,7 @@ impl AdbCommand for PushB2gCommand {
         let _timer = Timer::start_with_message("Gecko pushed", "Pushing Gecko...");
 
         let source = std::env::temp_dir()
-            .join("capyloon")
+            .join("nutria")
             .join("gecko")
             .join("b2g");
 

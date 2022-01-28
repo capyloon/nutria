@@ -31,27 +31,27 @@ impl Default for BuildConfig {
     fn default() -> Self {
         let cwd = env::current_dir().unwrap_or_else(|_| env::temp_dir());
 
-        let apps_source_path = match env::var("CAPYLOON_APPS_ROOT") {
+        let apps_source_path = match env::var("NUTRIA_APPS_ROOT") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid CAPYLOON_APPS_ROOT path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_APPS_ROOT path: {}", path)),
             Err(_) => cwd.join("apps"),
         };
 
         let output_path = Self::default_output_path();
 
-        let b2g_path = match env::var("CAPYLOON_B2G_BINARY") {
+        let b2g_path = match env::var("NUTRIA_B2G_BINARY") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid CAPYLOON_B2G_BINARY path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_B2G_BINARY path: {}", path)),
             Err(_) => cwd.join("b2g"),
         };
 
-        let daemon_path = match env::var("CAPYLOON_API_DAEMON_ROOT") {
+        let daemon_path = match env::var("NUTRIA_API_DAEMON_ROOT") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid CAPYLOON_API_DAEMON_ROOT path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_API_DAEMON_ROOT path: {}", path)),
             Err(_) => cwd,
         };
 
-        let daemon_port = match env::var("CAPYLOON_API_DAEMON_PORT") {
+        let daemon_port = match env::var("NUTRIA_API_DAEMON_PORT") {
             Ok(value) => value.parse().unwrap_or(DEFAULT_HTTP_PORT),
             Err(_) => DEFAULT_HTTP_PORT,
         };
@@ -101,9 +101,9 @@ impl BuildConfig {
     }
 
     pub fn daemon_binary(&self) -> PathBuf {
-        match env::var("CAPYLOON_API_DAEMON_BINARY") {
+        match env::var("NUTRIA_API_DAEMON_BINARY") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid CAPYLOON_API_DAEMON_BINARY path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_API_DAEMON_BINARY path: {}", path)),
             Err(_) => {
                 // Build a rustup target identifier.
                 let target = format!(
@@ -122,9 +122,9 @@ impl BuildConfig {
     }
 
     pub fn appscmd_binary(&self) -> PathBuf {
-        match env::var("CAPYLOON_APPSCMD_BINARY") {
+        match env::var("NUTRIA_APPSCMD_BINARY") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid CAPYLOON_APPSCMD_BINARY path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_APPSCMD_BINARY path: {}", path)),
             Err(_) => self
                 .daemon_path
                 .join("prebuilts")
@@ -135,29 +135,29 @@ impl BuildConfig {
 
     pub fn default_output_path() -> PathBuf {
         let cwd = env::current_dir().unwrap_or_else(|_| env::temp_dir());
-        match env::var("CAPYLOON_OUPUT_ROOT") {
+        match env::var("NUTRIA_OUPUT_ROOT") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid CAPYLOON_OUPUT_ROOT path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_OUPUT_ROOT path: {}", path)),
             Err(_) => cwd.join("output"),
         }
     }
 
     pub fn b2g_package() -> PathBuf {
-        match env::var("CAPYLOON_B2G_PACKAGE") {
+        match env::var("NUTRIA_B2G_PACKAGE") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid CAPYLOON_B2G_PACKAGE path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_B2G_PACKAGE path: {}", path)),
             Err(_) => {
-                panic!("Please set CAPYLOON_B2G_PACKAGE to the path of the b2g package.");
+                panic!("Please set NUTRIA_B2G_PACKAGE to the path of the b2g package.");
             }
         }
     }
 
     pub fn b2ghald_path() -> PathBuf {
-        match env::var("CAPYLOON_B2GHALD_ROOT") {
+        match env::var("NUTRIA_B2GHALD_ROOT") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid CAPYLOON_B2GHALD_ROOT path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_B2GHALD_ROOT path: {}", path)),
             Err(_) => {
-                panic!("Please set CAPYLOON_B2GHALD_ROOT to the path of the b2ghald directory.");
+                panic!("Please set NUTRIA_B2GHALD_ROOT to the path of the b2ghald directory.");
             }
         }
     }

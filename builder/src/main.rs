@@ -100,19 +100,19 @@ fn main() {
         info!("{}", s);
         info!("Environment:");
         [
-            "CAPYLOON_OUPUT_ROOT",
-            "CAPYLOON_API_DAEMON_ROOT",
-            "CAPYLOON_API_DAEMON_BINARY",
-            "CAPYLOON_API_DAEMON_PORT",
-            "CAPYLOON_APPS_ROOT",
-            "CAPYLOON_APPSCMD_BINARY",
-            "CAPYLOON_B2GHALD_ROOT",
-            "CAPYLOON_B2G_BINARY",
-            "CAPYLOON_B2G_PACKAGE",
+            "NUTRIA_OUPUT_ROOT",
+            "NUTRIA_API_DAEMON_ROOT",
+            "NUTRIA_API_DAEMON_BINARY",
+            "NUTRIA_API_DAEMON_PORT",
+            "NUTRIA_APPS_ROOT",
+            "NUTRIA_APPSCMD_BINARY",
+            "NUTRIA_B2GHALD_ROOT",
+            "NUTRIA_B2G_BINARY",
+            "NUTRIA_B2G_PACKAGE",
         ]
         .iter()
         .for_each(|name| {
-            // 26 = length of CAPYLOON_API_DAEMON_BINARY
+            // 26 = length of NUTRIA_API_DAEMON_BINARY
             info!("{:26} = {}", name, std::env::var(name).unwrap_or_default());
         });
 
