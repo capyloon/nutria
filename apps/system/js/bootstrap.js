@@ -198,20 +198,20 @@ async function installWebExtensions() {
   }
 
   extensions.forEach(async (extension) => {
-    let url = `http://shared.localhost:${config.port}/extensions/${extension}.xpi`;
+    let url = `http://shared.localhost:${config.port}/extensions/${extension.url}`;
     console.log(`WebExtensions: Installing ${extension} from ${url}`);
     try {
       let installed = false;
       try {
-        let addon = await navigator.mozAddonManager.getAddonByID(extension);
+        let addon = await navigator.mozAddonManager.getAddonByID(extension.id);
         installed = !!addon;
         installed &&
           console.log(
-            `WebExtensions:: the ${extension} extension is already installed: ${addon.name}, enabled=${addon.isEnabled} active=${addon.isActive}`
+            `WebExtensions:: the ${extension.id} extension is already installed: ${addon.name}, enabled=${addon.isEnabled} active=${addon.isActive}`
           );
       } catch (e) {
         console.log(
-          `WebExtensions: the ${extension} extension failed to install: ${e.stack}`
+          `WebExtensions: the ${extension.id} extension failed to install: ${e.stack}`
         );
       }
 
