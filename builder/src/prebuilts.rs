@@ -71,11 +71,7 @@ impl Task for DownloadTask {
             Some(segments) => segments.last().unwrap_or_default(),
             None => "<no package>",
         };
-        info!(
-            "Will download and unpack {} to {}",
-            package,
-            unpack_path.display()
-        );
+        info!("About to download and unpack {}", url.as_str());
 
         let _ = fs::create_dir_all(&self.topdir.join(".cache"));
         let cache_path = self.topdir.join(".cache").join(package);
@@ -168,9 +164,11 @@ pub fn update(config: BuildConfig) {
         let _ = fs::remove_dir_all(&prebuilts);
         let _ = fs::create_dir_all(&prebuilts);
 
-        let task = DownloadTask::new(&config);
-
         let mut env_file = File::create(&prebuilts.join("env")).expect("Failed to create env file");
+
+        let _ = writeln!(env_file, "export NUTRIA_APPS_ROOT={}/apps", topdir.display());
+
+        let task = DownloadTask::new(&config);
 
         if let Some(url) = &item.api_daemon {
             let url = Url::parse(&url).expect("Invalid url");

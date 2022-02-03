@@ -12,7 +12,15 @@ The included build system is available by running the `jackady` (spelled like th
 
 In order to develop locally, you need a stable Rust toolchain installed (eg. from https://rustup.rs/) since the first invocation of `jackady` will compile the build system.
 
-Creating debian packages depends on the `dpkg-deb` command from the `dpkg` package.
+Creating debian packages requires the `dpkg-deb` command from the `dpkg` package.
+
+# Quick Start
+
+Once your Rust toolchain is installed, you can get a running system with these 2 commands:
+1. `./jackady update-prebuilts`
+2. `./jackady dev`
+
+You can then make changes to apps and see the results live, except for the system UI and the homescreen which require a restart.
 
 # Build commands
 
