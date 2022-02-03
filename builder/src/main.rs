@@ -16,6 +16,7 @@ use crate::commands::{
 use crate::debian::DebianCommand;
 use clap::{AppSettings, Parser, Subcommand};
 use log::{error, info};
+use thiserror::Error;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -81,6 +82,22 @@ enum Commands {
     UpdatePrebuilts {},
 }
 
+#[derive(Error, Debug)]
+enum CommandError {
+    #[error("Io error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Configuration error: {0}")]
+    Configuration(String),
+    #[error("Desktop command error: {0}")]
+    DesktopCommand(#[from] crate::common::DesktopCommandError),
+    #[error("Debian command error: {0}")]
+    DebianCommand(#[from] crate::debian::DebianError),
+    #[error("Download task error: {0}")]
+    DownloadTaskError(#[from] crate::prebuilts::DownloadTaskError),
+    #[error("Other error: {0}")]
+    Other(String),
+}
+
 fn main() {
     env_logger::init();
 
@@ -123,31 +140,41 @@ fn main() {
 
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level app
-    match &cli.command {
+    let command_result: Result<(), CommandError> = match &cli.command {
         Commands::Prod { r#type, size } => {
             if config.set_output_name("prod").is_ok() {
-                ProdCommand::start(config, r#type.clone(), size.clone());
+                ProdCommand::start(config, r#type.clone(), size.clone()).map_err(|e| e.into())
             } else {
-                error!("Failed to configure 'prod' build");
+                Err(CommandError::Configuration(
+                    "Failed to configure 'prod' build".into(),
+                ))
             }
         }
         Commands::Dev { r#type, size } => {
             if config.set_output_name("dev").is_ok() {
-                DevCommand::start(config, r#type.clone(), size.clone());
+                DevCommand::start(config, r#type.clone(), size.clone()).map_err(|e| e.into())
             } else {
-                error!("Failed to configure 'dev' build");
+                Err(CommandError::Configuration(
+                    "Failed to configure 'dev' build".into(),
+                ))
             }
         }
-        Commands::ResetData {} => ResetDataCommand::start(),
-        Commands::ResetTime {} => ResetTimeCommand::start(),
-        Commands::Push { apps } => PushCommand::start(config, apps),
-        Commands::PushB2g { path } => PushB2gCommand::start(path),
-        Commands::Restart {} => RestartCommand::start(),
+        Commands::ResetData {} => ResetDataCommand::start().map_err(|e| CommandError::Other(e)),
+        Commands::ResetTime {} => ResetTimeCommand::start().map_err(|e| CommandError::Other(e)),
+        Commands::Push { apps } => {
+            PushCommand::start(config, apps).map_err(|e| CommandError::Other(e))
+        }
+        Commands::PushB2g { path } => {
+            PushB2gCommand::start(path).map_err(|e| CommandError::Other(e))
+        }
+        Commands::Restart {} => RestartCommand::start().map_err(|e| CommandError::Other(e)),
         Commands::Install { path } => {
             if config.set_output_path(path).is_ok() {
-                InstallCommand::start(config);
+                InstallCommand::start(config).map_err(|e| e.into())
             } else {
-                error!("Failed to setup installation path.");
+                Err(CommandError::Configuration(
+                    "Failed to setup installation path.".into(),
+                ))
             }
         }
         Commands::Deb { device } => {
@@ -167,9 +194,11 @@ fn main() {
                 }
 
                 config.daemon_port = 8081;
-                DebianCommand::start(config, &device);
+                DebianCommand::start(config, &device).map_err(|e| e.into())
             } else {
-                error!("Failed to configure 'debian' build");
+                Err(CommandError::Configuration(
+                    "Failed to configure 'debian' build.".into(),
+                ))
             }
         }
         Commands::Clean {} => {
@@ -179,12 +208,15 @@ fn main() {
                     config.output_path.display(),
                     err
                 );
+                Err(CommandError::Io(err))
+            } else {
+                Ok(())
             }
         }
-        Commands::UpdatePrebuilts {} => {
-            if let Err(err) = prebuilts::update(config) {
-                error!("update-prebuilts failed: {}", err);
-            }
-        }
+        Commands::UpdatePrebuilts {} => prebuilts::update(config).map_err(|e| e.into()),
+    };
+
+    if let Err(err) = command_result {
+        error!("Command failed: {}", err);
     }
 }

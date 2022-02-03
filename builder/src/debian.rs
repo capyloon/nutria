@@ -37,6 +37,7 @@ use std::io::{self, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use thiserror::Error;
 
 static DESKTOP_DESKTOP: &str = include_str!("templates/debian/b2gos-desktop.desktop");
 static MOBILE_DESKTOP: &str = include_str!("templates/debian/b2gos-mobile.desktop");
@@ -52,6 +53,13 @@ static B2GHALD_SERVICE: &str = include_str!("templates/debian/b2ghald.service");
 static PACKAGE_NAME: &str = "b2gos";
 static PACKAGE_VERSION: &str = "0.1";
 
+#[derive(Error, Debug)]
+pub enum DebianError {
+    #[error("Desktop command error: {0}")]
+    DesktopCommand(#[from] crate::common::DesktopCommandError),
+    #[error("Other error: {0}")]
+    Other(String),
+}
 pub struct DebianCommand;
 
 impl DesktopCommand for DebianCommand {
@@ -67,13 +75,16 @@ impl DesktopCommand for DebianCommand {
 macro_rules! template {
     ($template:expr, $path:expr, $perms:expr) => {
         if let Err(err) = Self::copy_template($template, &$path, $perms) {
-            error!("Failed to create {}: {}", $path.display(), err);
-            return;
+            return Err(DebianError::Other(format!(
+                "Failed to create {}: {}",
+                $path.display(),
+                err
+            )));
         }
     };
 }
 impl DebianCommand {
-    pub fn start(config: BuildConfig, device: &str) {
+    pub fn start(config: BuildConfig, device: &str) -> Result<(), DebianError> {
         let mut config = config;
         let _timer = Timer::start_with_message(
             &format!("Debian {} package created", device),
@@ -87,7 +98,7 @@ impl DebianCommand {
             dtype: None,
             size: None,
         };
-        Self::run(&config, params);
+        Self::run(&config, params)?;
 
         // Copy the various templated files for desktop environment integration.
         template!(START_SH, output.join("start.sh"), Some(0o755));
@@ -139,13 +150,17 @@ impl DebianCommand {
         match status {
             Ok(exit) => {
                 if exit.code() != Some(0) {
-                    error!("Unexpected result code unpacking gecko: {}", exit);
-                    return;
+                    return Err(DebianError::Other(format!(
+                        "Unexpected result code unpacking gecko: {}",
+                        exit
+                    )));
                 }
             }
             Err(err) => {
-                error!("Failed to unpack gecko: {}", err);
-                return;
+                return Err(DebianError::Other(format!(
+                    "Failed to unpack gecko: {}",
+                    err
+                )));
             }
         }
 
@@ -213,6 +228,8 @@ impl DebianCommand {
                 error!("Failed to run dpkg-deb: {}", err);
             }
         }
+
+        Ok(())
     }
 
     fn copy_template<P: AsRef<Path>>(

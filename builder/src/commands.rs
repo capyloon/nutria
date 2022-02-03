@@ -1,11 +1,11 @@
 //! High level commands.
 
 use crate::build_config::BuildConfig;
-use crate::common::{DesktopCommand, DesktopParams};
+use crate::common::{DesktopCommand, DesktopCommandError, DesktopParams};
 use crate::tasks::{GetAppList, LinkApp, Task, ZipApp};
 use crate::timer::Timer;
 use log::{error, info};
-use mozdevice::*;
+use mozdevice::{AndroidStorageInput, Device, Host, UnixPath};
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -23,7 +23,11 @@ impl DesktopCommand for ProdCommand {
 }
 
 impl ProdCommand {
-    pub fn start(config: BuildConfig, dtype: Option<String>, size: Option<String>) {
+    pub fn start(
+        config: BuildConfig,
+        dtype: Option<String>,
+        size: Option<String>,
+    ) -> Result<(), DesktopCommandError> {
         info!("Starting production build...");
         let params = DesktopParams {
             packaged: true,
@@ -31,7 +35,7 @@ impl ProdCommand {
             dtype,
             size,
         };
-        Self::run(&config, params);
+        Self::run(&config, params)
     }
 }
 
@@ -48,7 +52,7 @@ impl DesktopCommand for InstallCommand {
 }
 
 impl InstallCommand {
-    pub fn start(config: BuildConfig) {
+    pub fn start(config: BuildConfig) -> Result<(), DesktopCommandError> {
         info!("Installing packaged...");
         let params = DesktopParams {
             packaged: true,
@@ -56,7 +60,7 @@ impl InstallCommand {
             dtype: None,
             size: None,
         };
-        Self::run(&config, params);
+        Self::run(&config, params)
     }
 }
 
@@ -73,7 +77,11 @@ impl DesktopCommand for DevCommand {
 }
 
 impl DevCommand {
-    pub fn start(config: BuildConfig, dtype: Option<String>, size: Option<String>) {
+    pub fn start(
+        config: BuildConfig,
+        dtype: Option<String>,
+        size: Option<String>,
+    ) -> Result<(), DesktopCommandError> {
         info!("Starting development build...");
         let params = DesktopParams {
             packaged: false,
@@ -81,7 +89,7 @@ impl DevCommand {
             dtype,
             size,
         };
-        Self::run(&config, params);
+        Self::run(&config, params)
     }
 }
 
@@ -121,9 +129,10 @@ trait AdbCommand {
 pub struct ResetDataCommand;
 
 impl ResetDataCommand {
-    pub fn start() {
+    pub fn start() -> Result<(), String> {
         let cmd = ResetDataCommand;
         cmd.init_adb(true);
+        Ok(())
     }
 }
 
@@ -159,9 +168,10 @@ impl AdbCommand for ResetDataCommand {
 pub struct ResetTimeCommand;
 
 impl ResetTimeCommand {
-    pub fn start() {
+    pub fn start() -> Result<(), String> {
         let cmd = ResetTimeCommand;
         cmd.init_adb(true);
+        Ok(())
     }
 }
 
@@ -196,7 +206,7 @@ impl PushCommand {
     fn new(config: BuildConfig, requested_apps: &Option<String>) -> Self {
         // Get the list of possible apps.
         let task = GetAppList::new(&config);
-        let app_list = task.run(()).unwrap();
+        let app_list = task.run(()).unwrap_or_default();
 
         let mut source_apps = HashMap::new();
         app_list.iter().for_each(|(name, path)| {
@@ -262,12 +272,13 @@ impl PushCommand {
         }
     }
 
-    pub fn start(config: BuildConfig, requested_apps: &Option<String>) {
+    pub fn start(config: BuildConfig, requested_apps: &Option<String>) -> Result<(), String> {
         let cmd = PushCommand::new(config, requested_apps);
         cmd.push_apps();
         if cmd.system_update || cmd.homescreen_update {
             cmd.init_adb(true);
         }
+        Ok(())
     }
 }
 
@@ -304,9 +315,10 @@ impl AdbCommand for PushCommand {
 pub struct RestartCommand;
 
 impl RestartCommand {
-    pub fn start() {
+    pub fn start() -> Result<(), String> {
         let cmd = RestartCommand;
         cmd.init_adb(true);
+        Ok(())
     }
 }
 
@@ -335,17 +347,17 @@ pub struct PushB2gCommand {
 }
 
 impl PushB2gCommand {
-    pub fn start<P: AsRef<Path>>(path: P) {
+    pub fn start<P: AsRef<Path>>(path: P) -> Result<(), String> {
         let path = path.as_ref();
         if !path.exists() {
-            error!("No such file: {}", path.display());
-            return;
+            return Err(format!("No such file: {}", path.display()));
         }
 
         let cmd = PushB2gCommand {
             path: path.to_path_buf(),
         };
         cmd.unpack();
+        Ok(())
     }
 
     fn unpack(&self) {
