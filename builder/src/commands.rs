@@ -9,6 +9,7 @@ use mozdevice::{AndroidStorageInput, Device, Host, UnixPath};
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
+use thiserror::Error;
 
 // Production mode specific implementation: package apps.
 pub struct ProdCommand;
@@ -93,34 +94,43 @@ impl DevCommand {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum AdbError {
+    #[error("Device error: {0}")]
+    Device(mozdevice::DeviceError),
+    #[error("Device is not rooted, run `adb root` first")]
+    NotRooted,
+    #[error("Other error: {0}")]
+    Other(String),
+}
+
 trait AdbCommand {
-    fn init_adb(&self, needs_root: bool) {
+    fn init_adb(&self, needs_root: bool) -> Result<(), AdbError> {
         let host = Host::default();
         match host.device_or_default::<String>(None, AndroidStorageInput::Auto) {
             Ok(device) => {
                 if needs_root && !device.is_rooted {
-                    error!("Device is not rooted, run `adb root` first");
-                    return;
+                    return Err(AdbError::NotRooted);
                 }
-                self.run_on_device(&device);
+                self.run_on_device(&device)
             }
-            Err(err) => error!("Failed to find adb device: {}", err),
+            Err(err) => {
+                error!("Failed to find adb device: {}", err);
+                Err(AdbError::Device(err))
+            }
         }
     }
 
-    fn run_on_device(&self, device: &Device);
+    fn run_on_device(&self, device: &Device) -> Result<(), AdbError>;
 
-    fn run_shell_command(&self, device: &Device, command: &str) -> Option<String> {
+    fn run_shell_command(&self, device: &Device, command: &str) -> Result<String, AdbError> {
         match device.execute_host_shell_command(command) {
             Ok(res) => {
                 let output = res.trim();
                 info!("{}: [Success] {}", command, output);
-                Some(output.to_owned())
+                Ok(output.to_owned())
             }
-            Err(err) => {
-                error!("Failed to run '{}' : {}", command, err);
-                None
-            }
+            Err(err) => Err(AdbError::Device(err)),
         }
     }
 }
@@ -129,15 +139,14 @@ trait AdbCommand {
 pub struct ResetDataCommand;
 
 impl ResetDataCommand {
-    pub fn start() -> Result<(), String> {
+    pub fn start() -> Result<(), AdbError> {
         let cmd = ResetDataCommand;
-        cmd.init_adb(true);
-        Ok(())
+        cmd.init_adb(true)
     }
 }
 
 impl AdbCommand for ResetDataCommand {
-    fn run_on_device(&self, device: &Device) {
+    fn run_on_device(&self, device: &Device) -> Result<(), AdbError> {
         info!("Using adb connected device: {}", device.serial);
 
         let commands = [
@@ -156,10 +165,11 @@ impl AdbCommand for ResetDataCommand {
                 Ok(res) => info!("{}: [Success] {}", command, res.trim()),
                 Err(err) => {
                     error!("Failed to run '{}' : {}", command, err);
-                    return;
+                    return Err(AdbError::Device(err));
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -168,26 +178,34 @@ impl AdbCommand for ResetDataCommand {
 pub struct ResetTimeCommand;
 
 impl ResetTimeCommand {
-    pub fn start() -> Result<(), String> {
+    pub fn start() -> Result<(), AdbError> {
         let cmd = ResetTimeCommand;
-        cmd.init_adb(true);
-        Ok(())
+        cmd.init_adb(true)
     }
 }
 
 impl AdbCommand for ResetTimeCommand {
-    fn run_on_device(&self, device: &Device) {
+    fn run_on_device(&self, device: &Device) -> Result<(), AdbError> {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         match SystemTime::now().duration_since(UNIX_EPOCH) {
             Ok(duration) => {
                 let command = format!("date @{}", duration.as_secs());
                 match device.execute_host_shell_command(&command) {
-                    Ok(res) => info!("{}: [Success] {}", command, res.trim()),
-                    Err(err) => error!("Failed to run '{}' : {}", command, err),
+                    Ok(res) => {
+                        info!("{}: [Success] {}", command, res.trim());
+                        Ok(())
+                    }
+                    Err(err) => {
+                        error!("Failed to run '{}' : {}", command, err);
+                        Err(AdbError::Device(err))
+                    }
                 }
             }
-            Err(err) => error!("Failed to get seconds since UNIX EPOCH: {}", err),
+            Err(err) => Err(AdbError::Other(format!(
+                "Failed to get seconds since UNIX EPOCH: {}",
+                err
+            ))),
         }
     }
 }
@@ -272,18 +290,18 @@ impl PushCommand {
         }
     }
 
-    pub fn start(config: BuildConfig, requested_apps: &Option<String>) -> Result<(), String> {
+    pub fn start(config: BuildConfig, requested_apps: &Option<String>) -> Result<(), AdbError> {
         let cmd = PushCommand::new(config, requested_apps);
         cmd.push_apps();
         if cmd.system_update || cmd.homescreen_update {
-            cmd.init_adb(true);
+            return cmd.init_adb(true);
         }
         Ok(())
     }
 }
 
 impl AdbCommand for PushCommand {
-    fn run_on_device(&self, device: &Device) {
+    fn run_on_device(&self, device: &Device) -> Result<(), AdbError> {
         if self.system_update {
             info!("Restarting b2g to update system app.");
             for command in ["stop b2g", "start b2g"] {
@@ -291,23 +309,28 @@ impl AdbCommand for PushCommand {
                     Ok(res) => info!("{}: [Success] {}", command, res.trim()),
                     Err(err) => {
                         error!("Failed to run '{}' : {}", command, err);
-                        return;
+                        return Err(AdbError::Device(err));
                     }
                 }
             }
         } else if self.homescreen_update {
-            if let Some(output) = self.run_shell_command(device, "b2g-info") {
-                for line in output.split('\n') {
-                    let parts: Vec<String> = line.trim().split(' ').map(|s| s.to_owned()).collect();
-                    if parts.len() >= 2 && parts[0] == "homescreen" {
-                        let pid: u32 = parts[1].parse().unwrap_or(0);
-                        if pid != 0 {
-                            self.run_shell_command(device, &format!("kill -9 {}", pid));
+            match self.run_shell_command(device, "b2g-info") {
+                Ok(output) => {
+                    for line in output.split('\n') {
+                        let parts: Vec<String> =
+                            line.trim().split(' ').map(|s| s.to_owned()).collect();
+                        if parts.len() >= 2 && parts[0] == "homescreen" {
+                            let pid: u32 = parts[1].parse().unwrap_or(0);
+                            if pid != 0 {
+                                self.run_shell_command(device, &format!("kill -9 {}", pid))?;
+                            }
                         }
                     }
                 }
+                Err(err) => return Err(err),
             }
         }
+        Ok(())
     }
 }
 
@@ -315,15 +338,14 @@ impl AdbCommand for PushCommand {
 pub struct RestartCommand;
 
 impl RestartCommand {
-    pub fn start() -> Result<(), String> {
+    pub fn start() -> Result<(), AdbError> {
         let cmd = RestartCommand;
-        cmd.init_adb(true);
-        Ok(())
+        cmd.init_adb(true)
     }
 }
 
 impl AdbCommand for RestartCommand {
-    fn run_on_device(&self, device: &Device) {
+    fn run_on_device(&self, device: &Device) -> Result<(), AdbError> {
         for command in [
             "stop b2g",
             "stop api-daemon",
@@ -332,12 +354,14 @@ impl AdbCommand for RestartCommand {
         ] {
             match device.execute_host_shell_command(command) {
                 Ok(res) => info!("{}: [Success] {}", command, res.trim()),
+
                 Err(err) => {
                     error!("Failed to run '{}' : {}", command, err);
-                    return;
+                    return Err(AdbError::Device(err));
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -347,20 +371,19 @@ pub struct PushB2gCommand {
 }
 
 impl PushB2gCommand {
-    pub fn start<P: AsRef<Path>>(path: P) -> Result<(), String> {
+    pub fn start<P: AsRef<Path>>(path: P) -> Result<(), AdbError> {
         let path = path.as_ref();
         if !path.exists() {
-            return Err(format!("No such file: {}", path.display()));
+            return Err(AdbError::Other(format!("No such file: {}", path.display())));
         }
 
         let cmd = PushB2gCommand {
             path: path.to_path_buf(),
         };
-        cmd.unpack();
-        Ok(())
+        cmd.unpack()
     }
 
-    fn unpack(&self) {
+    fn unpack(&self) -> Result<(), AdbError> {
         let unpack_dest = std::env::temp_dir().join("nutria").join("gecko");
         // Try to remove any old one, and recreate it.
         let _ = std::fs::remove_dir_all(&unpack_dest);
@@ -378,31 +401,31 @@ impl PushB2gCommand {
         match status {
             Ok(exit) => {
                 if exit.code() == Some(0) {
-                    self.init_adb(true);
+                    self.init_adb(true)
                 } else {
-                    error!("Unexpected result code: {}", exit);
+                    Err(AdbError::Other(format!("Unexpected result code: {}", exit)))
                 }
             }
-            Err(err) => {
-                error!("Failed to unpack gecko: {}", err);
-            }
+            Err(err) => Err(AdbError::Other(format!("Failed to unpack gecko: {}", err))),
         }
     }
 
-    fn run_command(&self, command: &str, device: &Device) -> bool {
+    fn run_command(&self, command: &str, device: &Device) -> Result<(), AdbError> {
         match device.execute_host_shell_command(command) {
-            Ok(res) => info!("{}: [Success] {}", command, res.trim()),
+            Ok(res) => {
+                info!("{}: [Success] {}", command, res.trim());
+                Ok(())
+            }
             Err(err) => {
                 error!("Failed to run '{}' : {}", command, err);
-                return false;
+                Err(AdbError::Device(err))
             }
         }
-        true
     }
 }
 
 impl AdbCommand for PushB2gCommand {
-    fn run_on_device(&self, device: &Device) {
+    fn run_on_device(&self, device: &Device) -> Result<(), AdbError> {
         let _timer = Timer::start_with_message("Gecko pushed", "Pushing Gecko...");
 
         let source = std::env::temp_dir()
@@ -410,11 +433,11 @@ impl AdbCommand for PushB2gCommand {
             .join("gecko")
             .join("b2g");
 
-        if self.run_command("stop b2g", device) {
-            if let Err(err) = device.push_dir(&source, UnixPath::new("/system/b2g"), 0o777) {
-                error!("Failed to push gecko: {}", err);
-            }
-            self.run_command("start b2g", device);
+        self.run_command("stop b2g", device)?;
+        if let Err(err) = device.push_dir(&source, UnixPath::new("/system/b2g"), 0o777) {
+            error!("Failed to push gecko: {}", err);
+            return Err(AdbError::Device(err));
         }
+        self.run_command("start b2g", device)
     }
 }

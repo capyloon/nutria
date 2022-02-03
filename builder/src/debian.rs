@@ -55,6 +55,8 @@ static PACKAGE_VERSION: &str = "0.1";
 
 #[derive(Error, Debug)]
 pub enum DebianError {
+    #[error("Io error: {0}")]
+    Io(#[from] std::io::Error),
     #[error("Desktop command error: {0}")]
     DesktopCommand(#[from] crate::common::DesktopCommandError),
     #[error("Other error: {0}")]
@@ -173,7 +175,7 @@ impl DebianCommand {
         let b2ghald_bin = BuildConfig::b2ghald_binary();
         let b2ghald_dir = opt_b2gos.join("b2ghald");
         let _ = create_dir_all(&b2ghald_dir);
-        copy(b2ghald_bin, b2ghald_dir.join("b2ghald")).expect("Failed to copy b2ghald");
+        copy(b2ghald_bin, b2ghald_dir.join("b2ghald"))?;
         // Create /usr/lib/systemd/system/b2ghald.service
         let systemd = default_output
             .join("usr")

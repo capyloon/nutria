@@ -84,6 +84,8 @@ enum Commands {
 
 #[derive(Error, Debug)]
 enum CommandError {
+    #[error("Adb error: {0}")]
+    Adb(#[from] crate::commands::AdbError),
     #[error("Io error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Configuration error: {0}")]
@@ -94,8 +96,6 @@ enum CommandError {
     DebianCommand(#[from] crate::debian::DebianError),
     #[error("Download task error: {0}")]
     DownloadTaskError(#[from] crate::prebuilts::DownloadTaskError),
-    #[error("Other error: {0}")]
-    Other(String),
 }
 
 fn main() {
@@ -159,15 +159,11 @@ fn main() {
                 ))
             }
         }
-        Commands::ResetData {} => ResetDataCommand::start().map_err(|e| CommandError::Other(e)),
-        Commands::ResetTime {} => ResetTimeCommand::start().map_err(|e| CommandError::Other(e)),
-        Commands::Push { apps } => {
-            PushCommand::start(config, apps).map_err(|e| CommandError::Other(e))
-        }
-        Commands::PushB2g { path } => {
-            PushB2gCommand::start(path).map_err(|e| CommandError::Other(e))
-        }
-        Commands::Restart {} => RestartCommand::start().map_err(|e| CommandError::Other(e)),
+        Commands::ResetData {} => ResetDataCommand::start().map_err(|e| e.into()),
+        Commands::ResetTime {} => ResetTimeCommand::start().map_err(|e| e.into()),
+        Commands::Push { apps } => PushCommand::start(config, apps).map_err(|e| e.into()),
+        Commands::PushB2g { path } => PushB2gCommand::start(path).map_err(|e| e.into()),
+        Commands::Restart {} => RestartCommand::start().map_err(|e| e.into()),
         Commands::Install { path } => {
             if config.set_output_path(path).is_ok() {
                 InstallCommand::start(config).map_err(|e| e.into())
