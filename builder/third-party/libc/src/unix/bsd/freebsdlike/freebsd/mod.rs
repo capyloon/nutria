@@ -41,12 +41,14 @@ pub type caddr_t = *mut ::c_char;
 
 pub type fhandle_t = fhandle;
 
+pub type au_id_t = ::uid_t;
+pub type au_asid_t = ::pid_t;
+
 // It's an alias over "struct __kvm_t". However, its fields aren't supposed to be used directly,
 // making the type definition system dependent. Better not bind it exactly.
 pub type kvm_t = ::c_void;
 
-#[cfg_attr(feature = "extra_traits", derive(Debug, Hash))]
-#[derive(PartialEq, Eq)]
+#[cfg_attr(feature = "extra_traits", derive(Debug, Hash, PartialEq, Eq))]
 #[repr(u32)]
 pub enum devstat_support_flags {
     DEVSTAT_ALL_SUPPORTED = 0x00,
@@ -61,8 +63,7 @@ impl ::Clone for devstat_support_flags {
     }
 }
 
-#[cfg_attr(feature = "extra_traits", derive(Debug, Hash))]
-#[derive(PartialEq, Eq)]
+#[cfg_attr(feature = "extra_traits", derive(Debug, Hash, PartialEq, Eq))]
 #[repr(u32)]
 pub enum devstat_trans_flags {
     DEVSTAT_NO_DATA = 0x00,
@@ -78,8 +79,7 @@ impl ::Clone for devstat_trans_flags {
     }
 }
 
-#[cfg_attr(feature = "extra_traits", derive(Debug, Hash))]
-#[derive(PartialEq, Eq)]
+#[cfg_attr(feature = "extra_traits", derive(Debug, Hash, PartialEq, Eq))]
 #[repr(u32)]
 pub enum devstat_tag_type {
     DEVSTAT_TAG_SIMPLE = 0x00,
@@ -94,8 +94,7 @@ impl ::Clone for devstat_tag_type {
     }
 }
 
-#[cfg_attr(feature = "extra_traits", derive(Debug, Hash))]
-#[derive(PartialEq, Eq)]
+#[cfg_attr(feature = "extra_traits", derive(Debug, Hash, PartialEq, Eq))]
 #[repr(u32)]
 pub enum devstat_match_flags {
     DEVSTAT_MATCH_NONE = 0x00,
@@ -110,8 +109,7 @@ impl ::Clone for devstat_match_flags {
     }
 }
 
-#[cfg_attr(feature = "extra_traits", derive(Debug, Hash))]
-#[derive(PartialEq, Eq)]
+#[cfg_attr(feature = "extra_traits", derive(Debug, Hash, PartialEq, Eq))]
 #[repr(u32)]
 pub enum devstat_priority {
     DEVSTAT_PRIORITY_MIN = 0x000,
@@ -132,8 +130,7 @@ impl ::Clone for devstat_priority {
     }
 }
 
-#[cfg_attr(feature = "extra_traits", derive(Debug, Hash))]
-#[derive(PartialEq, Eq)]
+#[cfg_attr(feature = "extra_traits", derive(Debug, Hash, PartialEq, Eq))]
 #[repr(u32)]
 pub enum devstat_type_flags {
     DEVSTAT_TYPE_DIRECT = 0x000,
@@ -165,8 +162,7 @@ impl ::Clone for devstat_type_flags {
     }
 }
 
-#[cfg_attr(feature = "extra_traits", derive(Debug, Hash))]
-#[derive(PartialEq, Eq)]
+#[cfg_attr(feature = "extra_traits", derive(Debug, Hash, PartialEq, Eq))]
 #[repr(u32)]
 pub enum devstat_metric {
     DSM_NONE,
@@ -223,8 +219,7 @@ impl ::Clone for devstat_metric {
     }
 }
 
-#[cfg_attr(feature = "extra_traits", derive(Debug, Hash))]
-#[derive(PartialEq, Eq)]
+#[cfg_attr(feature = "extra_traits", derive(Debug, Hash, PartialEq, Eq))]
 #[repr(u32)]
 pub enum devstat_select_mode {
     DS_SELECT_ADD,
@@ -960,6 +955,29 @@ s! {
         pub sc_ngroups: ::c_int,
         pub sc_groups: [::gid_t; 1],
     }
+
+    pub struct ifconf {
+        pub ifc_len: ::c_int,
+        #[cfg(libc_union)]
+        pub ifc_ifcu: __c_anonymous_ifc_ifcu,
+    }
+
+    pub struct au_mask_t {
+        pub am_success: ::c_uint,
+        pub am_failure: ::c_uint,
+    }
+
+    pub struct au_tid_t {
+        pub port: u32,
+        pub machine: u32,
+    }
+
+    pub struct auditinfo_t {
+        pub ai_auid: ::au_id_t,
+        pub ai_mask: ::au_mask_t,
+        pub ai_termid: au_tid_t,
+        pub ai_asid: ::au_asid_t,
+    }
 }
 
 s_no_extra_traits! {
@@ -1140,6 +1158,12 @@ s_no_extra_traits! {
         pub ifr_ifru: __c_anonymous_ifr_ifru,
         #[cfg(not(libc_union))]
         pub ifr_ifru: ::sockaddr,
+    }
+
+    #[cfg(libc_union)]
+    pub union __c_anonymous_ifc_ifcu {
+        pub ifcu_buf: ::caddr_t,
+        pub ifcu_req: *mut ifreq,
     }
 
     pub struct ifstat {
@@ -1546,6 +1570,37 @@ cfg_if! {
             fn hash<H: ::hash::Hasher>(&self, state: &mut H) {
                 self.ifr_name.hash(state);
                 self.ifr_ifru.hash(state);
+            }
+        }
+
+        #[cfg(libc_union)]
+        impl Eq for __c_anonymous_ifc_ifcu {}
+
+        #[cfg(libc_union)]
+        impl PartialEq for __c_anonymous_ifc_ifcu {
+            fn eq(&self, other: &__c_anonymous_ifc_ifcu) -> bool {
+                unsafe {
+                    self.ifcu_buf == other.ifcu_buf &&
+                    self.ifcu_req == other.ifcu_req
+                }
+            }
+        }
+
+        #[cfg(libc_union)]
+        impl ::fmt::Debug for __c_anonymous_ifc_ifcu {
+            fn fmt(&self, f: &mut ::fmt::Formatter) -> ::fmt::Result {
+                f.debug_struct("ifc_ifcu")
+                    .field("ifcu_buf", unsafe { &self.ifcu_buf })
+                    .field("ifcu_req", unsafe { &self.ifcu_req })
+                    .finish()
+            }
+        }
+
+        #[cfg(libc_union)]
+        impl ::hash::Hash for __c_anonymous_ifc_ifcu {
+            fn hash<H: ::hash::Hasher>(&self, state: &mut H) {
+                unsafe { self.ifcu_buf.hash(state) };
+                unsafe { self.ifcu_req.hash(state) };
             }
         }
 
@@ -4138,6 +4193,7 @@ extern "C" {
         flags: ::c_int,
     ) -> ::c_int;
     pub fn memfd_create(name: *const ::c_char, flags: ::c_uint) -> ::c_int;
+    pub fn setaudit(auditinfo: *const auditinfo_t) -> ::c_int;
 }
 
 #[link(name = "kvm")]

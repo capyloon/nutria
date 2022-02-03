@@ -152,22 +152,13 @@ impl BuildConfig {
         }
     }
 
-    pub fn b2ghald_path() -> PathBuf {
-        match env::var("NUTRIA_B2GHALD_ROOT") {
+    pub fn b2ghald_binary() -> PathBuf {
+        match env::var("NUTRIA_B2GHALD_BINARY") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid NUTRIA_B2GHALD_ROOT path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_B2GHALD_BINARY path: {}", path)),
             Err(_) => {
-                panic!("Please set NUTRIA_B2GHALD_ROOT to the path of the b2ghald directory.");
+                panic!("Please set NUTRIA_B2GHALD_BINARY to the path of the b2ghald executable.");
             }
         }
-    }
-
-    pub fn b2ghald_binary(target: Option<String>) -> PathBuf {
-        let target = target.unwrap_or_else(host_target);
-        Self::b2ghald_path()
-            .join("target")
-            .join(target)
-            .join("release")
-            .join("b2ghald")
     }
 }

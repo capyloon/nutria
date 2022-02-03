@@ -155,7 +155,7 @@ impl DebianCommand {
         template!(USER_DESKTOP_JS, prefs_dir.join("user.js"), None);
 
         // b2ghald
-        let b2ghald_bin = BuildConfig::b2ghald_binary(None);
+        let b2ghald_bin = BuildConfig::b2ghald_binary();
         let b2ghald_dir = opt_b2gos.join("b2ghald");
         let _ = create_dir_all(&b2ghald_dir);
         copy(b2ghald_bin, b2ghald_dir.join("b2ghald")).expect("Failed to copy b2ghald");

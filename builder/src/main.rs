@@ -1,14 +1,11 @@
 //! Main driver for the build system.
-//! Recognized commands:
-//! - dev
-//! - run
-//! - push <app>
 
 mod build_config;
 mod commands;
 mod common;
 mod daemon_config;
 mod debian;
+mod prebuilts;
 mod tasks;
 mod timer;
 
@@ -80,6 +77,8 @@ enum Commands {
     },
     /// Cleans up the output directory.
     Clean {},
+    /// Download prebuilt versions of the needed binaries.
+    UpdatePrebuilts {},
 }
 
 fn main() {
@@ -106,7 +105,7 @@ fn main() {
             "NUTRIA_API_DAEMON_PORT",
             "NUTRIA_APPS_ROOT",
             "NUTRIA_APPSCMD_BINARY",
-            "NUTRIA_B2GHALD_ROOT",
+            "NUTRIA_B2GHALD_BINARY",
             "NUTRIA_B2G_BINARY",
             "NUTRIA_B2G_PACKAGE",
         ]
@@ -181,6 +180,9 @@ fn main() {
                     err
                 );
             }
+        }
+        Commands::UpdatePrebuilts {} => {
+            prebuilts::update(config);
         }
     }
 }

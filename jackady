@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ -e ./prebuilts/env ]; then
+  echo ">>> Using environment from ./prebuilts/env <<<"
+  source ./prebuilts/env
+fi
+
 cd builder
 
 export RUST_LOG=${RUST_LOG:-info}
