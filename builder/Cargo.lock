@@ -569,6 +569,7 @@ dependencies = [
  "serde_json",
  "signal-hook",
  "target",
+ "thiserror",
  "toml",
  "url",
  "walkdir",

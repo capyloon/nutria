@@ -182,7 +182,9 @@ fn main() {
             }
         }
         Commands::UpdatePrebuilts {} => {
-            prebuilts::update(config);
+            if let Err(err) = prebuilts::update(config) {
+                error!("update-prebuilts failed: {}", err);
+            }
         }
     }
 }

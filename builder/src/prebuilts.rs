@@ -1,8 +1,5 @@
 //! Download prebuilt binaries for b2g, api-daemon and b2ghald
-//! Urls are following the patter:
-//! $NUTRIA_DOWNLOAD_URL/$target/$binary
-//!
-//! Eg: https://download.capyloon.org/prebuilts/x86_64-unknown-linux-gnu/api-daemon.tar.xz
+//! Urls are configured in prebuilts.json
 
 use crate::build_config::BuildConfig;
 use crate::common::host_target;
@@ -17,7 +14,20 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::time::Duration;
-use url::Url;
+use thiserror::Error;
+use url::{ParseError as UrlError, Url};
+
+#[derive(Error, Debug)]
+pub enum DownloadTaskError {
+    #[error("Reqwest error: {0}")]
+    Reqwest(#[from] reqwest::Error),
+    #[error("Io error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Json error: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("Url error: {0}")]
+    Url(#[from] UrlError),
+}
 
 struct DownloadTask {
     topdir: PathBuf,
@@ -54,7 +64,7 @@ impl DownloadTask {
 impl Task for DownloadTask {
     type Input = (Url, String); // (url to download, unpack directory)
     type Output = ();
-    type Error = reqwest::Error;
+    type Error = DownloadTaskError;
 
     fn new(_config: &BuildConfig) -> Self {
         let mut topdir = std::env::current_dir().expect("Failed to get current directory!");
@@ -68,7 +78,7 @@ impl Task for DownloadTask {
 
         let url2 = url.clone();
         let package = match url.path_segments() {
-            Some(segments) => segments.last().unwrap_or_default(),
+            Some(segments) => segments.last().unwrap_or("<no package>"),
             None => "<no package>",
         };
         info!("About to download and unpack {}", url.as_str());
@@ -85,7 +95,7 @@ impl Task for DownloadTask {
         let current_etag = match File::open(&etag_path) {
             Ok(mut file) => {
                 let mut res = String::new();
-                let _ = file.read_to_string(&mut res).expect("Failed to read etag");
+                file.read_to_string(&mut res)?;
                 res
             }
             Err(_) => String::new(),
@@ -97,8 +107,7 @@ impl Task for DownloadTask {
             .gzip(true)
             .connect_timeout(Duration::from_secs(30))
             .timeout(Duration::from_secs(60 * 5))
-            .build()
-            .expect("Failed to build http client");
+            .build()?;
 
         let mut request = client.get(url2);
         if !current_etag.is_empty() {
@@ -110,7 +119,7 @@ impl Task for DownloadTask {
         let status = response.status();
         if status.is_success() {
             // Write the response to a temp directory under a random name
-            let mut dest = File::create(&cache_path).expect("Failed to create cache file");
+            let mut dest = File::create(&cache_path)?;
             {
                 let _timer = Timer::start_with_message(
                     &format!("{} downloaded", package),
@@ -121,7 +130,7 @@ impl Task for DownloadTask {
 
             // Write the Etag for this resource.
             if let Some(etag) = response.headers().get(ETAG) {
-                let mut etag_file = File::create(&etag_path).expect("Failed to create etag file");
+                let mut etag_file = File::create(&etag_path)?;
                 let _ = etag_file.write_all(etag.as_bytes());
                 let _ = etag_file.flush();
             }
@@ -146,15 +155,14 @@ struct PrebuiltsList {
     b2g: Option<String>,
 }
 
-pub fn update(config: BuildConfig) {
-    let cwd = std::env::current_dir().expect("Failed to get current directory!");
+pub fn update(config: BuildConfig) -> Result<(), DownloadTaskError> {
+    let cwd = std::env::current_dir()?;
 
     let mut json_path = cwd.clone();
     json_path.push("prebuilts.json");
-    let prebuilts_json = File::open(&json_path).expect("Unable to open prebuilts.json");
+    let prebuilts_json = File::open(&json_path)?;
 
-    let list: HashMap<String, PrebuiltsList> =
-        serde_json::from_reader(prebuilts_json).expect("Invalid json");
+    let list: HashMap<String, PrebuiltsList> = serde_json::from_reader(prebuilts_json)?;
     let target = host_target();
     if let Some(item) = list.get(&target) {
         let mut prebuilts = cwd.clone();
@@ -164,14 +172,18 @@ pub fn update(config: BuildConfig) {
         let _ = fs::remove_dir_all(&prebuilts);
         let _ = fs::create_dir_all(&prebuilts);
 
-        let mut env_file = File::create(&prebuilts.join("env")).expect("Failed to create env file");
+        let mut env_file = File::create(&prebuilts.join("env"))?;
 
-        let _ = writeln!(env_file, "export NUTRIA_APPS_ROOT={}/apps", topdir.display());
+        let _ = writeln!(
+            env_file,
+            "export NUTRIA_APPS_ROOT={}/apps",
+            topdir.display()
+        );
 
         let task = DownloadTask::new(&config);
 
         if let Some(url) = &item.api_daemon {
-            let url = Url::parse(&url).expect("Invalid url");
+            let url = Url::parse(&url)?;
             if let Err(err) = task.run((url, ".".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
@@ -197,7 +209,7 @@ pub fn update(config: BuildConfig) {
         }
 
         if let Some(url) = &item.b2ghald {
-            let url = Url::parse(&url).expect("Invalid url");
+            let url = Url::parse(&url)?;
             if let Err(err) = task.run((url, ".".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
@@ -211,7 +223,7 @@ pub fn update(config: BuildConfig) {
         }
 
         if let Some(url) = &item.b2g {
-            let url = Url::parse(&url).expect("Invalid url");
+            let url = Url::parse(&url)?;
             if let Err(err) = task.run((url, "prebuilts".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
@@ -227,4 +239,6 @@ pub fn update(config: BuildConfig) {
     } else {
         error!("No prebuilts available for this target: {}", target);
     }
+
+    Ok(())
 }
