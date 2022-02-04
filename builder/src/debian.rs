@@ -50,7 +50,7 @@ static CONTROL: &str = include_str!("templates/debian/control");
 static B2GHALD_SERVICE: &str = include_str!("templates/debian/b2ghald.service");
 
 // TODO: Move to some configuration
-static PACKAGE_NAME: &str = "b2gos";
+static PACKAGE_NAME: &str = "capyloon";
 static PACKAGE_VERSION: &str = "0.1";
 
 #[derive(Error, Debug)]
