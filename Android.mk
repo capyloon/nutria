@@ -14,12 +14,21 @@ include $(BUILD_SYSTEM)/base_rules.mk
 B2G_DEFAULTS := $(abspath $(TARGET_OUT)/b2g/defaults)
 NUTRIA_PATH ?= nutria
 
+# Use a device specific preferences file if possible, and fallback on the gsi one otherwise.
+PREF_PATH := $(abspath $(NUTRIA_PATH)/defaults/pref/$(TARGET_PRODUCT).js)
+
+ifneq ("$(wildcard $(PREF_PATH))","")
+PREF_FILE_NAME := "$(TARGET_PRODUCT).js"
+else
+PREF_FILE_NAME := "gsi.js"
+endif
+
 $(LOCAL_INSTALLED_MODULE): $(LOCAL_BUILT_MODULE)
 	@echo "Installing frontend..."
 	# Copy the custom prefs file.
 	@mkdir -p $(B2G_DEFAULTS)/pref
 	@cp $(NUTRIA_PATH)/defaults/pref/common.js $(B2G_DEFAULTS)/pref/common.js
-	@cp $(NUTRIA_PATH)/defaults/pref/teracube.js $(B2G_DEFAULTS)/pref/teracube.js
+	@cp $(NUTRIA_PATH)/defaults/pref/$(PREF_FILE_NAME) $(B2G_DEFAULTS)/pref/$(PREF_FILE_NAME)
 	# Copy the default settings
 	@cp $(NUTRIA_PATH)/defaults/default-settings.json $(B2G_DEFAULTS)/settings.json
 	# Create a "buffer file" to have spare room on the system partition.
