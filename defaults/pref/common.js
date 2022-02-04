@@ -24,27 +24,6 @@ pref("device.sensors.orientation.enabled", true);
 pref("device.sensors.proximity.enabled", true);
 pref("device.sensors.ambientLight.enabled", true);
 
-// APZ physics settings (fling acceleration, fling curving and axis lock) have
-// been reviewed by UX
-// pref("apz.axis_lock.breakout_angle", "0.7853982");    // PI / 4 (45 degrees)
-// pref("apz.axis_lock.mode", 1); // Use standard axis locking
-// pref("apz.content_response_timeout", 600);
-// pref("apz.drag.enabled", false);
-// pref("apz.fling_accel_interval_ms", 750);
-// pref("apz.fling_curve_function_x1", "0.59");
-// pref("apz.fling_curve_function_y1", "0.46");
-// pref("apz.fling_curve_function_x2", "0.05");
-// pref("apz.fling_curve_function_y2", "1.00");
-// pref("apz.fling_curve_threshold_inches_per_ms", "0.01");
-// // apz.fling_friction and apz.fling_stopped_threshold are currently ignored by Fennec.
-// pref("apz.fling_friction", "0.004");
-// pref("apz.fling_stopped_threshold", "0.0");
-// pref("apz.max_velocity_inches_per_ms", "0.07");
-// pref("apz.overscroll.enabled", false);
-// pref("apz.second_tap_tolerance", "0.3");
-// pref("apz.touch_move_tolerance", "0.03");
-// pref("apz.touch_start_tolerance", "0.06");
-
 // Add brotli support for localhost
 pref("network.http.accept-encoding", "gzip, deflate, br");
 
