@@ -91,3 +91,6 @@ user_pref("b2g.wifi.nmcli-path", "/usr/bin/nmcli");
 user_pref("apz.overscroll.enabled", true);
 
 user_pref("dom.dialog_element.enabled", true);
+
+user_pref("datareporting.healthreport.service.enabled", false);
+user_pref("datareporting.healthreport.uploadEnabled", false);

@@ -51,3 +51,5 @@ pref("security.disallow_privileged_https_stylesheet_loads", false);
 
 pref("apz.overscroll.enabled", true);
 
+user_pref("datareporting.healthreport.service.enabled", false);
+user_pref("datareporting.healthreport.uploadEnabled", false);
