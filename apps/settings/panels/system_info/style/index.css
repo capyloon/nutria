@@ -17,6 +17,7 @@ header {
   display: flex;
   column-gap: 1em;
   align-items: center;
+  padding-top: 0.25em;
 }
 
 header h3 {

@@ -1,0 +1,38 @@
+/* Style for the b2gOS default branding */
+
+#logo {
+  background: radial-gradient(circle, beige 0%, cyan 100%);
+  color: rgb(65, 64, 64);
+  font-weight: 900;
+}
+
+#logo div.title {
+  font-size: 48px;
+}
+
+#logo div.subtitle {
+  font-size: 14px;
+}
+
+#logo div.image {
+  width: 128px;
+  height: 128px;
+  animation: logo-anim 6s linear infinite;
+  background-image: url(../resources/logo.webp);
+  background-size: contain;
+}
+
+@keyframes logo-anim {
+  25% {
+    transform: rotate(-25deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(25deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}

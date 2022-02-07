@@ -1,0 +1,66 @@
+/* Style for the b2gOS default branding */
+
+:root {
+  --logo-text-color: darkslategray;
+  --logo-background-color: wheat;
+  --logo-grad-start: red;
+  --logo-grad-end: orange;
+}
+
+@font-face {
+  font-family: "Lobster";
+  font-style: normal;
+  font-weight: 400;
+  src: local("sans-serif"), url("./Lobster-logo.woff2") format("woff2");
+  font-display: swap;
+}
+
+#logo {
+  background: linear-gradient(to bottom right, wheat, white);
+  color: var(--logo-text-color);
+  font-weight: 900;
+}
+
+#logo div.title,
+#logo div.subtitle {
+  /* Using a font-face defined font here causes crashes to be investigated */
+  /* font-family: "Lobster", cursive; */
+  background: linear-gradient(
+    to bottom right,
+    var(--logo-grad-start),
+    var(--logo-grad-end)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+#logo div.title {
+  font-size: 48px;
+}
+
+#logo div.subtitle {
+  font-size: 14px;
+}
+
+#logo div.image {
+  width: 128px;
+  height: 128px;
+  animation: logo-anim 6s linear infinite;
+  background-image: url(../resources/logo.webp);
+  background-size: contain;
+}
+
+@keyframes logo-anim {
+  25% {
+    transform: rotate(-25deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(25deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}

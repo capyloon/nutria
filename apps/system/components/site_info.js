@@ -155,7 +155,7 @@ class SiteInfo extends HTMLElement {
     this.shadowRoot.querySelector(".title").textContent = this.state.title;
     this.shadowRoot.querySelector(".url").textContent = this.state.url;
     this.shadowRoot.querySelector(".favicon").src =
-      this.state.iconUrl || "resources/logo-b2g.webp";
+      this.state.iconUrl || window.config.brandLogo;
 
     let goForward = this.shadowRoot.querySelector(".nav-forward");
     if (this.state.canGoForward) {

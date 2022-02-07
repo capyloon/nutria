@@ -261,7 +261,7 @@ class SkillsSource extends SearchSource {
             title: result.description,
             icon:
               result.icon ||
-              `http://system.localhost:${location.port}/resources/logo-b2g.webp`,
+              `http://branding.localhost:${location.port}/resources/logo.webp`,
           };
           window["actions-wall"].addNewAction(action);
         },

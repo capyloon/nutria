@@ -2,18 +2,12 @@
 button-ok = Ok
 button-cancel = Cancel
 
-# Logo screen text.
-logo-powered-by = Powered by
-logo-starting = Starting…
-logo-shutdown = Shutting down…
-logo-reboot = Restarting…
-
-# Power key menu actions.
+# Power key menu actions
 action-shutdown = Shutdown
 action-reboot = Restart
 action-screenshot = Screenshot
 
-# The content of the empty carousel screen.
+# The content of the empty carousel screen
 empty-carousel = No content open :(
 learn-something-text = Let's learn something!
 learn-something-url = https://en.wikipedia.org/wiki/Special:Random

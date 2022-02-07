@@ -395,6 +395,7 @@ impl Task for PrepareDaemon {
 pub struct DaemonRunner {
     daemon_binary: PathBuf,
     current_dir: PathBuf,
+    settings_path: PathBuf,
 }
 
 impl Task for DaemonRunner {
@@ -406,6 +407,7 @@ impl Task for DaemonRunner {
         Self {
             daemon_binary: config.daemon_binary(),
             current_dir: config.output_path.join("api-daemon"),
+            settings_path: config.default_settings.clone(),
         }
     }
 
@@ -419,6 +421,7 @@ impl Task for DaemonRunner {
         // Spawns the daemon in the proper current directory.
         Command::new(&self.daemon_binary)
             .current_dir(&self.current_dir)
+            .env("DEFAULT_SETTINGS", self.settings_path.display().to_string())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .spawn()

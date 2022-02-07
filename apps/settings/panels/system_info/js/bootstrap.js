@@ -103,7 +103,7 @@ function displayTelephony() {
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
-    window.logo.src = `http://system.localhost:${location.port}/resources/logo-b2g.webp`;
+    window.logo.src = `http://branding.localhost:${location.port}/resources/logo.webp`;
 
     await depGraphLoaded;
     await getSharedDeps("shared-all");

@@ -11,11 +11,19 @@ window.config = {
   powerKey: isDevice ? "Power" : "PowerOff",
 };
 
+const port = window.config.port;
+
+window.config.brandLogo = `http://branding.localhost:${port}/resources/logo.webp`;
+
 function addStylesheet(url) {
   let link = document.createElement("link");
   link.setAttribute("rel", "stylesheet");
   link.setAttribute("href", url);
   document.head.appendChild(link);
+}
+
+function addSharedStylesheet(url) {
+  return addStylesheet(`http://shared.localhost:${port}/${url}`);
 }
 
 function loadScript(url, defer = false) {
@@ -29,20 +37,48 @@ function loadScript(url, defer = false) {
 }
 
 function loadSharedScript(url) {
-  return loadScript(`http://shared.localhost:${window.config.port}/${url}`);
+  return loadScript(`http://shared.localhost:${port}/${url}`);
 }
 
 // preconnect to the api daemon api server.
 let link = document.createElement("link");
 link.setAttribute("rel", "preconnect");
-link.setAttribute("href", `http://127.0.0.1:${window.config.port}`);
+link.setAttribute("href", `http://127.0.0.1:${port}`);
 document.head.appendChild(link);
 
 // preconnect to the homescreen.
 let link2 = document.createElement("link");
 link2.setAttribute("rel", "preconnect");
-link2.setAttribute("href", `http://homescreen.localhost:${window.config.port}`);
+link2.setAttribute("href", `http://homescreen.localhost:${port}`);
 document.head.appendChild(link2);
+
+// Hack to force GMPProvider to initialize now because it needs a locale bundle
+// which triggers a gecko-Fluent race condition when using http:// file sources :(
+(function () {
+  const { Services } = ChromeUtils.import(
+    "resource://gre/modules/Services.jsm"
+  );
+  Services.obs.notifyObservers(null, "force-gmp-provider-startup", null);
+})();
+
+// Load the branding style
+addStylesheet(`http://branding.localhost:${port}/style/branding.css`);
+
+// Register system and branding locales.
+L10nRegistry.getInstance().registerSources([
+  new L10nFileSource(
+    "system-locale",
+    "system-app",
+    ["en-US"],
+    "chrome://system/content/locales/{locale}/"
+  ),
+  new L10nFileSource(
+    "branding",
+    "system-app",
+    ["en-US"],
+    `http://branding.localhost:${port}/locales/{locale}/`
+  ),
+]);
 
 function depGraphLoaded() {
   return new Promise((resolve) => {

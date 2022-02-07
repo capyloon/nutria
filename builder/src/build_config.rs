@@ -21,6 +21,7 @@ pub struct BuildConfig {
     pub daemon_port: i16,          // Port on which the daemon will listen.
     pub b2g_path: PathBuf,         // Path to the b2g binary
     pub use_profile: bool,         // Whether we will add the profile/ subdirectory or not.
+    pub default_settings: PathBuf, // Path to the defaults settings file.
 }
 
 impl Default for BuildConfig {
@@ -30,6 +31,12 @@ impl Default for BuildConfig {
     /// $CWD/prebuilts/$RUST_TARGET/api-daemon for daemon_path
     fn default() -> Self {
         let cwd = env::current_dir().unwrap_or_else(|_| env::temp_dir());
+
+        let default_settings = cwd
+            .parent()
+            .unwrap()
+            .join("defaults")
+            .join("default-settings.json");
 
         let apps_source_path = match env::var("NUTRIA_APPS_ROOT") {
             Ok(path) => PathBuf::from_str(&path)
@@ -63,6 +70,7 @@ impl Default for BuildConfig {
             daemon_port,
             b2g_path,
             use_profile: true,
+            default_settings,
         }
     }
 }

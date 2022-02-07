@@ -187,7 +187,7 @@ class StatusBar extends HTMLElement {
     let frames = this.getElem(`.frame-list`);
     let content = "";
     list.forEach((frame) => {
-      let iconUrl = frame.iconUrl || "resources/logo-b2g.webp";
+      let iconUrl = frame.iconUrl || window.config.brandLogo;
       let iconClass = frame.id == this.currentActive ? `class="active"` : "";
       content += `<img class="favicon" src="${iconUrl}" ${iconClass} title="${frame.title}" alt="${frame.title}" id="shortcut-${frame.id}"/>`;
     });
@@ -385,7 +385,7 @@ class StatusBar extends HTMLElement {
 
     this.getElem(`.favicon`).src = state.isHomescreen
       ? ""
-      : state.iconUrl || "resources/logo-b2g.webp";
+      : state.iconUrl || window.config.brandLogo;
 
     // if (state.bringAttention) {
     //   this.getElem(`lucide-icon[kind="info"]`).classList.add("attention");
@@ -410,7 +410,7 @@ class StatusBar extends HTMLElement {
         `#shortcut-${state.id}`
       );
       if (frameListElem) {
-        frameListElem.src = state.iconUrl || "resources/logo-b2g.webp";
+        frameListElem.src = state.iconUrl || window.config.brandLogo;
         frameListElem.setAttribute("alt", state.title);
         frameListElem.setAttribute("title", state.title);
         frameListElem.classList.add("active");

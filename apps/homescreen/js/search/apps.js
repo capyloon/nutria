@@ -31,7 +31,7 @@ class AppsSearch {
           ? app.updateUrl
           : app.manifestUrl;
         let url = new URL(manifest.start_url || "/", manifestUrl);
-        let icon = `http://system.localhost:${location.port}/resources/logo-b2g.webp`;
+        let icon = `http://branding.localhost:${location.port}/resources/logo.webp`;
         if (manifest.icons && manifest.icons[0]) {
           let iconUrl = new URL(manifest.icons[0].src, manifestUrl);
           icon = iconUrl.href;

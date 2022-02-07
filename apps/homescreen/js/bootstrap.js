@@ -185,7 +185,7 @@ async function activityHandler(event) {
         url: siteInfo.url,
         icon:
           siteInfo.iconUrl ||
-          `http://system.localhost:${location.port}/resources/logo-b2g.webp`,
+          `http://branding.localhost:${location.port}/resources/logo.webp`,
       });
     } else if (data.app) {
       // We got an app object, for instance for an already installed app that is not pinned to the

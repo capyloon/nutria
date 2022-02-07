@@ -627,7 +627,7 @@ class WindowManager extends HTMLElement {
     if (frameCount == 1) {
       this.carousel.setAttribute("style", "grid-template-column: 1fr");
       this.carousel.innerHTML = `<div class="empty-carousel">
-                                   <img src="resources/logo-b2g.webp" />
+                                   <img src="${window.config.brandLogo}" />
                                    <div data-l10n-id="empty-carousel"></div>
                                    <div class="learn-something" data-l10n-id="learn-something-text"></div>
                                  </div>`;
@@ -777,7 +777,7 @@ class WindowManager extends HTMLElement {
       screenshot.innerHTML = `
       <div class="head">
         <img class="favicon" src="${
-          frame.state.iconUrl || "resources/logo-b2g.webp"
+          frame.state.iconUrl || window.config.brandLogo
         }" />
         <div class="flex-fill"></div>
         <div class="close-icon">
