@@ -11,17 +11,17 @@
     <meta name="defaultLanguage" content="en-US" />
     <meta name="availableLanguages" content="en-US" />
     <link rel="localization" href="main.ftl" />
+    <link rel="localization" href="branding.ftl" />
     <link rel="stylesheet" href="style/index.css" />
 
     <!-- embedding API provider -->
     <script src="chrome://b2g/content/embedding/web-embedder.js"></script>
 
     <!--
-      Fluent l10n setup
+      This will setup Fluent for l10n
       We don't lazy load it because it's needed at startup to localize the boot screen.
     -->
     <script src="js/config.js"></script>
-    <script src="js/fluent.js"></script>
 
     <script src="js/embedding.js"></script>
     <script src="js/dependencies.js"></script>
@@ -29,9 +29,9 @@
   </head>
   <body>
     <div id="logo" class="starting">
-      <div class="title">b2gOS</div>
-      <div class="powered-by" data-l10n-id="logo-powered-by"></div>
-      <img src="resources/logo-b2g.webp" />
+      <div class="title" data-l10n-id="logo-title">Capyloon</div>
+      <div class="subtitle" data-l10n-id="logo-subtitle"></div>
+      <div class="image"></div>
       <div class="action starting" data-l10n-id="logo-starting"></div>
       <div class="action shutdown" data-l10n-id="logo-shutdown"></div>
       <div class="action reboot" data-l10n-id="logo-reboot"></div>

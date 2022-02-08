@@ -1,0 +1,12 @@
+{
+  "name": "branding-capyloon",
+  "description": "Capyloon branding",
+  "b2g_features": {
+    "core": true,
+    "role": "system",
+    "developer": {
+      "name": "The capyloon team"
+    }
+  },
+  "version": "1.0"
+}

@@ -99,7 +99,7 @@ export class BrowserAction extends LitElement {
     }
 
     // Find the best icon.
-    this.icon = "resources/logo-b2g.webp";
+    this.icon = window.config.brandLogo;
     if (!action.icon) {
       return;
     }

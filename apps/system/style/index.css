@@ -41,9 +41,6 @@ body.screen-off #screen {
   z-index: 100;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle, beige 0%, cyan 100%);
-  color: rgb(65, 64, 64);
-  font-weight: 900;
 
   display: flex;
   flex-direction: column;
@@ -54,20 +51,6 @@ body.screen-off #screen {
 #logo.byebye {
   opacity: 0;
   transition: opacity 1s;
-}
-
-#logo div.title {
-  font-size: 48px;
-}
-
-#logo div.powered-by {
-  font-size: 14px;
-}
-
-#logo img {
-  width: 128px;
-  height: 128px;
-  animation: logo-anim 6s linear infinite;
 }
 
 #logo.starting div.action:not(.starting) {
@@ -84,21 +67,6 @@ body.screen-off #screen {
 
 #logo.hidden {
   display: none;
-}
-
-@keyframes logo-anim {
-  25% {
-    transform: rotate(-25deg);
-  }
-  50% {
-    transform: rotate(0deg);
-  }
-  75% {
-    transform: rotate(25deg);
-  }
-  100% {
-    transform: rotate(0deg);
-  }
 }
 
 #screen {

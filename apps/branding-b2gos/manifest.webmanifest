@@ -1,0 +1,12 @@
+{
+  "name": "branding-b2gos",
+  "description": "Default b2gos branding",
+  "b2g_features": {
+    "core": true,
+    "role": "system",
+    "developer": {
+      "name": "The b2gOS team"
+    }
+  },
+  "version": "1.0"
+}
