@@ -8,6 +8,7 @@ mod debian;
 mod prebuilts;
 mod tasks;
 mod timer;
+mod logger;
 
 use crate::commands::{
     DevCommand, InstallCommand, ProdCommand, PushB2gCommand, PushCommand, ResetDataCommand,
@@ -99,7 +100,7 @@ enum CommandError {
 }
 
 fn main() {
-    env_logger::init();
+    logger::init();
 
     let cli = Cli::parse();
 
