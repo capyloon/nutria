@@ -31,12 +31,16 @@ class SearchSource {
       return false;
     }
 
-    // No "." in the url, return false.
-    if (!url.includes(".")) {
+    const isFileUrl = url.startsWith("file://");
+
+    // No "." in the url that is not a file:// one, return false since this
+    // is likely a keyword search.
+    if (!url.includes(".") && !isFileUrl) {
       return false;
     }
 
     if (
+      !isFileUrl &&
       !url.startsWith("http") &&
       !url.startsWith("ipfs://") &&
       !url.startsWith("ipns://")
