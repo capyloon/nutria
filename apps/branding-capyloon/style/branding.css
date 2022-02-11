@@ -16,13 +16,13 @@
 }
 
 #logo {
-  background: linear-gradient(to bottom right, wheat, white);
+  background: black;
   color: var(--logo-text-color);
   font-weight: 900;
 }
 
 #logo div.title,
-#logo div.subtitle {
+#logo div.subtitle, #logo .action {
   /* Using a font-face defined font here causes crashes to be investigated */
   /* font-family: "Lobster", cursive; */
   background: linear-gradient(
