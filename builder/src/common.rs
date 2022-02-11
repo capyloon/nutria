@@ -25,6 +25,7 @@ pub struct DesktopParams {
     pub no_run: bool,
     pub dtype: Option<String>,
     pub size: Option<String>,
+    pub debug: bool,
 }
 
 // Implementation of common operations for desktop modes.
@@ -80,6 +81,7 @@ pub trait DesktopCommand {
             let mut b2g_process = b2g_runner.run(B2gRunnerInput {
                 dtype: params.dtype,
                 size: params.size,
+                debug: params.debug,
             })?;
             info!("Starting b2g, pid={}", b2g_process.id());
 

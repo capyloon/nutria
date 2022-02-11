@@ -5,10 +5,10 @@ mod commands;
 mod common;
 mod daemon_config;
 mod debian;
+mod logger;
 mod prebuilts;
 mod tasks;
 mod timer;
-mod logger;
 
 use crate::commands::{
     DevCommand, InstallCommand, ProdCommand, PushB2gCommand, PushCommand, ResetDataCommand,
@@ -41,6 +41,9 @@ enum Commands {
         /// The screen size to emulate. Formatted such as 800x600.
         #[clap(long)]
         size: Option<String>,
+        /// Run under gdb if set.
+        #[clap(long, short)]
+        debug: bool,
     },
     /// Desktop: runs with packaged apps.
     Prod {
@@ -50,6 +53,9 @@ enum Commands {
         /// The screen size to emulate. Formatted such as 800x600.
         #[clap(long)]
         size: Option<String>,
+        /// Run under gdb if set.
+        #[clap(long, short)]
+        debug: bool,
     },
     /// Gonk: push the packaged apps to the device.
     Push {
@@ -142,18 +148,28 @@ fn main() {
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level app
     let command_result: Result<(), CommandError> = match &cli.command {
-        Commands::Prod { r#type, size } => {
+        Commands::Prod {
+            r#type,
+            size,
+            debug,
+        } => {
             if config.set_output_name("prod").is_ok() {
-                ProdCommand::start(config, r#type.clone(), size.clone()).map_err(|e| e.into())
+                ProdCommand::start(config, r#type.clone(), size.clone(), *debug)
+                    .map_err(|e| e.into())
             } else {
                 Err(CommandError::Configuration(
                     "Failed to configure 'prod' build".into(),
                 ))
             }
         }
-        Commands::Dev { r#type, size } => {
+        Commands::Dev {
+            r#type,
+            size,
+            debug,
+        } => {
             if config.set_output_name("dev").is_ok() {
-                DevCommand::start(config, r#type.clone(), size.clone()).map_err(|e| e.into())
+                DevCommand::start(config, r#type.clone(), size.clone(), *debug)
+                    .map_err(|e| e.into())
             } else {
                 Err(CommandError::Configuration(
                     "Failed to configure 'dev' build".into(),
@@ -199,7 +215,10 @@ fn main() {
             }
         }
         Commands::Clean {} => {
-            if let Err(err) = std::fs::remove_dir_all(&config.output_path) {
+            if let Err(err) = {
+                let _timer = crate::timer::Timer::start("Clean output directory");
+                std::fs::remove_dir_all(&config.output_path)
+            } {
                 error!(
                     "Failed to clean output directory {} : {}",
                     config.output_path.display(),

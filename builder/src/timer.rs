@@ -28,9 +28,9 @@ impl Drop for Timer {
     fn drop(&mut self) {
         let elapsed = self.start.elapsed();
         if elapsed.as_secs() == 0 {
-            info!("{} : {}ms", self.name, elapsed.as_millis());
+            info!("{} ⏱️  {}ms", self.name, elapsed.as_millis());
         } else {
-            info!("{} : {:.1}s", self.name, elapsed.as_secs_f32());
+            info!("{} ⏱️  {:.1}s", self.name, elapsed.as_secs_f32());
         }
     }
 }

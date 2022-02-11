@@ -28,6 +28,7 @@ impl ProdCommand {
         config: BuildConfig,
         dtype: Option<String>,
         size: Option<String>,
+        debug: bool,
     ) -> Result<(), DesktopCommandError> {
         info!("Starting production build...");
         let params = DesktopParams {
@@ -35,6 +36,7 @@ impl ProdCommand {
             no_run: false,
             dtype,
             size,
+            debug,
         };
         Self::run(&config, params)
     }
@@ -60,6 +62,7 @@ impl InstallCommand {
             no_run: true,
             dtype: None,
             size: None,
+            debug: false,
         };
         Self::run(&config, params)
     }
@@ -82,6 +85,7 @@ impl DevCommand {
         config: BuildConfig,
         dtype: Option<String>,
         size: Option<String>,
+        debug: bool,
     ) -> Result<(), DesktopCommandError> {
         info!("Starting development build...");
         let params = DesktopParams {
@@ -89,6 +93,7 @@ impl DevCommand {
             no_run: false,
             dtype,
             size,
+            debug,
         };
         Self::run(&config, params)
     }

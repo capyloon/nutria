@@ -438,6 +438,7 @@ pub struct B2gRunner {
 pub struct B2gRunnerInput {
     pub dtype: Option<String>,
     pub size: Option<String>,
+    pub debug: bool,
 }
 
 impl Task for B2gRunner {
@@ -465,7 +466,19 @@ impl Task for B2gRunner {
         user_file.write_all(USER_DESKTOP_JS.as_bytes())?;
 
         // Spawns b2g.
-        let mut cmd = Command::new(&self.b2g_binary);
+        let mut cmd = if params.debug {
+            // gdb -ex run --args $B2G_BINARY b2g-args...
+            let mut gdb_cmd = Command::new("gdb");
+            gdb_cmd
+                .arg("-ex")
+                .arg("run")
+                .arg("--args")
+                .arg(&self.b2g_binary);
+
+            gdb_cmd
+        } else {
+            Command::new(&self.b2g_binary)
+        };
         cmd.arg("-profile")
             .arg(format!("{}", self.profile_path.display()))
             .stdout(Stdio::inherit())

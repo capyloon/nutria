@@ -99,6 +99,7 @@ impl DebianCommand {
             no_run: true,
             dtype: None,
             size: None,
+            debug: false,
         };
         Self::run(&config, params)?;
 

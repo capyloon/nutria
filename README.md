@@ -84,6 +84,7 @@ USAGE:
     jackady dev [OPTIONS]
 
 OPTIONS:
+    -d, --debug          Run under gdb if set
     -h, --help           Print help information
         --size <SIZE>    The screen size to emulate. Formatted such as 800x600
         --type <TYPE>    The type of device to emulate. Valid values are 'desktop' and 'mobile'
@@ -100,6 +101,7 @@ USAGE:
     jackady prod [OPTIONS]
 
 OPTIONS:
+    -d, --debug          Run under gdb if set
     -h, --help           Print help information
         --size <SIZE>    The screen size to emulate. Formatted such as 800x600
         --type <TYPE>    The type of device to emulate. Valid values are 'desktop' and 'mobile'
