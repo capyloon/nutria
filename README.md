@@ -8,6 +8,8 @@ This repo contains a suite of apps and their build system. Several running mode 
 
 The included build system is available by running the `jackady` (spelled like the French "Jacques a dit") command. This lets you run locally in development or production mode, and manage device operations.
 
+If you want to contribute, please read the [Contributing Guide](./CONTRIBUTING.md).
+
 # Prerequisites
 
 In order to develop locally, you need a stable Rust toolchain installed (eg. from https://rustup.rs/) since the first invocation of `jackady` will compile the build system.
