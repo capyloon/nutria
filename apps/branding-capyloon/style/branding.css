@@ -23,8 +23,7 @@
 
 #logo div.title,
 #logo div.subtitle, #logo .action {
-  /* Using a font-face defined font here causes crashes to be investigated */
-  /* font-family: "Lobster", cursive; */
+  font-family: "Lobster", cursive;
   background: linear-gradient(
     to bottom right,
     var(--logo-grad-start),
@@ -48,6 +47,7 @@
   animation: logo-anim 6s linear infinite;
   background-image: url(../resources/logo.webp);
   background-size: contain;
+  margin: 1em;
 }
 
 @keyframes logo-anim {
