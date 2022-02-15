@@ -11,7 +11,7 @@
   padding: 1em;
   border-radius: 5px;
   font-size: smaller;
-  font-family: "Open Sans", "sans serif";
+  font-family: "Open Sans", arial, "sans serif";
   background-color: var(--dialog-background);
   color: var(--dialog-text);
   margin: 1em;

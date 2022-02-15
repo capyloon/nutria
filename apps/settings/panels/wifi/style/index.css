@@ -5,7 +5,7 @@ body {
 }
 
 body {
-  font-family: "Open Sans", "sans serif";
+  font-family: "Open Sans", arial, "sans serif";
   user-select: none;
   display: flex;
   flex-direction: column;
