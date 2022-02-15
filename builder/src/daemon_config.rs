@@ -67,7 +67,6 @@ pub struct GeneralConfig {
     pub log_path: String,
     pub remote_services_config: String,
     pub remote_services_path: String,
-    pub socket_path: String,
 }
 
 #[derive(Deserialize, Serialize)]

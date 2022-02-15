@@ -10,7 +10,6 @@ verbose_log = true
 log_path = "/tmp"
 remote_services_config = "__HOME__/.b2gos/api-daemon/remote/config.toml"
 remote_services_path = "__HOME__/.b2gos/api-daemon/remote"
-socket_path = "/tmp/api-daemon-socket"
 
 [http]
 root_path = "/opt/b2gos/api-daemon/http_root"

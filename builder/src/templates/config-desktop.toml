@@ -7,7 +7,6 @@ verbose_log = true
 log_path = "/tmp"
 remote_services_config = "./remote/config.toml"
 remote_services_path = "./remote"
-socket_path = "/tmp/api-daemon-socket"
 
 [http]
 root_path = "../prebuilts/http_root"
