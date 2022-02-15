@@ -121,6 +121,7 @@ fn main() {
     if display_info {
         let s = "=".repeat(80);
         info!("{}", s);
+        info!("Host target: {}", crate::common::host_target());
         info!("Environment:");
         [
             "NUTRIA_OUPUT_ROOT",

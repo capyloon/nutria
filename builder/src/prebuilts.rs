@@ -227,6 +227,13 @@ pub fn update(config: BuildConfig) -> Result<(), DownloadTaskError> {
             if let Err(err) = task.run((url, "prebuilts".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
+                #[cfg(target_os = "macos")]
+                let _ = writeln!(
+                    env_file,
+                    "export NUTRIA_B2G_BINARY={}/B2G.app/Contents/MacOS/b2g",
+                    prebuilts.display()
+                );
+                #[cfg(not(target_os = "macos"))]
                 let _ = writeln!(
                     env_file,
                     "export NUTRIA_B2G_BINARY={}/b2g/b2g",

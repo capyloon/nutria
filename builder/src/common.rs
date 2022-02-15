@@ -118,11 +118,15 @@ pub trait DesktopCommand {
 }
 
 pub fn host_target() -> String {
-    format!(
-        "{}-{}-{}-{}",
-        target::arch(),
-        target::vendor(),
-        target::os(),
-        target::env()
-    )
+    if target::vendor() == "apple" && target::os() == "macos" {
+        format!("{}-apple-darwin", target::arch())
+    } else {
+        format!(
+            "{}-{}-{}-{}",
+            target::arch(),
+            target::vendor(),
+            target::os(),
+            target::env()
+        )
+    }
 }
