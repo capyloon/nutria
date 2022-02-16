@@ -57,8 +57,19 @@ function openTerminal() {
   websocket.binaryType = "arraybuffer";
 
   websocket.onopen = (evt) => {
-    // Send the command to start.
-    let command = location.port == 8081 ? "/usr/bin/bash" : "/system/bin/sh";
+    // Send the command to start a shell.
+    let command = "/system/bin/sh";
+    if (location.port == 8081) {
+      // use /usr/bin/bash on Linux and /bin/zsh on Mac
+      if (navigator.platform.startsWith("Linux")) {
+        command = "/usr/bin/bash";
+      } if (navigator.platform.startsWith("Mac")) {
+        command = "/bin/zsh";
+      } else {
+        console.error(`Unsupported platform: ${navigator.platform}`);
+        return;
+      }
+    }
 
     console.log(`ZZZ Sending command: '${command}'`);
     websocket.send(command);
@@ -67,7 +78,7 @@ function openTerminal() {
       screenKeys: true,
       useStyle: true,
       cursorBlink: true,
-      fontFamily: "Droid Sans Mono, mono",
+      fontFamily: "Droid Sans Mono, mono, monospace",
       windowsMode: true,
     });
 
