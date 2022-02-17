@@ -1,7 +1,11 @@
 {
   "x86_64-unknown-linux-gnu": {
-    "api-daemon": "https://bafybeibugvpz5kvzrbo5fneqa622pmykpzyknxxphukbpjtziqzjycyusu.ipfs.dweb.link/api-daemon-x86_64-unknown-linux-gnu.tar.xz",
-    "b2ghald": "https://bafybeibugvpz5kvzrbo5fneqa622pmykpzyknxxphukbpjtziqzjycyusu.ipfs.dweb.link/b2ghald-x86_64-unknown-linux-gnu.tar.xz",
-    "b2g": "https://bafybeibugvpz5kvzrbo5fneqa622pmykpzyknxxphukbpjtziqzjycyusu.ipfs.dweb.link/b2g-98.0.en-US.linux-x86_64.tar.bz2"
+    "api-daemon": "https://bafybeihmdu62yeexbekl24bq5oynuuvb2q6ope2vvwnmzubnqbvyy37ap4.ipfs.dweb.link/api-daemon-x86_64-unknown-linux-gnu.tar.xz",
+    "b2ghald": "https://bafybeihmdu62yeexbekl24bq5oynuuvb2q6ope2vvwnmzubnqbvyy37ap4.ipfs.dweb.link/b2ghald-x86_64-unknown-linux-gnu.tar.xz",
+    "b2g": "https://bafybeihmdu62yeexbekl24bq5oynuuvb2q6ope2vvwnmzubnqbvyy37ap4.ipfs.dweb.link/b2g-99.0.en-US.linux-x86_64.tar.bz2"
+  },
+  "aarch64-apple-darwin": {
+    "api-daemon": "https://bafybeicffwypuacc3eeee62rzp3t2jc7p4dg2rw6njqv5jq6pkupzw3jyu.ipfs.dweb.link/api-daemon-aarch64-apple-darwin.tar.xz",
+    "b2g": "https://bafybeihmdu62yeexbekl24bq5oynuuvb2q6ope2vvwnmzubnqbvyy37ap4.ipfs.dweb.link/b2g-99.0.en-US.mac.tar.bz2"
   }
 }
