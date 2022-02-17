@@ -166,3 +166,14 @@ This command forces a restart of b2g and the api-daemon.
 
 This command will fetch prebuilt binaries for your platform and setup environment variables accordingly.
 The downloaded resources are cached in the `.cache` directory.
+
+The following options are supported:
+```
+USAGE:
+    jackady update-prebuilts [OPTIONS]
+
+OPTIONS:
+    -h, --help               Print help information
+    -t, --target <TARGET>    The target for which to fetch binaries. Defaults to the current host
+    -V, --version            Print version information
+```

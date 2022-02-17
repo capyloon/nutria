@@ -155,7 +155,7 @@ struct PrebuiltsList {
     b2g: Option<String>,
 }
 
-pub fn update(config: BuildConfig) -> Result<(), DownloadTaskError> {
+pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), DownloadTaskError> {
     let cwd = std::env::current_dir()?;
 
     let mut json_path = cwd.clone();
@@ -163,7 +163,7 @@ pub fn update(config: BuildConfig) -> Result<(), DownloadTaskError> {
     let prebuilts_json = File::open(&json_path)?;
 
     let list: HashMap<String, PrebuiltsList> = serde_json::from_reader(prebuilts_json)?;
-    let target = host_target();
+    let target = target.unwrap_or_else(|| host_target());
     if let Some(item) = list.get(&target) {
         let mut prebuilts = cwd.clone();
         let _ = prebuilts.pop();
@@ -245,6 +245,8 @@ pub fn update(config: BuildConfig) -> Result<(), DownloadTaskError> {
         let _ = env_file.flush();
     } else {
         error!("No prebuilts available for this target: {}", target);
+        let targets: Vec<String> = list.keys().into_iter().cloned().collect();
+        info!("{} Available targets:\n\t{}", targets.len(), targets.join("\n\t"));
     }
 
     Ok(())

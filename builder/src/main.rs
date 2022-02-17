@@ -86,7 +86,11 @@ enum Commands {
     /// Cleans up the output directory.
     Clean {},
     /// Download prebuilt versions of the needed binaries.
-    UpdatePrebuilts {},
+    UpdatePrebuilts {
+        /// The target for which to fetch binaries. Defaults to the current host.
+        #[clap(long, short)]
+        target: Option<String>,
+    },
 }
 
 #[derive(Error, Debug)]
@@ -230,7 +234,9 @@ fn main() {
                 Ok(())
             }
         }
-        Commands::UpdatePrebuilts {} => prebuilts::update(config).map_err(|e| e.into()),
+        Commands::UpdatePrebuilts { target } => {
+            prebuilts::update(config, target.clone()).map_err(|e| e.into())
+        }
     };
 
     if let Err(err) = command_result {
