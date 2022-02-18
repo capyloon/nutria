@@ -14,7 +14,7 @@ use crate::commands::{
     DevCommand, InstallCommand, ProdCommand, PushB2gCommand, PushCommand, ResetDataCommand,
     ResetTimeCommand, RestartCommand,
 };
-use crate::debian::DebianCommand;
+use crate::debian::{DebianCommand, DebianTarget};
 use clap::{AppSettings, Parser, Subcommand};
 use log::{error, info};
 use thiserror::Error;
@@ -80,8 +80,9 @@ enum Commands {
     },
     /// Desktop: creates a debian package.
     Deb {
-        /// The device environment: desktop|pinephone, defaults to desktop.
-        device: Option<String>,
+        /// The target device.
+        #[clap(arg_enum, long, short)]
+        device: Option<DebianTarget>,
     },
     /// Cleans up the output directory.
     Clean {},
@@ -198,21 +199,9 @@ fn main() {
         Commands::Deb { device } => {
             let output_path = config.output_path.join("debian").join("opt").join("b2gos");
             if config.set_output_path(&output_path).is_ok() {
-                let device = match device {
-                    Some(val) => val.clone(),
-                    None => String::from("desktop"),
-                };
-
-                if device != "desktop" {
-                    error!(
-                        "Creating debian packages for '{}' is not supported.",
-                        device
-                    );
-                    return;
-                }
-
                 config.daemon_port = 8081;
-                DebianCommand::start(config, &device).map_err(|e| e.into())
+                DebianCommand::start(config, &device.clone().unwrap_or_default())
+                    .map_err(|e| e.into())
             } else {
                 Err(CommandError::Configuration(
                     "Failed to configure 'debian' build.".into(),

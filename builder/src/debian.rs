@@ -6,6 +6,7 @@
 //!     |- api-daemon
 //!     |       +- api-daemon
 //!     |       +- config.toml
+//!     |       +- default-settings.json
 //!     |       +- http_root
 //!     |              +- api
 //!     |- b2ghald
@@ -27,7 +28,7 @@
 //!  /usr/lib/systemd/system/b2ghald.service
 
 use crate::build_config::BuildConfig;
-use crate::common::{host_target, DesktopCommand, DesktopParams};
+use crate::common::{DesktopCommand, DesktopParams};
 use crate::daemon_config::DaemonConfigKind;
 use crate::tasks::{PrepareDaemon, Task, ZipApp, USER_DESKTOP_JS};
 use crate::timer::Timer;
@@ -62,6 +63,35 @@ pub enum DebianError {
     #[error("Other error: {0}")]
     Other(String),
 }
+
+#[derive(clap::ArgEnum, PartialEq, Debug, Clone)]
+pub enum DebianTarget {
+    Desktop,
+    Mobian,
+}
+
+impl Default for DebianTarget {
+    fn default() -> Self {
+        DebianTarget::Desktop
+    }
+}
+
+impl DebianTarget {
+    fn arch(&self) -> String {
+        match &self {
+            DebianTarget::Desktop => "x86_64-unknown-linux-gnu".to_owned(),
+            DebianTarget::Mobian => "aarch64-unknown-linux-gnu".to_owned(),
+        }
+    }
+
+    fn deb_arch(&self) -> String {
+        match &self {
+            DebianTarget::Desktop => "amd64".to_owned(),
+            DebianTarget::Mobian => "arm64".to_owned(),
+        }
+    }
+}
+
 pub struct DebianCommand;
 
 impl DesktopCommand for DebianCommand {
@@ -86,11 +116,11 @@ macro_rules! template {
     };
 }
 impl DebianCommand {
-    pub fn start(config: BuildConfig, device: &str) -> Result<(), DebianError> {
+    pub fn start(config: BuildConfig, device: &DebianTarget) -> Result<(), DebianError> {
         let mut config = config;
         let _timer = Timer::start_with_message(
-            &format!("Debian {} package created", device),
-            &format!("Creating {} debian package", device),
+            &format!("Debian {:?} package created", device),
+            &format!("Creating {:?} debian package", device),
         );
 
         let output = config.output_path.clone(); //BuildConfig::default_output_path();
@@ -138,6 +168,12 @@ impl DebianCommand {
             .expect("Failed to prepare api-daemon");
         let _ = std::fs::copy(config.daemon_binary(), daemon_dir.join("api-daemon"))
             .expect("Failed to copy api-daemon binary");
+        // Copy the default settings files to /opt/b2gos/api-daemon/default-settings.json
+        let _ = std::fs::copy(
+            config.default_settings,
+            daemon_dir.join("default-settings.json"),
+        )
+        .expect("Failed to copy default-settings.json");
 
         // b2g
         let status = {
@@ -197,7 +233,7 @@ impl DebianCommand {
         let control = CONTROL
             .replace("${PKG_NAME}", PACKAGE_NAME)
             .replace("${VERSION}", PACKAGE_VERSION)
-            .replace("${ARCH}", "amd64");
+            .replace("${ARCH}", &device.deb_arch());
 
         template!(&control, debian_dir.join("control"), None);
 
@@ -207,7 +243,7 @@ impl DebianCommand {
             let package_path = default_output.join(&format!(
                 "{}_{}_{}.deb",
                 PACKAGE_NAME,
-                host_target(),
+                device.arch(),
                 PACKAGE_VERSION
             ));
 

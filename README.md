@@ -76,6 +76,18 @@ This will create a debian package under `NUTRIA_OUPUT_ROOT/debian/`.
 
 This package provides the desktop session, as well as the mobile & desktop emulators. Note that when installed from the debian package, they all share the same profile data.
 
+The following options are supported:
+```
+USAGE:
+    jackady deb [OPTIONS]
+
+OPTIONS:
+    -d, --device <DEVICE>    The target device [possible values: desktop, mobian]
+    -h, --help               Print help information
+    -V, --version            Print version information
+
+```
+
 ## The `dev` command
 
 This command runs the desktop emulator in development mode: apps are not packaged, and changes done to them in the `NUTRIA_APPS_ROOT` directory are immediately visible when reloading the apps. Changes to the system app still require a full restart.

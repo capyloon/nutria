@@ -2,6 +2,7 @@
 Name=b2gOS - Desktop
 Comment=Long Live The Web!
 Exec=/opt/b2gos/start.sh --type=desktop --size=800x600
+Terminal=false
 Icon=b2g-os
 Type=Application
 Categories=Network;
