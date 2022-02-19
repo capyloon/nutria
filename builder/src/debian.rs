@@ -229,7 +229,7 @@ impl DebianCommand {
             let dest_path = prefs_dir.join("user.js");
             let mut options = OpenOptions::new();
             let mut dest = options.append(true).open(dest_path)?;
-            dest.write_all(&mut buf)?;
+            dest.write_all(&buf)?;
         }
 
         // b2ghald

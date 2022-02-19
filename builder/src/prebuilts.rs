@@ -12,7 +12,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use thiserror::Error;
 use url::{ParseError as UrlError, Url};
@@ -34,7 +34,7 @@ struct DownloadTask {
 }
 
 impl DownloadTask {
-    fn unpack(&self, source: &PathBuf, dest: &PathBuf, package: &str) {
+    fn unpack(&self, source: &Path, dest: &Path, package: &str) {
         // Unpack to the proper directory.
         let status = {
             let _timer = Timer::start_with_message(
@@ -135,10 +135,10 @@ impl Task for DownloadTask {
                 let _ = etag_file.flush();
             }
 
-            self.unpack(&cache_path, &unpack_path, &package);
+            self.unpack(&cache_path, &unpack_path, package);
         } else if status == StatusCode::NOT_MODIFIED {
             // Got a 304 because of matching Etags: we only need to unpack.
-            self.unpack(&cache_path, &unpack_path, &package);
+            self.unpack(&cache_path, &unpack_path, package);
         } else {
             error!("Download failed: {}", status);
         }
@@ -163,9 +163,9 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
     let prebuilts_json = File::open(&json_path)?;
 
     let list: HashMap<String, PrebuiltsList> = serde_json::from_reader(prebuilts_json)?;
-    let target = target.unwrap_or_else(|| host_target());
+    let target = target.unwrap_or_else(host_target);
     if let Some(item) = list.get(&target) {
-        let mut prebuilts = cwd.clone();
+        let mut prebuilts = cwd;
         let _ = prebuilts.pop();
         let topdir = prebuilts.clone();
         prebuilts.push("prebuilts");
@@ -183,7 +183,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
         let task = DownloadTask::new(&config);
 
         if let Some(url) = &item.api_daemon {
-            let url = Url::parse(&url)?;
+            let url = Url::parse(url)?;
             if let Err(err) = task.run((url, ".".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
@@ -209,7 +209,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
         }
 
         if let Some(url) = &item.b2ghald {
-            let url = Url::parse(&url)?;
+            let url = Url::parse(url)?;
             if let Err(err) = task.run((url, ".".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
@@ -223,7 +223,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
         }
 
         if let Some(url) = &item.b2g {
-            let url = Url::parse(&url)?;
+            let url = Url::parse(url)?;
             if let Err(err) = task.run((url, "prebuilts".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
@@ -246,7 +246,11 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
     } else {
         error!("No prebuilts available for this target: {}", target);
         let targets: Vec<String> = list.keys().into_iter().cloned().collect();
-        info!("{} Available targets:\n\t{}", targets.len(), targets.join("\n\t"));
+        info!(
+            "{} Available targets:\n\t{}",
+            targets.len(),
+            targets.join("\n\t")
+        );
     }
 
     Ok(())
