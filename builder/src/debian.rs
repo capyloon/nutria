@@ -33,8 +33,8 @@ use crate::daemon_config::DaemonConfigKind;
 use crate::tasks::{PrepareDaemon, Task, ZipApp, USER_DESKTOP_JS};
 use crate::timer::Timer;
 use log::error;
-use std::fs::{copy, create_dir_all, OpenOptions};
-use std::io::{self, Write};
+use std::fs::{copy, create_dir_all, File, OpenOptions};
+use std::io::{self, Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -67,7 +67,7 @@ pub enum DebianError {
 #[derive(clap::ArgEnum, PartialEq, Debug, Clone)]
 pub enum DebianTarget {
     Desktop,
-    Mobian,
+    Pinephone,
 }
 
 impl Default for DebianTarget {
@@ -80,14 +80,21 @@ impl DebianTarget {
     fn arch(&self) -> String {
         match &self {
             DebianTarget::Desktop => "x86_64-unknown-linux-gnu".to_owned(),
-            DebianTarget::Mobian => "aarch64-unknown-linux-gnu".to_owned(),
+            DebianTarget::Pinephone => "aarch64-unknown-linux-gnu".to_owned(),
         }
     }
 
     fn deb_arch(&self) -> String {
         match &self {
             DebianTarget::Desktop => "amd64".to_owned(),
-            DebianTarget::Mobian => "arm64".to_owned(),
+            DebianTarget::Pinephone => "arm64".to_owned(),
+        }
+    }
+
+    fn extra_prefs(&self) -> Option<String> {
+        match &self {
+            DebianTarget::Desktop => None,
+            DebianTarget::Pinephone => Some("pinephone.js".to_owned()),
         }
     }
 }
@@ -170,7 +177,7 @@ impl DebianCommand {
             .expect("Failed to copy api-daemon binary");
         // Copy the default settings files to /opt/b2gos/api-daemon/default-settings.json
         let _ = std::fs::copy(
-            config.default_settings,
+            &config.default_settings,
             daemon_dir.join("default-settings.json"),
         )
         .expect("Failed to copy default-settings.json");
@@ -207,6 +214,23 @@ impl DebianCommand {
         let prefs_dir = opt_b2gos.join("b2g").join("defaults").join("pref");
         let _ = create_dir_all(&prefs_dir);
         template!(USER_DESKTOP_JS, prefs_dir.join("user.js"), None);
+
+        if let Some(device_prefs) = device.extra_prefs() {
+            let source_path = config
+                .default_settings
+                .parent()
+                .ok_or_else(|| DebianError::Other("No parent".to_owned()))?
+                .join("pref")
+                .join(&device_prefs);
+            let mut source = File::open(&source_path)?;
+            let mut buf = Vec::new();
+            source.read_to_end(&mut buf)?;
+
+            let dest_path = prefs_dir.join("user.js");
+            let mut options = OpenOptions::new();
+            let mut dest = options.append(true).open(dest_path)?;
+            dest.write_all(&mut buf)?;
+        }
 
         // b2ghald
         let b2ghald_bin = BuildConfig::b2ghald_binary();

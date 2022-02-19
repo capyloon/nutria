@@ -82,7 +82,7 @@ USAGE:
     jackady deb [OPTIONS]
 
 OPTIONS:
-    -d, --device <DEVICE>    The target device [possible values: desktop, mobian]
+    -d, --device <DEVICE>    The target device [possible values: desktop, pinephone]
     -h, --help               Print help information
     -V, --version            Print version information
 

@@ -17,6 +17,8 @@ mkdir -p ${HOME}/.b2gos/profile
 # Copy the daemon config file and substitute the ${HOME} value.
 sed -e s#__HOME__#${HOME}#g /opt/b2gos/api-daemon/config.toml > ${HOME}/.b2gos/api-daemon-config.toml
 
+export RUST_LOG=info
+
 # Start the api-daemon
 export DEFAULT_SETTINGS=/opt/b2gos/api-daemon/default-settings.json
 mkdir -p ${HOME}/.b2gos/api-daemon
