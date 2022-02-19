@@ -5,7 +5,7 @@
   flex-direction: column;
   justify-content: center;
   position: absolute;
-  bottom: 2.5em; /* TODO: don't hardcode statusbar height */
+  bottom: var(--statusbar-height);
   left: 0;
   width: calc(100% - 2em);
   max-height: 50vh;

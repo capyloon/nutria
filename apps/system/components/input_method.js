@@ -19,6 +19,7 @@ class InputMethod extends HTMLElement {
       mozpasspointerevents="true"
       transparent="true">
     </web-view>
+    <div class="padding"></div>
     `;
     this.webView = this.querySelector("web-view");
     this.webView.openWindowInfo = null;
