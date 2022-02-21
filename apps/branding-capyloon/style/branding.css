@@ -11,7 +11,7 @@
   font-family: "Lobster";
   font-style: normal;
   font-weight: 400;
-  src: local("sans-serif"), url("./Lobster-logo.woff2") format("woff2");
+  src: local("sans-serif"), url("./Lobster-Regular.ttf") format("truetype");
   font-display: swap;
 }
 
