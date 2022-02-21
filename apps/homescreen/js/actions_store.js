@@ -54,7 +54,7 @@ class ActionsStore extends EventTarget {
         for (let child of children) {
           const json = await this.svc.getVariantJson(child.id);
 
-          this.log(`content for ${child.id}: ${JSON.stringify(json)}`);
+          // this.log(`content for ${child.id}: ${JSON.stringify(json)}`);
           const hasIcon = child.variants.find((variant) => {
             return variant.name === "icon";
           });
@@ -150,9 +150,11 @@ class ActionsStore extends EventTarget {
     if (index !== -1) {
       this.actions.splice(index, 1);
       try {
-        let meta = await this.svc.getChildByName(actionId);
+        let meta = await this.svc.childByName(this.container, actionId);
         await this.svc.delete(meta.id);
-      } catch (e) {}
+      } catch (e) {
+        this.error(`Failed to remove ${actionId} : ${e}`);
+      }
     } else {
       console.error(`No action with id '${actionId}' to remove.`);
     }
