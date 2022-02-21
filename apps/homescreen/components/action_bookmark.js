@@ -31,9 +31,8 @@ class ActionBookmark extends HTMLElement {
       let activity = new WebActivity("launch", {
         url: data.url,
         title: data.title,
-        iconUrl: this.icon,
+        icon: this.icon,
         backgroundColor: data.backgroundColor,
-        color: data.color,
       });
       activity.start();
     };

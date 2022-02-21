@@ -77,6 +77,12 @@ export class AppsManager extends EventTarget {
         icon,
         role: manifest?.b2g_features?.role,
       };
+
+      if (manifest.background_color) {
+        summary.backgroundColor = manifest.background_color;
+      } else if (manifest.theme_color) {
+        summary.backgroundColor = manifest.theme_color;
+      }
     } catch (e) {
       console.error(`AppsList: oops ${e}`);
     }

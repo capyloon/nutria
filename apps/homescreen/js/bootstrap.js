@@ -184,8 +184,10 @@ async function activityHandler(event) {
         title: siteInfo.title,
         url: siteInfo.url,
         icon:
-          siteInfo.iconUrl ||
+          siteInfo.icon ||
           `http://branding.localhost:${location.port}/resources/logo.webp`,
+        backgroundColor: siteInfo.backgroundColor,
+        color: siteInfo.color,
       });
     } else if (data.app) {
       // We got an app object, for instance for an already installed app that is not pinned to the

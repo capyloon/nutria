@@ -375,7 +375,7 @@ class WindowManager extends HTMLElement {
   // isHomescreen (bool) : the homescreen gets a transparent background and can't be closed.
   // isCaptivePortal (bool) : this frame will be used for wifi captive portal login only.
   // activate (bool) : if true, selects this frame as the active one.
-  // details: { title, iconUrl, backgroundColor } : metadata usable for the splash screen.
+  // details: { title, icon, backgroundColor } : metadata usable for the splash screen.
   //
   // Returns the <web-view> in which the content is loaded.
   openFrame(url = "about:blank", config = {}) {
@@ -545,9 +545,9 @@ class WindowManager extends HTMLElement {
     let frame = this.windows.firstElementChild;
     while (frame) {
       if (!frame.config.isHomescreen) {
-        const { title, iconUrl } = frame.state;
+        const { title, icon } = frame.state;
         let id = frame.getAttribute("id");
-        list.push({ id, title, iconUrl });
+        list.push({ id, title, icon });
       }
       frame = frame.nextElementSibling;
     }
@@ -777,7 +777,7 @@ class WindowManager extends HTMLElement {
       screenshot.innerHTML = `
       <div class="head">
         <img class="favicon" src="${
-          frame.state.iconUrl || window.config.brandLogo
+          frame.state.icon || window.config.brandLogo
         }" />
         <div class="flex-fill"></div>
         <div class="close-icon">

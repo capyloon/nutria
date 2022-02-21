@@ -115,7 +115,7 @@ class ContentWindow extends HTMLElement {
       url: "",
       title: "",
       secure: "insecure",
-      iconUrl: "",
+      icon: "",
       manifestUrl: "",
       iconSize: 0,
       canGoBack: false,
@@ -280,24 +280,23 @@ class ContentWindow extends HTMLElement {
     this.overscrollContainer = this.querySelector(".overscroll");
 
     if (this.config.details) {
-      let { color, backgroundColor, iconUrl, title } = this.config.details;
+      let { backgroundColor, icon, title } = this.config.details;
       if (backgroundColor) {
         this.loader.style.backgroundColor = backgroundColor;
       }
-      if (iconUrl) {
+      if (icon) {
         this.loader.classList.remove("running");
         this.loader.querySelector("lucide-icon").classList.add("hidden");
         let img = this.loader.querySelector("img");
         img.classList.remove("hidden");
-        img.src = iconUrl;
+        img.src = icon;
       }
       if (title) {
         let text = this.loader.querySelector(".title");
         text.classList.remove("hidden");
         text.textContent = title;
-        if (color) {
-          text.style.color = color;
-          text.style.filter = "none";
+        if (backgroundColor) {
+          text.style.color = backgroundColor;
         }
       }
     }
@@ -408,7 +407,7 @@ class ContentWindow extends HTMLElement {
           meta.backgroundColor = this.state.backgroundColor;
           await contentManager.createOrUpdateMediaEntry(
             this.state.url,
-            this.state.iconUrl,
+            this.state.icon,
             meta
           );
         }
@@ -639,7 +638,7 @@ class ContentWindow extends HTMLElement {
       await contentManager.createOrUpdatePlacesEntry(
         this.state.url,
         this.state.title,
-        this.state.iconUrl
+        this.state.icon
       );
     }
   }
@@ -950,7 +949,7 @@ class ContentWindow extends HTMLElement {
       // If there is a `sizes` property, trust it.
       if (data.sizes === "any") {
         // Scalable icon, can't beat that!
-        this.state.iconUrl = data.href;
+        this.state.icon = data.href;
         this.state.iconSize = 1000000;
         found = true;
         return;
@@ -964,7 +963,7 @@ class ContentWindow extends HTMLElement {
             let width = item.split("x")[0];
             if (width > size) {
               size = width;
-              this.state.iconUrl = data.href;
+              this.state.icon = data.href;
             }
           });
       }
@@ -972,7 +971,7 @@ class ContentWindow extends HTMLElement {
       if (size > max_size) {
         max_size = size;
         found = true;
-        this.state.iconUrl = data.href;
+        this.state.icon = data.href;
         this.state.iconSize = size;
       }
     });

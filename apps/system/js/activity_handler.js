@@ -35,8 +35,7 @@ window.addEventListener("serviceworkermessage", ({ detail }) => {
         let config = source.data;
         let details = {
           title: config.title,
-          iconUrl: config.iconUrl,
-          color: config.color,
+          icon: config.icon,
           backgroundColor: config.backgroundColor,
         };
         wm.openFrame(config.url, { activate: true, details });
