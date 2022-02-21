@@ -19,7 +19,10 @@ class SiteInfo extends HTMLElement {
     </h4>
     
     <div class="utils">
-      <button class="add-home hidden slim" data-l10n-id="site-info-add-home"></button>
+      <button class="add-home hidden slim" >
+        <img src="resources/pwalogo.svg" height="12px">
+        <span data-l10n-id="site-info-add-home"></span>
+      </button>
       <button class="split-screen slim" data-l10n-id="site-info-split-screen"></button>
       <lucide-icon kind="file-text" class="reader-mode hidden slim"></lucide-icon>
       <span class="flex-fill"></span>
@@ -218,6 +221,12 @@ class SiteInfo extends HTMLElement {
 
     let button = this.shadowRoot.querySelector("button.add-home");
     button.classList.remove("hidden");
+    let pwaLogo = this.shadowRoot.querySelector("button.add-home img");
+    if (this.state.manifestUrl !== "") {
+      pwaLogo.classList.remove("hidden");
+    } else {
+      pwaLogo.classList.add("hidden");
+    }
     button.onclick = async (event) => {
       event.stopPropagation();
       this.addToHome();
