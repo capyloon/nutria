@@ -22,7 +22,7 @@ class ActionsStore extends EventTarget {
 
   fetchAsBlob(url) {
     return new Promise((resolve, reject) => {
-      // We can't use fetch() since there it doesn't support mozSystem yet.
+      // TODO: switch to no-cors fetch()
       let xhr = new XMLHttpRequest({ mozSystem: true });
       xhr.open("GET", url, true);
       xhr.responseType = "blob";
@@ -52,14 +52,18 @@ class ActionsStore extends EventTarget {
       try {
         let children = await cursor.next();
         for (let child of children) {
-          let blob = await this.svc.getVariant(child.id);
-          // Extract the json from the blob.
-          const json = await new Response(blob).json();
+          const json = await this.svc.getVariantJson(child.id);
 
-          // If there is a icon variant, use it for the icon field.
-          try {
-            json.icon = await this.svc.getVariant(child.id, "icon");
-          } catch (e) {}
+          this.log(`content for ${child.id}: ${JSON.stringify(json)}`);
+          const hasIcon = child.variants.find((variant) => {
+            return variant.name === "icon";
+          });
+
+          if (hasIcon) {
+            json.icon = `http://127.0.0.1:${window.config.port}/cmgr/${this.http_key}/${child.id}/icon`;
+          } else {
+            this.error(`No icon for ${json.url}`);
+          }
           results.push(json);
         }
       } catch (e) {
@@ -106,6 +110,7 @@ class ActionsStore extends EventTarget {
 
   // Creates or update an action resource.
   // The action id is used as the resource name.
+  // Returns the updated action representation, with a non-blob icon url.
   async updateAction(action) {
     let entry = await contentManager.childByName(this.container, action.id);
     let content = new Blob([JSON.stringify(action)], {
@@ -124,8 +129,12 @@ class ActionsStore extends EventTarget {
 
     // Save the icon as a variant.
     if (Object.getPrototypeOf(action.icon) === Blob.prototype) {
+      this.log(`updating icon`);
       await entry.update(action.icon, "icon");
+      action.icon = `http://127.0.0.1:${window.config.port}/cmgr/${this.http_key}/${action.id}/icon`;
     }
+
+    return action;
   }
 
   async saveAll() {
@@ -163,7 +172,7 @@ class ActionsStore extends EventTarget {
 
   async addAction(action) {
     this.actions.push(action);
-    await this.updateAction(action);
+    return await this.updateAction(action);
   }
 
   forEach(callback) {
@@ -174,6 +183,7 @@ class ActionsStore extends EventTarget {
     this.log(`init`);
 
     this.svc = await contentManager.getService();
+    this.http_key = await this.svc.httpKey();
 
     const alreadyCreated = await contentManager.hasTopLevelContainer(
       "homescreen"

@@ -32,6 +32,8 @@ class ActionBookmark extends HTMLElement {
         url: data.url,
         title: data.title,
         iconUrl: this.icon,
+        backgroundColor: data.backgroundColor,
+        color: data.color,
       });
       activity.start();
     };

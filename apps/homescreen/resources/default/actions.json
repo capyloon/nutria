@@ -5,6 +5,8 @@
     "title": "Apps",
     "url": "https://appsco.pe/",
     "icon": "./resources/appscope.png",
+    "backgroundColor": "white",
+    "color": "black",
     "position": "0, 0"
   },
   {
@@ -13,6 +15,8 @@
     "title": "Wikipedia",
     "url": "https://en.wikipedia.org",
     "icon": "./resources/wikipedia.png",
+    "backgroundColor": "rgb(234, 236, 240)",
+    "color": "black",
     "position": "0, 1"
   },
   {
@@ -21,6 +25,8 @@
     "title": "Matrix",
     "url": "https://hydrogen.element.io/",
     "icon": "./resources/matrix.png",
+    "backgroundColor": "white",
+    "color": "black",
     "position": "0, 2"
   },
   {
@@ -29,6 +35,8 @@
     "title": "IPNS Filecoin",
     "url": "ipns://filecoin.io",
     "icon": "./resources/filecoin-logo.svg",
+    "backgroundColor": "white",
+    "color": "black",
     "position": "3, 1"
   },
   {
@@ -37,6 +45,8 @@
     "title": "IPFS Wiki",
     "url": "ipfs://bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq/wiki/",
     "icon": "./resources/wikipedia.png",
+    "backgroundColor": "rgb(234, 236, 240)",
+    "color": "black",
     "position": "3, 0"
   },
   {

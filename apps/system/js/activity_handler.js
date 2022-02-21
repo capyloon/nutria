@@ -33,7 +33,12 @@ window.addEventListener("serviceworkermessage", ({ detail }) => {
     switch (source.name) {
       case "launch":
         let config = source.data;
-        let details = { title: config.title, icon: config.icon };
+        let details = {
+          title: config.title,
+          iconUrl: config.iconUrl,
+          color: config.color,
+          backgroundColor: config.backgroundColor,
+        };
         wm.openFrame(config.url, { activate: true, details });
         break;
       default:

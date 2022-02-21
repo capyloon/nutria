@@ -105,13 +105,9 @@ class ActionsWall extends HTMLElement {
     });
     action.id = hex;
 
-    if (typeof action.icon === "string") {
-      action.icon = await this.store.fetchAsBlob(action.icon);
-    }
-
     try {
-      this.addAction(action);
-      await this.store.addAction(action);
+      const stored = await this.store.addAction(action);
+      this.addAction(stored);
     } catch (e) {
       this.error(`Failed to add action: ${e}`);
     }

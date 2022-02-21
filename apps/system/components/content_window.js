@@ -280,7 +280,7 @@ class ContentWindow extends HTMLElement {
     this.overscrollContainer = this.querySelector(".overscroll");
 
     if (this.config.details) {
-      let { backgroundColor, iconUrl, title } = this.config.details;
+      let { color, backgroundColor, iconUrl, title } = this.config.details;
       if (backgroundColor) {
         this.loader.style.backgroundColor = backgroundColor;
       }
@@ -295,8 +295,9 @@ class ContentWindow extends HTMLElement {
         let text = this.loader.querySelector(".title");
         text.classList.remove("hidden");
         text.textContent = title;
-        if (backgroundColor) {
-          text.style.color = backgroundColor;
+        if (color) {
+          text.style.color = color;
+          text.style.filter = "none";
         }
       }
     }
