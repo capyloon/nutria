@@ -11,6 +11,9 @@ The included build system is available by running the `jackady` (spelled like th
 
 If you want to contribute, please read the [Contributing Guide](./CONTRIBUTING.md).
 
+[![Mobile Version](./screenshots/mobile-1.webp "Nutria in Mobile Mode")
+![Desktop Version](./screenshots/desktop-1.webp "Nutria in Desktop Mode")](https://capyloon.org)
+
 # Prerequisites
 
 In order to develop locally, you need a stable Rust toolchain installed (eg. from https://rustup.rs/) since the first invocation of `jackady` will compile the build system.
