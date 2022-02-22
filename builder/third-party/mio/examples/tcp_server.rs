@@ -1,5 +1,5 @@
 // You can run this example from the root of the mio repo:
-// cargo run --example tcp_server --features="os-poll tcp"
+// cargo run --example tcp_server --features="os-poll net"
 use mio::event::Event;
 use mio::net::{TcpListener, TcpStream};
 use mio::{Events, Interest, Poll, Registry, Token};
@@ -36,7 +36,7 @@ fn main() -> io::Result<()> {
 
     println!("You can connect to the server using `nc`:");
     println!(" $ nc 127.0.0.1 9000");
-    println!("You'll see our welcome message and anything you type we'll be printed here.");
+    println!("You'll see our welcome message and anything you type will be printed here.");
 
     loop {
         poll.poll(&mut events, None)?;
@@ -82,7 +82,9 @@ fn main() -> io::Result<()> {
                         false
                     };
                     if done {
-                        connections.remove(&token);
+                        if let Some(mut connection) = connections.remove(&token) {
+                            poll.registry().deregister(&mut connection)?;
+                        }
                     }
                 }
             }

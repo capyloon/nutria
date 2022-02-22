@@ -6,7 +6,7 @@ use crate::log::{debug, trace};
 #[cfg(feature = "tls12")]
 use crate::msgs::enums::CipherSuite;
 use crate::msgs::enums::{AlertDescription, Compression, ExtensionType};
-use crate::msgs::enums::{ContentType, HandshakeType, ProtocolVersion, SignatureScheme};
+use crate::msgs::enums::{HandshakeType, ProtocolVersion, SignatureScheme};
 #[cfg(feature = "tls12")]
 use crate::msgs::handshake::SessionID;
 use crate::msgs::handshake::{ClientHelloPayload, Random, ServerExtension};
@@ -14,8 +14,8 @@ use crate::msgs::handshake::{ConvertProtocolNameList, ConvertServerNameList, Han
 use crate::msgs::message::{Message, MessagePayload};
 use crate::msgs::persist;
 use crate::server::{ClientHello, ServerConfig};
+use crate::suites;
 use crate::SupportedCipherSuite;
-use crate::{suites, ALL_CIPHER_SUITES};
 
 use super::server_conn::ServerConnectionData;
 #[cfg(feature = "tls12")]
@@ -79,8 +79,6 @@ impl ExtensionProcessing {
         &mut self,
         config: &ServerConfig,
         cx: &mut ServerContext<'_>,
-        #[allow(unused_variables)] // #[cfg(feature = "quic")] only
-        suite: SupportedCipherSuite,
         ocsp_response: &mut Option<&[u8]>,
         sct_list: &mut Option<&[u8]>,
         hello: &ClientHelloPayload,
@@ -120,28 +118,27 @@ impl ExtensionProcessing {
         #[cfg(feature = "quic")]
         {
             if cx.common.is_quic() {
+                // QUIC has strict ALPN, unlike TLS's more backwards-compatible behavior. RFC 9001
+                // says: "The server MUST treat the inability to select a compatible application
+                // protocol as a connection error of type 0x0178". We judge that ALPN was desired
+                // (rather than some out-of-band protocol negotiation mechanism) iff any ALPN
+                // protocols were configured locally or offered by the client. This helps prevent
+                // successful establishment of connections between peers that can't understand
+                // each other.
+                if cx.common.alpn_protocol.is_none()
+                    && (!our_protocols.is_empty() || maybe_their_protocols.is_some())
+                {
+                    cx.common
+                        .send_fatal_alert(AlertDescription::NoApplicationProtocol);
+                    return Err(Error::NoApplicationProtocol);
+                }
+
                 match hello.get_quic_params_extension() {
                     Some(params) => cx.common.quic.params = Some(params),
                     None => {
                         return Err(cx
                             .common
                             .missing_extension("QUIC transport parameters not found"));
-                    }
-                }
-
-                if let Some(resume) = resumedata {
-                    if config.max_early_data_size > 0
-                        && hello.early_data_extension_offered()
-                        && resume.version == cx.common.negotiated_version.unwrap()
-                        && resume.cipher_suite == suite.suite()
-                        && resume.alpn.as_ref().map(|x| &x.0) == cx.common.alpn_protocol.as_ref()
-                        && !cx.data.reject_early_data
-                    {
-                        self.exts
-                            .push(ServerExtension::EarlyData);
-                    } else {
-                        // Clobber value set in tls13::emit_server_hello
-                        cx.common.quic.early_secret = None;
                     }
                 }
             }
@@ -291,7 +288,7 @@ impl ExpectClientHello {
             if versions.contains(&ProtocolVersion::TLSv1_3) && tls13_enabled {
                 ProtocolVersion::TLSv1_3
             } else if !versions.contains(&ProtocolVersion::TLSv1_2) || !tls12_enabled {
-                return Err(bad_version(&mut cx.common, "TLS1.2 not offered/enabled"));
+                return Err(bad_version(cx.common, "TLS1.2 not offered/enabled"));
             } else if cx.common.is_quic() {
                 return Err(bad_version(
                     cx.common,
@@ -376,7 +373,7 @@ impl ExpectClientHello {
         };
 
         // Save their Random.
-        let randoms = ConnectionRandoms::new(client_hello.random, Random::new()?, false);
+        let randoms = ConnectionRandoms::new(client_hello.random, Random::new()?);
         match suite {
             SupportedCipherSuite::Tls13(suite) => tls13::CompleteClientHelloHandling {
                 config: self.config,
@@ -413,8 +410,13 @@ impl ExpectClientHello {
 
 impl State<ServerConnectionData> for ExpectClientHello {
     fn handle(self: Box<Self>, cx: &mut ServerContext<'_>, m: Message) -> NextStateOrError {
-        let (client_hello, sig_schemes) =
-            process_client_hello(&m, self.done_retry, cx.common, cx.data)?;
+        let (client_hello, sig_schemes) = process_client_hello(
+            &m,
+            self.done_retry,
+            &self.config.cipher_suites,
+            cx.common,
+            cx.data,
+        )?;
         self.with_certified_key(sig_schemes, client_hello, &m, cx)
     }
 }
@@ -429,6 +431,7 @@ impl State<ServerConnectionData> for ExpectClientHello {
 pub(super) fn process_client_hello<'a>(
     m: &'a Message,
     done_retry: bool,
+    supported_cipher_suites: &[SupportedCipherSuite],
     common: &mut CommonState,
     data: &mut ServerConnectionData,
 ) -> Result<(&'a ClientHelloPayload, Vec<SignatureScheme>), Error> {
@@ -493,7 +496,7 @@ pub(super) fn process_client_hello<'a>(
     // orthogonally to offered ciphersuites (even though, in TLS1.2 it is not).
     // So: reduce the offered sigschemes to those compatible with the
     // intersection of ciphersuites.
-    let client_suites = ALL_CIPHER_SUITES
+    let client_suites = supported_cipher_suites
         .iter()
         .copied()
         .filter(|scs| {

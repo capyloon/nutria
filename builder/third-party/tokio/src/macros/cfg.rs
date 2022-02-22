@@ -177,9 +177,9 @@ macro_rules! cfg_macros {
 macro_rules! cfg_metrics {
     ($($item:item)*) => {
         $(
-            // For now, metrics is always enabled. When stabilized, it might
-            // have a dedicated feature flag.
-            #[cfg(tokio_unstable)]
+            // For now, metrics is only disabled in loom tests.
+            // When stabilized, it might have a dedicated feature flag.
+            #[cfg(all(tokio_unstable, not(loom)))]
             #[cfg_attr(docsrs, doc(cfg(tokio_unstable)))]
             $item
         )*
@@ -189,7 +189,7 @@ macro_rules! cfg_metrics {
 macro_rules! cfg_not_metrics {
     ($($item:item)*) => {
         $(
-            #[cfg(not(tokio_unstable))]
+            #[cfg(not(all(tokio_unstable, not(loom))))]
             $item
         )*
     }
@@ -368,6 +368,16 @@ macro_rules! cfg_trace {
         $(
             #[cfg(all(tokio_unstable, feature = "tracing"))]
             #[cfg_attr(docsrs, doc(cfg(all(tokio_unstable, feature = "tracing"))))]
+            $item
+        )*
+    };
+}
+
+macro_rules! cfg_unstable {
+    ($($item:item)*) => {
+        $(
+            #[cfg(tokio_unstable)]
+            #[cfg_attr(docsrs, doc(cfg(tokio_unstable)))]
             $item
         )*
     };

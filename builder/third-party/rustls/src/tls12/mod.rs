@@ -1,6 +1,5 @@
 use crate::cipher::{MessageDecrypter, MessageEncrypter};
-use crate::conn::CommonState;
-use crate::conn::ConnectionRandoms;
+use crate::conn::{CommonState, ConnectionRandoms, Side};
 use crate::kx;
 use crate::msgs::codec::{Codec, Reader};
 use crate::msgs::enums::{AlertDescription, ContentType};
@@ -217,57 +216,48 @@ pub(crate) struct ConnectionSecrets {
 }
 
 impl ConnectionSecrets {
-    pub(crate) fn new(
-        randoms: &ConnectionRandoms,
+    pub(crate) fn from_key_exchange(
+        kx: kx::KeyExchange,
+        peer_pub_key: &[u8],
+        ems_seed: Option<Digest>,
+        randoms: ConnectionRandoms,
         suite: &'static Tls12CipherSuite,
-        pms: &[u8],
-    ) -> Self {
+    ) -> Result<Self, Error> {
         let mut ret = Self {
-            randoms: randoms.clone(),
+            randoms,
             suite,
             master_secret: [0u8; 48],
         };
 
-        let randoms = join_randoms(&ret.randoms.client, &ret.randoms.server);
-        prf::prf(
-            &mut ret.master_secret,
-            suite.hmac_algorithm,
-            pms,
-            b"master secret",
-            &randoms,
-        );
-        ret
-    }
-
-    pub(crate) fn new_ems(
-        randoms: &ConnectionRandoms,
-        hs_hash: &Digest,
-        suite: &'static Tls12CipherSuite,
-        pms: &[u8],
-    ) -> Self {
-        let mut ret = Self {
-            randoms: randoms.clone(),
-            master_secret: [0u8; 48],
-            suite,
+        let (label, seed) = match ems_seed {
+            Some(seed) => ("extended master secret", Seed::Ems(seed)),
+            None => (
+                "master secret",
+                Seed::Randoms(join_randoms(&ret.randoms.client, &ret.randoms.server)),
+            ),
         };
 
-        prf::prf(
-            &mut ret.master_secret,
-            suite.hmac_algorithm,
-            pms,
-            b"extended master secret",
-            hs_hash.as_ref(),
-        );
-        ret
+        kx.complete(peer_pub_key, |secret| {
+            prf::prf(
+                &mut ret.master_secret,
+                suite.hmac_algorithm,
+                secret,
+                label.as_bytes(),
+                seed.as_ref(),
+            );
+            Ok(())
+        })?;
+
+        Ok(ret)
     }
 
     pub(crate) fn new_resume(
-        randoms: &ConnectionRandoms,
+        randoms: ConnectionRandoms,
         suite: &'static Tls12CipherSuite,
         master_secret: &[u8],
     ) -> Self {
         let mut ret = Self {
-            randoms: randoms.clone(),
+            randoms,
             suite,
             master_secret: [0u8; 48],
         };
@@ -278,7 +268,7 @@ impl ConnectionSecrets {
 
     /// Make a `MessageCipherPair` based on the given supported ciphersuite `scs`,
     /// and the session's `secrets`.
-    pub(crate) fn make_cipher_pair(&self) -> MessageCipherPair {
+    pub(crate) fn make_cipher_pair(&self, side: Side) -> MessageCipherPair {
         fn split_key<'a>(
             key_block: &'a [u8],
             alg: &'static aead::Algorithm,
@@ -302,20 +292,19 @@ impl ConnectionSecrets {
         let (client_write_iv, key_block) = key_block.split_at(suite.fixed_iv_len);
         let (server_write_iv, extra) = key_block.split_at(suite.fixed_iv_len);
 
-        let (write_key, write_iv, read_key, read_iv) = if self.randoms.we_are_client {
-            (
+        let (write_key, write_iv, read_key, read_iv) = match side {
+            Side::Client => (
                 client_write_key,
                 client_write_iv,
                 server_write_key,
                 server_write_iv,
-            )
-        } else {
-            (
+            ),
+            Side::Server => (
                 server_write_key,
                 server_write_iv,
                 client_write_key,
                 client_write_iv,
-            )
+            ),
         };
 
         (
@@ -409,6 +398,20 @@ impl ConnectionSecrets {
     }
 }
 
+enum Seed {
+    Ems(Digest),
+    Randoms([u8; 64]),
+}
+
+impl AsRef<[u8]> for Seed {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            Seed::Ems(seed) => seed.as_ref(),
+            Seed::Randoms(randoms) => randoms.as_ref(),
+        }
+    }
+}
+
 fn join_randoms(first: &[u8; 32], second: &[u8; 32]) -> [u8; 64] {
     let mut randoms = [0u8; 64];
     randoms[..32].copy_from_slice(first);
@@ -437,13 +440,7 @@ fn decode_ecdh_params_<T: Codec>(kx_params: &[u8]) -> Option<T> {
     }
 }
 
-pub(crate) fn complete_ecdh(
-    mine: kx::KeyExchange,
-    peer_pub_key: &[u8],
-) -> Result<kx::KeyExchangeResult, Error> {
-    mine.complete(peer_pub_key)
-        .ok_or_else(|| Error::PeerMisbehavedError("key agreement failed".to_string()))
-}
+pub(crate) const DOWNGRADE_SENTINEL: [u8; 8] = [0x44, 0x4f, 0x57, 0x4e, 0x47, 0x52, 0x44, 0x01];
 
 #[cfg(test)]
 mod tests {

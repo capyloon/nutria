@@ -8,10 +8,12 @@ use base64;
 use env_logger;
 use rustls;
 
-use rustls::internal::msgs::enums::ProtocolVersion;
+use rustls::internal::msgs::codec::{Codec, Reader};
+use rustls::internal::msgs::enums::{CipherSuite, ProtocolVersion};
+use rustls::internal::msgs::persist;
 use rustls::quic::{self, ClientQuicExt, QuicExt, ServerQuicExt};
 use rustls::server::ClientHello;
-use rustls::{ClientConnection, Connection};
+use rustls::{ClientConnection, Connection, ServerConnection};
 
 use std::convert::TryInto;
 use std::env;
@@ -62,7 +64,6 @@ struct Options {
     server_ocsp_response: Vec<u8>,
     server_sct_list: Vec<u8>,
     use_signing_scheme: u16,
-    expect_curve: u16,
     curves: Option<Vec<u16>>,
     export_keying_material: usize,
     export_keying_material_label: String,
@@ -76,6 +77,7 @@ struct Options {
     expect_accept_early_data: bool,
     expect_reject_early_data: bool,
     expect_version: u16,
+    resumption_delay: u32,
 }
 
 impl Options {
@@ -109,7 +111,6 @@ impl Options {
             server_ocsp_response: vec![],
             server_sct_list: vec![],
             use_signing_scheme: 0,
-            expect_curve: 0,
             curves: None,
             export_keying_material: 0,
             export_keying_material_label: "".to_string(),
@@ -123,6 +124,7 @@ impl Options {
             expect_accept_early_data: false,
             expect_reject_early_data: false,
             expect_version: 0,
+            resumption_delay: 0,
         }
     }
 
@@ -332,6 +334,42 @@ fn lookup_kx_group(group: u16) -> &'static rustls::SupportedKxGroup {
     }
 }
 
+struct ServerCacheWithResumptionDelay {
+    delay: u32,
+    storage: Arc<dyn rustls::server::StoresServerSessions>,
+}
+
+impl ServerCacheWithResumptionDelay {
+    fn new(delay: u32) -> Arc<Self> {
+        Arc::new(Self {
+            delay,
+            storage: rustls::server::ServerSessionMemoryCache::new(32),
+        })
+    }
+}
+
+impl rustls::server::StoresServerSessions for ServerCacheWithResumptionDelay {
+    fn put(&self, key: Vec<u8>, value: Vec<u8>) -> bool {
+        let mut ssv = persist::ServerSessionValue::read_bytes(&value).unwrap();
+        ssv.creation_time_sec -= self.delay as u64;
+
+        self.storage
+            .put(key, ssv.get_encoding())
+    }
+
+    fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
+        self.storage.get(key)
+    }
+
+    fn take(&self, key: &[u8]) -> Option<Vec<u8>> {
+        self.storage.take(key)
+    }
+
+    fn can_cache(&self) -> bool {
+        self.storage.can_cache()
+    }
+}
+
 fn make_server_cfg(opts: &Options) -> Arc<rustls::ServerConfig> {
     let client_auth =
         if opts.verify_peer || opts.offer_no_client_cas || opts.require_any_client_cert {
@@ -368,7 +406,7 @@ fn make_server_cfg(opts: &Options) -> Arc<rustls::ServerConfig> {
         )
         .unwrap();
 
-    cfg.session_storage = rustls::server::ServerSessionMemoryCache::new(32);
+    cfg.session_storage = ServerCacheWithResumptionDelay::new(opts.resumption_delay);
     cfg.max_fragment_size = opts.max_fragment;
 
     if opts.use_signing_scheme > 0 {
@@ -393,30 +431,58 @@ fn make_server_cfg(opts: &Options) -> Arc<rustls::ServerConfig> {
             .collect::<Vec<_>>();
     }
 
+    if opts.enable_early_data {
+        // see kMaxEarlyDataAccepted in boringssl, which bogo validates
+        cfg.max_early_data_size = 14336;
+        cfg.send_half_rtt_data = true;
+    }
+
     Arc::new(cfg)
 }
 
-struct ClientCacheWithoutKxHints(Arc<rustls::client::ClientSessionMemoryCache>);
+struct ClientCacheWithoutKxHints {
+    delay: u32,
+    storage: Arc<rustls::client::ClientSessionMemoryCache>,
+}
 
 impl ClientCacheWithoutKxHints {
-    fn new() -> Arc<ClientCacheWithoutKxHints> {
-        Arc::new(ClientCacheWithoutKxHints(
-            rustls::client::ClientSessionMemoryCache::new(32),
-        ))
+    fn new(delay: u32) -> Arc<ClientCacheWithoutKxHints> {
+        Arc::new(ClientCacheWithoutKxHints {
+            delay,
+            storage: rustls::client::ClientSessionMemoryCache::new(32),
+        })
     }
 }
 
 impl rustls::client::StoresClientSessions for ClientCacheWithoutKxHints {
     fn put(&self, key: Vec<u8>, value: Vec<u8>) -> bool {
         if key.len() > 2 && key[0] == b'k' && key[1] == b'x' {
-            true
-        } else {
-            self.0.put(key, value)
+            return true;
         }
+
+        let mut reader = Reader::init(&value[2..]);
+        let csv = CipherSuite::read_bytes(&value[..2])
+            .and_then(|suite| {
+                persist::ClientSessionValue::read(&mut reader, suite, &rustls::ALL_CIPHER_SUITES)
+            })
+            .unwrap();
+
+        let value = match csv {
+            persist::ClientSessionValue::Tls13(mut tls13) => {
+                tls13.common.rewind_epoch(self.delay);
+                tls13.get_encoding()
+            }
+            persist::ClientSessionValue::Tls12(mut tls12) => {
+                tls12.common.rewind_epoch(self.delay);
+                tls12.get_encoding()
+            }
+        };
+
+        self.storage.put(key, value)
     }
 
     fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
-        self.0.get(key)
+        self.storage.get(key)
     }
 }
 
@@ -455,7 +521,7 @@ fn make_client_cfg(opts: &Options) -> Arc<rustls::ClientConfig> {
         });
     }
 
-    let persist = ClientCacheWithoutKxHints::new();
+    let persist = ClientCacheWithoutKxHints::new(opts.resumption_delay);
     cfg.session_storage = persist;
     cfg.enable_sni = opts.use_sni;
     cfg.max_fragment_size = opts.max_fragment;
@@ -514,6 +580,9 @@ fn handle_err(err: rustls::Error) -> ! {
         Error::CorruptMessage => quit(":GARBAGE:"),
         Error::DecryptError => quit(":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:"),
         Error::PeerIncompatibleError(_) => quit(":INCOMPATIBLE:"),
+        Error::PeerMisbehavedError(s) if s == "too much early_data received" => {
+            quit(":TOO_MUCH_READ_EARLY_DATA:")
+        }
         Error::PeerMisbehavedError(_) => quit(":PEER_MISBEHAVIOUR:"),
         Error::NoCertificatesPresented => quit(":NO_CERTS:"),
         Error::AlertReceived(AlertDescription::UnexpectedMessage) => quit(":BAD_ALERT:"),
@@ -546,6 +615,13 @@ fn flush(sess: &mut Connection, conn: &mut net::TcpStream) {
 
 fn client(conn: &mut Connection) -> &mut ClientConnection {
     conn.try_into().unwrap()
+}
+
+fn server(conn: &mut Connection) -> &mut ServerConnection {
+    match conn {
+        Connection::Server(s) => s,
+        _ => panic!("Connection is not a ServerConnection"),
+    }
 }
 
 fn exec(opts: &Options, mut sess: Connection, count: usize) {
@@ -595,6 +671,23 @@ fn exec(opts: &Options, mut sess: Connection, count: usize) {
             }
         }
 
+        if opts.server && opts.enable_early_data {
+            if let Some(ref mut ed) = server(&mut sess).early_data() {
+                let mut data = Vec::new();
+                let data_len = ed
+                    .read_to_end(&mut data)
+                    .expect("cannot read early_data");
+
+                for b in data.iter_mut() {
+                    *b ^= 0xff;
+                }
+
+                sess.writer()
+                    .write_all(&data[..data_len])
+                    .expect("cannot echo early_data in 1rtt data");
+            }
+        }
+
         if !sess.is_handshaking() && opts.export_keying_material > 0 && !sent_exporter {
             let mut export = Vec::new();
             export.resize(opts.export_keying_material, 0u8);
@@ -635,7 +728,7 @@ fn exec(opts: &Options, mut sess: Connection, count: usize) {
             quench_writes = true;
         }
 
-        if opts.enable_early_data && !sess.is_handshaking() && count > 0 {
+        if opts.enable_early_data && !opts.server && !sess.is_handshaking() && count > 0 {
             if opts.expect_accept_early_data && !client(&mut sess).is_early_data_accepted() {
                 quit_err("Early data was not accepted, but we expect the opposite");
             } else if opts.expect_reject_early_data && client(&mut sess).is_early_data_accepted() {
@@ -796,6 +889,7 @@ fn main() {
             "-on-initial-expect-cipher" |
             "-on-resume-expect-cipher" |
             "-on-retry-expect-cipher" |
+            "-expect-ticket-age-skew" |
             "-handshaker-path" |
             "-application-settings" |
             "-expect-msg-callback" => {
@@ -884,8 +978,8 @@ fn main() {
             "-enable-signed-cert-timestamps" => {
                 opts.send_sct = true;
             }
-            "-enable-early-data" |
-            "-on-resume-enable-early-data" => {
+            "-enable-early-data" => {
+                opts.tickets = false;
                 opts.enable_early_data = true;
             }
             "-on-resume-shim-writes-first" => {
@@ -929,6 +1023,9 @@ fn main() {
                 } else {
                     opts.curves = Some(vec![ curve ]);
                 }
+            }
+            "-resumption-delay" => {
+                opts.resumption_delay = args.remove(0).parse::<u32>().unwrap();
             }
 
             // defaults:
@@ -977,7 +1074,6 @@ fn main() {
             "-use-ticket-callback" |
             "-enable-grease" |
             "-enable-channel-id" |
-            "-resumption-delay" |
             "-expect-early-data-info" |
             "-expect-cipher-aes" |
             "-retain-only-sha256-client-cert-initial" |
@@ -987,6 +1083,7 @@ fn main() {
             "-on-initial-tls13-variant" |
             "-on-initial-expect-curve-id" |
             "-on-resume-export-early-keying-material" |
+            "-on-resume-enable-early-data" |
             "-export-early-keying-material" |
             "-handshake-twice" |
             "-on-resume-verify-fail" |
@@ -1006,11 +1103,6 @@ fn main() {
                 process::exit(1);
             }
         }
-    }
-
-    if opts.enable_early_data && opts.server {
-        println!("For now we only test client-side early data");
-        process::exit(BOGO_NACK);
     }
 
     println!("opts {:?}", opts);

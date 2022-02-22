@@ -14,7 +14,7 @@ use winapi::um::minwinbase::{OVERLAPPED, OVERLAPPED_ENTRY};
 
 use crate::event::Source;
 use crate::sys::windows::{Event, Overlapped};
-use crate::{poll, Registry};
+use crate::Registry;
 use crate::{Interest, Token};
 
 /// Non-blocking windows named pipe.
@@ -135,9 +135,7 @@ struct Io {
     // Token used to identify events
     token: Option<Token>,
     read: State,
-    read_interest: bool,
     write: State,
-    write_interest: bool,
     connect_error: Option<io::Error>,
 }
 
@@ -270,9 +268,7 @@ impl FromRawHandle for NamedPipe {
                     cp: None,
                     token: None,
                     read: State::None,
-                    read_interest: false,
                     write: State::None,
-                    write_interest: false,
                     connect_error: None,
                 }),
                 pool: Mutex::new(BufferPool::with_capacity(2)),
@@ -387,12 +383,7 @@ impl<'a> Write for &'a NamedPipe {
 }
 
 impl Source for NamedPipe {
-    fn register(
-        &mut self,
-        registry: &Registry,
-        token: Token,
-        interest: Interest,
-    ) -> io::Result<()> {
+    fn register(&mut self, registry: &Registry, token: Token, _: Interest) -> io::Result<()> {
         let mut io = self.inner.io.lock().unwrap();
 
         io.check_association(registry, false)?;
@@ -405,18 +396,18 @@ impl Source for NamedPipe {
         }
 
         if io.cp.is_none() {
-            io.cp = Some(poll::selector(registry).clone_port());
+            let selector = registry.selector();
+
+            io.cp = Some(selector.clone_port());
 
             let inner_token = NEXT_TOKEN.fetch_add(2, Relaxed) + 2;
-            poll::selector(registry)
+            selector
                 .inner
                 .cp
                 .add_handle(inner_token, &self.inner.handle)?;
         }
 
         io.token = Some(token);
-        io.read_interest = interest.is_readable();
-        io.write_interest = interest.is_writable();
         drop(io);
 
         Inner::post_register(&self.inner, None);
@@ -424,19 +415,12 @@ impl Source for NamedPipe {
         Ok(())
     }
 
-    fn reregister(
-        &mut self,
-        registry: &Registry,
-        token: Token,
-        interest: Interest,
-    ) -> io::Result<()> {
+    fn reregister(&mut self, registry: &Registry, token: Token, _: Interest) -> io::Result<()> {
         let mut io = self.inner.io.lock().unwrap();
 
         io.check_association(registry, true)?;
 
         io.token = Some(token);
-        io.read_interest = interest.is_readable();
-        io.write_interest = interest.is_writable();
         drop(io);
 
         Inner::post_register(&self.inner, None);
@@ -483,12 +467,8 @@ impl Drop for NamedPipe {
             }
 
             let io = self.inner.io.lock().unwrap();
-
-            match io.read {
-                State::Pending(..) => {
-                    drop(cancel(&self.inner.handle, &self.inner.read));
-                }
-                _ => {}
+            if let State::Pending(..) = io.read {
+                drop(cancel(&self.inner.handle, &self.inner.read));
             }
         }
     }
@@ -603,7 +583,8 @@ impl Inner {
 
     fn post_register(me: &Arc<Inner>, mut events: Option<&mut Vec<Event>>) {
         let mut io = me.io.lock().unwrap();
-        if Inner::schedule_read(&me, &mut io, events.as_mut().map(|ptr| &mut **ptr)) {
+        #[allow(clippy::needless_option_as_deref)]
+        if Inner::schedule_read(me, &mut io, events.as_deref_mut()) {
             if let State::None = io.write {
                 io.notify_writable(events);
             }
@@ -734,7 +715,7 @@ fn write_done(status: &OVERLAPPED_ENTRY, events: Option<&mut Vec<Event>>) {
 impl Io {
     fn check_association(&self, registry: &Registry, required: bool) -> io::Result<()> {
         match self.cp {
-            Some(ref cp) if !poll::selector(registry).same_port(cp) => Err(io::Error::new(
+            Some(ref cp) if !registry.selector().same_port(cp) => Err(io::Error::new(
                 io::ErrorKind::AlreadyExists,
                 "I/O source already registered with a different `Registry`",
             )),

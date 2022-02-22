@@ -157,7 +157,7 @@ pub struct Tls13ClientSessionValue {
     suite: &'static Tls13CipherSuite,
     age_add: u32,
     max_early_data_size: u32,
-    common: ClientSessionCommon,
+    pub common: ClientSessionCommon,
 }
 
 impl Tls13ClientSessionValue {
@@ -214,11 +214,6 @@ impl Tls13ClientSessionValue {
         bytes
     }
 
-    // Test-only
-    pub fn set_max_early_data_size(&mut self, new: u32) {
-        self.max_early_data_size = new;
-    }
-
     pub fn max_early_data_size(&self) -> u32 {
         self.max_early_data_size
     }
@@ -242,7 +237,7 @@ pub struct Tls12ClientSessionValue {
     suite: &'static Tls12CipherSuite,
     pub session_id: SessionID,
     extended_ms: bool,
-    common: ClientSessionCommon,
+    pub common: ClientSessionCommon,
 }
 
 #[cfg(feature = "tls12")]
@@ -287,7 +282,7 @@ impl Tls12ClientSessionValue {
     /// Inherent implementation of the [`Codec::get_encoding()`] method.
     ///
     /// (See `read()` for why this is inherent here.)
-    pub(crate) fn get_encoding(&self) -> Vec<u8> {
+    pub fn get_encoding(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(16);
         self.suite
             .common
@@ -382,9 +377,20 @@ impl ClientSessionCommon {
     pub fn ticket(&self) -> &[u8] {
         self.ticket.0.as_ref()
     }
+
+    /// Test only: wind back epoch by delta seconds.
+    pub fn rewind_epoch(&mut self, delta: u32) {
+        self.epoch -= delta as u64;
+    }
 }
 
 static MAX_TICKET_LIFETIME: u32 = 7 * 24 * 60 * 60;
+
+/// This is the maximum allowed skew between server and client clocks, over
+/// the maximum ticket lifetime period.  This encompasses TCP retransmission
+/// times in case packet loss occurs when the client sends the ClientHello
+/// or receives the NewSessionTicket, _and_ actual clock skew over this period.
+static MAX_FRESHNESS_SKEW_MS: u32 = 60 * 1000;
 
 // --- Server types ---
 pub type ServerSessionKey = SessionID;
@@ -399,6 +405,9 @@ pub struct ServerSessionValue {
     pub client_cert_chain: Option<CertificatePayload>,
     pub alpn: Option<PayloadU8>,
     pub application_data: PayloadU16,
+    pub creation_time_sec: u64,
+    pub age_obfuscation_offset: u32,
+    freshness: Option<bool>,
 }
 
 impl Codec for ServerSessionValue {
@@ -427,6 +436,9 @@ impl Codec for ServerSessionValue {
             0u8.encode(bytes);
         }
         self.application_data.encode(bytes);
+        self.creation_time_sec.encode(bytes);
+        self.age_obfuscation_offset
+            .encode(bytes);
     }
 
     fn read(r: &mut Reader) -> Option<Self> {
@@ -455,6 +467,8 @@ impl Codec for ServerSessionValue {
             None
         };
         let application_data = PayloadU16::read(r)?;
+        let creation_time_sec = u64::read(r)?;
+        let age_obfuscation_offset = u32::read(r)?;
 
         Some(Self {
             sni,
@@ -465,6 +479,9 @@ impl Codec for ServerSessionValue {
             client_cert_chain: ccert,
             alpn,
             application_data,
+            creation_time_sec,
+            age_obfuscation_offset,
+            freshness: None,
         })
     }
 }
@@ -478,6 +495,8 @@ impl ServerSessionValue {
         client_cert_chain: Option<CertificatePayload>,
         alpn: Option<Vec<u8>>,
         application_data: Vec<u8>,
+        creation_time: TimeBase,
+        age_obfuscation_offset: u32,
     ) -> Self {
         Self {
             sni: sni.cloned(),
@@ -488,10 +507,34 @@ impl ServerSessionValue {
             client_cert_chain,
             alpn: alpn.map(PayloadU8::new),
             application_data: PayloadU16::new(application_data),
+            creation_time_sec: creation_time.as_secs(),
+            age_obfuscation_offset,
+            freshness: None,
         }
     }
 
     pub fn set_extended_ms_used(&mut self) {
         self.extended_ms = true;
+    }
+
+    pub fn set_freshness(mut self, obfuscated_client_age_ms: u32, time_now: TimeBase) -> Self {
+        let client_age_ms = obfuscated_client_age_ms.wrapping_sub(self.age_obfuscation_offset);
+        let server_age_ms = (time_now
+            .as_secs()
+            .saturating_sub(self.creation_time_sec) as u32)
+            .saturating_mul(1000);
+
+        let age_difference = if client_age_ms < server_age_ms {
+            server_age_ms - client_age_ms
+        } else {
+            client_age_ms - server_age_ms
+        };
+
+        self.freshness = Some(age_difference <= MAX_FRESHNESS_SKEW_MS);
+        self
+    }
+
+    pub fn is_fresh(&self) -> bool {
+        self.freshness.unwrap_or_default()
     }
 }

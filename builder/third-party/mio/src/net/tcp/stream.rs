@@ -7,7 +7,7 @@ use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::os::windows::io::{AsRawSocket, FromRawSocket, IntoRawSocket, RawSocket};
 
 use crate::io_source::IoSource;
-use crate::net::TcpSocket;
+use crate::sys::tcp::{connect, new_for_addr};
 use crate::{event, Interest, Registry, Token};
 
 /// A non-blocking TCP stream between a local socket and a remote socket.
@@ -49,9 +49,38 @@ pub struct TcpStream {
 impl TcpStream {
     /// Create a new TCP stream and issue a non-blocking connect to the
     /// specified address.
+    ///
+    /// # Notes
+    ///
+    /// The returned `TcpStream` may not be connected (and thus usable), unlike
+    /// the API found in `std::net::TcpStream`. Because Mio issues a
+    /// *non-blocking* connect it will not block the thread and instead return
+    /// an unconnected `TcpStream`.
+    ///
+    /// Ensuring the returned stream is connected is surprisingly complex when
+    /// considering cross-platform support. Doing this properly should follow
+    /// the steps below, an example implementation can be found
+    /// [here](https://github.com/Thomasdezeeuw/heph/blob/0c4f1ab3eaf08bea1d65776528bfd6114c9f8374/src/net/tcp/stream.rs#L560-L622).
+    ///
+    ///  1. Call `TcpStream::connect`
+    ///  2. Register the returned stream with at least [read interest].
+    ///  3. Wait for a (readable) event.
+    ///  4. Check `TcpStream::peer_addr`. If it returns `libc::EINPROGRESS` or
+    ///     `ErrorKind::NotConnected` it means the stream is not yet connected,
+    ///     go back to step 3. If it returns an address it means the stream is
+    ///     connected, go to step 5. If another error is returned something
+    ///     whent wrong.
+    ///  5. Now the stream can be used.
+    ///
+    /// [read interest]: Interest::READABLE
     pub fn connect(addr: SocketAddr) -> io::Result<TcpStream> {
-        let socket = TcpSocket::new_for_addr(addr)?;
-        socket.connect(addr)
+        let socket = new_for_addr(addr)?;
+        #[cfg(unix)]
+        let stream = unsafe { TcpStream::from_raw_fd(socket) };
+        #[cfg(windows)]
+        let stream = unsafe { TcpStream::from_raw_socket(socket as _) };
+        connect(&stream.inner, addr)?;
+        Ok(stream)
     }
 
     /// Creates a new `TcpStream` from a standard `net::TcpStream`.
@@ -103,7 +132,7 @@ impl TcpStream {
     ///
     /// On Windows make sure the stream is connected before calling this method,
     /// by receiving an (writable) event. Trying to set `nodelay` on an
-    /// unconnected `TcpStream` is undefined behavior.
+    /// unconnected `TcpStream` is unspecified behavior.
     pub fn set_nodelay(&self, nodelay: bool) -> io::Result<()> {
         self.inner.set_nodelay(nodelay)
     }
@@ -118,7 +147,7 @@ impl TcpStream {
     ///
     /// On Windows make sure the stream is connected before calling this method,
     /// by receiving an (writable) event. Trying to get `nodelay` on an
-    /// unconnected `TcpStream` is undefined behavior.
+    /// unconnected `TcpStream` is unspecified behavior.
     pub fn nodelay(&self) -> io::Result<bool> {
         self.inner.nodelay()
     }
@@ -132,7 +161,7 @@ impl TcpStream {
     ///
     /// On Windows make sure the stream is connected before calling this method,
     /// by receiving an (writable) event. Trying to set `ttl` on an
-    /// unconnected `TcpStream` is undefined behavior.
+    /// unconnected `TcpStream` is unspecified behavior.
     pub fn set_ttl(&self, ttl: u32) -> io::Result<()> {
         self.inner.set_ttl(ttl)
     }
@@ -145,7 +174,7 @@ impl TcpStream {
     ///
     /// On Windows make sure the stream is connected before calling this method,
     /// by receiving an (writable) event. Trying to get `ttl` on an
-    /// unconnected `TcpStream` is undefined behavior.
+    /// unconnected `TcpStream` is unspecified behavior.
     ///
     /// [link]: #method.set_ttl
     pub fn ttl(&self) -> io::Result<u32> {

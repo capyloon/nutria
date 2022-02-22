@@ -22,6 +22,7 @@ pub struct BuildConfig {
     pub b2g_path: PathBuf,         // Path to the b2g binary
     pub use_profile: bool,         // Whether we will add the profile/ subdirectory or not.
     pub default_settings: PathBuf, // Path to the defaults settings file.
+    pub templates_path: PathBuf,   // Path to the templates.
 }
 
 impl Default for BuildConfig {
@@ -31,6 +32,8 @@ impl Default for BuildConfig {
     /// $CWD/prebuilts/$RUST_TARGET/api-daemon for daemon_path
     fn default() -> Self {
         let cwd = env::current_dir().unwrap_or_else(|_| env::temp_dir());
+
+        let templates_path = cwd.join("src").join("templates");
 
         let default_settings = cwd
             .parent()
@@ -71,6 +74,7 @@ impl Default for BuildConfig {
             b2g_path,
             use_profile: true,
             default_settings,
+            templates_path,
         }
     }
 }

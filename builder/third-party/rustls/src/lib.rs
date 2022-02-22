@@ -19,6 +19,7 @@
 //! * TLS1.2 resumption via tickets ([RFC5077](https://tools.ietf.org/html/rfc5077)).
 //! * TLS1.3 resumption via tickets or session storage.
 //! * TLS1.3 0-RTT data for clients.
+//! * TLS1.3 0-RTT data for servers.
 //! * Client authentication by clients.
 //! * Client authentication by servers.
 //! * Extended master secret support ([RFC7627](https://tools.ietf.org/html/rfc7627)).
@@ -251,9 +252,13 @@
 //!   it for your application. If you want to disable TLS 1.2 for security reasons,
 //!   consider explicitly enabling TLS 1.3 only in the config builder API.
 //!
+//! - `read_buf`: When building with Rust Nightly, adds support for the unstable
+//!   `std::io::ReadBuf` and related APIs. This reduces costs from initializing
+//!   buffers. Will do nothing on non-Nightly releases.
 
 // Require docs for public APIs, deny unsafe code, etc.
-#![forbid(unsafe_code, unused_must_use, unstable_features)]
+#![forbid(unsafe_code, unused_must_use)]
+#![cfg_attr(not(read_buf), forbid(unstable_features))]
 #![deny(
     clippy::clone_on_ref_ptr,
     clippy::use_self,
@@ -284,6 +289,15 @@
 )]
 // Enable documentation for all features on docs.rs
 #![cfg_attr(docsrs, feature(doc_cfg))]
+// XXX: Because of https://github.com/rust-lang/rust/issues/54726, we cannot
+// write `#![rustversion::attr(nightly, feature(read_buf))]` here. Instead,
+// build.rs set `read_buf` for (only) Rust Nightly to get the same effect.
+//
+// All the other conditional logic in the crate could use
+// `#[rustversion::nightly]` instead of `#[cfg(read_buf)]`; `#[cfg(read_buf)]`
+// is used to avoid needing `rustversion` to be compiled twice during
+// cross-compiling.
+#![cfg_attr(read_buf, feature(read_buf))]
 
 // log for logging (optional).
 #[cfg(feature = "logging")]
@@ -323,7 +337,8 @@ mod check;
 mod bs_debug;
 mod builder;
 mod key;
-mod keylog;
+mod key_log;
+mod key_log_file;
 mod kx;
 mod suites;
 mod ticketer;
@@ -352,7 +367,8 @@ pub use crate::conn::{
 };
 pub use crate::error::Error;
 pub use crate::key::{Certificate, PrivateKey};
-pub use crate::keylog::{KeyLog, KeyLogFile, NoKeyLog};
+pub use crate::key_log::{KeyLog, NoKeyLog};
+pub use crate::key_log_file::KeyLogFile;
 pub use crate::kx::{SupportedKxGroup, ALL_KX_GROUPS};
 pub use crate::msgs::enums::CipherSuite;
 pub use crate::msgs::enums::ProtocolVersion;
@@ -425,7 +441,7 @@ pub mod server {
     pub use server_conn::ServerQuicExt;
     pub use server_conn::StoresServerSessions;
     pub use server_conn::{
-        Accepted, Acceptor, ServerConfig, ServerConnection, ServerConnectionData,
+        Accepted, Acceptor, ReadEarlyData, ServerConfig, ServerConnection, ServerConnectionData,
     };
     pub use server_conn::{ClientHello, ProducesTickets, ResolvesServerCert};
 
@@ -440,6 +456,7 @@ pub use server::{ServerConfig, ServerConnection};
 ///
 /// [`ALL_CIPHER_SUITES`] is provided as an array of all of these values.
 pub mod cipher_suite {
+    pub use crate::suites::CipherSuiteCommon;
     #[cfg(feature = "tls12")]
     pub use crate::tls12::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
     #[cfg(feature = "tls12")]
@@ -499,7 +516,7 @@ pub type ResolvesServerCertUsingSNI = server::ResolvesServerCertUsingSni;
 pub type WebPKIVerifier = client::WebPkiVerifier;
 #[allow(clippy::upper_case_acronyms)]
 #[doc(hidden)]
-#[deprecated(since = "0.20.0", note = "Use TlsError")]
+#[deprecated(since = "0.20.0", note = "Use Error")]
 pub type TLSError = Error;
 #[doc(hidden)]
 #[deprecated(since = "0.20.0", note = "Use ClientConnection")]

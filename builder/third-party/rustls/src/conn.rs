@@ -207,7 +207,7 @@ impl<'a> io::Read for Reader<'a> {
     ///
     /// If the peer closes the TLS session cleanly, this returns `Ok(0)`  once all
     /// the pending data has been read. No further data can be received on that
-    /// connection, so the underlying TCP connection should half-closed too.
+    /// connection, so the underlying TCP connection should be half-closed too.
     ///
     /// If the peer closes the TLS session uncleanly (a TCP EOF without sending a
     /// `close_notify` alert) this function returns `Err(ErrorKind::UnexpectedEof.into())`
@@ -240,6 +240,49 @@ impl<'a> io::Read for Reader<'a> {
         }
 
         Ok(len)
+    }
+
+    /// Obtain plaintext data received from the peer over this TLS connection.
+    ///
+    /// If the peer closes the TLS session, this returns `Ok(())` without filling
+    /// any more of the buffer once all the pending data has been read. No further
+    /// data can be received on that connection, so the underlying TCP connection
+    /// should be half-closed too.
+    ///
+    /// If the peer closes the TLS session uncleanly (a TCP EOF without sending a
+    /// `close_notify` alert) this function returns `Err(ErrorKind::UnexpectedEof.into())`
+    /// once any pending data has been read.
+    ///
+    /// Note that support for `close_notify` varies in peer TLS libraries: many do not
+    /// support it and uncleanly close the TCP connection (this might be
+    /// vulnerable to truncation attacks depending on the application protocol).
+    /// This means applications using rustls must both handle EOF
+    /// from this function, *and* unexpected EOF of the underlying TCP connection.
+    ///
+    /// If there are no bytes to read, this returns `Err(ErrorKind::WouldBlock.into())`.
+    ///
+    /// You may learn the number of bytes available at any time by inspecting
+    /// the return of [`Connection::process_new_packets`].
+    #[cfg(read_buf)]
+    fn read_buf(&mut self, buf: &mut io::ReadBuf<'_>) -> io::Result<()> {
+        let before = buf.filled_len();
+        self.received_plaintext.read_buf(buf)?;
+        let len = buf.filled_len() - before;
+
+        if len == 0 && buf.capacity() > 0 {
+            // No bytes available:
+            match (self.peer_cleanly_closed, self.has_seen_eof) {
+                // cleanly closed; don't care about TCP EOF: express this as Ok(0)
+                (true, _) => {}
+                // unclean closure
+                (false, true) => return Err(io::ErrorKind::UnexpectedEof.into()),
+                // connection still going, but need more data: signal `WouldBlock` so that
+                // the caller knows this
+                (false, false) => return Err(io::ErrorKind::WouldBlock.into()),
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -315,41 +358,33 @@ pub(crate) enum Protocol {
     Quic,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct ConnectionRandoms {
-    pub(crate) we_are_client: bool,
     pub(crate) client: [u8; 32],
     pub(crate) server: [u8; 32],
 }
 
-#[cfg(feature = "tls12")]
-static TLS12_DOWNGRADE_SENTINEL: [u8; 8] = [0x44, 0x4f, 0x57, 0x4e, 0x47, 0x52, 0x44, 0x01];
+/// How many ChangeCipherSpec messages we accept and drop in TLS1.3 handshakes.
+/// The spec says 1, but implementations (namely the boringssl test suite) get
+/// this wrong.  BoringSSL itself accepts up to 32.
+static TLS13_MAX_DROPPED_CCS: u8 = 2u8;
 
 impl ConnectionRandoms {
-    pub(crate) fn new(client: Random, server: Random, we_are_client: bool) -> Self {
+    pub(crate) fn new(client: Random, server: Random) -> Self {
         Self {
-            we_are_client,
             client: client.0,
             server: server.0,
         }
     }
-
-    #[cfg(feature = "tls12")]
-    pub(crate) fn set_tls12_downgrade_marker(&mut self) {
-        assert!(!self.we_are_client);
-        self.server[24..].copy_from_slice(&TLS12_DOWNGRADE_SENTINEL);
-    }
-
-    #[cfg(feature = "tls12")]
-    pub(crate) fn has_tls12_downgrade_marker(&mut self) -> bool {
-        assert!(self.we_are_client);
-        // both the server random and TLS12_DOWNGRADE_SENTINEL are
-        // public values and don't require constant time comparison
-        self.server[24..] == TLS12_DOWNGRADE_SENTINEL
-    }
 }
 
 // --- Common (to client and server) connection functions ---
+
+fn is_valid_ccs(msg: &OpaqueMessage) -> bool {
+    // nb. this is prior to the record layer, so is unencrypted. see
+    // third paragraph of section 5 in RFC8446.
+    msg.typ == ContentType::ChangeCipherSpec && msg.payload.0 == [0x01]
+}
 
 enum Limit {
     Yes,
@@ -513,21 +548,26 @@ impl<Data> ConnectionCommon<Data> {
         msg: OpaqueMessage,
         state: Box<dyn State<Data>>,
     ) -> Result<Box<dyn State<Data>>, Error> {
-        // pass message to handshake state machine if any of these are true:
-        // - TLS1.2 (where it's part of the state machine),
-        // - prior to determining the version (it's illegal as a first message)
-        // - if it's not a CCS at all
-        // - if we've finished the handshake
+        // Drop CCS messages during handshake in TLS1.3
         if msg.typ == ContentType::ChangeCipherSpec
-            && !self.common_state.traffic
+            && !self
+                .common_state
+                .may_receive_application_data
             && self.common_state.is_tls13()
         {
-            if self.common_state.received_middlebox_ccs {
+            if !is_valid_ccs(&msg)
+                || self.common_state.received_middlebox_ccs > TLS13_MAX_DROPPED_CCS
+            {
+                // "An implementation which receives any other change_cipher_spec value or
+                //  which receives a protected change_cipher_spec record MUST abort the
+                //  handshake with an "unexpected_message" alert."
+                self.common_state
+                    .send_fatal_alert(AlertDescription::UnexpectedMessage);
                 return Err(Error::PeerMisbehavedError(
                     "illegal middlebox CCS received".into(),
                 ));
             } else {
-                self.common_state.received_middlebox_ccs = true;
+                self.common_state.received_middlebox_ccs += 1;
                 trace!("Dropping CCS");
                 return Ok(state);
             }
@@ -539,15 +579,27 @@ impl<Data> ConnectionCommon<Data> {
             .record_layer
             .is_decrypting()
         {
-            true => self
-                .common_state
-                .decrypt_incoming(msg)?,
+            true => match self.common_state.decrypt_incoming(msg) {
+                Ok(None) => {
+                    // message dropped
+                    return Ok(state);
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+                Ok(Some(msg)) => msg,
+            },
             false => msg.into_plain_message(),
         };
 
         // For handshake messages, we need to join them before parsing
         // and processing.
         if self.handshake_joiner.want_message(&msg) {
+            // First decryptable handshake message concludes trial decryption
+            self.common_state
+                .record_layer
+                .finish_trial_decryption();
+
             self.handshake_joiner
                 .take_message(msg)
                 .ok_or_else(|| {
@@ -735,18 +787,19 @@ impl<T> DerefMut for ConnectionCommon<T> {
 /// Connection state common to both client and server connections.
 pub struct CommonState {
     pub(crate) negotiated_version: Option<ProtocolVersion>,
-    pub(crate) is_client: bool,
+    pub(crate) side: Side,
     pub(crate) record_layer: record_layer::RecordLayer,
     pub(crate) suite: Option<SupportedCipherSuite>,
     pub(crate) alpn_protocol: Option<Vec<u8>>,
     aligned_handshake: bool,
-    pub(crate) traffic: bool,
+    pub(crate) may_send_application_data: bool,
+    pub(crate) may_receive_application_data: bool,
     pub(crate) early_traffic: bool,
     sent_fatal_alert: bool,
     /// If the peer has signaled end of stream.
     has_received_close_notify: bool,
     has_seen_eof: bool,
-    received_middlebox_ccs: bool,
+    received_middlebox_ccs: u8,
     pub(crate) peer_certificates: Option<Vec<key::Certificate>>,
     message_fragmenter: MessageFragmenter,
     received_plaintext: ChunkVecBuffer,
@@ -760,20 +813,21 @@ pub struct CommonState {
 }
 
 impl CommonState {
-    pub(crate) fn new(max_fragment_size: Option<usize>, is_client: bool) -> Result<Self, Error> {
+    pub(crate) fn new(max_fragment_size: Option<usize>, side: Side) -> Result<Self, Error> {
         Ok(Self {
             negotiated_version: None,
-            is_client,
+            side,
             record_layer: record_layer::RecordLayer::new(),
             suite: None,
             alpn_protocol: None,
             aligned_handshake: true,
-            traffic: false,
+            may_send_application_data: false,
+            may_receive_application_data: false,
             early_traffic: false,
             sent_fatal_alert: false,
             has_received_close_notify: false,
             has_seen_eof: false,
-            received_middlebox_ccs: false,
+            received_middlebox_ccs: 0,
             peer_certificates: None,
             message_fragmenter: MessageFragmenter::new(max_fragment_size)
                 .map_err(|_| Error::BadMaxFragmentSize)?,
@@ -799,7 +853,7 @@ impl CommonState {
     /// [`Connection::process_new_packets`] has been called, this might start to return `false`
     /// while the final handshake packets still need to be extracted from the connection's buffers.
     pub fn is_handshaking(&self) -> bool {
-        !self.traffic
+        !(self.may_send_application_data && self.may_receive_application_data)
     }
 
     /// Retrieves the certificate chain used by the peer to authenticate.
@@ -848,9 +902,6 @@ impl CommonState {
         matches!(self.negotiated_version, Some(ProtocolVersion::TLSv1_3))
     }
 
-    /// Process `msg`.  First, we get the current state.  Then we ask what messages
-    /// that state expects, enforced via `check_message`.  Finally, we ask the handler
-    /// to handle the message.
     fn process_main_protocol<Data>(
         &mut self,
         msg: Message,
@@ -859,10 +910,10 @@ impl CommonState {
     ) -> Result<Box<dyn State<Data>>, Error> {
         // For TLS1.2, outside of the handshake, send rejection alerts for
         // renegotiation requests.  These can occur any time.
-        if self.traffic && !self.is_tls13() {
-            let reject_ty = match self.is_client {
-                true => HandshakeType::HelloRequest,
-                false => HandshakeType::ClientHello,
+        if self.may_receive_application_data && !self.is_tls13() {
+            let reject_ty = match self.side {
+                Side::Client => HandshakeType::HelloRequest,
+                Side::Server => HandshakeType::ClientHello,
             };
             if msg.is_handshake_type(reject_ty) {
                 self.send_warning_alert(AlertDescription::NoRenegotiation);
@@ -926,7 +977,10 @@ impl CommonState {
         Error::PeerMisbehavedError(why.to_string())
     }
 
-    pub(crate) fn decrypt_incoming(&mut self, encr: OpaqueMessage) -> Result<PlainMessage, Error> {
+    pub(crate) fn decrypt_incoming(
+        &mut self,
+        encr: OpaqueMessage,
+    ) -> Result<Option<PlainMessage>, Error> {
         if self
             .record_layer
             .wants_close_before_decrypt()
@@ -934,11 +988,29 @@ impl CommonState {
             self.send_close_notify();
         }
 
-        let rc = self.record_layer.decrypt_incoming(encr);
-        if let Err(Error::PeerSentOversizedRecord) = rc {
-            self.send_fatal_alert(AlertDescription::RecordOverflow);
+        let encrypted_len = encr.payload.0.len();
+        let plain = self.record_layer.decrypt_incoming(encr);
+
+        match plain {
+            Err(Error::PeerSentOversizedRecord) => {
+                self.send_fatal_alert(AlertDescription::RecordOverflow);
+                Err(Error::PeerSentOversizedRecord)
+            }
+            Err(Error::DecryptError)
+                if self
+                    .record_layer
+                    .doing_trial_decryption(encrypted_len) =>
+            {
+                trace!("Dropping undecryptable message after aborted early_data");
+                Ok(None)
+            }
+            Err(Error::DecryptError) => {
+                self.send_fatal_alert(AlertDescription::BadRecordMac);
+                Err(Error::DecryptError)
+            }
+            Err(e) => Err(e),
+            Ok(plain) => Ok(Some(plain)),
         }
-        rc
     }
 
     /// Fragment `m`, encrypt the fragments, and then queue
@@ -1018,7 +1090,7 @@ impl CommonState {
     /// Returns the number of bytes written from `data`: this might
     /// be less than `data.len()` if buffer limits were exceeded.
     fn send_plain(&mut self, data: &[u8], limit: Limit) -> usize {
-        if !self.traffic {
+        if !self.may_send_application_data {
             // If we haven't completed handshaking, buffer
             // plaintext to send once we do.
             let len = match limit {
@@ -1042,9 +1114,14 @@ impl CommonState {
         self.send_appdata_encrypt(data, limit)
     }
 
-    pub(crate) fn start_traffic(&mut self) {
-        self.traffic = true;
+    pub(crate) fn start_outgoing_traffic(&mut self) {
+        self.may_send_application_data = true;
         self.flush_plaintext();
+    }
+
+    pub(crate) fn start_traffic(&mut self) {
+        self.may_receive_application_data = true;
+        self.start_outgoing_traffic();
     }
 
     /// Sets a limit on the internal buffers used to buffer
@@ -1094,7 +1171,7 @@ impl CommonState {
     /// Send any buffered plaintext.  Plaintext is buffered if
     /// written during handshake.
     fn flush_plaintext(&mut self) {
-        if !self.traffic {
+        if !self.may_send_application_data {
             return;
         }
 
@@ -1146,8 +1223,8 @@ impl CommonState {
     }
 
     #[cfg(feature = "tls12")]
-    pub(crate) fn start_encryption_tls12(&mut self, secrets: &ConnectionSecrets) {
-        let (dec, enc) = secrets.make_cipher_pair();
+    pub(crate) fn start_encryption_tls12(&mut self, secrets: &ConnectionSecrets, side: Side) {
+        let (dec, enc) = secrets.make_cipher_pair(side);
         self.record_layer
             .prepare_message_encrypter(enc);
         self.record_layer
@@ -1240,7 +1317,7 @@ impl CommonState {
         // completed, but also don't want to read if we still have sendable tls.
         self.received_plaintext.is_empty()
             && !self.has_received_close_notify
-            && (self.traffic || self.sendable_tls.is_empty())
+            && (self.may_send_application_data || self.sendable_tls.is_empty())
     }
 
     fn current_io_state(&self) -> IoState {
@@ -1311,6 +1388,12 @@ impl Quic {
             returned_traffic_keys: false,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Side {
+    Client,
+    Server,
 }
 
 /// Data specific to the peer's side (client or server).

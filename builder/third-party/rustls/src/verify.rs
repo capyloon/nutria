@@ -32,50 +32,57 @@ static SUPPORTED_SIG_ALGS: SignatureAlgorithms = &[
     &webpki::RSA_PKCS1_3072_8192_SHA384,
 ];
 
-/// Marker types.  These are used to bind the fact some verification
-/// (certificate chain or handshake signature) has taken place into
-/// protocol states.  We use this to have the compiler check that there
-/// are no 'goto fail'-style elisions of important checks before we
-/// reach the traffic stage.
-///
-/// These types are public, but cannot be directly constructed.  This
-/// means their origins can be precisely determined by looking
-/// for their `assertion` constructors.
+// Marker types.  These are used to bind the fact some verification
+// (certificate chain or handshake signature) has taken place into
+// protocol states.  We use this to have the compiler check that there
+// are no 'goto fail'-style elisions of important checks before we
+// reach the traffic stage.
+//
+// These types are public, but cannot be directly constructed.  This
+// means their origins can be precisely determined by looking
+// for their `assertion` constructors.
+
+/// Zero-sized marker type representing verification of a signature.
+#[derive(Debug)]
 pub struct HandshakeSignatureValid(());
 
 impl HandshakeSignatureValid {
     /// Make a `HandshakeSignatureValid`
     pub fn assertion() -> Self {
-        Self { 0: () }
+        Self(())
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct FinishedMessageVerified(());
 
 impl FinishedMessageVerified {
     pub(crate) fn assertion() -> Self {
-        Self { 0: () }
+        Self(())
     }
 }
 
 /// Zero-sized marker type representing verification of a server cert chain.
 #[allow(unreachable_pub)]
+#[derive(Debug)]
 pub struct ServerCertVerified(());
 
 #[allow(unreachable_pub)]
 impl ServerCertVerified {
     /// Make a `ServerCertVerified`
     pub fn assertion() -> Self {
-        Self { 0: () }
+        Self(())
     }
 }
 
 /// Zero-sized marker type representing verification of a client cert chain.
+#[derive(Debug)]
 pub struct ClientCertVerified(());
+
 impl ClientCertVerified {
     /// Make a `ClientCertVerified`
     pub fn assertion() -> Self {
-        Self { 0: () }
+        Self(())
     }
 }
 
@@ -283,7 +290,6 @@ impl ServerCertVerifier for WebPkiVerifier {
     /// - Signed by a  trusted `RootCertStore` CA
     /// - Not Expired
     /// - Valid for DNS entry
-    /// - OCSP data is present
     fn verify_server_cert(
         &self,
         end_entity: &Certificate,
@@ -481,10 +487,6 @@ impl AllowAnyAuthenticatedClient {
 impl ClientCertVerifier for AllowAnyAuthenticatedClient {
     fn offer_client_auth(&self) -> bool {
         true
-    }
-
-    fn client_auth_mandatory(&self) -> Option<bool> {
-        Some(true)
     }
 
     fn client_auth_root_subjects(&self) -> Option<DistinguishedNames> {
@@ -727,4 +729,29 @@ fn unix_time_millis(now: SystemTime) -> Result<u64, Error> {
             secs.checked_mul(1000)
                 .ok_or(Error::FailedToGetCurrentTime)
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn assertions_are_debug() {
+        assert_eq!(
+            format!("{:?}", ClientCertVerified::assertion()),
+            "ClientCertVerified(())"
+        );
+        assert_eq!(
+            format!("{:?}", HandshakeSignatureValid::assertion()),
+            "HandshakeSignatureValid(())"
+        );
+        assert_eq!(
+            format!("{:?}", FinishedMessageVerified::assertion()),
+            "FinishedMessageVerified(())"
+        );
+        assert_eq!(
+            format!("{:?}", ServerCertVerified::assertion()),
+            "ServerCertVerified(())"
+        );
+    }
 }

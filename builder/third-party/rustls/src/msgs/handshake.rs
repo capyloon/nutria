@@ -500,9 +500,9 @@ pub enum CertificateStatusRequest {
 
 impl Codec for CertificateStatusRequest {
     fn encode(&self, bytes: &mut Vec<u8>) {
-        match *self {
+        match self {
             Self::OCSP(ref r) => r.encode(bytes),
-            Self::Unknown((typ, ref payload)) => {
+            Self::Unknown((typ, payload)) => {
                 typ.encode(bytes);
                 payload.encode(bytes);
             }
@@ -1516,7 +1516,7 @@ impl CertificatePayloadTLS13 {
             .first()
             .and_then(CertificateEntry::get_ocsp_response)
             .cloned()
-            .unwrap_or_else(Vec::new)
+            .unwrap_or_default()
     }
 
     pub fn get_end_entity_scts(&self) -> Option<SCTList> {
@@ -2025,6 +2025,21 @@ impl NewSessionTicketPayloadTLS13 {
         }
     }
 
+    pub fn has_duplicate_extension(&self) -> bool {
+        let mut seen = collections::HashSet::new();
+
+        for ext in &self.exts {
+            let typ = ext.get_type().get_u16();
+
+            if seen.contains(&typ) {
+                return true;
+            }
+            seen.insert(typ);
+        }
+
+        false
+    }
+
     pub fn find_extension(&self, ext: ExtensionType) -> Option<&NewSessionTicketExtension> {
         self.exts
             .iter()
@@ -2117,7 +2132,6 @@ pub enum HandshakePayload {
     CertificateRequestTLS13(CertificateRequestPayloadTLS13),
     CertificateVerify(DigitallySignedStruct),
     ServerHelloDone,
-    EarlyData,
     EndOfEarlyData,
     ClientKeyExchange(Payload),
     NewSessionTicket(NewSessionTicketPayload),
@@ -2135,7 +2149,6 @@ impl HandshakePayload {
         match *self {
             HandshakePayload::HelloRequest
             | HandshakePayload::ServerHelloDone
-            | HandshakePayload::EarlyData
             | HandshakePayload::EndOfEarlyData => {}
             HandshakePayload::ClientHello(ref x) => x.encode(bytes),
             HandshakePayload::ServerHello(ref x) => x.encode(bytes),
@@ -2257,6 +2270,12 @@ impl HandshakeMessagePayload {
             }
             HandshakeType::KeyUpdate => {
                 HandshakePayload::KeyUpdate(KeyUpdateRequest::read(&mut sub)?)
+            }
+            HandshakeType::EndOfEarlyData => {
+                if sub.any_left() {
+                    return None;
+                }
+                HandshakePayload::EndOfEarlyData
             }
             HandshakeType::Finished => HandshakePayload::Finished(Payload::read(&mut sub)),
             HandshakeType::CertificateStatus => {

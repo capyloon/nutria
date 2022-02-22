@@ -72,12 +72,11 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
-    html_root_url = "https://docs.rs/blake2/0.10.2"
+    html_root_url = "https://docs.rs/blake2/0.10.4"
 )]
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(feature = "simd", feature(platform_intrinsics, repr_simd))]
 #![cfg_attr(feature = "simd", allow(incomplete_features))]
-#![cfg_attr(feature = "simd_asm", feature(asm))]
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -94,10 +93,8 @@ use digest::{
         VariableOutputCore,
     },
     crypto_common::{InvalidLength, Key, KeyInit, KeySizeUser},
-    generic_array::{
-        typenum::{IsLessOrEqual, LeEq, NonZero, Unsigned},
-        ArrayLength, GenericArray,
-    },
+    generic_array::{ArrayLength, GenericArray},
+    typenum::{IsLessOrEqual, LeEq, NonZero, Unsigned},
     FixedOutput, HashMarker, InvalidOutputSize, MacMarker, Output, Update,
 };
 #[cfg(feature = "reset")]

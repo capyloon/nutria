@@ -5,7 +5,7 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
-    html_root_url = "https://docs.rs/crypto-common/0.1.1"
+    html_root_url = "https://docs.rs/crypto-common/0.1.3"
 )]
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
@@ -15,6 +15,9 @@ extern crate std;
 
 #[cfg(feature = "rand_core")]
 pub use rand_core;
+
+pub use generic_array;
+pub use generic_array::typenum;
 
 use core::fmt;
 use generic_array::{typenum::Unsigned, ArrayLength, GenericArray};
@@ -34,6 +37,11 @@ pub type Iv<B> = GenericArray<u8, <B as IvSizeUser>::IvSize>;
 pub trait BlockSizeUser {
     /// Size of the block in bytes.
     type BlockSize: ArrayLength<u8> + 'static;
+
+    /// Return block size in bytes.
+    fn block_size() -> usize {
+        Self::BlockSize::USIZE
+    }
 }
 
 impl<T: BlockSizeUser> BlockSizeUser for &T {
@@ -48,6 +56,11 @@ impl<T: BlockSizeUser> BlockSizeUser for &mut T {
 pub trait OutputSizeUser {
     /// Size of the output in bytes.
     type OutputSize: ArrayLength<u8> + 'static;
+
+    /// Return output size in bytes.
+    fn output_size() -> usize {
+        Self::OutputSize::USIZE
+    }
 }
 
 /// Types which use key for initialization.
@@ -56,6 +69,11 @@ pub trait OutputSizeUser {
 pub trait KeySizeUser {
     /// Key size in bytes.
     type KeySize: ArrayLength<u8> + 'static;
+
+    /// Return key size in bytes.
+    fn key_size() -> usize {
+        Self::KeySize::USIZE
+    }
 }
 
 /// Types which use initialization vector (nonce) for initialization.
@@ -64,6 +82,11 @@ pub trait KeySizeUser {
 pub trait IvSizeUser {
     /// Initialization vector size in bytes.
     type IvSize: ArrayLength<u8> + 'static;
+
+    /// Return IV size in bytes.
+    fn iv_size() -> usize {
+        Self::IvSize::USIZE
+    }
 }
 
 /// Types which use another type for initialization.

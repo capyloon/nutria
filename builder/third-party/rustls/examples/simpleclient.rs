@@ -13,9 +13,6 @@ use std::convert::TryInto;
 use std::io::{stdout, Read, Write};
 use std::net::TcpStream;
 
-use rustls;
-use webpki_roots;
-
 use rustls::{OwnedTrustAnchor, RootCertStore};
 
 fn main() {
@@ -41,7 +38,7 @@ fn main() {
     let mut conn = rustls::ClientConnection::new(Arc::new(config), server_name).unwrap();
     let mut sock = TcpStream::connect("google.com:443").unwrap();
     let mut tls = rustls::Stream::new(&mut conn, &mut sock);
-    tls.write(
+    tls.write_all(
         concat!(
             "GET / HTTP/1.1\r\n",
             "Host: google.com\r\n",

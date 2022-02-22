@@ -6,6 +6,7 @@ mod common;
 mod daemon_config;
 mod debian;
 mod logger;
+mod newapp;
 mod prebuilts;
 mod tasks;
 mod timer;
@@ -15,14 +16,12 @@ use crate::commands::{
     ResetTimeCommand, RestartCommand,
 };
 use crate::debian::{DebianCommand, DebianTarget};
-use clap::{AppSettings, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use log::{error, info};
 use thiserror::Error;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
-#[clap(global_setting(AppSettings::PropagateVersion))]
-#[clap(global_setting(AppSettings::UseLongFormatForHelpSubcommand))]
 struct Cli {
     #[clap(subcommand)]
     command: Commands,
@@ -92,6 +91,11 @@ enum Commands {
         #[clap(long, short)]
         target: Option<String>,
     },
+    /// Creates a new app based on a scaffolding template.
+    NewApp {
+        /// The new app name.
+        name: String,
+    },
 }
 
 #[derive(Error, Debug)]
@@ -108,6 +112,8 @@ enum CommandError {
     DebianCommand(#[from] crate::debian::DebianError),
     #[error("Download task error: {0}")]
     DownloadTaskError(#[from] crate::prebuilts::DownloadTaskError),
+    #[error("new-app command error: {0}")]
+    NewAppCommandError(#[from] crate::newapp::NewAppCommandError),
 }
 
 fn main() {
@@ -226,6 +232,7 @@ fn main() {
         Commands::UpdatePrebuilts { target } => {
             prebuilts::update(config, target.clone()).map_err(|e| e.into())
         }
+        Commands::NewApp { name } => newapp::create(&name, &config).map_err(|e| e.into()),
     };
 
     if let Err(err) = command_result {

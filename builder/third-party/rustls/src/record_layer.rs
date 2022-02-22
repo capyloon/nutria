@@ -24,6 +24,11 @@ pub(crate) struct RecordLayer {
     read_seq: u64,
     encrypt_state: DirectionState,
     decrypt_state: DirectionState,
+
+    // Message encrypted with other keys may be encountered, so failures
+    // should be swallowed by the caller.  This struct tracks the amount
+    // of message size this is allowed for.
+    trial_decryption_len: Option<usize>,
 }
 
 impl RecordLayer {
@@ -35,6 +40,7 @@ impl RecordLayer {
             read_seq: 0,
             encrypt_state: DirectionState::Invalid,
             decrypt_state: DirectionState::Invalid,
+            trial_decryption_len: None,
         }
     }
 
@@ -44,6 +50,19 @@ impl RecordLayer {
 
     pub(crate) fn is_decrypting(&self) -> bool {
         self.decrypt_state == DirectionState::Active
+    }
+
+    pub(crate) fn doing_trial_decryption(&mut self, requested: usize) -> bool {
+        match self
+            .trial_decryption_len
+            .and_then(|value| value.checked_sub(requested))
+        {
+            Some(remaining) => {
+                self.trial_decryption_len = Some(remaining);
+                true
+            }
+            _ => false,
+        }
     }
 
     /// Prepare to use the given `MessageEncrypter` for future message encryption.
@@ -88,6 +107,24 @@ impl RecordLayer {
     pub(crate) fn set_message_decrypter(&mut self, cipher: Box<dyn MessageDecrypter>) {
         self.prepare_message_decrypter(cipher);
         self.start_decrypting();
+        self.trial_decryption_len = None;
+    }
+
+    /// Set and start using the given `MessageDecrypter` for future incoming
+    /// message decryption, and enable "trial decryption" mode for when TLS1.3
+    /// 0-RTT is attempted but rejected by the server.
+    pub(crate) fn set_message_decrypter_with_trial_decryption(
+        &mut self,
+        cipher: Box<dyn MessageDecrypter>,
+        max_length: usize,
+    ) {
+        self.prepare_message_decrypter(cipher);
+        self.start_decrypting();
+        self.trial_decryption_len = Some(max_length);
+    }
+
+    pub(crate) fn finish_trial_decryption(&mut self) {
+        self.trial_decryption_len = None;
     }
 
     /// Return true if the peer appears to getting close to encrypting
@@ -120,11 +157,13 @@ impl RecordLayer {
     /// If it can be decrypted, its decryption is returned.  Otherwise,
     /// an error is returned.
     pub(crate) fn decrypt_incoming(&mut self, encr: OpaqueMessage) -> Result<PlainMessage, Error> {
-        debug_assert!(self.decrypt_state == DirectionState::Active);
+        debug_assert!(self.is_decrypting());
         let seq = self.read_seq;
+        let msg = self
+            .message_decrypter
+            .decrypt(encr, seq)?;
         self.read_seq += 1;
-        self.message_decrypter
-            .decrypt(encr, seq)
+        Ok(msg)
     }
 
     /// Encrypt a TLS message.

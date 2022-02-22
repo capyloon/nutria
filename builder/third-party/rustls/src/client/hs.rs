@@ -1,6 +1,6 @@
 #[cfg(feature = "logging")]
 use crate::bs_debug;
-use crate::check::check_message;
+use crate::check::inappropriate_handshake_message;
 use crate::conn::{CommonState, ConnectionRandoms, State};
 use crate::error::Error;
 use crate::hash_hs::HandshakeHashBuffer;
@@ -11,9 +11,11 @@ use crate::msgs::base::Payload;
 #[cfg(feature = "quic")]
 use crate::msgs::base::PayloadU16;
 use crate::msgs::codec::{Codec, Reader};
-use crate::msgs::enums::{AlertDescription, CipherSuite, Compression, ProtocolVersion};
-use crate::msgs::enums::{ContentType, ExtensionType, HandshakeType};
+use crate::msgs::enums::{
+    AlertDescription, CipherSuite, Compression, ContentType, ProtocolVersion,
+};
 use crate::msgs::enums::{ECPointFormat, PSKKeyExchangeMode};
+use crate::msgs::enums::{ExtensionType, HandshakeType};
 use crate::msgs::handshake::{CertificateStatusRequest, ClientSessionTicket, SCTList};
 use crate::msgs::handshake::{ClientExtension, HasServerExtensions};
 use crate::msgs::handshake::{ClientHelloPayload, HandshakeMessagePayload, HandshakePayload};
@@ -57,6 +59,7 @@ fn find_session(
 
     #[allow(unused_mut)]
     let mut reader = Reader::init(&value[2..]);
+    #[allow(clippy::bind_instead_of_map)] // https://github.com/rust-lang/rust-clippy/issues/8082
     CipherSuite::read_bytes(&value[..2])
         .and_then(|suite| {
             persist::ClientSessionValue::read(&mut reader, suite, &config.cipher_suites)
@@ -218,32 +221,31 @@ fn emit_client_hello_for_retry(
         supported_versions.push(ProtocolVersion::TLSv1_2);
     }
 
-    let mut exts = Vec::new();
-    if !supported_versions.is_empty() {
-        exts.push(ClientExtension::SupportedVersions(supported_versions));
-    }
+    // should be unreachable thanks to config builder
+    assert!(!supported_versions.is_empty());
+
+    let mut exts = vec![
+        ClientExtension::SupportedVersions(supported_versions),
+        ClientExtension::ECPointFormats(ECPointFormatList::supported()),
+        ClientExtension::NamedGroups(
+            config
+                .kx_groups
+                .iter()
+                .map(|skxg| skxg.name)
+                .collect(),
+        ),
+        ClientExtension::SignatureAlgorithms(
+            config
+                .verifier
+                .supported_verify_schemes(),
+        ),
+        ClientExtension::ExtendedMasterSecretRequest,
+        ClientExtension::CertificateStatusRequest(CertificateStatusRequest::build_ocsp()),
+    ];
+
     if let (Some(sni_name), true) = (server_name.for_sni(), config.enable_sni) {
         exts.push(ClientExtension::make_sni(sni_name));
     }
-    exts.push(ClientExtension::ECPointFormats(
-        ECPointFormatList::supported(),
-    ));
-    exts.push(ClientExtension::NamedGroups(
-        config
-            .kx_groups
-            .iter()
-            .map(|skxg| skxg.name)
-            .collect(),
-    ));
-    exts.push(ClientExtension::SignatureAlgorithms(
-        config
-            .verifier
-            .supported_verify_schemes(),
-    ));
-    exts.push(ClientExtension::ExtendedMasterSecretRequest);
-    exts.push(ClientExtension::CertificateStatusRequest(
-        CertificateStatusRequest::build_ocsp(),
-    ));
 
     if may_send_sct_list {
         exts.push(ClientExtension::SignedCertificateTimestampRequest);
@@ -419,26 +421,38 @@ fn emit_client_hello_for_retry(
 }
 
 pub(super) fn process_alpn_protocol(
-    cx: &mut ClientContext<'_>,
+    common: &mut CommonState,
     config: &ClientConfig,
     proto: Option<&[u8]>,
 ) -> Result<(), Error> {
-    cx.common.alpn_protocol = proto.map(ToOwned::to_owned);
+    common.alpn_protocol = proto.map(ToOwned::to_owned);
 
-    if let Some(alpn_protocol) = &cx.common.alpn_protocol {
+    if let Some(alpn_protocol) = &common.alpn_protocol {
         if !config
             .alpn_protocols
             .contains(alpn_protocol)
         {
-            return Err(cx
-                .common
-                .illegal_param("server sent non-offered ALPN protocol"));
+            return Err(common.illegal_param("server sent non-offered ALPN protocol"));
+        }
+    }
+
+    #[cfg(feature = "quic")]
+    {
+        // RFC 9001 says: "While ALPN only specifies that servers use this alert, QUIC clients MUST
+        // use error 0x0178 to terminate a connection when ALPN negotiation fails." We judge that
+        // the user intended to use ALPN (rather than some out-of-band protocol negotiation
+        // mechanism) iff any ALPN protocols were configured. This defends against badly-behaved
+        // servers which accept a connection that requires an application-layer protocol they do not
+        // understand.
+        if common.is_quic() && common.alpn_protocol.is_none() && !config.alpn_protocols.is_empty() {
+            common.send_fatal_alert(AlertDescription::NoApplicationProtocol);
+            return Err(Error::NoApplicationProtocol);
         }
     }
 
     debug!(
         "ALPN protocol is {:?}",
-        cx.common
+        common
             .alpn_protocol
             .as_ref()
             .map(|v| bs_debug::BsDebug(v))
@@ -530,7 +544,7 @@ impl State<ClientConnectionData> for ExpectServerHello {
 
         // Extract ALPN protocol
         if !cx.common.is_tls13() {
-            process_alpn_protocol(cx, &self.config, server_hello.get_alpn_protocol())?;
+            process_alpn_protocol(cx.common, &self.config, server_hello.get_alpn_protocol())?;
         }
 
         // If ECPointFormats extension is supplied by the server, it must contain
@@ -579,7 +593,7 @@ impl State<ClientConnectionData> for ExpectServerHello {
             .start_hash(suite.hash_algorithm());
         transcript.add_message(&m);
 
-        let randoms = ConnectionRandoms::new(self.random, server_hello.random, true);
+        let randoms = ConnectionRandoms::new(self.random, server_hello.random);
         // For TLS1.3, start message encryption using
         // handshake_traffic_secret.
         match suite {
@@ -777,16 +791,22 @@ impl ExpectServerHelloOrHelloRetryRequest {
 
 impl State<ClientConnectionData> for ExpectServerHelloOrHelloRetryRequest {
     fn handle(self: Box<Self>, cx: &mut ClientContext<'_>, m: Message) -> NextStateOrError {
-        check_message(
-            &m,
-            &[ContentType::Handshake],
-            &[HandshakeType::ServerHello, HandshakeType::HelloRetryRequest],
-        )?;
-        if m.is_handshake_type(HandshakeType::ServerHello) {
-            self.into_expect_server_hello()
-                .handle(cx, m)
-        } else {
-            self.handle_hello_retry_request(cx, m)
+        match m.payload {
+            MessagePayload::Handshake(HandshakeMessagePayload {
+                payload: HandshakePayload::ServerHello(..),
+                ..
+            }) => self
+                .into_expect_server_hello()
+                .handle(cx, m),
+            MessagePayload::Handshake(HandshakeMessagePayload {
+                payload: HandshakePayload::HelloRetryRequest(..),
+                ..
+            }) => self.handle_hello_retry_request(cx, m),
+            payload => Err(inappropriate_handshake_message(
+                &payload,
+                &[ContentType::Handshake],
+                &[HandshakeType::ServerHello, HandshakeType::HelloRetryRequest],
+            )),
         }
     }
 }
