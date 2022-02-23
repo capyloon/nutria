@@ -11,8 +11,10 @@ The included build system is available by running the `jackady` (spelled like th
 
 If you want to contribute, please read the [Contributing Guide](./CONTRIBUTING.md).
 
-[![Mobile Version](./screenshots/mobile-1.webp "Nutria in Mobile Mode")
-![Desktop Version](./screenshots/desktop-1.webp "Nutria in Desktop Mode")](https://capyloon.org)
+[
+<img src="./screenshots/mobile-1.webp" width=240 alt="Mobile Version" title="Nutria in Mobile Mode">
+<img src="./screenshots/desktop-1.webp" width=400 alt="Desktop Version" title="Nutria in Desktop Mode">
+](https://capyloon.org)
 
 # Prerequisites
 
