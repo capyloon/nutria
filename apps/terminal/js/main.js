@@ -63,7 +63,7 @@ function openTerminal() {
       // use /usr/bin/bash on Linux and /bin/zsh on Mac
       if (navigator.platform.startsWith("Linux")) {
         command = "/usr/bin/bash";
-      } if (navigator.platform.startsWith("Mac")) {
+      } else if (navigator.platform.startsWith("Mac")) {
         command = "/bin/zsh";
       } else {
         console.error(`Unsupported platform: ${navigator.platform}`);
