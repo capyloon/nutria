@@ -15,7 +15,10 @@ const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 const UAHelper = {
   default: () => {
     let version = Services.appinfo.platformVersion;
-    return `Mozilla/5.0 (Mobile; rv:${version}) Gecko/20100101 Firefox/${version} ${AppConstants.MOZ_B2G_OS_NAME}/${AppConstants.MOZ_B2G_VERSION}`;
+    // MOZ_BUILDID looks like 20220222131952
+    const buildId = AppConstants.MOZ_BUILDID;
+    const b2gVersion = `${buildId.substr(0, 4)}.${buildId.substr(4, 2)}`;
+    return `Mozilla/5.0 (Mobile; rv:${version}) Gecko/20100101 Firefox/${version} ${AppConstants.MOZ_B2G_OS_NAME}/${b2gVersion}`;
   },
 
   get: (kind) => {
