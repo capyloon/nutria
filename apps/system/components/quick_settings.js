@@ -9,31 +9,29 @@ class QuickSettings extends HTMLElement {
     shadow.innerHTML = `
     <link rel="stylesheet" href="components/quick_settings.css">
     <link rel="stylesheet" href="http://shared.localhost:${window.config.port}/style/elements.css"/>
-    <div class="container">
-      <section class="telephony-info">
-        <div class="bars">
-          <div class="bar0"></div>
-          <div class="bar1"></div>
-          <div class="bar2"></div>
-          <div class="bar3"></div>
-        </div>
-        <span></span>
-      </section>
-      <section class="switches">
-        <lucide-icon class="wifi-icon inactive" kind="wifi-off"></lucide-icon>
-        <lucide-icon class="flashlight-icon inactive" kind="flashlight-off"></lucide-icon>
-        <div class="flex-fill"></div>
-        <lucide-icon kind="settings" id="settings-icon"></lucide-icon>
-        <lucide-icon kind="log-out" id="logout-icon"></lucide-icon>
-        <lucide-icon kind="lock" id="lock-icon"></lucide-icon>
-      </section>
-      <section id="brightness-section">
-        <lucide-icon kind="sun"></lucide-icon>
-        <input type="range" id="brightness" name="brightness" min="5" max="100" value="100">
-      </section>
-      <section class="notifications"></section>
-      <section class="browser-actions"></section>
-    </div>
+    <section class="telephony-info">
+      <div class="bars">
+        <div class="bar0"></div>
+        <div class="bar1"></div>
+        <div class="bar2"></div>
+        <div class="bar3"></div>
+      </div>
+      <span></span>
+    </section>
+    <section class="switches">
+      <lucide-icon class="wifi-icon inactive" kind="wifi-off"></lucide-icon>
+      <lucide-icon class="flashlight-icon inactive" kind="flashlight-off"></lucide-icon>
+      <div class="flex-fill"></div>
+      <lucide-icon kind="settings" id="settings-icon"></lucide-icon>
+      <lucide-icon kind="log-out" id="logout-icon"></lucide-icon>
+      <lucide-icon kind="lock" id="lock-icon"></lucide-icon>
+    </section>
+    <section id="brightness-section">
+      <lucide-icon kind="sun"></lucide-icon>
+      <input type="range" id="brightness" name="brightness" min="5" max="100" value="100">
+    </section>
+    <section class="notifications"></section>
+    <section class="browser-actions"></section>
     `;
 
     document.l10n.translateFragment(shadow);
@@ -99,11 +97,13 @@ class QuickSettings extends HTMLElement {
     };
 
     slider.onpointerdown = () => {
-      this.shadowRoot.querySelector(".container").classList.add("adjust-brightness");
+      this.classList.add("adjust-brightness");
+      backdropManager.enterAdjustBrightness();
     };
 
     slider.onpointerup = () => {
-      this.shadowRoot.querySelector(".container").classList.remove("adjust-brightness");
+      this.classList.remove("adjust-brightness");
+      backdropManager.leaveAdjustBrightness();
     };
 
     if (window.powerManager) {

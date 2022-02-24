@@ -101,6 +101,11 @@ body.screen-off #screen {
   z-index: var(--backdrop-z-index);
 }
 
+#backdrop.adjust-brightness {
+  background-color: transparent;
+  backdrop-filter: none;
+}
+
 #backdrop.hidden,
 #lockscreen.hidden {
   display: none;

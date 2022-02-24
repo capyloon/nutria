@@ -13,6 +13,8 @@
   color: var(--dialog-text);
   margin: 1em;
   transition: transform 0.25s;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Desktop mode */
@@ -26,11 +28,6 @@
 :host(.offscreen) {
   transform: translateY(calc(100% + 1em));
   transition: transform 0.25s;
-}
-
-:host .container {
-  display: flex;
-  flex-direction: column;
 }
 
 :host .flex-fill {
@@ -124,6 +121,15 @@
   height: 100%;
 }
 
-:host .adjust-brightness > :not(#brightness-section) {
-  display: none;
+:host(.adjust-brightness) > :not(#brightness-section) {
+  opacity: 0;
+}
+
+:host(.adjust-brightness) > #brightness-section {
+  background-color: var(--dialog-background);
+  border-radius: 5px;
+}
+
+:host(.adjust-brightness) {
+  background-color: transparent;
 }

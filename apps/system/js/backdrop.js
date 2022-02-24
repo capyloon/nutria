@@ -87,6 +87,14 @@ class Backdrop {
       backdrop.classList.add("hidden");
     }
   }
+
+  enterAdjustBrightness() {
+    window.backdrop.classList.add("adjust-brightness");
+  }
+
+  leaveAdjustBrightness() {
+    window.backdrop.classList.remove("adjust-brightness");
+  }
 }
 
 window.backdropManager = new Backdrop();
