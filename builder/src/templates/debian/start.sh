@@ -12,6 +12,11 @@ for sig in INT QUIT HUP TERM; do
 done
 trap cleanup EXIT
 
+for FILE in /opt/b2gos/env.d/* ; do
+    echo "Sourcing environment from $FILE"
+    source $FILE;
+done
+
 mkdir -p ${HOME}/.b2gos/profile
 
 # Copy the daemon config file and substitute the ${HOME} value.

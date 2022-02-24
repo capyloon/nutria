@@ -3,6 +3,8 @@
 //! Create a debian package with the following structure:
 //!   /opt/b2gos
 //!     |- start.sh
+//!     |- env.d
+//!     |       +- <device specific files>
 //!     |- api-daemon
 //!     |       +- api-daemon
 //!     |       +- config.toml
@@ -20,7 +22,7 @@
 //!     |              +- application.zip
 //!     |- b2g
 //!     |    +- [all of gecko]
-//!     |    +- defaults/pref/user.js
+//!     |    +- defaults/pref/user.js and device specific prets.
 //!  /usr/share/xsessions/b2gos-session.desktop
 //!  /usr/share/applications/
 //!                  +- b2gos-mobile.desktop
@@ -49,6 +51,7 @@ static PREINST: &str = include_str!("templates/debian/preinst");
 static POSTINST: &str = include_str!("templates/debian/postinst");
 static CONTROL: &str = include_str!("templates/debian/control");
 static B2GHALD_SERVICE: &str = include_str!("templates/debian/b2ghald.service");
+static PINEPHONE_ENV: &str = include_str!("templates/debian/env.d/pinephone.sh");
 
 // TODO: Move to some configuration
 static PACKAGE_NAME: &str = "capyloon";
@@ -95,6 +98,16 @@ impl DebianTarget {
         match &self {
             DebianTarget::Desktop => None,
             DebianTarget::Pinephone => Some("pinephone.js".to_owned()),
+        }
+    }
+
+    // Returns a list of (content, dest relative to /opt/b2gos)
+    fn extra_files(&self) -> Vec<(String, String)> {
+        match &self {
+            DebianTarget::Desktop => vec![],
+            DebianTarget::Pinephone => {
+                vec![(PINEPHONE_ENV.to_owned(), "env.d/pinephone.sh".to_owned())]
+            }
         }
     }
 }
@@ -230,6 +243,13 @@ impl DebianCommand {
             let mut options = OpenOptions::new();
             let mut dest = options.append(true).open(dest_path)?;
             dest.write_all(&buf)?;
+        }
+
+        // Add extra files if any.
+        let envd_dir = opt_b2gos.join("env.d");
+        let _ = create_dir_all(&envd_dir);
+        for (content, dest) in device.extra_files() {
+            template!(&content, output.join(&dest), None);
         }
 
         // b2ghald
