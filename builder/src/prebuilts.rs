@@ -5,13 +5,14 @@ use crate::build_config::BuildConfig;
 use crate::common::host_target;
 use crate::tasks::Task;
 use crate::timer::Timer;
+use indicatif::{ProgressBar, ProgressStyle};
 use log::{error, info};
 use reqwest::header::{ETAG, IF_NONE_MATCH};
 use reqwest::{blocking::Client, StatusCode};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::io::{Error as IoError, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use thiserror::Error;
@@ -27,6 +28,60 @@ pub enum DownloadTaskError {
     Json(#[from] serde_json::Error),
     #[error("Url error: {0}")]
     Url(#[from] UrlError),
+}
+
+struct DownloadWriter {
+    file: File,
+    total_size: usize,
+    downloaded: usize,
+    pb: ProgressBar,
+    #[allow(dead_code)] // We rely on the Timer drop implementation.
+    timer: Timer,
+}
+
+impl DownloadWriter {
+    fn new(package: &str, file: File, total_size: usize) -> Self {
+        let pb = ProgressBar::new(total_size as _);
+        pb.set_style(ProgressStyle::default_bar().template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"));
+
+        let timer = Timer::start_with_message(
+            &format!("{} downloaded", package),
+            &format!("Downloading {}", package),
+        );
+
+        Self {
+            file,
+            total_size,
+            downloaded: 0,
+            pb,
+            timer,
+        }
+    }
+}
+
+impl Write for DownloadWriter {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IoError> {
+        match self.file.write(buf) {
+            Ok(size) => {
+                let new_downloaded = std::cmp::min(self.downloaded + size, self.total_size);
+                self.downloaded = new_downloaded;
+                self.pb.set_position(new_downloaded as _);
+                self.downloaded += size;
+                Ok(size)
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    fn flush(&mut self) -> Result<(), IoError> {
+        self.file.flush()
+    }
+}
+
+impl Drop for DownloadWriter {
+    fn drop(&mut self) {
+        self.pb.finish_and_clear();
+    }
 }
 
 struct DownloadTask {
@@ -118,14 +173,13 @@ impl Task for DownloadTask {
 
         let status = response.status();
         if status.is_success() {
-            // Write the response to a temp directory under a random name
-            let mut dest = File::create(&cache_path)?;
+            let size = response.content_length().unwrap_or(0);
+
+            // Write the response to the cache directory.
             {
-                let _timer = Timer::start_with_message(
-                    &format!("{} downloaded", package),
-                    &format!("Downloading {}", package),
-                );
-                response.copy_to(&mut dest)?;
+                let dest = File::create(&cache_path)?;
+                let mut writer = DownloadWriter::new(package, dest, size as _);
+                response.copy_to(&mut writer)?;
             }
 
             // Write the Etag for this resource.

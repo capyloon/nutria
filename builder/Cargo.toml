@@ -10,6 +10,7 @@ blake2 = "0.10"
 clap = {version = "3.0", features = ["derive"]}
 env_logger = "0.9"
 fs_extra = "1.2"
+indicatif = "0.16"
 log = "0.4"
 mozdevice = "0.4"
 rayon = "1.5"

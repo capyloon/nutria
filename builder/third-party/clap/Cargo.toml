@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "clap"
-version = "3.1.1"
+version = "3.1.2"
 include = ["build.rs", "src/**/*", "Cargo.toml", "LICENSE*", "README.md", "benches/**/*", "examples/**/*"]
 description = "A simple to use, efficient, and full-featured Command Line Argument Parser"
 documentation = "https://docs.rs/clap/"
@@ -260,6 +260,11 @@ required-features = ["derive"]
 [[example]]
 name = "03_04_subcommands_derive"
 path = "examples/tutorial_derive/03_04_subcommands.rs"
+required-features = ["derive"]
+
+[[example]]
+name = "03_04_subcommands_alt_derive"
+path = "examples/tutorial_derive/03_04_subcommands_alt.rs"
 required-features = ["derive"]
 
 [[example]]
