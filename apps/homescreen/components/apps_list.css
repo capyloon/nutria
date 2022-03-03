@@ -2,7 +2,7 @@
   display: flex;
   border-radius: 0.5em;
   background-color: rgba(0, 0, 0, 0.5);
-  height: 95vh;
+  height: 0;
   width: 90vw;
   position: absolute;
   top: 5vh;
@@ -26,6 +26,7 @@
   opacity: 1;
   transform: none;
   transition: all 0.3s;
+  height: 90vh;
 }
 
 :host .container {
@@ -39,7 +40,7 @@
     minmax(var(--action-box-width), 1fr)
   );
   grid-auto-rows: fit-content(100%);
-  height: 100%;
+  height: calc(100% - 2em);
 }
 
 :host .container > action-bookmark {
