@@ -52,3 +52,8 @@ download-notification-title-downloading = Download Ongoing
 download-notification-title-stopped = Download Stopped
 download-notification-title-succeeded = Download Done
 download-notification-title-finalized = Download Finalized
+
+# Tor
+tor-enabling = Enabing Tor…
+tor-enabled = Tor is now enabled
+tor-disabled = Tor is now disabled

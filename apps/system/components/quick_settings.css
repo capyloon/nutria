@@ -133,3 +133,17 @@
 :host(.adjust-brightness) {
   background-color: transparent;
 }
+
+:host #tor-icon.disabled {
+  filter: grayscale(100%);
+}
+
+:host #tor-icon.enabling {
+  animation: pulse 1s linear infinite;
+}
+
+@keyframes pulse {
+  100% {
+    transform: scale(120%);
+  }
+}

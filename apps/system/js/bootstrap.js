@@ -251,6 +251,79 @@ async function manageFTU() {
   }
 }
 
+// TODO: move to its own file.
+class TorProxyChannelFilter {
+  constructor() {
+    this.proxyService = Cc[
+      "@mozilla.org/network/protocol-proxy-service;1"
+    ].getService(Ci.nsIProtocolProxyService);
+    this.proxyService.registerChannelFilter(
+      this /* nsIProtocolProxyChannelFilter aFilter */,
+      0 /* unsigned long aPosition */
+    );
+
+    this.torEnabled = false;
+    this.localhosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+    this.init();
+  }
+
+  async init() {
+    let settings = await apiDaemon.getSettings();
+    try {
+      const result = await settings.get("tor.enabled");
+      this.torEnabled = result.value;
+
+      settings.addObserver("tor.enabled", async (setting) => {
+        this.torEnabled = setting.value;
+      });
+    } catch (e) {
+      console.error(`TorProxyChannelFilter: failed to get Tor setting: ${e}`);
+    }
+  }
+
+  applyFilter(channel, defaultProxyInfo, proxyFilter) {
+    // console.log(`Proxy applyFilter tor=${this.torEnabled} ${channel.name}`);
+
+    if (!this.torEnabled) {
+      proxyFilter.onProxyFilterResult(defaultProxyInfo);
+      return;
+    }
+
+    let wrapper = ChannelWrapper.get(channel);
+    let doNotProxy = true;
+    try {
+      const url = new URL(wrapper.finalURL);
+      const hostname = url.hostname;
+      doNotProxy =
+        this.localhosts.has(hostname) || hostname.endsWith(".localhost");
+      // console.log(
+      //   `TorProxyChannelFilter: doNotProxy=${doNotProxy} for ${hostname}`
+      // );
+    } catch (e) {}
+    if (doNotProxy) {
+      proxyFilter.onProxyFilterResult(defaultProxyInfo);
+    } else {
+      // DNS is resolved on the SOCKS proxy server.
+      const { TRANSPARENT_PROXY_RESOLVES_HOST } = Ci.nsIProxyInfo;
+
+      // See https://searchfox.org/mozilla-central/rev/d4ebb53e719b913afdbcf7c00e162f0e96574701/netwerk/base/nsIProtocolProxyService.idl#154
+      // TODO: don't hardcode the port number to 9150
+      let proxyInfo = this.proxyService.newProxyInfo(
+        "socks",
+        "127.0.0.1",
+        9150,
+        null,
+        null,
+        TRANSPARENT_PROXY_RESOLVES_HOST,
+        0,
+        null
+      );
+      proxyFilter.onProxyFilterResult(proxyInfo);
+    }
+  }
+}
+
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
@@ -339,6 +412,7 @@ document.addEventListener(
 
     console.log(`D/hal device events set.`);
 
+    const torFilter = new TorProxyChannelFilter();
     installWebExtensions();
   },
   { once: true }

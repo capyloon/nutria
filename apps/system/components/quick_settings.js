@@ -22,6 +22,7 @@ class QuickSettings extends HTMLElement {
       <lucide-icon class="wifi-icon inactive" kind="wifi-off"></lucide-icon>
       <lucide-icon class="flashlight-icon inactive" kind="flashlight-off"></lucide-icon>
       <div class="flex-fill"></div>
+      <img id="tor-icon" src="./resources/tor.ico">
       <lucide-icon kind="settings" id="settings-icon"></lucide-icon>
       <lucide-icon kind="log-out" id="logout-icon"></lucide-icon>
       <lucide-icon kind="lock" id="lock-icon"></lucide-icon>
@@ -44,6 +45,7 @@ class QuickSettings extends HTMLElement {
     this.initFlashlight();
     this.initBrightness();
     this.initTelephony();
+    this.initTor();
 
     let logoutIcon = shadow.querySelector("#logout-icon");
     if (
@@ -111,6 +113,64 @@ class QuickSettings extends HTMLElement {
       await service.ready();
       slider.value = await service.brightness;
     }
+  }
+
+  async initTor() {
+    let torIcon = this.shadowRoot.querySelector("#tor-icon");
+
+    let settings = await apiDaemon.getSettings();
+
+    async function settingOrDefault(name, defaultValue) {
+      try {
+        let res = await settings.get(name);
+        return res.value;
+      } catch (e) {
+        return defaultValue;
+      }
+    }
+
+    let torEnabled = await settingOrDefault("tor.enabled", false);
+    if (!torEnabled) {
+      torIcon.classList.add("disabled");
+    } else {
+      torIcon.classList.add("enabling");
+    }
+    const status = await settingOrDefault("tor.status", { ready: false });
+    let torReady = status.ready;
+    if (torReady) {
+      torIcon.classList.remove("enabling");
+    }
+
+    settings.addObserver("tor.enabled", async (setting) => {
+      torEnabled = setting.value;
+      if (torEnabled) {
+        torIcon.classList.remove("disabled");
+        torIcon.classList.add("enabling");
+      } else {
+        torIcon.classList.remove("enabling");
+        torIcon.classList.add("disabled");
+      }
+      let msg = await window.utils.l10n(
+        torEnabled ? "tor-enabling" : "tor-disabled"
+      );
+      window.toaster.show(msg);
+    });
+
+    settings.addObserver("tor.status", async (setting) => {
+      if (setting.value.ready != torReady) {
+        torReady = setting.value.ready;
+        if (torReady) {
+          torIcon.classList.remove("enabling");
+          let msg = await window.utils.l10n("tor-enabled");
+          window.toaster.show(msg);
+        }
+      }
+    });
+
+    torIcon.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await settings.set([{ name: "tor.enabled", value: !torEnabled }]);
+    });
   }
 
   initFlashlight() {

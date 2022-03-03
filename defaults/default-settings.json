@@ -9,5 +9,6 @@
   "ril.data.defaultServiceId": 0,
   "geolocation.enabled": true,
   "geolocation.debugging.enabled": true,
-  "nutria.branding": "branding-capyloon"
+  "nutria.branding": "branding-capyloon",
+  "tor.enabled": false
 }
