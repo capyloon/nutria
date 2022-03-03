@@ -22,7 +22,7 @@ function defaultContact() {
     genderIdentity: "",
     ringtone: "",
     photoType: "",
-    photoBlob: [],
+    photoBlob: new Uint8Array(),
     addresses: [],
     email: [],
     url: [],
