@@ -1,5 +1,10 @@
 /* Style for the b2gOS default branding */
 
+:root {
+  --logo-text-color: darkslategray;
+  --logo-background-color: wheat;
+}
+
 #logo {
   background: radial-gradient(circle, beige 0%, cyan 100%);
   color: rgb(65, 64, 64);
@@ -35,4 +40,29 @@
   100% {
     transform: rotate(0deg);
   }
+}
+
+/* FTU app styling */
+
+.ftu #logo {
+  background: none;
+}
+
+.ftu #logo div.title {
+  font-size: 64px;
+  background: linear-gradient(to bottom right, black, gray);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ftu #logo div.subtitle {
+  display: none;
+}
+
+body.ftu {
+  background: beige;
+  color: var(--logo-text-color);
+
+  --ftu-background: beige;
+  --ftu-color: var(--logo-text-color);
 }

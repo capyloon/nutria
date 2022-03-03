@@ -261,6 +261,12 @@ class ParallelGraphLoader {
           dep.param[2]
         );
         break;
+      case "shoelaceComp":
+        // The parameter is the Shoelace component name, eg. "input" to use <sl-input>
+        runner = sharedModuleLoader(
+          `shoelace/components/${dep.param}/${dep.param}.js`
+        );
+        break;
       case "style":
         runner = styleLoader(dep.param);
         break;
@@ -337,4 +343,69 @@ function getSharedDeps(names) {
   } else {
     return graph.waitForDeps(names);
   }
+}
+
+const kValidShoelaceNames = new Set([
+  "alert",
+  "avatar",
+  "badge",
+  "breadcrumb",
+  "breadcrumb-item",
+  "button",
+  "button-group",
+  "card",
+  "checkbox",
+  "color-picker",
+  "details",
+  "dialog",
+  "divider",
+  "drawer",
+  "dropdown",
+  "icon",
+  "icon-button",
+  "input",
+  "menu",
+  "menu-item",
+  "menu-label",
+  "progress-bar",
+  "progress-ring",
+  "qr-code",
+  "radio",
+  "radio-group",
+  "range",
+  "rating",
+  "select",
+  "skeleton",
+  "spinner",
+  "switch",
+  "tab",
+  "tab-group",
+  "tab-panel",
+  "tag",
+  "textarea",
+  "tooltip",
+]);
+
+// Adds the declaration for all the needed Shoelace components, by looking at dependency names.
+function addShoelaceDeps(currentDeps) {
+  let components = new Set();
+  currentDeps.forEach((declaration) => {
+    declaration.deps?.forEach((dep) => {
+      if (dep.startsWith("shoelace-")) {
+        let name = dep.substring(9);
+        if (kValidShoelaceNames.has(name) && !components.has(name)) {
+          components.add(name);
+        }
+      }
+    });
+  });
+
+  for (let name of components) {
+    currentDeps.push({
+      name: `shoelace-${name}`,
+      kind: "shoelaceComp",
+      param: name,
+    });
+  }
+  return currentDeps;
 }
