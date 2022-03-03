@@ -162,6 +162,7 @@ impl AdbCommand for ResetDataCommand {
             "stop api-daemon",
             "rm -r /mnt/runtime/default/emulated/costaeres",
             "rm /data/local/service/api-daemon/*.sqlite*",
+            "rm -r /data/local/webapps",
             "start api-daemon",
             "start b2g",
         ];
@@ -236,7 +237,8 @@ impl PushCommand {
             source_apps.insert(name, path.clone());
         });
 
-        let mut system_update = false;
+        // Doing a 'push' with no constraints will push the system app.
+        let mut system_update = requested_apps.is_none();
         let mut homescreen_update = false;
 
         // The resulting list is the intersection of the requested and available apps.
@@ -263,6 +265,10 @@ impl PushCommand {
         };
 
         info!("Will push apps: {:?}", apps);
+        info!(
+            "System update: {}, homescreen update: {}",
+            system_update, homescreen_update
+        );
         Self {
             apps,
             system_update,
@@ -308,7 +314,7 @@ impl PushCommand {
 impl AdbCommand for PushCommand {
     fn run_on_device(&self, device: &Device) -> Result<(), AdbError> {
         if self.system_update {
-            info!("Restarting b2g to update system app.");
+            info!("Restarting b2g because of the system app update.");
             for command in ["stop b2g", "start b2g"] {
                 match device.execute_host_shell_command(command) {
                     Ok(res) => info!("{}: [Success] {}", command, res.trim()),
