@@ -7,5 +7,9 @@
   "aarch64-apple-darwin": {
     "api-daemon": "https://bafybeiahtpqx4knt6x7hpmtlbwjp5ua5vi4gsv7hxakbnfvgnt2aoh4puy.ipfs.dweb.link/api-daemon-aarch64-apple-darwin.tar.xz",
     "b2g": "https://bafybeihuoducpo7a4netvvgwaj3vialhdklntscrrklzbwohopx4njcjx4.ipfs.dweb.link/b2g-99.0.en-US.mac.tar.bz2"
+  },
+  "x86_64-apple-darwin": {
+    "api-daemon": "https://bafybeigdjvgv7x3yrivutapioy4ygmn7ynkyb3unwfgn45fvuw7m5ggzgm.ipfs.dweb.link/api-daemon-x86_64-apple-darwin.tar.xz",
+    "b2g": "https://bafybeihrj4kun736owviyoh6fv7ryhnz6nvzjhlvp47jcfa53zybx3x7sy.ipfs.dweb.link/b2g-99.0.en-US.mac.tar.bz2"
   }
 }
