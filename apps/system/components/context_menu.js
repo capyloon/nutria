@@ -82,12 +82,12 @@ class ContextMenu extends HTMLElement {
     shadow.querySelector("li[data-l10n-id=image-set-wallpaper]").onclick =
       () => {
         this.close();
-        actionsDispatcher.dispatch("set-wallpaper", this.url);
+        actionsDispatcher.dispatch("set-wallpaper", this.imageUrl);
       };
 
     shadow.querySelector("li[data-l10n-id=link-new-tab]").onclick = () => {
       this.close();
-      window.wm.openFrame(this.url, { activate: true });
+      window.wm.openFrame(this.linkUrl, { activate: true });
     };
   }
 
@@ -101,16 +101,18 @@ class ContextMenu extends HTMLElement {
       return;
     }
 
+    this.imageUrl = null;
+    this.linkUrl = null;
+
     let hasImage = false;
     let hasLink = false;
-    let url = null;
     this.data.systemTargets?.forEach((item) => {
       if (item.nodeName === "IMG") {
         hasImage = true;
-        url = item.data?.uri;
+        this.imageUrl = item.data?.uri;
       } else if (item.nodeName === "A") {
         hasLink = true;
-        url = item.data?.uri;
+        this.linkUrl = item.data?.uri;
       }
     });
 
@@ -121,7 +123,6 @@ class ContextMenu extends HTMLElement {
       return;
     }
 
-    this.url = url;
     backdropManager.show("context-menu", true);
     this.data = null;
   }
