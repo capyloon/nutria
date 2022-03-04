@@ -50,34 +50,7 @@ class UiManager {
 
     this.newThreadButton.onclick = async () => {
       let search = this.searchInput.value;
-      console.log(`MMM clicked to create thread with '${search}'`);
-      // check if this number matches an existing thread, and if so open it.
-      let threads = this.manager.getThreads().values();
-      let matchThread = null;
-      for await (let thread of threads) {
-        const { id, body, participants, lastMessageType } = thread;
-        console.log(
-          `MMM thread: ${id} ${participants} '${body}' ${lastMessageType}`
-        );
-        if (participants == search) {
-          matchThread = thread;
-        }
-      }
-      if (matchThread) {
-        console.log(`MMM Found exising thread ${matchThread.id}`);
-        this._panelManager.handleEvent(
-          new CustomEvent("open", {
-            detail: { name: "thread", data: matchThread },
-          })
-        );
-      } else {
-        console.log(`MMM Creating new thread for ${search}`);
-        this._panelManager.handleEvent(
-          new CustomEvent("open", {
-            detail: { name: "thread", data: { participants: [search] } },
-          })
-        );
-      }
+      this.findAndOpenThred(search);
     };
 
     this._panelManager = null;
@@ -132,6 +105,36 @@ class UiManager {
       this.threadList.appendChild(new ThreadHead(thread));
     }
     this.updatePanelLinks();
+  }
+
+  async findAndOpenThred(search) {
+    // check if this number matches an existing thread, and if so open it.
+    let threads = this.manager.getThreads().values();
+    let matchThread = null;
+    for await (let thread of threads) {
+      const { id, body, participants, lastMessageType } = thread;
+      console.log(
+        `MMM thread: ${id} ${participants} '${body}' ${lastMessageType}`
+      );
+      if (participants == search) {
+        matchThread = thread;
+      }
+    }
+    if (matchThread) {
+      console.log(`MMM Found exising thread ${matchThread.id}`);
+      this._panelManager.handleEvent(
+        new CustomEvent("open", {
+          detail: { name: "thread", data: matchThread },
+        })
+      );
+    } else {
+      console.log(`MMM Creating new thread for ${search}`);
+      this._panelManager.handleEvent(
+        new CustomEvent("open", {
+          detail: { name: "thread", data: { participants: [search] } },
+        })
+      );
+    }
   }
 
   async openThread(thread) {
@@ -271,6 +274,12 @@ document.addEventListener(
     panelFactory.panelManager = panelManager;
 
     panelManager.processLocation();
+
+    // Listen to messages from the service worker.
+    navigator.serviceWorker.onmessage = async (event) => {
+      let data = event.data;
+      panelFactory.ui.findAndOpenThred(data.number);
+    };
   },
   { once: true }
 );
