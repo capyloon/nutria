@@ -19,6 +19,13 @@
       "desktop-notification": {},
       "sms": {}
     },
+    "activities": {
+      "new": {
+        "filters": {
+          "type": {"value": "websms/sms"}
+        }
+      }
+    },
     "serviceworker": {
       "script_url": "sw.js"
     },

@@ -75,26 +75,34 @@ self.onsystemmessage = async (event) => {
     return;
   }
 
-  // let handler = event.data.webActivityRequestHandler();
-  // let source = handler.source;
+  if (event.name === "activity") {
+    let handler = event.data.webActivityRequestHandler();
+    let source = handler.source;
 
-  // let resolver;
-  // let promise = new Promise((resolve) => {
-  //   resolver = resolve;
-  // });
-  // event.waitUntil(promise);
+    if (source.name !== "new") {
+      console.error(`Unexpected activity: ${source.name}`);
+      return;
+    }
 
-  // // console.log(`ZZZ Contact activity data: ${JSON.stringify(source.data)}`);
+    let resolver;
+    let promise = new Promise((resolve) => {
+      resolver = resolve;
+    });
+    event.waitUntil(promise);
 
-  // const allClients = await clients.matchAll({
-  //   includeUncontrolled: true,
-  // });
-  // if (allClients.length > 0) {
-  //   let win = allClients[0];
-  //   win.postMessage(source.data);
-  // } else {
-  //   let win = await clients.openWindow("/index.html");
-  //   win.postMessage(source.data);
-  // }
-  // resolver();
+    // console.log(`MMM Contact activity data: ${JSON.stringify(source.data)}`);
+
+    const allClients = await clients.matchAll({
+      includeUncontrolled: true,
+    });
+    if (allClients.length > 0) {
+      let win = allClients[0];
+      win.focus();
+      win.postMessage(source.data);
+    } else {
+      let win = await clients.openWindow("/index.html");
+      win.postMessage(source.data);
+    }
+    resolver();
+  }
 };
