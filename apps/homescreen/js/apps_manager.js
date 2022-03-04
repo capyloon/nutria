@@ -13,13 +13,24 @@ export class AppsManager extends EventTarget {
   }
 
   async addApp(app) {
+    let manifestUrl = app.manifestUrl;
+    let index = this.apps.findIndex((item) => {
+      return item.manifestUrl == manifestUrl;
+    });
+    if (index != -1) {
+      // Duplicate app, ignore.
+      return false;
+    }
+
     try {
-      let response = await fetch(app.manifestUrl);
+      let response = await fetch(manifestUrl);
       app.manifest = await response.json();
       this.apps.push(app);
+      return true;
     } catch (e) {
       console.log(`Failed to add app ${JSON.stringify(app)} : ${e}`);
     }
+    return false;
   }
 
   removeApp(manifestUrl) {
@@ -97,8 +108,9 @@ export class AppsManager extends EventTarget {
         console.log(
           `AppsManager::AppInstalled ${JSON.stringify(app)} installed`
         );
-        await this.addApp(app);
-        this.dispatchEvent(new CustomEvent("app-installed"));
+        if (await this.addApp(app)) {
+          this.dispatchEvent(new CustomEvent("app-installed"));
+        }
       });
       service.addEventListener(service.APP_UNINSTALLED_EVENT, (manifestUrl) => {
         console.log(
@@ -114,7 +126,6 @@ export class AppsManager extends EventTarget {
       console.log(`AppsManager got ${apps.length} apps`);
 
       // For each app get the manifest.
-      // TODO: listen to install / uninstall events to update the list.
       for (let i = 0; i < apps.length; i++) {
         await this.addApp(apps[i]);
       }
