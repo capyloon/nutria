@@ -1,7 +1,6 @@
 :host {
   border-bottom: 2px solid var(--medium-color);
   padding: 1em;
-  font-size: larger;
 }
 
 :host(:not(.open)) .details {
@@ -20,4 +19,6 @@
 :host .header {
   cursor: pointer;
   text-transform: capitalize;
+  font-size: larger;
+  font-weight: bold;
 }

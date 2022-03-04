@@ -12,19 +12,21 @@ class ContactInfo extends HTMLElement {
     }
 
     let tel = "";
-    let sms = "";
+    let telLink = "";
+    let smsLink = "";
     let email = "";
 
     if (contact.tel && contact.tel[0]) {
       let value = contact.tel[0].value;
-      tel = `<a href="tel:${value}"><lucide-icon kind="phone"></lucide-icon><span>${value}</span></a>`;
-      sms = `<a href="sms:${value}"><lucide-icon kind="message-circle"></lucide-icon><span>${value}</span></a>`;
+      tel = (value != "") ? `<span>${value}</span>` : ``;
+      telLink = (value != "") ? `<a href="tel:${value}"><lucide-icon kind="phone"></lucide-icon><span>Call</span></a>` : ``;
+      smsLink = (value != "") ? `<a href="sms:${value}"><lucide-icon kind="message-circle"></lucide-icon><span>Send SMS</span></a>` : ``;
     }
 
     
     if (contact.email && contact.email[0]) {
       let value = contact.email[0].value;
-      email = `<a href="mailto:${value}"><lucide-icon kind="mail"></lucide-icon><span>${value}</span></a>`;
+      email = (value != "") ? `<a href="mailto:${value}"><lucide-icon kind="mail"></lucide-icon><span>${value}</span></a>` : ``;
     }
 
     let shadow = this.attachShadow({ mode: "open" });
@@ -34,7 +36,8 @@ class ContactInfo extends HTMLElement {
         <div class="header">${contact.name || "Unknown"}</div>
         <div class="details">
           ${tel}
-          ${sms}
+          ${telLink}
+          ${smsLink}
           ${email}
         </div>
       </div>
