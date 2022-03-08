@@ -6,4 +6,4 @@ Useful settings:
 
 - `screenlock.enabled`
 - `screenlock.code`
-  
+- `ftu.done` : true when the user has been through the FTU flow.

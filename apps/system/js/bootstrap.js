@@ -228,6 +228,29 @@ async function installWebExtensions() {
   });
 }
 
+// Check wether we need to run the FTU, and if so launch it.
+async function manageFTU() {
+  let settings = await apiDaemon.getSettings();
+  let ftuDone = false;
+  try {
+    let result = await settings.get("ftu.done");
+    ftuDone = result.value;
+  } catch (e) {}
+
+  if (ftuDone) {
+    return;
+  }
+
+  await window.lockscreen.launch(
+    `http://ftu.localhost:${config.port}/index.html`
+  );
+  try {
+    await settings.set([{ name: "ftu.done", value: true }]);
+  } catch (e) {
+    console.error(`Failed to register FTU as done: ${e}`);
+  }
+}
+
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
@@ -288,9 +311,7 @@ document.addEventListener(
       }
     });
 
-    // window.setInterval(() => {
-    //   console.log(`LLL consoleAPICall System App log ${Date.now()}`);
-    // }, 5000);
+    await manageFTU();
 
     window.onuserproximity = (event) => {
       console.log(`D/hal === userproximity event: near=${event.near}`);

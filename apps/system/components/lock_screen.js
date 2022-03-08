@@ -173,18 +173,22 @@ class LockScreen extends HTMLElement {
   }
 
   // Launches an app in a lockscreen controlled way.
+  // Returns a promise that resolves when the app is closed.
   launch(url) {
-    this.tempClose();
-    // Call into the window manager to launch an app in lockscreen mode.
-    window.wm.openFrame(url, {
-      activate: true,
-      fromLockscreen: true,
-      whenClosed: async () => {
-        window.wm.unlockSwipe();
-        await this.open();
-      },
+    return new Promise((resolve) => {
+      this.tempClose();
+      // Call into the window manager to launch an app in lockscreen mode.
+      window.wm.openFrame(url, {
+        activate: true,
+        fromLockscreen: true,
+        whenClosed: async () => {
+          window.wm.unlockSwipe();
+          await this.open();
+          resolve();
+        },
+      });
+      window.wm.lockSwipe();
     });
-    window.wm.lockSwipe();
   }
 
   initFlashlight() {
