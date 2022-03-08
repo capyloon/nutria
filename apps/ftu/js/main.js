@@ -29,13 +29,11 @@ class PanelWrapper {
 
       this.panel
         .querySelector("sl-button[data-l10n-id = btn-back]")
-        .addEventListener("click", () => {
-          this.panel.hide();
-        });
+        .addEventListener("click", () => history.back());
 
       let btnOk = this.panel.querySelector("sl-button[data-l10n-id = btn-ok]");
       btnOk?.addEventListener("click", () => {
-        elem(`${this.panel.getAttribute("next")}-panel`)?.show();
+        window.location.hash = "#" + this.panel.getAttribute("next");
       });
 
       let btnDone = this.panel.querySelector(
@@ -102,6 +100,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     (template) => template.getAttribute("id").split("-")[0]
   );
 
+  let wrappers = new Map();
+
   // Create the <sl-drawer> elements.
   let prev = null;
   templates.forEach((name) => {
@@ -114,9 +114,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     prev = node;
     document.body.append(node);
     let wrapper = new PanelWrapper(node, graph);
+    wrappers.set(name, wrapper);
   });
 
+  // Will open only the panel for that #hash
+  window.addEventListener(
+    "hashchange",
+    () => {
+      let hash = window.location.hash;
+      let name = hash === "" ? "" : hash.substring(1) + "-panel";
+
+      for (let wrapper of wrappers.values()) {
+        if (wrapper.name === name) {
+          wrapper.panel.show();
+        } else {
+          wrapper.panel.hide();
+        }
+      }
+    },
+    false
+  );
+
   elem("btn-start").onclick = () => {
-    elem("language-panel").show();
+    window.location.hash = "#language";
   };
 });
