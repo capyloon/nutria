@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>ftu</title>
+    <meta charset="utf8" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" href="icons/default.svg" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="style/main.css" />
+
+    <meta name="defaultLanguage" content="en-US" />
+    <meta name="availableLanguages" content="en-US" />
+    <link rel="localization" href="locales/{locale}/main.ftl" />
+
+    <script src="js/config.js"></script>
+    <script src="js/dependencies.js"></script>
+    <script src="js/main.js"></script>
+  </head>
+  <body class="ftu">
+    <div id="logo">
+      <div class="title" data-l10n-id="logo-title"></div>
+      <div class="subtitle" data-l10n-id="logo-subtitle"></div>
+    </div>
+
+    <div class="intro">
+      <h1 data-l10n-id="ftu-welcome"></h1>
+      <p data-l10n-id="ftu-intro-1"></p>
+      <p data-l10n-id="ftu-intro-2"></p>
+      <div class="center">
+        <sl-button
+          id="btn-start"
+          variant="primary"
+          data-l10n-id="btn-start"
+        ></sl-button>
+      </div>
+    </div>
+
+    <!-- The language selection panel -->
+    <template id="language-panel-tmpl">
+      <div class="drawer-content">
+        <h1 data-l10n-id="language-title" class="branded-text"></h1>
+        <h3>
+          <sl-icon name="languages"></sl-icon>&nbsp;
+          <span data-l10n-id="language-select"></span>
+        </h3>
+
+        <sl-menu class="initial-focus"> </sl-menu>
+      </div>
+
+      <div slot="footer">
+        <sl-button data-l10n-id="btn-back"></sl-button>
+        <sl-button variant="primary" data-l10n-id="btn-ok"></sl-button>
+      </div>
+    </template>
+
+    <!-- The wifi setup panel -->
+    <template id="wifi-panel-tmpl">
+      <div class="drawer-content">
+        <h1 data-l10n-id="wifi-title" class="branded-text"></h1>
+      </div>
+
+      <div slot="footer">
+        <sl-button data-l10n-id="btn-back"></sl-button>
+        <sl-button variant="primary" data-l10n-id="btn-ok"></sl-button>
+      </div>
+    </template>
+
+    <!-- The display preferences setup panel -->
+    <template id="display-panel-tmpl">
+      <div class="drawer-content">
+        <h1 data-l10n-id="display-title" class="branded-text"></h1>
+
+        <h3 class="dark-mode">
+          <sl-icon name="palette"></sl-icon>&nbsp;
+          <span data-l10n-id="display-prefer-dark"></span>
+          <sl-switch></sl-switch>
+        </h3>
+      </div>
+
+      <div slot="footer">
+        <sl-button data-l10n-id="btn-back"></sl-button>
+        <sl-button variant="primary" data-l10n-id="btn-done"></sl-button>
+      </div>
+    </template>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-/* Style for the b2gOS default branding */
+/* Style for the Capyloon branding */
 
 :root {
   --logo-text-color: darkslategray;
@@ -22,7 +22,8 @@
 }
 
 #logo div.title,
-#logo div.subtitle, #logo .action {
+#logo div.subtitle,
+#logo .action {
   font-family: "Lobster", cursive;
   background: linear-gradient(
     to bottom right,
@@ -63,4 +64,51 @@
   100% {
     transform: rotate(0deg);
   }
+}
+
+/* FTU app styling */
+
+.ftu #logo {
+  background: none;
+}
+
+.ftu #logo div.title {
+  font-size: 64px;
+  background: linear-gradient(
+    to bottom right,
+    var(--logo-grad-start),
+    var(--logo-grad-end)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ftu #logo div.subtitle {
+  font-size: 22px;
+  background: linear-gradient(
+    to bottom right,
+    var(--logo-grad-start),
+    var(--logo-grad-end)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+body.ftu {
+  background: linear-gradient(to bottom right, wheat, white);
+  color: var(--logo-text-color);
+
+  --ftu-background: linear-gradient(to bottom right, wheat, white);
+  --ftu-color: var(--logo-text-color);
+}
+
+.branded-text {
+  font-family: "Lobster", cursive;
+  background: linear-gradient(
+    to bottom right,
+    var(--logo-grad-start),
+    var(--logo-grad-end)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
