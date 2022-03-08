@@ -1,11 +1,10 @@
+var wifi;
 
-document.addEventListener(
-  "DOMContentLoaded",
+document.getElementById("wifi").addEventListener(
+  "bootstrap",
   async () => {
-    await depGraphLoaded;
-    await getSharedDeps(["shared-fluent", "shared-icons"]);
-
-    setupWifi();
+    wifi = await import("/panels/wifi/js/wifi.js");
+    wifi.setupWifi();
   },
   { once: true }
 );

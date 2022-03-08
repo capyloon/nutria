@@ -49,7 +49,7 @@ function displayTelephony() {
   let conns = navigator.b2g.mobileConnections;
   console.log(`ZZZ found ${conns.length} mobile connections`);
 
-  for (conn of conns) {
+  for (let conn of conns) {
     try {
       console.log(`ZZZ Adding sim card info`);
 
@@ -100,13 +100,10 @@ function displayTelephony() {
   // });
 }
 
-document.addEventListener(
-  "DOMContentLoaded",
+document.getElementById("info").addEventListener(
+  "bootstrap",
   async () => {
     window.logo.src = `http://branding.localhost:${location.port}/resources/logo.webp`;
-
-    await depGraphLoaded;
-    await getSharedDeps("shared-all");
 
     if (navigator.b2g?.externalapi) {
       apiDaemon.getSettings().then(
