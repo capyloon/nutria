@@ -29,7 +29,7 @@
       <div class="center">
         <sl-button
           id="btn-start"
-          variant="primary"
+          variant="success"
           data-l10n-id="btn-start"
         ></sl-button>
       </div>
@@ -39,17 +39,21 @@
     <template id="language-panel-tmpl">
       <div class="drawer-content">
         <h1 data-l10n-id="language-title" class="branded-text"></h1>
-        <h3>
+        <header>
           <sl-icon name="languages"></sl-icon>&nbsp;
           <span data-l10n-id="language-select"></span>
-        </h3>
+        </header>
 
         <sl-menu class="initial-focus"> </sl-menu>
       </div>
 
       <div slot="footer">
-        <sl-button data-l10n-id="btn-back"></sl-button>
-        <sl-button variant="primary" data-l10n-id="btn-ok"></sl-button>
+        <sl-button class="panel-back" data-l10n-id="btn-back"></sl-button>
+        <sl-button
+          class="panel-ok"
+          variant="success"
+          data-l10n-id="btn-ok"
+        ></sl-button>
       </div>
     </template>
 
@@ -57,11 +61,42 @@
     <template id="wifi-panel-tmpl">
       <div class="drawer-content">
         <h1 data-l10n-id="wifi-title" class="branded-text"></h1>
+        <header>
+          <sl-icon name="wifi" id="wifi-status-icon"></sl-icon>&nbsp;
+          <span id="wifi-status-text" data-l10n-id="wifi-status-enabled"></span>
+          <sl-switch id="wifi-on-off-switch"></sl-switch>
+        </header>
+
+        <sl-menu id="networks">
+          <sl-menu-item disabled data-l10n-id="wifi-no-network"></sl-menu-item>
+          <sl-divider id="wifi-divider" class="hidden"></sl-divider>
+        </sl-menu>
+        <sl-button data-l10n-id="wifi-rescan">s</sl-button>
       </div>
 
+      <sl-dialog id="wifi-password-dialog">
+        <sl-input
+          toggle-password
+          type="password"
+          minlength="8"
+          id="wifi-password-input"
+          data-l10n-attrs="label"
+          data-l10n-id="wifi-password-desc"
+        ></sl-input>
+
+        <div slot="footer">
+          <sl-button data-l10n-id="btn-cancel"></sl-button>
+          <sl-button variant="success" data-l10n-id="btn-ok"></sl-button>
+        </div>
+      </sl-dialog>
+
       <div slot="footer">
-        <sl-button data-l10n-id="btn-back"></sl-button>
-        <sl-button variant="primary" data-l10n-id="btn-ok"></sl-button>
+        <sl-button class="panel-back" data-l10n-id="btn-back"></sl-button>
+        <sl-button
+          class="panel-ok"
+          variant="success"
+          data-l10n-id="btn-ok"
+        ></sl-button>
       </div>
     </template>
 
@@ -70,16 +105,20 @@
       <div class="drawer-content">
         <h1 data-l10n-id="display-title" class="branded-text"></h1>
 
-        <h3 class="dark-mode">
+        <header class="dark-mode">
           <sl-icon name="palette"></sl-icon>&nbsp;
           <span data-l10n-id="display-prefer-dark"></span>
           <sl-switch></sl-switch>
-        </h3>
+        </header>
       </div>
 
       <div slot="footer">
-        <sl-button data-l10n-id="btn-back"></sl-button>
-        <sl-button variant="primary" data-l10n-id="btn-done"></sl-button>
+        <sl-button class="panel-back" data-l10n-id="btn-back"></sl-button>
+        <sl-button
+          class="panel-done"
+          variant="success"
+          data-l10n-id="btn-done"
+        ></sl-button>
       </div>
     </template>
   </body>

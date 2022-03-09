@@ -5,7 +5,7 @@ class DisplayPanel {
     this.log("constructor");
     this.panel = document.getElementById("display-panel");
     this.ready = false;
-    this.panel.addEventListener("sl-after-show", this);
+    this.panel.addEventListener("panel-ready", this);
   }
 
   log(msg) {
@@ -17,7 +17,7 @@ class DisplayPanel {
   }
 
   handleEvent(event) {
-    if (event.type === "sl-after-show") {
+    if (event.type === "panel-ready") {
       this.init();
     } else if (event.type === "sl-change") {
       this.updateChoice(event.target);

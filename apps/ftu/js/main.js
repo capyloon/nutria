@@ -28,22 +28,21 @@ class PanelWrapper {
       this.panel.append(template.content.cloneNode(true));
 
       this.panel
-        .querySelector("sl-button[data-l10n-id = btn-back]")
+        .querySelector("sl-button.panel-back")
         .addEventListener("click", () => history.back());
 
-      let btnOk = this.panel.querySelector("sl-button[data-l10n-id = btn-ok]");
+      let btnOk = this.panel.querySelector("sl-button.panel-ok");
       btnOk?.addEventListener("click", () => {
         window.location.hash = "#" + this.panel.getAttribute("next");
       });
 
-      let btnDone = this.panel.querySelector(
-        "sl-button[data-l10n-id = btn-done]"
-      );
+      let btnDone = this.panel.querySelector("sl-button.panel-done");
       btnDone?.addEventListener("click", () => {
         window.close();
       });
 
       this.loaded = true;
+      this.panel.dispatchEvent(new CustomEvent("panel-ready"));
     }
 
     if (event.type === "sl-initial-focus") {

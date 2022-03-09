@@ -36,6 +36,7 @@ const kDeps = [
       "shoelace-divider",
       "shoelace-dialog",
       "shoelace-input",
+      "wifi-module",
     ],
   },
   {
@@ -44,4 +45,5 @@ const kDeps = [
     deps: ["shoelace-icon", "shoelace-switch", "display-module"],
   },
   { name: "display-module", kind: "module", param: "js/display_panel.js" },
+  { name: "wifi-module", kind: "module", param: "js/wifi_panel.js" },
 ];

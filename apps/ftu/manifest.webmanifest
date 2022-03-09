@@ -1,6 +1,6 @@
 {
   "name": "ftu",
-  "description": "A longer app description",
+  "description": "First Time Use Experience",
   "start_url": "/index.html",
   "icons": [
     {
@@ -13,10 +13,11 @@
   "b2g_features": {
     "core": true,
     "developer": {
-      "name": "The b2gOS team"
+      "name": "The Capyloon team"
     },
     "permissions": {
-      "settings": { "access": "readwrite" }
+      "settings": { "access": "readwrite" },
+      "wifi-manage": {}
     }
   },
   "version": "1.0"

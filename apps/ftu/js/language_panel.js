@@ -6,7 +6,7 @@ class LanguagePanel {
     this.panel = document.getElementById("language-panel");
     this.ready = false;
     this.currentChoice = null;
-    this.panel.addEventListener("sl-after-show", this);
+    this.panel.addEventListener("panel-ready", this);
   }
 
   log(msg) {
@@ -18,7 +18,7 @@ class LanguagePanel {
   }
 
   handleEvent(event) {
-    if (event.type === "sl-after-show") {
+    if (event.type === "panel-ready") {
       this.init();
     } else if (event.type === "sl-select") {
       this.updateChoice(event.detail.item);
