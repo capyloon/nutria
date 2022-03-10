@@ -34,7 +34,7 @@ class DatetimePanel {
 
   updateTimezone(event) {
     this.log(`updateTimezone -> ${event.detail.value}`);
-    if (!event.detail.value && !this.timezonesLoaded) {
+    if (!event.detail.value) {
       this.loadTimezones();
     }
 
@@ -118,6 +118,11 @@ class DatetimePanel {
   }
 
   async loadTimezones() {
+    if (this.timezonesLoaded) {
+      return;
+    }
+    this.timezonesLoaded = true;
+
     let url = `http://shared.localhost:${location.port}/resources/tz.json`;
     let response = await fetch(url);
     let json = await response.json();
@@ -144,8 +149,6 @@ class DatetimePanel {
 
       container.append(list);
     }
-
-    this.timezonesLoaded = true;
   }
 
   async init() {
