@@ -30,6 +30,12 @@ datetime-timezone-automatic-update = Update Timezone Automatically
 datetime-timezone-change-success = Timezone Changed Successfully
 datetime-timezone-change-error = Failure to Change Timezones
 
+# Privacy panel
+privacy-title = Privacy
+privacy-geolocation-enabled = Enable Geolocation
+privacy-tor-enabled = Enable Tor
+privacy-tp-enabled = Enable Tracking Protection
+
 # Display preferences panel
 display-title = Display Preferences
 display-prefer-dark = Use Dark Mode

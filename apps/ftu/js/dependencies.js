@@ -59,7 +59,28 @@ const kDeps = [
       "datetime-module",
     ],
   },
+  {
+    name: "privacy-panel",
+    kind: "virtual",
+    deps: ["shoelace-icon", "shoelace-switch", "privacy-module"],
+  },
   { name: "display-module", kind: "module", param: "js/display_panel.js" },
   { name: "wifi-module", kind: "module", param: "js/wifi_panel.js" },
-  { name: "datetime-module", kind: "module", param: "js/datetime_panel.js" },
+  {
+    name: "datetime-module",
+    kind: "module",
+    param: "js/datetime_panel.js",
+    deps: ["switch-setting"],
+  },
+  {
+    name: "privacy-module",
+    kind: "module",
+    param: "js/privacy_panel.js",
+    deps: ["switch-setting"],
+  },
+  {
+    name: "switch-setting",
+    kind: "module",
+    param: ["js/switch_setting.js", "SwitchAndSetting"],
+  },
 ];

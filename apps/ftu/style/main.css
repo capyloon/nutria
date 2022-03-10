@@ -35,7 +35,7 @@ sl-drawer h1 {
 }
 
 sl-drawer header {
-  font-size: larger;
+  font-size: 1.2rem;
 }
 
 .drawer-content {
@@ -124,4 +124,12 @@ sl-input::part(password-toggle-button) {
 #datetime-timezone-details sl-menu::part(base) {
   border: none;
   padding: 0;
+}
+
+#privacy-tor-icon {
+  width: 1.2rem;
+}
+
+#privacy-tor-icon.disabled {
+  filter: grayscale(100%);
 }

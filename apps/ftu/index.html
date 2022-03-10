@@ -186,6 +186,40 @@
       </div>
     </template>
 
+    <!-- The privacy preferences setup panel -->
+    <template id="privacy-panel-tmpl">
+      <div class="drawer-content">
+        <h1 data-l10n-id="privacy-title" class="branded-text"></h1>
+
+        <header>
+          <sl-icon id="privacy-geolocation-icon" name="locate"></sl-icon>&nbsp;
+          <span data-l10n-id="privacy-geolocation-enabled"></span>
+          <sl-switch id="privacy-geolocation-switch"></sl-switch>
+        </header>
+
+        <header>
+          <img id="privacy-tor-icon"></img>&nbsp;
+          <span data-l10n-id="privacy-tor-enabled"></span>
+          <sl-switch id="privacy-tor-switch"></sl-switch>
+        </header>
+
+        <header>
+          <sl-icon id="privacy-tp-icon" name="shield"></sl-icon>&nbsp;
+          <span data-l10n-id="privacy-tp-enabled"></span>
+          <sl-switch id="privacy-tp-switch"></sl-switch>
+        </header>
+      </div>
+
+      <div slot="footer">
+        <sl-button class="panel-back" data-l10n-id="btn-back"></sl-button>
+        <sl-button
+          class="panel-ok"
+          variant="success"
+          data-l10n-id="btn-ok"
+        ></sl-button>
+      </div>
+    </template>
+
     <!-- The display preferences setup panel -->
     <template id="display-panel-tmpl">
       <div class="drawer-content">
