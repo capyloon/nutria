@@ -39,8 +39,16 @@ class PasswordDialog {
       "sl-initial-focus",
       (event) => {
         event.preventDefault();
-        console.log(`WifiPanel PasswordDialog initial focus`);
         this.input.focus();
+      },
+      { once: true }
+    );
+
+    this.dialog.addEventListener(
+      "sl-request-close",
+      (event) => {
+        this.input.blur();
+        this.dialog.hide();
       },
       { once: true }
     );
