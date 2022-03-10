@@ -57,6 +57,7 @@ export class ApiDaemon {
     this.registerService("apps", "AppsManager");
     this.registerService("contacts", "ContactsManager");
     this.registerService("contentmanager", "ContentManager");
+    this.registerService("time", "TimeService");
 
     this.sessionReady = new Promise((resolve) => {
       this._resolveSessionReady = resolve;
@@ -182,6 +183,10 @@ export class ApiDaemon {
 
   getContentManager() {
     return this._getService("ContentManager");
+  }
+
+  getTimeService() {
+    return this._getService("TimeService");
   }
 
   getLibraryFor(serviceName) {

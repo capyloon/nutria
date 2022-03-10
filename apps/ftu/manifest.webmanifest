@@ -17,6 +17,7 @@
     },
     "permissions": {
       "settings": { "access": "readwrite" },
+      "system-time": { "access": "readwrite" },
       "wifi-manage": {}
     }
   },

@@ -100,12 +100,98 @@
       </div>
     </template>
 
+    <!-- The time & date panel -->
+    <template id="datetime-panel-tmpl">
+      <div class="drawer-content">
+        <h1 data-l10n-id="datetime-title" class="branded-text"></h1>
+
+        <section>
+          <header>
+            <sl-icon name="clock"></sl-icon>&nbsp;
+            <span data-l10n-id="datetime-clock-automatic-update"></span>
+            <sl-switch id="datetime-clock-switch"></sl-switch>
+          </header>
+          <div id="datetime-clock-current"></div>
+          <div id="datetime-clock-details" class="hidden">
+            <sl-input
+              id="datetime-clock-input"
+              type="datetime-local"
+              data-l10n-attrs="label"
+              data-l10n-id="datetime-clock-desc"
+            ></sl-input>
+            <sl-button
+              id="datetime-clock-set"
+              variant="primary"
+              data-l10n-id="datetime-clock-set"
+            ></sl-button>
+          </div>
+          <sl-alert
+            id="datetime-clock-success"
+            variant="success"
+            duration="2000"
+            closable
+          >
+            <sl-icon slot="icon" name="check-circle"></sl-icon>
+            <strong data-l10n-id="datetime-clock-change-success"></strong><br />
+          </sl-alert>
+          <sl-alert
+            id="datetime-clock-error"
+            variant="danger"
+            duration="2000"
+            closable
+          >
+            <sl-icon slot="icon" name="alert-circle"></sl-icon>
+            <strong data-l10n-id="datetime-clock-change-error"></strong><br />
+          </sl-alert>
+        </section>
+
+        <section>
+          <header>
+            <sl-icon name="globe-2"></sl-icon>&nbsp;
+            <span data-l10n-id="datetime-timezone-automatic-update"></span>
+            <sl-switch id="datetime-timezone-switch"></sl-switch>
+          </header>
+          <div id="datetime-timezone-details" class="hidden"></div>
+          <sl-alert
+            id="datetime-timezone-success"
+            variant="success"
+            duration="2000"
+            closable
+          >
+            <sl-icon slot="icon" name="check-circle"></sl-icon>
+            <strong data-l10n-id="datetime-timezone-change-success"></strong
+            ><br />
+            <span id="datetime-timezone-value"></span>
+          </sl-alert>
+          <sl-alert
+            id="datetime-timezone-error"
+            variant="danger"
+            duration="2000"
+            closable
+          >
+            <sl-icon slot="icon" name="alert-circle"></sl-icon>
+            <strong data-l10n-id="datetime-timezone-change-error"></strong
+            ><br />
+          </sl-alert>
+        </section>
+      </div>
+
+      <div slot="footer">
+        <sl-button class="panel-back" data-l10n-id="btn-back"></sl-button>
+        <sl-button
+          class="panel-ok"
+          variant="success"
+          data-l10n-id="btn-ok"
+        ></sl-button>
+      </div>
+    </template>
+
     <!-- The display preferences setup panel -->
     <template id="display-panel-tmpl">
       <div class="drawer-content">
         <h1 data-l10n-id="display-title" class="branded-text"></h1>
 
-        <header class="dark-mode">
+        <header>
           <sl-icon name="palette"></sl-icon>&nbsp;
           <span data-l10n-id="display-prefer-dark"></span>
           <sl-switch></sl-switch>

@@ -44,6 +44,22 @@ const kDeps = [
     kind: "virtual",
     deps: ["shoelace-icon", "shoelace-switch", "display-module"],
   },
+  {
+    name: "datetime-panel",
+    kind: "virtual",
+    deps: [
+      "shoelace-alert",
+      "shoelace-icon",
+      "shoelace-switch",
+      "shoelace-details",
+      "shoelace-button",
+      "shoelace-input",
+      "shoelace-menu",
+      "shoelace-menu-item",
+      "datetime-module",
+    ],
+  },
   { name: "display-module", kind: "module", param: "js/display_panel.js" },
   { name: "wifi-module", kind: "module", param: "js/wifi_panel.js" },
+  { name: "datetime-module", kind: "module", param: "js/datetime_panel.js" },
 ];

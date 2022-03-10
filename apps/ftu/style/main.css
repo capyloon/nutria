@@ -86,3 +86,42 @@ header span {
 sl-input::part(password-toggle-button) {
   -moz-user-focus: ignore;
 }
+
+#datetime-panel section {
+  margin-bottom: 1em;
+}
+
+#datetime-clock-current {
+  font-weight: bold;
+  margin: 1em;
+}
+
+#datetime-clock-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  align-items: start;
+}
+
+#datetime-clock-details.hidden {
+  display: none;
+}
+
+#datetime-timezone-details sl-details {
+  max-height: 40vh;
+  overflow: auto;
+  margin-top: 0.25em;
+}
+
+#datetime-timezone-details sl-details::part(header) {
+  padding: 0.5em;
+}
+
+#datetime-timezone-details sl-details::part(content) {
+  padding: 0em;
+}
+
+#datetime-timezone-details sl-menu::part(base) {
+  border: none;
+  padding: 0;
+}
