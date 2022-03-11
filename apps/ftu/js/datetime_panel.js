@@ -105,6 +105,8 @@ class DatetimePanel {
     try {
       let service = await this.ensureTimeService();
       await service.setTimezone(timezone);
+      let settings = await apiDaemon.getSettings();
+      await settings.set([{ name: "time.timezone", value: timezone }]);
       this.log(`Timezone set to ${timezone}`);
       let alert = this.getSuccessTimezoneToast();
       alert.querySelector("#datetime-timezone-value").textContent =
