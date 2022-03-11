@@ -69,14 +69,14 @@ class RebootMenu extends HTMLElement {
         let msg = await window.utils.l10n("screenshot-saved-success", {
           filename: `screenshots/${filename}`,
         });
-        window.toaster.show(msg);
+        window.toaster.show(msg, "success");
       },
       async (error) => {
         console.error(`Error saving file: ${JSON.stringify(error)}`);
         let msg = await window.utils.l10n("screenshot-saved-error", {
           error: JSON.stringify(error),
         });
-        window.toaster.show(msg);
+        window.toaster.show(msg, "danger");
       }
     );
   }

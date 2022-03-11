@@ -153,7 +153,7 @@ class QuickSettings extends HTMLElement {
       let msg = await window.utils.l10n(
         torEnabled ? "tor-enabling" : "tor-disabled"
       );
-      window.toaster.show(msg);
+      window.toaster.show(msg, torEnabled ? "primary" : "success");
     });
 
     settings.addObserver("tor.status", async (setting) => {
@@ -162,7 +162,7 @@ class QuickSettings extends HTMLElement {
         if (torReady) {
           torIcon.classList.remove("enabling");
           let msg = await window.utils.l10n("tor-enabled");
-          window.toaster.show(msg);
+          window.toaster.show(msg, "success");
         }
       }
     });

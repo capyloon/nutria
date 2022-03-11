@@ -264,7 +264,7 @@ class SiteInfo extends HTMLElement {
         try {
           let appObject = await service.installPwa(this.state.manifestUrl);
           let msg = await window.utils.l10n("success-add-to-home");
-          window.toaster.show(msg);
+          window.toaster.show(msg, "success");
           console.log(
             `SiteInfo: PWA installation success for this.state.manifestUrl: ${appObject}`
           );
@@ -299,7 +299,7 @@ class SiteInfo extends HTMLElement {
           }ms is ${JSON.stringify(result)}`
         );
         let msg = await window.utils.l10n("success-add-to-home");
-        window.toaster.show(msg);
+        window.toaster.show(msg, "success");
       },
       async (error) => {
         console.log(`SiteInfo: activity error is ${error}`);
