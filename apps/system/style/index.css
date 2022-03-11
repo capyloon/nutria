@@ -110,3 +110,7 @@ body.screen-off #screen {
 #lockscreen.hidden {
   display: none;
 }
+
+.sl-toast-stack {
+  z-index: 200;
+}

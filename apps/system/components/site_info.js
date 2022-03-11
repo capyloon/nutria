@@ -270,7 +270,7 @@ class SiteInfo extends HTMLElement {
           );
         } catch (e) {
           let msg = await window.utils.l10n("error-add-to-home");
-          window.toaster.show(msg, "error");
+          window.toaster.show(msg, "danger");
           console.error(
             `SiteInfo: Failed to install app: ${JSON.stringify(e)}`
           );
@@ -304,7 +304,7 @@ class SiteInfo extends HTMLElement {
       async (error) => {
         console.log(`SiteInfo: activity error is ${error}`);
         let msg = await window.utils.l10n("error-add-to-home");
-        window.toaster.show(`${msg}: ${error}`, "error");
+        window.toaster.show(`${msg}: ${error}`, "danger");
       }
     );
   }

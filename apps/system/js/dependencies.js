@@ -9,8 +9,20 @@ const kDeps = [
       "notifications",
       "watch homescreen",
       "audio volume indicator comp",
-      "toaster comp",
+      "api daemon core",
+      "shoelace-light-theme",
+      "shoelace-alert",
     ],
+  },
+  {
+    name: "shoelace-light-theme",
+    kind: "sharedStyle",
+    param: "shoelace/themes/light.css",
+  },
+  {
+    name: "shoelace-dark-theme",
+    kind: "sharedStyle",
+    param: "shoelace/themes/dark.css",
   },
   {
     name: "actions dispatcher",
@@ -219,12 +231,6 @@ const kDeps = [
     name: "audio volume indicator comp",
     kind: "module",
     param: ["./components/audio_volume_indicator.js"],
-    deps: ["lit element"],
-  },
-  {
-    name: "toaster comp",
-    kind: "module",
-    param: ["./components/toaster.js"],
     deps: ["lit element"],
   },
   {

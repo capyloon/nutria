@@ -358,7 +358,7 @@ document.addEventListener(
 
     await depGraphLoaded();
     let platform = embedder.isGonk() ? "gonk" : "linux";
-    let graph = new ParallelGraphLoader(kDeps, customRunner, { platform });
+    let graph = new ParallelGraphLoader(addShoelaceDeps(kDeps), customRunner, { platform });
 
     // Start with the lock screen on before we load the homescreen to avoid a
     // flash of the homescreen.
@@ -366,6 +366,34 @@ document.addEventListener(
     window.lockscreen.open();
 
     await graph.waitForDeps("phase1");
+
+    // Shoelace setup
+    // TODO: share with other apps
+    const { registerIconLibrary } = await import(
+      `http://shared.localhost:${config.port}/shoelace/utilities/icon-library.js`
+    );
+  
+    // Use the Lucide icons as the default ones to be consistent.
+    registerIconLibrary("default", {
+      resolver: (name) =>
+        `http://shared.localhost:${config.port}/lucide/icons/${name}.svg`,
+    });
+  
+    // Setup dark mode if needed.
+    let settings = await apiDaemon.getSettings();
+    let isDarkMode = false;
+    try {
+      let result = await settings.get("ui.prefers.color-scheme");
+      isDarkMode = result.value === "dark";
+    } catch (e) {}
+    if (isDarkMode) {
+      await graph.waitForDeps("shoelace-dark-theme");
+      document.documentElement.classList.add("sl-theme-dark");
+    } else {
+      document.documentElement.classList.remove("sl-theme-dark");
+    }
+    // End of Shoelace setup.
+
     await graph.waitForDeps("launch");
 
     keyManager.registerShortPressAction(config.powerKey, "power");

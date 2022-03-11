@@ -56,6 +56,12 @@
     <input-method class="offscreen"></input-method>
     <lock-screen id="lockscreen" class="hidden"></lock-screen>
     <audio-volume id="audiovolume" class="offscreen" hidden></audio-volume>
-    <toaster-container id="toaster" class="offscreen"></toaster-container>
+
+    <template id="toaster-template">
+      <sl-alert duration="2000" closable>
+        <sl-icon slot="icon"></sl-icon>
+        <strong></strong>
+      </sl-alert>
+    </template>
   </body>
 </html>

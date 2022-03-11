@@ -132,3 +132,42 @@ class MinuteTimer extends EventTarget {
     this.schedule();
   }
 }
+
+class Toaster {
+  createToaster() {
+    let toaster = document
+      .getElementById("toaster-template")
+      .content.firstElementChild.cloneNode(true);
+
+    let icon = toaster.querySelector("sl-icon");
+    let message = toaster.querySelector("strong");
+    return { toaster, icon, message };
+  }
+
+  // Allowed values for kind: "primary", "success", "neutral", "warning", "danger"
+  show(text, kind = "primary") {
+    let { toaster, icon, message } = this.createToaster();
+
+    if (
+      !["primary", "success", "neutral", "warning", "danger"].includes(kind)
+    ) {
+      console.error(`Unsupported toast kind: ${kind}`);
+      return;
+    }
+
+    toaster.variant = kind;
+    let icons = {
+      primary: "info",
+      success: "check-circle",
+      neutral: "info",
+      warning: "alert-triangle",
+      danger: "alert-circle",
+    };
+    icon.name = icons[kind];
+
+    message.textContent = text;
+    document.body.appendChild(toaster).toast();
+  }
+}
+
+window.toaster = new Toaster();
