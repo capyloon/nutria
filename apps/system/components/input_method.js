@@ -19,7 +19,7 @@ class InputMethod extends HTMLElement {
       mozpasspointerevents="true"
       transparent="true">
     </web-view>
-    <div class="padding"></div>
+    <div class="padding"><sl-icon name="chevron-down"></div></div>
     `;
     this.webView = this.querySelector("web-view");
     this.webView.openWindowInfo = null;

@@ -162,7 +162,12 @@ const kDeps = [
   { name: "backdrop", kind: "module", param: ["./js/backdrop.js"] },
   { name: "flashlight", kind: "module", param: ["./js/flashlight.js"] },
   { name: "keys", kind: "module", param: ["./js/keys.js"] },
-  { name: "downloads", kind: "module", param: ["./js/downloads.js"], deps: ["content manager"] },
+  {
+    name: "downloads",
+    kind: "module",
+    param: ["./js/downloads.js"],
+    deps: ["content manager"],
+  },
   {
     name: "audio volume",
     kind: "module",
@@ -188,6 +193,7 @@ const kDeps = [
     name: "input method comp",
     kind: "module",
     param: ["./components/input_method.js"],
+    deps: ["shoelace-icon"],
   },
   {
     name: "quick settings comp",

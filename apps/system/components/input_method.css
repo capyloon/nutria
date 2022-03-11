@@ -26,4 +26,13 @@ input-method web-view {
 input-method .padding {
   height: var(--statusbar-height);
   pointer-events: auto;
+  background-color: var(--sl-panel-background-color);
+  color: var(--sl-color-neutral-500);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+input-method .padding sl-icon {
+  font-size: calc(0.8 * var(--statusbar-height));
 }
