@@ -2,17 +2,12 @@ const kDeps = [
   {
     name: "intro",
     kind: "virtual",
-    deps: ["shoelace-button", "shoelace-drawer", "shoelace-light-theme"],
-  },
-  {
-    name: "shoelace-light-theme",
-    kind: "sharedStyle",
-    param: "shoelace/themes/light.css",
-  },
-  {
-    name: "shoelace-dark-theme",
-    kind: "sharedStyle",
-    param: "shoelace/themes/dark.css",
+    deps: [
+      "shoelace-button",
+      "shoelace-drawer",
+      "shoelace-light-theme",
+      "shoelace-setup",
+    ],
   },
   {
     name: "language-panel",

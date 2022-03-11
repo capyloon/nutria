@@ -57,8 +57,6 @@ class PanelWrapper {
   }
 }
 
-var gDepGraph;
-
 document.addEventListener("DOMContentLoaded", async () => {
   console.log(`Starting ftu`);
 
@@ -66,33 +64,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let graph = new ParallelGraphLoader(addShoelaceDeps(kDeps));
   await Promise.all([getSharedDeps("shared-all"), graph.waitForDeps("intro")]);
-
-  gDepGraph = graph;
-
-  const { registerIconLibrary } = await import(
-    `http://shared.localhost:${location.port}/shoelace/utilities/icon-library.js`
-  );
-
-  // Use the Lucide icons as the default ones to be consistent.
-  registerIconLibrary("default", {
-    resolver: (name) =>
-      `http://shared.localhost:${location.port}/lucide/icons/${name}.svg`,
-  });
-
-  // Setup dark mode if needed.
-  // TODO: share with display_panel.
-  let settings = await apiDaemon.getSettings();
-  let isDarkMode = false;
-  try {
-    let result = await settings.get("ui.prefers.color-scheme");
-    isDarkMode = result.value === "dark";
-  } catch (e) {}
-  if (isDarkMode) {
-    await gDepGraph.waitForDeps("shoelace-dark-theme");
-    document.documentElement.classList.add("sl-theme-dark");
-  } else {
-    document.documentElement.classList.remove("sl-theme-dark");
-  }
 
   // Get the list of drawers based on the set of templates.
   let templates = Array.from(document.querySelectorAll("template")).map(

@@ -21,7 +21,7 @@ class WallpaperManager extends EventTarget {
 
           this.updateBackground();
           let msg = await window.utils.l10n("wallpaper-changed");
-          window.toaster.show(msg);
+          window.toaster.show(msg, "success");
         })
         .catch(this.error);
     });

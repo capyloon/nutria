@@ -407,5 +407,31 @@ function addShoelaceDeps(currentDeps) {
       param: name,
     });
   }
+
+  // Add the light and dark theme dependencies.
+  currentDeps.push({
+    name: "shoelace-light-theme",
+    kind: "sharedStyle",
+    param: "shoelace/themes/light.css",
+  });
+  currentDeps.push({
+    name: "shoelace-dark-theme",
+    kind: "sharedStyle",
+    param: "shoelace/themes/dark.css",
+  });
+
+  // Add the dependency for shoelace-setup
+  currentDeps.push({
+    name: "shoelace-setup",
+    kind: "sharedModule",
+    param: "js/shoelace_setup.js",
+    deps: ["shoelace-api-daemon"],
+  });
+  currentDeps.push({
+    name: "shoelace-api-daemon",
+    kind: "sharedWindowModule",
+    param: ["js/api_daemon.js", "apiDaemon", "ApiDaemon"],
+  });
+
   return currentDeps;
 }

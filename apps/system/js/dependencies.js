@@ -12,17 +12,8 @@ const kDeps = [
       "api daemon core",
       "shoelace-light-theme",
       "shoelace-alert",
+      "shoelace-setup",
     ],
-  },
-  {
-    name: "shoelace-light-theme",
-    kind: "sharedStyle",
-    param: "shoelace/themes/light.css",
-  },
-  {
-    name: "shoelace-dark-theme",
-    kind: "sharedStyle",
-    param: "shoelace/themes/dark.css",
   },
   {
     name: "actions dispatcher",

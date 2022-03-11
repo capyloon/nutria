@@ -33,12 +33,6 @@ class DisplayPanel {
         value: item.checked ? "dark" : "light",
       },
     ]);
-    if (item.checked) {
-      await gDepGraph.waitForDeps("shoelace-dark-theme");
-      document.documentElement.classList.add("sl-theme-dark");
-    } else {
-      document.documentElement.classList.remove("sl-theme-dark");
-    }
   }
 
   async init() {
