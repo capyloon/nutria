@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+  <ShortName>Brave</ShortName>
+  <Description>Brave Search beta: private, independent, open</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <Image width="32" height="32" type="image/png">https://cdn.search.brave.com/serp/v1/static/brand/eebf5f2ce06b0b0ee6bbd72d7e18621d4618b9663471d42463c692d019068072-brave-lion-favicon.png</Image>
+  <Url type="text/html" method="get" template="https://search.brave.com/search?q={searchTerms}"/>
+  <Url type="application/x-suggestions+json" method="get" template="https://search.brave.com/api/suggest?q={searchTerms}"/>
+</OpenSearchDescription>

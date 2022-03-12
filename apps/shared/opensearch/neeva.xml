@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+    <ShortName>Neeva</ShortName>
+    <LongName>Neeva</LongName>
+    <Description>Search using Neeva</Description>
+    <Url type="application/x-suggestions+json" template="https://neeva.com/suggest?q={searchTerms}&amp;src=opensearch"/>
+    <Url type="text/html" method="get" template="https://neeva.com/search?q={searchTerms}&amp;src=opensearch"/>
+    <InputEncoding>UTF-8</InputEncoding>
+    <Image width="16" height="16" type="image/x-icon">https://neeva.com/favicon.ico</Image>
+</OpenSearchDescription>

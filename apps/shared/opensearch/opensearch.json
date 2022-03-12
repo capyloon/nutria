@@ -1,0 +1,12 @@
+[
+  {
+    "source": "https://cdn.search.brave.com/serp/v1/static/brand/31524a62fdb66f33edbf7fdcdc42ac9533b115bff4778cb9e087b3402af64958-opensearch.xml",
+    "id": "brave.xml"
+  },
+  { "source": "https://neeva.com/open-search.xml", "id": "neeva.xml" },
+  { "source": "https://duckduckgo.com/opensearch.xml", "id": "duckduckgo.xml" },
+  {
+    "source": "https://cdn-static.ecosia.org/opensearch.xml",
+    "id": "ecosia.xml"
+  }
+]

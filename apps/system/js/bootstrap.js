@@ -384,6 +384,10 @@ document.addEventListener(
       }
     });
 
+    // The opensearch resources need to be ready before launching the FTU.
+    let openSearch = contentManager.getOpenSearchManager();
+    await openSearch.ready();
+
     await manageFTU();
 
     window.onuserproximity = (event) => {

@@ -107,7 +107,7 @@ const kDeps = [
     name: "opensearch engine",
     kind: "script",
     param: "js/search/opensearch.js",
-    deps: ["search source"],
+    deps: ["search source", "content manager"],
   },
   {
     name: "places engine",

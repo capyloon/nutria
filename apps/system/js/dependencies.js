@@ -55,7 +55,13 @@ const kDeps = [
   {
     name: "launch",
     kind: "virtual",
-    deps: ["hide logo", "various modules", "swproxy", "activity handler"],
+    deps: [
+      "hide logo",
+      "various modules",
+      "swproxy",
+      "activity handler",
+      "content manager",
+    ],
   },
   {
     name: "swproxy",

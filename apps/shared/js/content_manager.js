@@ -17,6 +17,11 @@ export class ContentManager {
     return new PluginsManager(callback);
   }
 
+  getOpenSearchManager(callback) {
+    this.log(`getOpenSearchManager`);
+    return new OpenSearchManager(callback);
+  }
+
   log(msg) {
     console.log(`ContentManager: ${msg}`);
   }
@@ -586,10 +591,10 @@ class ContentResource {
   }
 }
 
+// Helper to abstract Web Assembly plugins storage & management.
 class PluginsManager extends ContentManager {
   constructor(updatedCallback = null) {
     super();
-    this.plugins = [];
     this.container = null;
     if (updatedCallback && typeof updatedCallback === "function") {
       this.onupdated = updatedCallback;
@@ -606,7 +611,7 @@ class PluginsManager extends ContentManager {
 
   async ready() {
     if (!this.container) {
-      this.container = await this.ensureTopLevelContainer("wasm-plugins");
+      this.container = await this.ensureTopLevelContainer("wasm plugins");
       this.svc = await this.service;
       this.lib = await this.lib();
       await this.ensureHttpKey(this.svc);
@@ -693,6 +698,213 @@ class PluginsManager extends ContentManager {
       await this.update();
     } catch (e) {
       this.error(`Failed to add plugin: ${e}`);
+    }
+  }
+}
+
+// Helper to abstract open search description storage & management.
+// Search engines are stored in the 'search engines' top level container.
+// - Each search engine description is stored as a resource: the default
+// variant is a JSON representation of the OpenSearch document, and
+// the 'icon' variant contains the icon for this engine.
+// - The 'enabled' tag is set on search engines that can be part of a keyword
+// search.
+class OpenSearchManager extends ContentManager {
+  constructor(updatedCallback = null) {
+    super();
+    this.container = null;
+    if (updatedCallback && typeof updatedCallback === "function") {
+      this.onupdated = updatedCallback;
+    }
+  }
+
+  log(msg) {
+    console.log(`OpenSearch: ${msg}`);
+  }
+
+  error(msg) {
+    console.error(`OpenSearch: ${msg}`);
+  }
+
+  async ready() {
+    if (!this.container) {
+      let firstRun = !(await this.hasTopLevelContainer("opensearch"));
+      this.container = await this.ensureTopLevelContainer("opensearch");
+      this.svc = await this.service;
+      this.lib = await this.lib();
+      await this.ensureHttpKey(this.svc);
+
+      if (firstRun) {
+        await this.loadDefaults();
+      }
+    }
+  }
+
+  async onchange(change) {
+    this.log(`list modified: ${JSON.stringify(change)}`);
+    await this.update();
+  }
+
+  async init() {
+    await this.ready();
+
+    await this.svc.addObserver(this.container, this.onchange.bind(this));
+    await this.update();
+  }
+
+  // Refresh the list of search engines.
+  async update() {
+    let cursor = await this.svc.childrenOf(this.container);
+
+    this.list = [];
+    let done = false;
+    while (!done) {
+      try {
+        let children = await cursor.next();
+        for (let child of children) {
+          if (child.kind === this.lib.ResourceKind.LEAF) {
+            let blob = await this.svc.getVariant(child.id, "default");
+            this.list.push(
+              new ContentResource(
+                this.svc,
+                this.http_key,
+                child,
+                blob,
+                "default"
+              )
+            );
+          }
+        }
+      } catch (e) {
+        // cursor.next() rejects when no more items are available, so it's not
+        // a fatal error.
+        done = true;
+      }
+    }
+
+    this.log(`list updated: ${this.list.length} items.`);
+    if (this.onupdated) {
+      this.onupdated(this.list);
+    }
+  }
+
+  // Add a new search engine from the JSON representation.
+  async addFromJson(json, url, enabled = false) {
+    this.log(`addFromJson ${url}, enabled=${enabled}`);
+
+    await this.ready();
+
+    let tags = [];
+    if (enabled) {
+      tags.push("enabled");
+    }
+
+    // Store the new resource.
+    let meta = await this.svc.createobj(
+      {
+        parent: this.container,
+        name: url,
+        kind: this.lib.ResourceKind.LEAF,
+        tags,
+      },
+      "default",
+      new Blob([JSON.stringify(json)], {
+        type: "application/json",
+      })
+    );
+    let resource = new ContentResource(this.svc, this.http_key, meta);
+
+    // Download the icon and store it as the 'icon' variant.
+    let iconUrl = json.OpenSearchDescription?.Image?._text.trim();
+    if (iconUrl) {
+      await resource.updateVariantFromUrl(iconUrl, "icon");
+    }
+
+    await this.update();
+  }
+
+  // Add a new search engine from a url.
+  async addFromUrl(url, enabled = false, substituteUrl = null) {
+    await this.ready();
+
+    try {
+      // Fetch the search engine description as a XML document.
+      let xml = await new Promise((resolve, reject) => {
+        var req = new XMLHttpRequest();
+        req.responseType = "document";
+        req.onload = () => {
+          resolve(req.responseXML);
+        };
+        req.onerror = reject;
+        req.open("GET", url);
+        req.send();
+      });
+
+      await this.addFromJson(
+        this.xmlToJson(xml),
+        substituteUrl || url,
+        enabled
+      );
+    } catch (e) {
+      this.error(`Failed to add search engine: ${e}`);
+    }
+  }
+
+  xmlToJson(xml) {
+    // this.log(`xmlToJson ${xml} nodeType=${xml.nodeType}`);
+    let obj = {};
+
+    if (xml.nodeType == 1) {
+      // element node, process "root" attributes.
+      if (xml.attributes.length > 0) {
+        obj["_attributes"] = {};
+        for (var j = 0; j < xml.attributes.length; j++) {
+          let attribute = xml.attributes.item(j);
+          obj["_attributes"][attribute.nodeName] = attribute.nodeValue;
+        }
+      }
+    } else if (xml.nodeType == 3) {
+      // text node.
+      obj = xml.nodeValue;
+    }
+
+    // Process children.
+    if (xml.hasChildNodes()) {
+      for (let i = 0; i < xml.childNodes.length; i++) {
+        let item = xml.childNodes.item(i);
+        let nodeName = item.nodeName.replace("#text", "_text");
+        if (typeof obj[nodeName] == "undefined") {
+          obj[nodeName] = this.xmlToJson(item);
+        } else {
+          if (typeof obj[nodeName].push == "undefined") {
+            let old = obj[nodeName];
+            obj[nodeName] = [];
+            obj[nodeName].push(old);
+          }
+          obj[nodeName].push(this.xmlToJson(item));
+        }
+      }
+    }
+    return obj;
+  }
+
+  async loadDefaults() {
+    try {
+      let response = await fetch(
+        `http://shared.localhost:${config.port}/opensearch/opensearch.json`
+      );
+      let list = await response.json();
+
+      for (let item of list) {
+        this.log(`Adding ${item.id}`);
+        await this.addFromUrl(
+          `http://shared.localhost:${config.port}/opensearch/${item.id}`,
+          true,
+          item.source
+        );
+      }
+    } catch (e) {
+      this.error(`Failed to load default search engines: ${e}`);
     }
   }
 }

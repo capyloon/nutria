@@ -132,7 +132,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  let opensearchEngine;
   searchBox.addEventListener("keypress", (event) => {
+    opensearchEngine = opensearchEngine || new OpenSearch();
     console.log(`SearchBox: keypress ${event.key}`);
     if (event.key !== "Enter") {
       return;
@@ -151,8 +153,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       searchBox.blur();
       if (!panelManager.openURL(input)) {
         // Keyword search, redirect to the current search engine.
-        let engine = new OpenSearch(kBraveSearch);
-        panelManager.openURL(engine.getSearchUrlFor(input));
+        panelManager.openURL(opensearchEngine.getSearchUrlFor(input));
       }
     }, 0);
   });
