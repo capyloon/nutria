@@ -277,6 +277,7 @@ class WindowManager extends HTMLElement {
     this.isCarouselOpen = false;
 
     actionsDispatcher.addListener("go-back", this.goBack.bind(this));
+    actionsDispatcher.addListener("go-forward", this.goForward.bind(this));
     actionsDispatcher.addListener("go-home", this.goHome.bind(this));
     actionsDispatcher.addListener(
       "open-carousel",

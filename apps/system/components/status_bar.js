@@ -1,5 +1,60 @@
 // <system-statusbar> custom element.
 
+class SwipeDetector extends EventTarget {
+  constructor(elem) {
+    super();
+
+    elem.addEventListener("pointerdown", this);
+    elem.addEventListener("pointerup", this);
+
+    this.startX = undefined;
+    this.startY = undefined;
+    this.startedAt = undefined;
+  }
+
+  log(msg) {
+    console.log(`SwipeDetector: ${msg}`);
+  }
+
+  handleEvent(event) {
+    if (event.type === "pointerdown") {
+      this.startedAt = Date.now();
+      this.startX = event.clientX;
+      this.startY = event.clientY;
+    } else if (event.type === "pointerup") {
+      let elapsed = Date.now() - this.startedAt;
+      let dx = event.clientX - this.startX;
+      let dy = event.clientY - this.startY;
+
+      let xTolerance = 70;
+      let yTolerance = 20;
+
+      // this.log(`dx=${dx} dy=${dy} elapsed=${elapsed}`);
+
+      if (elapsed > 500) {
+        return;
+      }
+
+      if (dx < xTolerance && dx > -xTolerance && dy < -yTolerance) {
+        // this.log("Swiped Up");
+        this.dispatchEvent(new CustomEvent("swipe-up"));
+      }
+      if (dx < xTolerance && dx > -xTolerance && dy > yTolerance) {
+        // this.log("Swiped Down");
+        this.dispatchEvent(new CustomEvent("swipe-down"));
+      }
+      if (dy < yTolerance && dy > -yTolerance && dx < -xTolerance) {
+        // this.log("Swiped Left");
+        this.dispatchEvent(new CustomEvent("swipe-left"));
+      }
+      if (dy < yTolerance && dy > -yTolerance && dx > xTolerance) {
+        // this.log("Swiped Right");
+        this.dispatchEvent(new CustomEvent("swipe-right"));
+      }
+    }
+  }
+}
+
 class StatusBar extends HTMLElement {
   constructor() {
     super();
@@ -58,16 +113,7 @@ class StatusBar extends HTMLElement {
     hapticFeedback.register(homeElem);
 
     homeElem.oncontextmenu = this.homeContextMenu = () => {
-      if (this.isCarouselOpen) {
-        return;
-      }
-
-      // Update state as if we were on the homescreen to ensure
-      // we will display the correct icons.
-      let state = Object.create(this.state);
-      state.isHomescreen = true;
-      this.updateState("", state);
-      actionsDispatcher.dispatch("open-carousel");
+      this.triggerCarousel();
     };
 
     homeElem.onclick = this.homeClick = () => {
@@ -127,6 +173,16 @@ class StatusBar extends HTMLElement {
         actionsDispatcher.dispatch("open-url-editor", this.state.url);
       }
     };
+    const swipeDetector = new SwipeDetector(leftText);
+    swipeDetector.addEventListener("swipe-up", () => {
+      this.triggerCarousel();
+    });
+    swipeDetector.addEventListener("swipe-left", () => {
+      this.state.canGoBack && actionsDispatcher.dispatch("go-back");
+    });
+    swipeDetector.addEventListener("swipe-right", () => {
+      this.state.canGoForward &&actionsDispatcher.dispatch("go-forward");
+    });
 
     actionsDispatcher.addListener(
       "update-page-state",
@@ -170,6 +226,19 @@ class StatusBar extends HTMLElement {
         window.wm.switchToFrame(id);
       };
     }
+  }
+
+  triggerCarousel() {
+    if (this.isCarouselOpen) {
+      return;
+    }
+
+    // Update state as if we were on the homescreen to ensure
+    // we will display the correct icons.
+    let state = Object.create(this.state);
+    state.isHomescreen = true;
+    this.updateState("", state);
+    actionsDispatcher.dispatch("open-carousel");
   }
 
   updateClock(force = false) {

@@ -67,6 +67,7 @@
 
 .left-text {
   text-overflow: ellipsis;
+  flex: 1;
 }
 
 .right {
