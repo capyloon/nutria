@@ -816,9 +816,9 @@ class ContentWindow extends HTMLElement {
         uiUpdateNeeded = true;
         break;
       case "contextmenu":
-        let menu = window.backdrop.querySelector("context-menu");
-        menu.setData(detail);
-        menu.open();
+        // console.log(`Got ContextMenu event detail=${JSON.stringify(detail)}`);
+        let menu = document.body.querySelector("context-menu");
+        menu.open(detail);
         break;
       case "close":
         if (this.state.fromLockscreen && this.state.whenClosed) {

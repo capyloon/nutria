@@ -56,57 +56,53 @@ class ContextMenu extends HTMLElement {
     let shadow = this.attachShadow({ mode: "open" });
     shadow.innerHTML = `
     <link rel="stylesheet" href="components/context_menu.css">
-    <div class="container">
-        <section class="image">
-        <h4><lucide-icon kind="image"></lucide-icon><span data-l10n-id="image-section-title"></span></h4>
-        <ul>
-            <li data-l10n-id="image-set-wallpaper"></li>
-            <li data-l10n-id="image-save"></li>
-            <li data-l10n-id="image-share"></li>
-        </ul>
-        </section>
-        <section class="link">
-        <h4><lucide-icon kind="link"></lucide-icon><span data-l10n-id="link-section-title"></span></h4>
-        <ul>
-            <li data-l10n-id="link-new-tab"></li>
-        </ul>
-        </section>
-    </div>
-    `;
+    <sl-dialog no-header>
+      <sl-menu>
+        <sl-menu-label class="when-image"><sl-icon name="image"></sl-icon><span data-l10n-id="image-section-title"></span></sl-menu-label>
+        <sl-menu-item class="when-image" data-l10n-id="image-set-wallpaper"></sl-menu-item>
+        <sl-menu-item class="when-image" data-l10n-id="image-save" disabled></sl-menu-item>
+        <sl-menu-item class="when-image" data-l10n-id="image-share" disabled></sl-menu-item>
+        <sl-divider class="when-image"></sl-divider>
+        <sl-menu-label class="when-link"><sl-icon name="link"></sl-icon><span data-l10n-id="link-section-title"></span></sl-menu-label>
+        <sl-menu-item class="when-link" data-l10n-id="link-new-tab"></sl-menu-item>
+      </sl-menu>
+    </sl-dialog>`;
 
     document.l10n.translateFragment(shadow);
 
-    this.imageSection = shadow.querySelector("section.image");
-    this.linkSection = shadow.querySelector("section.link");
+    shadow.querySelector(
+      "sl-menu-item[data-l10n-id=image-set-wallpaper]"
+    ).onclick = () => {
+      this.close();
+      actionsDispatcher.dispatch("set-wallpaper", this.imageUrl);
+    };
 
-    shadow.querySelector("li[data-l10n-id=image-set-wallpaper]").onclick =
+    shadow.querySelector("sl-menu-item[data-l10n-id=link-new-tab]").onclick =
       () => {
         this.close();
-        actionsDispatcher.dispatch("set-wallpaper", this.imageUrl);
+        window.wm.openFrame(this.linkUrl, { activate: true });
       };
 
-    shadow.querySelector("li[data-l10n-id=link-new-tab]").onclick = () => {
-      this.close();
-      window.wm.openFrame(this.linkUrl, { activate: true });
-    };
+    this.dialog = shadow.querySelector("sl-dialog");
   }
 
   close() {
-    backdropManager.hide("context-menu");
+    this.dialog.hide();
   }
 
-  open() {
-    // Check the context menu data to decide which sections to show.
-    if (!this.data) {
+  open(data) {
+    if (!data) {
+      console.error(`ContextMenu: no data!`);
       return;
     }
 
+    // Check the context menu data to decide which sections to show.
     this.imageUrl = null;
     this.linkUrl = null;
 
     let hasImage = false;
     let hasLink = false;
-    this.data.systemTargets?.forEach((item) => {
+    data.systemTargets?.forEach((item) => {
       if (item.nodeName === "IMG") {
         hasImage = true;
         this.imageUrl = item.data?.uri;
@@ -116,19 +112,26 @@ class ContextMenu extends HTMLElement {
       }
     });
 
-    this.imageSection.hidden = !hasImage;
-    this.linkSection.hidden = !hasLink;
+    this.shadowRoot.querySelectorAll(".when-image").forEach((item) => {
+      if (hasImage) {
+        item.classList.remove("hidden");
+      } else {
+        item.classList.add("hidden");
+      }
+    });
+    this.shadowRoot.querySelectorAll(".when-link").forEach((item) => {
+      if (hasLink) {
+        item.classList.remove("hidden");
+      } else {
+        item.classList.add("hidden");
+      }
+    });
 
     if (!hasImage && !hasLink) {
+      console.error(`ContextMenu: No image or link found!`);
       return;
     }
-
-    backdropManager.show("context-menu", true);
-    this.data = null;
-  }
-
-  setData(data) {
-    this.data = data;
+    this.dialog.show();
   }
 }
 

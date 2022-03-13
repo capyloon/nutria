@@ -148,5 +148,3 @@ export class SelectUi extends HTMLElement {
 }
 
 customElements.define("select-ui", SelectUi);
-
-console.log(`SelectUi module loaded`);

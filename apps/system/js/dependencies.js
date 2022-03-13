@@ -189,6 +189,14 @@ const kDeps = [
     name: "context menu comp",
     kind: "module",
     param: ["./components/context_menu.js"],
+    deps: [
+      "shoelace-dialog",
+      "shoelace-menu",
+      "shoelace-menu-label",
+      "shoelace-menu-item",
+      "shoelace-divider",
+      "shoelace-icon",
+    ],
   },
   {
     name: "select ui comp",
