@@ -39,12 +39,12 @@
   flex: 1;
 }
 
-:host lucide-icon {
+:host sl-icon {
   padding: 0.5em;
   font-size: 1.5em;
 }
 
-:host lucide-icon.active {
+:host sl-icon.active {
   color: var(--icon-background-active);
 }
 
@@ -137,7 +137,7 @@
   padding-top: 1em;
 }
 
-.digit lucide-icon {
+.digit sl-icon {
   padding: 0;
 }
 

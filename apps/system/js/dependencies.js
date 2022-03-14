@@ -45,7 +45,12 @@ const kDeps = [
     name: "lockscreen comp",
     kind: "module",
     param: ["./components/lock_screen.js"],
-    deps: ["api daemon core", "battery helper", "actions dispatcher"],
+    deps: [
+      "api daemon core",
+      "battery helper",
+      "actions dispatcher",
+      "shoelace-icon",
+    ],
   },
   {
     name: "notifications",

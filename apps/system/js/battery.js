@@ -34,8 +34,8 @@ export class BatteryHelper {
     );
   }
 
-  addListener(name, icon, level = null, attribute = "kind") {
-    this.listeners.set(name, { icon, level, attribute });
+  addListener(name, icon, level = null) {
+    this.listeners.set(name, { icon, level });
     this.updateBatteryDisplay(icon, level);
   }
 
@@ -45,9 +45,9 @@ export class BatteryHelper {
 
   updateBatteryInfo() {
     console.log(
-      `======================= Battery info: ${
-        this.battery.charging ? "charging" : "discharging"
-      } ${this.battery.level * 100}%`
+      `Battery info: ${this.battery.charging ? "charging" : "discharging"} ${
+        this.battery.level * 100
+      }%`
     );
 
     // If we are below 3% and not charging, shutdown.
@@ -56,15 +56,11 @@ export class BatteryHelper {
     }
 
     this.listeners.forEach((listener) => {
-      this.updateBatteryDisplay(
-        listener.icon,
-        listener.level,
-        listener.attribute
-      );
+      this.updateBatteryDisplay(listener.icon, listener.level);
     });
   }
 
-  updateBatteryDisplay(icon = null, level = null, attribute) {
+  updateBatteryDisplay(icon = null, level = null) {
     if (!icon) {
       return;
     }
@@ -80,7 +76,7 @@ export class BatteryHelper {
     }
 
     if (this.battery.charging) {
-      icon.setAttribute("kind", "battery-charging");
+      icon.setAttribute("name", "battery-charging");
       return;
     }
 
@@ -95,6 +91,6 @@ export class BatteryHelper {
       kind = "battery-full";
     }
 
-    icon.setAttribute(attribute, kind);
+    icon.setAttribute("name", kind);
   }
 }

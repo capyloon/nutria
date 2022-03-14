@@ -67,7 +67,7 @@ class LockScreen extends HTMLElement {
     <link rel="stylesheet" href="components/lock_screen.css">
     <div class="container">
       <div class="left">
-        <lucide-icon kind="flashlight-off" class="flashlight"></lucide-icon>
+        <sl-icon name="flashlight-off" class="flashlight"></sl-icon>
       </div>
       <div class="center">
         <div class="clock">
@@ -76,13 +76,13 @@ class LockScreen extends HTMLElement {
         </div>
         <div class="slider">
           <div class="slider-fill">
-            <lucide-icon kind="chevron-up"></lucide-icon>
+            <sl-icon name="chevron-up"></sl-icon>
           </div>
           <div class="lockpad">
             <div class="code-display">
               <div class="value"></div>
               <div class="wrong-pin" data-l10n-id="lockscreen-wrong-pin"></div>
-              <lucide-icon kind="delete" class="delete-key"></lucide-icon>
+              <sl-icon name="delete" class="delete-key"></sl-icon>
             </div>
             <div class="digit" data-digit="1">1</div>
             <div class="digit" data-digit="2">2<div class="letters">abc</div></div>
@@ -95,16 +95,16 @@ class LockScreen extends HTMLElement {
             <div class="digit" data-digit="9">9<div class="letters">wxyz</div></div>
             <div class="digit"></div>
             <div class="digit" data-digit="0">0<div class="letters">+</div></div>
-            <div class="digit"><lucide-icon kind="check"></lucide-icon></div>
+            <div class="digit"><sl-icon name="check"></sl-icon></div>
             <div class="emergency-display" data-l10n-id="lockscreen-emergency-call"></div>
           </div>
         </div>
       </div>
       <div class="right">
-        <lucide-icon kind="battery" class="battery-icon"></lucide-icon>
+        <sl-icon name="battery" class="battery-icon"></sl-icon>
         <div class="battery-level"></div>
         <div class="flex-fill"></div>
-        <lucide-icon kind="camera" class="camera"></lucide-icon>
+        <sl-icon name="camera" class="camera"></sl-icon>
       </div>
         
     </div>
@@ -112,11 +112,11 @@ class LockScreen extends HTMLElement {
 
     document.l10n.translateFragment(shadow);
 
-    shadow.querySelector("lucide-icon[kind=delete]").onclick = () => {
+    shadow.querySelector("sl-icon[name=delete]").onclick = () => {
       this.onDelete();
     };
 
-    shadow.querySelector("lucide-icon[kind=check]").onclick = () => {
+    shadow.querySelector("sl-icon[name=check]").onclick = () => {
       this.onCheck();
     };
 

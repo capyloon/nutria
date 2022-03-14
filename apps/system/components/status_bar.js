@@ -105,8 +105,6 @@ class StatusBar extends HTMLElement {
     window.batteryHelper.addListener(
       "statusbar",
       this.getElem(".battery-icon"),
-      null,
-      "name"
     );
 
     // Attach event listeners to icons.
