@@ -43,7 +43,13 @@ class RebootMenu extends HTMLElement {
 
     shadow.querySelector(".screenshot").addEventListener("click", async () => {
       this.close();
-      this.takeScreenshot();
+      this.drawer.addEventListener(
+        "sl-after-hide",
+        () => {
+          this.takeScreenshot();
+        },
+        { once: true }
+      );
     });
 
     document.l10n.translateFragment(shadow);
@@ -51,7 +57,7 @@ class RebootMenu extends HTMLElement {
   }
 
   async takeScreenshot() {
-    console.log(`takeScreenshot`)
+    console.log(`takeScreenshot`);
     let file = embedder.takeScreenshot();
 
     let now = new Date();
