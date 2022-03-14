@@ -1,33 +1,16 @@
 /* <quick-settings> styling */
 
 :host {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: calc(100% - 2em);
-  padding: 1em;
-  border-radius: 5px;
-  font-size: smaller;
-  font-family: sans-serif;
-  background-color: var(--dialog-background);
-  color: var(--dialog-text);
-  margin: 1em;
-  transition: transform 0.25s;
+  color: var(--sl-color-neutral-700);
+}
+
+:host .container {
+  background-color: var(--sl-panel-background-color);
+  padding: 0.5em;
+  margin: 0.5em;
+  border-radius: var(--sl-border-radius-medium);
   display: flex;
   flex-direction: column;
-}
-
-/* Desktop mode */
-@media (min-width: 800px) {
-  :host {
-    margin-left: unset;
-    max-width: calc(min(50%, 400px));
-  }
-}
-
-:host(.offscreen) {
-  transform: translateY(calc(100% + 1em));
-  transition: transform 0.25s;
 }
 
 :host .flex-fill {
@@ -41,12 +24,12 @@
   padding-bottom: 1em;
 }
 
-:host section.switches lucide-icon:not(:last-child) {
+:host section.switches sl-icon:not(:last-child) {
   margin-right: 0.5em;
 }
 
 :host section.notifications:not(:empty) {
-  border-top: 1px solid var(--dialog-text);
+  border-top: 1px solid var(--sl-color-neutral-700);
   padding-top: 0.5em;
   padding-bottom: 0.5em;
   max-height: 40vh;
@@ -57,28 +40,19 @@
   padding-bottom: 0.5em;
 }
 
-:host lucide-icon {
+:host sl-icon {
   padding: 0.5em;
-  border-radius: 40%;
   font-size: 1.5em;
-}
-
-:host lucide-icon.active {
-  background-color: var(--icon-background-active);
-  color: var(--icon-color-active);
-}
-
-:host lucide-icon.inactive {
-  background-color: var(--icon-background-inactive);
-  color: var(--icon-color-inactive);
 }
 
 :host #brightness-section {
   display: flex;
+  align-items: center;
 }
 
-:host #brightness-section input {
+:host #brightness-section sl-range {
   flex: 1;
+  margin-right: 0.5em;
 }
 
 :host .telephony-info {
@@ -121,29 +95,30 @@
   height: 100%;
 }
 
-:host(.adjust-brightness) > :not(#brightness-section) {
+:host(.adjust-brightness) .container > :not(#brightness-section) {
   opacity: 0;
 }
 
-:host(.adjust-brightness) > #brightness-section {
-  background-color: var(--dialog-background);
-  border-radius: 5px;
-}
-
-:host(.adjust-brightness) {
+:host(.adjust-brightness) .container {
   background-color: transparent;
 }
 
-:host #tor-icon.disabled {
-  filter: grayscale(100%);
+:host(.adjust-brightness) .container > #brightness-section {
+  background-color: var(--sl-panel-background-color);
+  border-radius: var(--sl-border-radius-medium);
 }
 
-:host #tor-icon.enabling {
-  animation: pulse 1s linear infinite;
+:host sl-badge {
+  margin-right: 0.5em;
 }
 
-@keyframes pulse {
-  100% {
-    transform: scale(120%);
-  }
+:host sl-badge sl-icon {
+  padding: 0.25em;
+  font-size: 1.5em;
+}
+
+:host sl-badge::part(base) {
+  font-size: 1em;
+  padding: 0.5em;
+  border-radius: 40%;
 }

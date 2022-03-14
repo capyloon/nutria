@@ -43,9 +43,11 @@
       <status-bar id="statusbar"></status-bar>
     </div>
 
-    <div id="backdrop" class="hidden">
-      <quick-settings class="offscreen"></quick-settings>
-    </div>
+    <div id="backdrop" class="hidden"></div>
+
+    <sl-drawer no-header placement="bottom" id="quick-settings">
+      <quick-settings></quick-settings>
+    </sl-drawer>
 
     <sl-drawer no-header placement="end" id="reboot-menu">
       <reboot-menu></reboot-menu>

@@ -8,37 +8,40 @@ class QuickSettings extends HTMLElement {
 
     shadow.innerHTML = `
     <link rel="stylesheet" href="components/quick_settings.css">
-    <link rel="stylesheet" href="http://shared.localhost:${window.config.port}/style/elements.css"/>
-    <section class="telephony-info">
-      <div class="bars">
-        <div class="bar0"></div>
-        <div class="bar1"></div>
-        <div class="bar2"></div>
-        <div class="bar3"></div>
-      </div>
-      <span></span>
-    </section>
-    <section class="switches">
-      <lucide-icon class="wifi-icon inactive" kind="wifi-off"></lucide-icon>
-      <lucide-icon class="flashlight-icon inactive" kind="flashlight-off"></lucide-icon>
-      <div class="flex-fill"></div>
-      <img id="tor-icon" src="./resources/tor.ico">
-      <lucide-icon kind="settings" id="settings-icon"></lucide-icon>
-      <lucide-icon kind="log-out" id="logout-icon"></lucide-icon>
-      <lucide-icon kind="lock" id="lock-icon"></lucide-icon>
-    </section>
-    <section id="brightness-section">
-      <lucide-icon kind="sun"></lucide-icon>
-      <input type="range" id="brightness" name="brightness" min="5" max="100" value="100">
-    </section>
-    <section class="notifications"></section>
-    <section class="browser-actions"></section>
+    <div class="container">
+      <section class="telephony-info">
+        <div class="bars">
+          <div class="bar0"></div>
+          <div class="bar1"></div>
+          <div class="bar2"></div>
+          <div class="bar3"></div>
+        </div>
+        <span></span>
+      </section>
+      <section class="switches">
+        <sl-badge pill variant="neutral"><sl-icon class="wifi-icon inactive" name="wifi-off"></sl-icon></sl-badge>
+        <sl-badge pill variant="neutral"><sl-icon class="flashlight-icon inactive" name="flashlight-off"></sl-icon></sl-badge>
+        <div class="flex-fill"></div>
+        <sl-badge pill variant="neutral" id="tor-icon"><img src="./resources/tor.ico"></sl-badge>
+        <sl-icon name="settings" id="settings-icon"></sl-icon>
+        <sl-icon name="log-out" id="logout-icon"></sl-icon>
+        <sl-icon name="lock" id="lock-icon"></sl-icon>
+      </section>
+      <section id="brightness-section">
+        <sl-icon name="sun"></sl-icon>
+        <sl-range id="brightness" name="brightness" min="5" max="100" value="100"></sl-range>
+      </section>
+      <section class="notifications"></section>
+      <section class="browser-actions"></section>
+    </div>
     `;
+
+    this.drawer = this.parentElement;
 
     document.l10n.translateFragment(shadow);
 
     actionsDispatcher.addListener("open-quick-settings", () => {
-      backdropManager.show("quick-settings", true);
+      this.drawer.show();
     });
 
     this.initWifi();
@@ -67,7 +70,7 @@ class QuickSettings extends HTMLElement {
     }
 
     shadow.querySelector("#settings-icon").onclick = () => {
-      backdropManager.hide("quick-settings");
+      this.drawer.hide();
       window.wm.openFrame(
         `http://settings.localhost:${config.port}/index.html`,
         { activate: true }
@@ -81,31 +84,21 @@ class QuickSettings extends HTMLElement {
     );
   }
 
-  changeIconActiveState(elem, enabled) {
-    if (enabled) {
-      elem.classList.remove("inactive");
-      elem.classList.add("active");
-    } else {
-      elem.classList.remove("active");
-      elem.classList.add("inactive");
-    }
-  }
-
   async initBrightness() {
     let slider = this.shadowRoot.querySelector("#brightness");
-    slider.oninput = (event) => {
+    slider.addEventListener("sl-change", (event) => {
       // console.log(`Brightness changed to ${event.target.value}`);
       window.powerManager.service.brightness = event.target.value;
-    };
+    });
 
     slider.onpointerdown = () => {
       this.classList.add("adjust-brightness");
-      backdropManager.enterAdjustBrightness();
+      this.drawer.classList.add("adjust-brightness");
     };
 
     slider.onpointerup = () => {
       this.classList.remove("adjust-brightness");
-      backdropManager.leaveAdjustBrightness();
+      this.drawer.classList.remove("adjust-brightness");
     };
 
     if (window.powerManager) {
@@ -132,13 +125,19 @@ class QuickSettings extends HTMLElement {
     let torEnabled = await settingOrDefault("tor.enabled", false);
     if (!torEnabled) {
       torIcon.classList.add("disabled");
+      torIcon.variant = "neutral";
+      torIcon.pulse = false;
     } else {
       torIcon.classList.add("enabling");
+      torIcon.variant = "primary";
+      torIcon.pulse = true;
     }
     const status = await settingOrDefault("tor.status", { ready: false });
     let torReady = status.ready;
     if (torReady) {
       torIcon.classList.remove("enabling");
+      torIcon.variant = "primary";
+      torIcon.pulse = false;
     }
 
     settings.addObserver("tor.enabled", async (setting) => {
@@ -146,9 +145,13 @@ class QuickSettings extends HTMLElement {
       if (torEnabled) {
         torIcon.classList.remove("disabled");
         torIcon.classList.add("enabling");
+        torIcon.variant = "primary";
+        torIcon.pulse = true;
       } else {
         torIcon.classList.remove("enabling");
         torIcon.classList.add("disabled");
+        torIcon.variant = "neutral";
+        torIcon.pulse = false;
       }
       let msg = await window.utils.l10n(
         torEnabled ? "tor-enabling" : "tor-disabled"
@@ -159,8 +162,11 @@ class QuickSettings extends HTMLElement {
     settings.addObserver("tor.status", async (setting) => {
       if (setting.value.ready != torReady) {
         torReady = setting.value.ready;
+        console.log(`Tor: status is ${JSON.stringify(setting.value)}`);
         if (torReady) {
           torIcon.classList.remove("enabling");
+          torIcon.variant = "primary";
+          torIcon.pulse = false;
           let msg = await window.utils.l10n("tor-enabled");
           window.toaster.show(msg, "success");
         }
@@ -188,8 +194,8 @@ class QuickSettings extends HTMLElement {
     actionsDispatcher.addListener(
       "flashlight-state-change",
       (_name, enabled) => {
-        this.changeIconActiveState(flIcon, enabled);
-        flIcon.setAttribute("kind", enabled ? "flashlight" : "flashlight-off");
+        flIcon.parentNode.variant = enabled ? "primary" : "neutral";
+        flIcon.setAttribute("name", enabled ? "flashlight" : "flashlight-off");
       }
     );
   }
@@ -204,7 +210,8 @@ class QuickSettings extends HTMLElement {
     this.wifiIcon = this.shadowRoot.querySelector(".wifi-icon");
 
     if (this.wifi.enabled) {
-      this.wifiIcon.setAttribute("kind", "wifi");
+      this.wifiIcon.parentElement.variant = "primary";
+      this.wifiIcon.setAttribute("name", "wifi");
     }
 
     // Setup event listeners.
@@ -215,7 +222,7 @@ class QuickSettings extends HTMLElement {
     );
 
     // Toggle Wifi when clicking on the icon.
-    this.wifiIcon.addEventListener("click", (event) => {
+    this.wifiIcon.parentElement.addEventListener("click", (event) => {
       event.stopPropagation();
       this.wifi.setWifiEnabled(!this.wifi.enabled);
     });
@@ -246,19 +253,23 @@ class QuickSettings extends HTMLElement {
     switch (event.type) {
       case "enabled":
         // console.log(`ZZZ Wifi enabled`);
-        this.wifiIcon.setAttribute("kind", "wifi");
+        this.wifiIcon.parentElement.variant = "neutral";
+        this.wifiIcon.setAttribute("name", "wifi");
         this.wifi.getNetworks();
         break;
       case "disabled":
         // console.log(`ZZZ Wifi disabled`);
-        this.wifiIcon.setAttribute("kind", "wifi-off");
+        this.wifiIcon.parentElement.variant = "neutral";
+        this.wifiIcon.setAttribute("name", "wifi-off");
         break;
       case "statuschange":
         // console.log(`ZZZ Wifi status changed to ${event.status} for ${event.network.ssid}`);
         if (event.status == "connected") {
+          this.wifiIcon.parentElement.variant = "primary";
           this.wifiIcon.classList.remove("inactive");
           this.wifiIcon.classList.add("active");
         } else {
+          this.wifiIcon.parentElement.variant = "neutral";
           this.wifiIcon.classList.remove("active");
           this.wifiIcon.classList.add("inactive");
         }

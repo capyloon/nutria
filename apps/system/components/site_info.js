@@ -10,46 +10,45 @@ class SiteInfo extends HTMLElement {
     shadow.innerHTML = `
     <link rel="stylesheet" href="components/site_info.css">
     <div class="container">
-    <h4 id="url-box">
-      <img class="favicon">
-      <div>
-        <div class="title"></div>
-        <div class="url"></div>
+      <h4 id="url-box">
+        <img class="favicon">
+        <div>
+          <div class="title"></div>
+          <div class="url"></div>
+        </div>
+      </h4>
+      <sl-divider></sl-divider>
+      <div class="utils">
+        <sl-button variant="neutral" size="small" class="add-home hidden" >
+          <img src="resources/pwalogo.svg" height="12px">
+          <span data-l10n-id="site-info-add-home"></span>
+        </sl-button>
+        <sl-button variant="neutral" size="small" class="split-screen" data-l10n-id="site-info-split-screen"></sl-button>
+        <sl-icon name="file-text" class="reader-mode hidden"></sl-icon>
+        <span class="flex-fill"></span>
       </div>
-    </h4>
-    <sl-divider></sl-divider>
-    
-    <div class="utils">
-      <sl-button variant="neutral" size="small" class="add-home hidden" >
-        <img src="resources/pwalogo.svg" height="12px">
-        <span data-l10n-id="site-info-add-home"></span>
-      </sl-button>
-      <sl-button variant="neutral" size="small" class="split-screen" data-l10n-id="site-info-split-screen"></sl-button>
-      <sl-icon name="file-text" class="reader-mode hidden"></sl-icon>
-      <span class="flex-fill"></span>
-    </div>
-    <div class="utils">
-      <img class="tosdr-img"/>
-      <span class="flex-fill"></span>
-    </div>
-    <div class="utils">
-      <sl-select size="small" class="ua-chooser">
-        <span slot="label" data-l10n-id="site-info-choose-ua"></span>
-        <sl-menu-item value="b2g" data-l10n-id="site-info-b2g-ua"></sl-menu-item>
-        <sl-menu-item value="android" data-l10n-id="site-info-android-ua"></sl-menu-item>
-        <sl-menu-item value="desktop" data-l10n-id="site-info-desktop-ua"></sl-menu-item>
-      </sl-select>
-      <span class="flex-fill"></span>
-    </div>
-    <div class="utils">
-      <sl-icon class="nav-reload" name="refresh-cw"></sl-icon>
-      <sl-icon class="nav-back" name="chevron-left"></sl-icon>
-      <sl-icon class="nav-forward" name="chevron-right"></sl-icon>
-      <span class="flex-fill"></span>
-      <sl-icon class="zoom-out" name="zoom-out"></sl-icon>
-      <span class="zoom-level">100%</span>
-      <sl-icon class="zoom-in" name="zoom-in"></sl-icon>
-    </div>
+      <div class="utils">
+        <img class="tosdr-img"/>
+        <span class="flex-fill"></span>
+      </div>
+      <div class="utils">
+        <sl-select size="small" class="ua-chooser">
+          <span slot="label" data-l10n-id="site-info-choose-ua"></span>
+          <sl-menu-item value="b2g" data-l10n-id="site-info-b2g-ua"></sl-menu-item>
+          <sl-menu-item value="android" data-l10n-id="site-info-android-ua"></sl-menu-item>
+          <sl-menu-item value="desktop" data-l10n-id="site-info-desktop-ua"></sl-menu-item>
+        </sl-select>
+        <span class="flex-fill"></span>
+      </div>
+      <div class="utils">
+        <sl-icon class="nav-reload" name="refresh-cw"></sl-icon>
+        <sl-icon class="nav-back" name="chevron-left"></sl-icon>
+        <sl-icon class="nav-forward" name="chevron-right"></sl-icon>
+        <span class="flex-fill"></span>
+        <sl-icon class="zoom-out" name="zoom-out"></sl-icon>
+        <span class="zoom-level">100%</span>
+        <sl-icon class="zoom-in" name="zoom-in"></sl-icon>
+      </div>
     </div>
     `;
 

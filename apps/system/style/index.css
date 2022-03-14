@@ -121,14 +121,17 @@ This needs to be in scope out of the the inner custom element,
 so can't be part of component specific css file.
 */
 #site-info,
-#reboot-menu {
+#reboot-menu,
+#quick-settings {
   --size: fit-content;
 }
 
 #site-info::part(panel),
 #site-info::part(body),
 #reboot-menu::part(panel),
-#reboot-menu::part(body) {
+#reboot-menu::part(body),
+#quick-settings::part(panel),
+#quick-settings::part(body) {
   background-color: transparent;
   padding: 0;
 }
@@ -140,6 +143,15 @@ so can't be part of component specific css file.
   justify-content: center;
 }
 
+#quick-settings::part(panel) {
+  display: flex;
+  flex-direction: row-reverse;
+}
+
+#quick-settings.adjust-brightness::part(overlay) {
+  background: none;
+}
+
 #reboot-menu::part(body) {
   height: fit-content;
   flex-grow: 0;
@@ -147,7 +159,8 @@ so can't be part of component specific css file.
 
 /* Desktop mode */
 @media (min-width: 800px) {
-  #site-info::part(panel) {
+  #site-info::part(panel),
+  #quick-settings::part(body) {
     max-width: calc(min(50%, 600px));
   }
 }

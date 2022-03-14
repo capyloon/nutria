@@ -218,7 +218,14 @@ const kDeps = [
     name: "quick settings comp",
     kind: "module",
     param: ["./components/quick_settings.js"],
-    deps: ["notification comp", "webext comp", "api daemon core"],
+    deps: [
+      "notification comp",
+      "webext comp",
+      "api daemon core",
+      "shoelace-icon",
+      "shoelace-range",
+      "shoelace-badge",
+    ],
   },
   {
     name: "browser actions popup comp",
