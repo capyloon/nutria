@@ -252,10 +252,10 @@ impl PushCommand {
                 for app_name in list {
                     if let Some(path) = source_apps.get(&app_name) {
                         res.push(path.clone());
-                        if app_name == "system" {
+                        if app_name == "system" || app_name == "shared" {
                             system_update = true;
                         }
-                        if app_name == "homescreen" {
+                        if app_name == "homescreen" || app_name == "shared" {
                             homescreen_update = true;
                         }
                     } else {
