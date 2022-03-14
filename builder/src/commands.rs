@@ -107,6 +107,8 @@ pub enum AdbError {
     NotRooted,
     #[error("Other error: {0}")]
     Other(String),
+    #[error("Error pushing apps: {0}")]
+    AppsPush(String),
 }
 
 trait AdbCommand {
@@ -277,8 +279,13 @@ impl PushCommand {
         }
     }
 
-    fn push_apps(&self) {
+    fn push_apps(&self) -> Result<(), AdbError> {
+        let mut failed = vec![];
         for app in &self.apps {
+            let app_name = app
+                .file_name()
+                .unwrap_or_else(|| std::ffi::OsStr::new("<no app name>"))
+                .to_string_lossy();
             let status = {
                 let _timer = Timer::start(&format!("Pushing {}", app.display()));
                 std::process::Command::new(&self.appscmd)
@@ -289,21 +296,27 @@ impl PushCommand {
             match status {
                 Ok(exit) => {
                     if exit.code() == Some(0) {
-                        info!("Success pushing {}", app.display());
+                        info!("Success pushing {}", app_name);
                     } else {
-                        error!("Failed to push {}, exit code: {}", app.display(), exit);
+                        error!("Failed to push {}, exit code: {}", app_name, exit);
+                        failed.push(app_name);
                     }
                 }
                 Err(err) => {
-                    error!("Failed to push {}: {}", app.display(), err);
+                    error!("Failed to push {}: {}", app_name, err);
+                    failed.push(app_name);
                 }
             }
         }
+        if !failed.is_empty() {
+            return Err(AdbError::AppsPush(failed.join(",")));
+        }
+        Ok(())
     }
 
     pub fn start(config: BuildConfig, requested_apps: &Option<String>) -> Result<(), AdbError> {
         let cmd = PushCommand::new(config, requested_apps);
-        cmd.push_apps();
+        cmd.push_apps()?;
         if cmd.system_update || cmd.homescreen_update {
             return cmd.init_adb(true);
         }
