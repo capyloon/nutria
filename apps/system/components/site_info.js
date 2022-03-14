@@ -33,7 +33,7 @@ class SiteInfo extends HTMLElement {
       <span class="flex-fill"></span>
     </div>
     <div class="utils">
-      <sl-select class="ua-chooser">
+      <sl-select size="small" class="ua-chooser">
         <span slot="label" data-l10n-id="site-info-choose-ua"></span>
         <sl-menu-item value="b2g" data-l10n-id="site-info-b2g-ua"></sl-menu-item>
         <sl-menu-item value="android" data-l10n-id="site-info-android-ua"></sl-menu-item>
