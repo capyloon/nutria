@@ -127,7 +127,7 @@ const kDeps = [
     name: "status bar",
     kind: "module",
     param: "./components/status_bar.js",
-    deps: ["battery helper", "shoelace-icon"],
+    deps: ["battery helper", "shoelace-icon", "shoelace-badge"],
   },
   {
     name: "lucide icons",

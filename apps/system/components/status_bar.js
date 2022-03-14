@@ -77,7 +77,7 @@ class StatusBar extends HTMLElement {
           <sl-icon name="columns" class="homescreen-icon"></sl-icon>
           <sl-icon name="chevron-left" class="go-back content-icon"></sl-icon>
           <sl-icon name="home" class="content-icon"></sl-icon>
-          <sl-icon name="more-vertical" class="more homescreen-icon content-icon"></sl-icon>
+          <sl-badge pill variant="neutral"><sl-icon name="more-vertical" class="homescreen-icon content-icon"></sl-icon></sl-badge>
         </div>
       </div>
     </div>`;
@@ -104,7 +104,7 @@ class StatusBar extends HTMLElement {
 
     window.batteryHelper.addListener(
       "statusbar",
-      this.getElem(".battery-icon"),
+      this.getElem(".battery-icon")
     );
 
     // Attach event listeners to icons.
@@ -277,11 +277,13 @@ class StatusBar extends HTMLElement {
   }
 
   updateNotifications(_name, count) {
-    let moreElem = this.getElem(`sl-icon[name="more-vertical"]`);
+    let moreElem = this.getElem(`sl-badge`);
     if (count !== 0) {
-      moreElem.classList.add("available-notifications");
+      moreElem.pulse = true;
+      moreElem.variant = "primary";
     } else {
-      moreElem.classList.remove("available-notifications");
+      moreElem.pulse = false;
+      moreElem.variant = "neutral";
     }
   }
 
