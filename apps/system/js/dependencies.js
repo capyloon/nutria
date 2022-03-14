@@ -248,7 +248,14 @@ const kDeps = [
     name: "site info comp",
     kind: "module",
     param: ["./components/site_info.js"],
-    deps: ["api daemon core"],
+    deps: [
+      "api daemon core",
+      "shoelace-drawer",
+      "shoelace-button",
+      "shoelace-icon",
+      "shoelace-divider",
+      "shoelace-select",
+    ],
   },
   {
     name: "url edit comp",

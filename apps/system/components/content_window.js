@@ -495,10 +495,7 @@ class ContentWindow extends HTMLElement {
     }
 
     this.uninitWebView();
-
-    let siteInfo = document.querySelector("site-info");
-    siteInfo.removeEventListener("zoom-in", this);
-    siteInfo.removeEventListener("zoom-out", this);
+    this.removeSiteInfoListeners();
   }
 
   scrollToTop() {

@@ -9,7 +9,7 @@ class SiteInfo extends HTMLElement {
     let shadow = this.attachShadow({ mode: "open" });
     shadow.innerHTML = `
     <link rel="stylesheet" href="components/site_info.css">
-    <link rel="stylesheet" href="http://shared.localhost:${window.config.port}/style/elements.css"/>
+    <div class="container">
     <h4 id="url-box">
       <img class="favicon">
       <div>
@@ -17,46 +17,43 @@ class SiteInfo extends HTMLElement {
         <div class="url"></div>
       </div>
     </h4>
+    <sl-divider></sl-divider>
     
     <div class="utils">
-      <button class="add-home hidden slim" >
+      <sl-button variant="neutral" size="small" class="add-home hidden" >
         <img src="resources/pwalogo.svg" height="12px">
         <span data-l10n-id="site-info-add-home"></span>
-      </button>
-      <button class="split-screen slim" data-l10n-id="site-info-split-screen"></button>
-      <lucide-icon kind="file-text" class="reader-mode hidden slim"></lucide-icon>
+      </sl-button>
+      <sl-button variant="neutral" size="small" class="split-screen" data-l10n-id="site-info-split-screen"></sl-button>
+      <sl-icon name="file-text" class="reader-mode hidden"></sl-icon>
       <span class="flex-fill"></span>
     </div>
     <div class="utils">
       <img class="tosdr-img"/>
       <span class="flex-fill"></span>
     </div>
-    <div class="utils ua-chooser">
-      <span data-l10n-id="site-info-choose-ua"></span>
-      <!-- TODO: Fix styling to use <label> instead of <span> -->
-      <input type="radio" id="ua-1" name="ua-chooser" value="b2g" checked>
-      <span for="ua-1" data-l10n-id="site-info-b2g-ua"></span>
-
-      <input type="radio" id="ua-2" name="ua-chooser" value="android">
-      <span for="ua-2" data-l10n-id="site-info-android-ua"></span>
-
-      <input type="radio" id="ua-3" name="ua-chooser" value="desktop">
-      <span for="ua-3" data-l10n-id="site-info-desktop-ua"></span>
-
+    <div class="utils">
+      <sl-select class="ua-chooser">
+        <span slot="label" data-l10n-id="site-info-choose-ua"></span>
+        <sl-menu-item value="b2g" data-l10n-id="site-info-b2g-ua"></sl-menu-item>
+        <sl-menu-item value="android" data-l10n-id="site-info-android-ua"></sl-menu-item>
+        <sl-menu-item value="desktop" data-l10n-id="site-info-desktop-ua"></sl-menu-item>
+      </sl-select>
       <span class="flex-fill"></span>
     </div>
     <div class="utils">
-      <lucide-icon class="nav-reload" kind="refresh-cw"></lucide-icon>
-      <lucide-icon class="nav-back" kind="chevron-left"></lucide-icon>
-      <lucide-icon class="nav-forward" kind="chevron-right"></lucide-icon>
+      <sl-icon class="nav-reload" name="refresh-cw"></sl-icon>
+      <sl-icon class="nav-back" name="chevron-left"></sl-icon>
+      <sl-icon class="nav-forward" name="chevron-right"></sl-icon>
       <span class="flex-fill"></span>
-      <lucide-icon class="zoom-out" kind="zoom-out"></lucide-icon>
+      <sl-icon class="zoom-out" name="zoom-out"></sl-icon>
       <span class="zoom-level">100%</span>
-      <lucide-icon class="zoom-in" kind="zoom-in"></lucide-icon>
+      <sl-icon class="zoom-in" name="zoom-in"></sl-icon>
+    </div>
     </div>
     `;
 
-    document.l10n.translateFragment(shadow);
+    let l10nReady = document.l10n.translateFragment(shadow);
 
     this.tosdrImg = shadow.querySelector(".tosdr-img");
 
@@ -72,24 +69,29 @@ class SiteInfo extends HTMLElement {
     };
 
     let uaChooser = shadow.querySelector(".ua-chooser");
-    uaChooser.onchange = (event) => {
+    // TODO: persist the UA changes.
+    l10nReady.then(() => {
+      uaChooser.value = "b2g";
+    });
+    uaChooser.addEventListener("sl-change", (event) => {
       console.log(`Switching UA to ${event.target.value}`);
       this.dispatchEvent(
         new CustomEvent("change-ua", { detail: event.target.value })
       );
-    };
+    });
 
-    this.readerMode = shadow.querySelector("lucide-icon.reader-mode");
+    this.readerMode = shadow.querySelector("sl-icon.reader-mode");
     this.zoomLevel = shadow.querySelector(".zoom-level");
 
     this.stateUpdater = this.updateState.bind(this);
+    this.drawer = this.parentElement;
   }
 
   close() {
     actionsDispatcher.removeListener("update-page-state", this.stateUpdater);
 
     this.dispatchEvent(new CustomEvent("close"));
-    backdropManager.hide("site-info");
+    this.drawer.hide();
   }
 
   async updateTosdr() {
@@ -190,8 +192,12 @@ class SiteInfo extends HTMLElement {
       }
     }
 
-    this.shadowRoot.querySelector("button.split-screen").hidden =
-      state.splitScreen || embedder.sessionType === "mobile";
+    let splitScreen = this.shadowRoot.querySelector("sl-button.split-screen");
+    if (state.splitScreen || embedder.sessionType === "mobile") {
+      splitScreen.classList.add("hidden");
+    } else {
+      splitScreen.classList.remove("hidden");
+    }
 
     this.updateTosdr();
   }
@@ -214,14 +220,14 @@ class SiteInfo extends HTMLElement {
       }
     );
 
-    this.shadowRoot.querySelector("button.split-screen").onclick = () => {
+    this.shadowRoot.querySelector("sl-button.split-screen").onclick = () => {
       this.close();
       actionsDispatcher.dispatch("frame-split-screen");
     };
 
-    let button = this.shadowRoot.querySelector("button.add-home");
+    let button = this.shadowRoot.querySelector("sl-button.add-home");
     button.classList.remove("hidden");
-    let pwaLogo = this.shadowRoot.querySelector("button.add-home img");
+    let pwaLogo = this.shadowRoot.querySelector("sl-button.add-home img");
     if (this.state.manifestUrl !== "") {
       pwaLogo.classList.remove("hidden");
     } else {
@@ -238,7 +244,7 @@ class SiteInfo extends HTMLElement {
       this.close();
     };
 
-    backdropManager.show("site-info", true);
+    this.drawer.show();
   }
 
   async addToHome() {

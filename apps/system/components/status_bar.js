@@ -144,8 +144,7 @@ class StatusBar extends HTMLElement {
     let infoElem = this.getElem(`.favicon`);
     hapticFeedback.register(infoElem);
     infoElem.onclick = () => {
-      let siteInfo = window.backdrop.querySelector("site-info");
-      console.log(`ZZZ Will open site info ${siteInfo}`);
+      let siteInfo = document.body.querySelector("site-info");
       siteInfo.setState(this.state);
       siteInfo.addEventListener(
         "close",

@@ -114,3 +114,25 @@ body.screen-off #screen {
 .sl-toast-stack {
   z-index: 200;
 }
+
+/*
+SiteInfo <sl-drawer> styling.
+This needs to be in scope out of the the <site-info> component,
+so can't be part of site_info.css
+*/
+#site-info {
+  --size: fit-content;
+}
+
+#site-info::part(panel),
+#site-info::part(body) {
+  background-color: transparent;
+  padding: 0;
+}
+
+/* Desktop mode */
+@media (min-width: 800px) {
+  #site-info::part(panel) {
+    max-width: calc(min(50%, 600px));
+  }
+}

@@ -1,39 +1,18 @@
 /* <site-info> styling */
 
 :host {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: calc(100% - 2em);
-  padding: 1em;
-  border-radius: 5px;
-  font-size: smaller;
-  font-family: "Open Sans", arial, "sans serif";
-  background-color: var(--dialog-background);
-  color: var(--dialog-text);
-  margin: 1em;
-  transition: transform 0.25s;
+  color: var(--sl-color-neutral-700);
 }
 
-/* Desktop mode */
-@media (min-width: 800px) {
-  :host {
-    max-width: calc(min(50%, 400px));
-  }
-}
-
-:host(.offscreen) {
-  transform: translateY(calc(100% + 1em));
-  transition: transform 0.25s;
+:host .container {
+  background-color: var(--sl-panel-background-color);
+  padding: 0.5em;
+  margin: 0.5em;
+  border-radius: var(--sl-border-radius-medium);
 }
 
 :host h4 {
-  border-bottom: 2px solid var(--dialog-text);
-  padding-bottom: 0.5em;
-  margin-bottom: 0.5em;
+  margin-bottom: 0;
   margin-top: 0;
   display: flex;
   column-gap: 0.5em;
@@ -74,7 +53,7 @@
   display: none;
 }
 
-:host lucide-icon.active {
+:host sl-icon.active {
   background-color: var(--icon-background-active);
   color: var(--icon-color-active);
   border-radius: 40%;
@@ -90,11 +69,23 @@
   border-radius: 0.5em;
   padding-left: 0.5em;
   padding-right: 0.25em;
-  color: var(--dialog-background);
-  background-color: var(--dialog-text);
+  color: var(--sl-panel-background-color);
+  background-color: var(--sl-color-neutral-700);
   font-weight: bolder;
 }
 
 .tosdr-img {
   cursor: pointer;
+}
+
+sl-icon {
+  font-size: 1.5rem;
+  padding: 0.25em;
+}
+
+:host sl-select::part(form-control) {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5em;
+  align-items: center;
 }
