@@ -170,7 +170,7 @@ class PowerManagement {
     this.powerOn = true;
     this.service.turnOn();
     this.inPowerMenu = false;
-    this.powerMenu = window.backdrop.querySelector("reboot-menu");
+    this.powerMenu = document.body.querySelector("reboot-menu");
 
     // Short press turns on/off the screen.
     actionsDispatcher.addListener("power-short-press", () => {

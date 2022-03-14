@@ -241,7 +241,7 @@ const kDeps = [
     name: "reboot menu comp",
     kind: "module",
     param: ["./components/reboot_menu.js"],
-    deps: ["content manager"],
+    deps: ["content manager", "shoelace-icon", "shoelace-divider"],
   },
   {
     name: "audio volume indicator comp",

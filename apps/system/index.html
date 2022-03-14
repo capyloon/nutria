@@ -44,9 +44,12 @@
     </div>
 
     <div id="backdrop" class="hidden">
-      <reboot-menu class="offscreen"></reboot-menu>
       <quick-settings class="offscreen"></quick-settings>
     </div>
+
+    <sl-drawer no-header placement="end" id="reboot-menu">
+      <reboot-menu></reboot-menu>
+    </sl-drawer>
 
     <sl-drawer no-header placement="bottom" id="site-info">
       <site-info></site-info>

@@ -9,19 +9,21 @@ class RebootMenu extends HTMLElement {
     let shadow = this.attachShadow({ mode: "open" });
     shadow.innerHTML = `
     <link rel="stylesheet" href="components/reboot_menu.css">
-    <div>
-        <div class="shutdown">
-            <lucide-icon kind="power"></lucide-icon>
-            <span data-l10n-id="action-shutdown"></span>
-        </div>
-        <div class="reboot">
-            <lucide-icon kind="refresh-cw"></lucide-icon>
-            <span data-l10n-id="action-reboot"></span>
-        </div>
-        <div class="screenshot">
-            <lucide-icon kind="smartphone"></lucide-icon>
-            <span data-l10n-id="action-screenshot"></span>
-        </div>
+    <div class="container">
+      <div class="shutdown">
+        <sl-icon name="power"></sl-icon>
+        <span data-l10n-id="action-shutdown"></span>
+      </div>
+      <sl-divider></sl-divider>
+      <div class="reboot">
+        <sl-icon name="refresh-cw"></sl-icon>
+        <span data-l10n-id="action-reboot"></span>
+      </div>
+      <sl-divider></sl-divider>
+      <div class="screenshot">
+        <sl-icon name="smartphone"></sl-icon>
+        <span data-l10n-id="action-screenshot"></span>
+      </div>
     </div>
     `;
 
@@ -45,6 +47,7 @@ class RebootMenu extends HTMLElement {
     });
 
     document.l10n.translateFragment(shadow);
+    this.drawer = this.parentElement;
   }
 
   async takeScreenshot() {
@@ -82,12 +85,12 @@ class RebootMenu extends HTMLElement {
   }
 
   open() {
-    backdropManager.show("reboot-menu", true);
+    this.drawer.show();
     this.isOpen = true;
   }
 
   close() {
-    backdropManager.hide("reboot-menu");
+    this.drawer.hide();
     this.isOpen = false;
   }
 }

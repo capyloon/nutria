@@ -116,18 +116,33 @@ body.screen-off #screen {
 }
 
 /*
-SiteInfo <sl-drawer> styling.
-This needs to be in scope out of the the <site-info> component,
-so can't be part of site_info.css
+Global <sl-drawer> styling.
+This needs to be in scope out of the the inner custom element,
+so can't be part of component specific css file.
 */
-#site-info {
+#site-info,
+#reboot-menu {
   --size: fit-content;
 }
 
 #site-info::part(panel),
-#site-info::part(body) {
+#site-info::part(body),
+#reboot-menu::part(panel),
+#reboot-menu::part(body) {
   background-color: transparent;
   padding: 0;
+}
+
+#reboot-menu::part(panel) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#reboot-menu::part(body) {
+  height: fit-content;
+  flex-grow: 0;
 }
 
 /* Desktop mode */
