@@ -29,7 +29,11 @@
   grid-template-columns: 1fr min-content;
 }
 
-.container.homescreen lucide-icon:not(.homescreen-icon) {
+sl-icon {
+  font-size: 1.5rem;
+}
+
+.container.homescreen sl-icon:not(.homescreen-icon) {
   display: none;
 }
 
@@ -37,15 +41,15 @@
   display: none;
 }
 
-.container.content lucide-icon:not(.content-icon) {
+.container.content sl-icon:not(.content-icon) {
   display: none;
 }
 
-.container.carousel lucide-icon.carousel {
+.container.carousel sl-icon.carousel {
   display: initial;
 }
 
-.container.carousel lucide-icon.hidden {
+.container.carousel sl-icon.hidden {
   display: none;
 }
 
@@ -89,15 +93,15 @@
   color: red;
 }
 
-/* lucide-icon.attention {
+/* sl-icon.attention {
   color: orangered;
 } */
 
-lucide-icon {
+sl-icon {
   font-size: 1.5em;
 }
 
-lucide-icon:not(.static):not(.disabled):active {
+sl-icon:not(.static):not(.disabled):active {
   background-color: white;
   transition: background-color 1s;
 }
@@ -151,6 +155,7 @@ lucide-icon:not(.static):not(.disabled):active {
 .frame-list img.active {
   opacity: 0.1;
 }
+
 .container.homescreen .frame-list .favicon {
   display: initial;
 }

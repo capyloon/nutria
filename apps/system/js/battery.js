@@ -15,7 +15,7 @@ export class BatteryHelper {
     // Setup the battery listeners.
     navigator.getBattery().then(
       (battery) => {
-          this.battery = battery;
+        this.battery = battery;
         // Display the initial state.
         this.updateBatteryInfo();
 
@@ -34,8 +34,8 @@ export class BatteryHelper {
     );
   }
 
-  addListener(name, icon, level = null) {
-    this.listeners.set(name, { icon, level });
+  addListener(name, icon, level = null, attribute = "kind") {
+    this.listeners.set(name, { icon, level, attribute });
     this.updateBatteryDisplay(icon, level);
   }
 
@@ -56,17 +56,21 @@ export class BatteryHelper {
     }
 
     this.listeners.forEach((listener) => {
-      this.updateBatteryDisplay(listener.icon, listener.level);
+      this.updateBatteryDisplay(
+        listener.icon,
+        listener.level,
+        listener.attribute
+      );
     });
   }
 
-  updateBatteryDisplay(icon = null, level = null) {
-    if (level) {
-      level.textContent = `${Math.round(this.battery.level * 100)}%`;
-    }
-
+  updateBatteryDisplay(icon = null, level = null, attribute) {
     if (!icon) {
       return;
+    }
+
+    if (level) {
+      level.textContent = `${Math.round(this.battery.level * 100)}%`;
     }
 
     if (this.battery.level < 0.3) {
@@ -91,6 +95,6 @@ export class BatteryHelper {
       kind = "battery-full";
     }
 
-    icon.setAttribute("kind", kind);
+    icon.setAttribute(attribute, kind);
   }
 }

@@ -62,26 +62,25 @@ class StatusBar extends HTMLElement {
     this.shadow = this.attachShadow({ mode: "open" });
 
     this.shadow.innerHTML = `
-          <link rel="stylesheet" href="components/status_bar.css">
-            <div class="container homescreen">
-              <div class="left">
-                <lucide-icon class="static battery-icon homescreen-icon" kind="battery-charging"></lucide-icon>
-                <img class="favicon" />
-                <span class="left-text">Current page title that could be way too long to fit so we need to clip it some way.</span>
-              </div>
-              <div class="center">
-                <lucide-icon kind="layout-grid" class="quicklaunch homescreen-icon"></lucide-icon>
-              </div>
-              <div class="right">
-                <div class="frame-list homescreen-icon content-icon"></div>
-                <lucide-icon kind="columns" class="homescreen-icon"></lucide-icon>
-                <lucide-icon kind="chevron-left" class="go-back content-icon"></lucide-icon>
-                <lucide-icon kind="home" class="content-icon"></lucide-icon>
-                <lucide-icon kind="more-vertical" class="more homescreen-icon content-icon"></lucide-icon>
-              </div>
-            </div>
-          </div>
-          `;
+    <link rel="stylesheet" href="components/status_bar.css">
+      <div class="container homescreen">
+        <div class="left">
+          <sl-icon class="static battery-icon homescreen-icon" name="battery-charging"></sl-icon>
+          <img class="favicon" />
+          <span class="left-text">Current page title that could be way too long to fit so we need to clip it some way.</span>
+        </div>
+        <div class="center">
+          <sl-icon name="layout-grid" class="quicklaunch homescreen-icon"></sl-icon>
+        </div>
+        <div class="right">
+          <div class="frame-list homescreen-icon content-icon"></div>
+          <sl-icon name="columns" class="homescreen-icon"></sl-icon>
+          <sl-icon name="chevron-left" class="go-back content-icon"></sl-icon>
+          <sl-icon name="home" class="content-icon"></sl-icon>
+          <sl-icon name="more-vertical" class="more homescreen-icon content-icon"></sl-icon>
+        </div>
+      </div>
+    </div>`;
 
     // Start with the homescreen section active
     this.isHomescreen = true;
@@ -105,11 +104,13 @@ class StatusBar extends HTMLElement {
 
     window.batteryHelper.addListener(
       "statusbar",
-      this.getElem(".battery-icon")
+      this.getElem(".battery-icon"),
+      null,
+      "name"
     );
 
     // Attach event listeners to icons.
-    let homeElem = this.getElem(`lucide-icon[kind="home"]`);
+    let homeElem = this.getElem(`sl-icon[name="home"]`);
     hapticFeedback.register(homeElem);
 
     homeElem.oncontextmenu = this.homeContextMenu = () => {
@@ -123,7 +124,7 @@ class StatusBar extends HTMLElement {
       actionsDispatcher.dispatch("go-home");
     };
 
-    let gridElem = this.getElem(`lucide-icon[kind="columns"]`);
+    let gridElem = this.getElem(`sl-icon[name="columns"]`);
     hapticFeedback.register(gridElem);
     gridElem.onclick = () => {
       actionsDispatcher.dispatch("open-carousel");
@@ -135,7 +136,7 @@ class StatusBar extends HTMLElement {
       this.state.canGoBack && actionsDispatcher.dispatch("go-back");
     };
 
-    let moreElem = this.getElem(`lucide-icon[kind="more-vertical"]`);
+    let moreElem = this.getElem(`sl-icon[name="more-vertical"]`);
     hapticFeedback.register(moreElem);
     moreElem.onclick = () => {
       actionsDispatcher.dispatch("open-quick-settings");
@@ -180,7 +181,7 @@ class StatusBar extends HTMLElement {
       this.state.canGoBack && actionsDispatcher.dispatch("go-back");
     });
     swipeDetector.addEventListener("swipe-right", () => {
-      this.state.canGoForward &&actionsDispatcher.dispatch("go-forward");
+      this.state.canGoForward && actionsDispatcher.dispatch("go-forward");
     });
 
     actionsDispatcher.addListener(
@@ -265,20 +266,20 @@ class StatusBar extends HTMLElement {
   openCarousel() {
     this.isCarouselOpen = true;
     this.getElem(".container").classList.add("carousel");
-    this.getElem(`lucide-icon[kind="home"]`).classList.add("carousel");
-    this.getElem(`lucide-icon[kind="columns"]`).classList.add("hidden");
+    this.getElem(`sl-icon[name="home"]`).classList.add("carousel");
+    this.getElem(`sl-icon[name="columns"]`).classList.add("hidden");
     this.updateBackgroundColor("transparent");
   }
 
   closeCarousel() {
     this.isCarouselOpen = false;
     this.getElem(".container").classList.remove("carousel");
-    this.getElem(`lucide-icon[kind="home"]`).classList.remove("carousel");
-    this.getElem(`lucide-icon[kind="columns"]`).classList.remove("hidden");
+    this.getElem(`sl-icon[name="home"]`).classList.remove("carousel");
+    this.getElem(`sl-icon[name="columns"]`).classList.remove("hidden");
   }
 
   updateNotifications(_name, count) {
-    let moreElem = this.getElem(`lucide-icon[kind="more-vertical"]`);
+    let moreElem = this.getElem(`sl-icon[name="more-vertical"]`);
     if (count !== 0) {
       moreElem.classList.add("available-notifications");
     } else {
@@ -357,11 +358,11 @@ class StatusBar extends HTMLElement {
     // If the app was opened from the lock screen, prevent access
     // to the quick settings.
     // Hitting "Home" closes the app instead of going to the home screen.
-    let moreElem = this.getElem(`lucide-icon[kind="more-vertical"]`);
+    let moreElem = this.getElem(`sl-icon[name="more-vertical"]`);
     if (state.fromLockscreen) {
       moreElem.classList.add("hidden");
 
-      let homeElem = this.getElem(`lucide-icon[kind="home"]`);
+      let homeElem = this.getElem(`sl-icon[name="home"]`);
       homeElem.oncontextmenu = null;
       homeElem.onclick = async () => {
         if (state.whenClosed) {
@@ -458,9 +459,9 @@ class StatusBar extends HTMLElement {
       : state.icon || window.config.brandLogo;
 
     // if (state.bringAttention) {
-    //   this.getElem(`lucide-icon[kind="info"]`).classList.add("attention");
+    //   this.getElem(`sl-icon[name="info"]`).classList.add("attention");
     // } else {
-    //   this.getElem(`lucide-icon[kind="info"]`).classList.remove("attention");
+    //   this.getElem(`sl-icon[name="info"]`).classList.remove("attention");
     // }
 
     this.state = state;
