@@ -212,8 +212,15 @@ struct PrebuiltsList {
 pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), DownloadTaskError> {
     let cwd = std::env::current_dir()?;
 
-    let mut json_path = cwd.clone();
-    json_path.push("prebuilts.json");
+    let json_path = match std::env::var("NUTRIA_PREBUILTS_JSON") {
+        Ok(json_path) => PathBuf::from(&json_path),
+        Err(_) => {
+            let mut json_path = cwd.clone();
+            json_path.push("prebuilts.json");
+            json_path
+        }
+    };
+
     let prebuilts_json = File::open(&json_path)?;
 
     let list: HashMap<String, PrebuiltsList> = serde_json::from_reader(prebuilts_json)?;

@@ -113,7 +113,7 @@ enum CommandError {
     #[error("Download task error: {0}")]
     DownloadTaskError(#[from] crate::prebuilts::DownloadTaskError),
     #[error("new-app command error: {0}")]
-    NewAppCommandError(#[from] crate::newapp::NewAppCommandError),
+    NewAppCommand(#[from] crate::newapp::NewAppCommandError),
 }
 
 fn main() {
@@ -232,7 +232,7 @@ fn main() {
         Commands::UpdatePrebuilts { target } => {
             prebuilts::update(config, target.clone()).map_err(|e| e.into())
         }
-        Commands::NewApp { name } => newapp::create(&name, &config).map_err(|e| e.into()),
+        Commands::NewApp { name } => newapp::create(name, &config).map_err(|e| e.into()),
     };
 
     if let Err(err) = command_result {

@@ -61,17 +61,18 @@ SUBCOMMANDS:
 ```
 
 `jackady` also relies on some environment variables to be set to control its behavior:
-| Variable | Description | Default value |
+| Variable                 | Description                                                                                 | Default value                              |
 | ------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| NUTRIA_OUPUT_ROOT | The path where build artefacts are created. | `./builder/output` |
-| NUTRIA_API_DAEMON_ROOT | The path to a checkout of the [`api-daemon` crate](https://github.com/capyloon/api-daemon). | |
-| NUTRIA_API_DAEMON_BINARY | The path to the `api-daemon` executable built for the desktop platform. | `./prebuilts/${HOST_TARGET}/api-daemon` |
-| NUTRIA_API_DAEMON_PORT | The port on which the api-daemon should run. | 80 but needs to be set to 8081 on desktop. |
-| NUTRIA_APPS_ROOT | The path to the apps directory. | `./apps` |
-| NUTRIA_APPSCMD_BINARY | The path to the `appscmd` executable built for the desktop platform. | `./prebuilts/${HOST_TARGET}/appscmd` |
-| NUTRIA_B2GHALD_BINARY | The path to a host version of the `b2ghald` executable. Only required for debian packaging. | |
-| NUTRIA_B2G_BINARY | The path to the b2g binary used for running on desktop. | `./b2g` |
-| NUTRIA_B2G_PACKAGE | The path to a b2g package that will be pushed to a device. | |
+| NUTRIA_OUPUT_ROOT        | The path where build artefacts are created.                                                 | `./builder/output`                         |
+| NUTRIA_API_DAEMON_ROOT   | The path to a checkout of the [`api-daemon` crate](https://github.com/capyloon/api-daemon). |                                            |
+| NUTRIA_API_DAEMON_BINARY | The path to the `api-daemon` executable built for the desktop platform.                     | `./prebuilts/${HOST_TARGET}/api-daemon`    |
+| NUTRIA_API_DAEMON_PORT   | The port on which the api-daemon should run.                                                | 80 but needs to be set to 8081 on desktop. |
+| NUTRIA_APPS_ROOT         | The path to the apps directory.                                                             | `./apps`                                   |
+| NUTRIA_APPSCMD_BINARY    | The path to the `appscmd` executable built for the desktop platform.                        | `./prebuilts/${HOST_TARGET}/appscmd`       |
+| NUTRIA_B2GHALD_BINARY    | The path to a host version of the `b2ghald` executable. Only required for debian packaging. |                                            |
+| NUTRIA_B2G_BINARY        | The path to the b2g binary used for running on desktop.                                     | `./b2g`                                    |
+| NUTRIA_B2G_PACKAGE       | The path to a b2g package that will be pushed to a device.                                  |                                            |
+| NUTRIA_PREBUILTS_JSON    | The path to a json file describing where to find prebuilts artifacts.                       |                                            |
 
 ## The `clean` command
 
@@ -192,6 +193,9 @@ This command forces a restart of b2g and the api-daemon.
 
 This command will fetch prebuilt binaries for your platform and setup environment variables accordingly.
 The downloaded resources are cached in the `.cache` directory.
+
+By default `jackady` uses the resources linked to in the [prebuilts.json](./builder/prebuilts.json) file.
+It is also possible to use other prebuilt resources by setting the `NUTRIA_PREBUILTS_JSON` environement variable properly.
 
 The following options are supported:
 
