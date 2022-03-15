@@ -316,6 +316,8 @@ class StatusBar extends HTMLElement {
     let left = this.getElem(".left-text");
     left.classList.remove("insecure");
     this.updateClock(true);
+    let moreElem = this.getElem(`sl-icon[name="more-vertical"]`);
+    moreElem.classList.remove("hidden");
   }
 
   updateContentState(state) {
