@@ -22,7 +22,7 @@ class Downloads {
     );
     let notification = new Notification(title, {
       body: download.url,
-      icon: `lucide-icon:download`,
+      icon: `system-icon:download`,
       tag: download.id,
     });
     return notification;

@@ -59,7 +59,7 @@ document.addEventListener(
 
       let notification = new Notification("To do list", {
         body: "Something to do",
-        icon: `http://shared.localhost:${location.port}/branding/b2gos/resources/logo.webp`,
+        icon: `http://branding.localhost:${location.port}/resources/logo.webp`,
       });
 
       notification.onshow = () => {
@@ -80,7 +80,7 @@ document.addEventListener(
 
       let notification = new Notification("Tagged!", {
         body: `Some random number: ${Math.round(Math.random() * 100)}`,
-        icon: `http://shared.localhost:${location.port}/branding/b2gos/logo.webp`,
+        icon: `http://branding.localhost:${location.port}/resources/logo.webp`,
         tag: "notif-tag",
       });
 

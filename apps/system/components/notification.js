@@ -21,8 +21,8 @@ class WebNotification extends HTMLElement {
     let shadow = this.shadowRoot;
 
     let iconPart = `<img class="icon" src="${data.icon}" />`;
-    if (data.icon.startsWith("lucide-icon:")) {
-      iconPart = `<lucide-icon class="icon" kind=${data.icon.split(":")[1]}></lucide-icon>`;
+    if (data.icon.startsWith("system-icon:")) {
+      iconPart = `<sl-icon class="icon" name=${data.icon.split(":")[1]}></sl-icon>`;
     }
 
     shadow.innerHTML = `
@@ -33,7 +33,7 @@ class WebNotification extends HTMLElement {
             <div class="title">${data.title}</div>
             <div class="text">${data.text}</div>
         </div>
-        <lucide-icon kind="x" class="close-icon"></lucide-icon>
+        <sl-icon name="x" class="close-icon"></sl-icon>
     </div>
     `;
 

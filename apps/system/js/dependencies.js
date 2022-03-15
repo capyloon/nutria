@@ -235,6 +235,7 @@ const kDeps = [
     name: "notification comp",
     kind: "script",
     param: ["./components/notification.js"],
+    deps: ["shoelace-icon"],
   },
   {
     name: "webext comp",
