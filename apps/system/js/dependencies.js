@@ -150,7 +150,6 @@ const kDeps = [
     name: "various modules",
     kind: "virtual",
     deps: [
-      "backdrop",
       "flashlight",
       "keys",
       "power manager",
@@ -170,7 +169,6 @@ const kDeps = [
     kind: "sharedModule",
     param: ["components/lit.js", ["LitElement", "html", "css"]],
   },
-  { name: "backdrop", kind: "module", param: ["./js/backdrop.js"] },
   { name: "flashlight", kind: "module", param: ["./js/flashlight.js"] },
   { name: "keys", kind: "module", param: ["./js/keys.js"] },
   {

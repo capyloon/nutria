@@ -6,7 +6,6 @@ class UrlEdit extends LitElement {
 
     this.addEventListener("click", (event) => {
       // Prevent clicks to reach the backdrop and close the panel.
-      // TODO: should likely be the default and managed by the backdrop itself?
       event.stopPropagation();
     });
 

@@ -44,7 +44,8 @@ class WebNotification extends HTMLElement {
       this.notification.click();
       this.notification.remove();
       this.fadeOut();
-      backdropManager.hide("quick-settings");
+      // Close the quick settings panel;
+      document.getElementById("quick-settings").hide();
     };
 
     shadow.querySelector(".close-icon").onclick = (event) => {

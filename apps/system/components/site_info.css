@@ -41,10 +41,6 @@
   margin-bottom: 0.35em;
 }
 
-:host lucide-icon {
-  font-size: 2em;
-}
-
 .flex-fill {
   flex: 1;
 }
@@ -78,8 +74,8 @@
   cursor: pointer;
 }
 
-sl-icon {
-  font-size: 1.5rem;
+:host sl-icon {
+  font-size: 2em;
   padding: 0.25em;
 }
 
