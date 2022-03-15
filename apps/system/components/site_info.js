@@ -69,8 +69,12 @@ class SiteInfo extends HTMLElement {
     let uaChooser = shadow.querySelector(".ua-chooser");
     // TODO: persist the UA changes.
     l10nReady.then(() => {
-      uaChooser.value = "b2g";
+      // TODO: figure out why this setTimeout is needed on device to not block startup.
+      window.setTimeout(() => {
+        uaChooser.value = "b2g";
+      }, 10000);
     });
+
     uaChooser.addEventListener("sl-change", (event) => {
       console.log(`Switching UA to ${event.target.value}`);
       this.dispatchEvent(
