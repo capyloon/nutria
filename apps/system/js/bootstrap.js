@@ -242,7 +242,8 @@ async function manageFTU() {
   }
 
   await window.lockscreen.launch(
-    `http://ftu.localhost:${config.port}/index.html`
+    `http://ftu.localhost:${config.port}/index.html`,
+    { ftu: true }
   );
   try {
     await settings.set([{ name: "ftu.done", value: true }]);
@@ -358,7 +359,9 @@ document.addEventListener(
 
     await depGraphLoaded();
     let platform = embedder.isGonk() ? "gonk" : "linux";
-    let graph = new ParallelGraphLoader(addShoelaceDeps(kDeps), customRunner, { platform });
+    let graph = new ParallelGraphLoader(addShoelaceDeps(kDeps), customRunner, {
+      platform,
+    });
 
     // Start with the lock screen on before we load the homescreen to avoid a
     // flash of the homescreen.

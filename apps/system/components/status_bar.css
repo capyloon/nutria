@@ -8,6 +8,10 @@
   transition: background-color 0.25s;
 }
 
+:host(.ftu) {
+  display: none;
+}
+
 :host(.high-luminance) {
   color: var(--status-text-highlum);
 }

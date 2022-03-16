@@ -174,9 +174,16 @@ class LockScreen extends HTMLElement {
 
   // Launches an app in a lockscreen controlled way.
   // Returns a promise that resolves when the app is closed.
-  launch(url) {
+  launch(url, options = {}) {
     return new Promise((resolve) => {
       this.tempClose();
+
+      let statusbar;
+      if (options.ftu) {
+        statusbar = document.getElementById("statusbar");
+        statusbar.classList.add("ftu");
+      }
+
       // Call into the window manager to launch an app in lockscreen mode.
       window.wm.openFrame(url, {
         activate: true,
@@ -184,6 +191,9 @@ class LockScreen extends HTMLElement {
         whenClosed: async () => {
           window.wm.unlockSwipe();
           await this.open();
+          if (options.ftu) {
+            statusbar.classList.remove("ftu");
+          }
           resolve();
         },
       });
