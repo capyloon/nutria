@@ -205,6 +205,7 @@ const kDeps = [
     name: "select ui comp",
     kind: "module",
     param: ["./components/select_ui.js"],
+    deps: ["shoelace-divider"],
   },
   {
     name: "input method comp",

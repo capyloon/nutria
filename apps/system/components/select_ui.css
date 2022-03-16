@@ -9,17 +9,22 @@
   justify-content: center;
   align-items: center;
   padding: 1em;
-  border-radius: 5px;
-  background-color: var(--dialog-background);
-  color: var(--dialog-text);
+  border-radius: var(--sl-border-radius-medium);
+  border-color: var(--sl-panel-border-color);
+  border-width: var(--sl-panel-border-width);
+  background-color: var(--sl-panel-background-color);
+  color: var(--sl-color-neutral-700);
   font-size: larger;
   -moz-user-focus: ignore;
+  box-shadow: var(--sl-shadow-large);
+}
+
+:host sl-divider {
+  width: 100%;
 }
 
 :host h4 {
   width: 100%;
-  border-bottom: 2px solid var(--dialog-text);
-  padding-bottom: 0.5em;
   margin-bottom: 0;
   margin-top: 0;
   text-align: center;
@@ -31,9 +36,14 @@
   max-width: 90%;
 }
 
+:host li:hover {
+  background-color: var(--sl-color-primary-500);
+  color: var(--sl-color-neutral-0);
+}
+
 :host li.selected {
-  background-color: var(--button-background-active);
-  color: var(--dialog-background);
+  background-color: var(--sl-color-primary-600);
+  color: var(--sl-color-neutral-0);
 }
 
 :host ul {
@@ -45,21 +55,65 @@
   overflow-y: scroll;
 }
 
-/* Using <button> always steals the focus, so we create a fake button look and feel here :( */
-:host .button-ok {
-  -moz-appearance: none;
-  max-width: 10rem;
-  min-width: 5rem;
-  border: none;
-  border-radius: 0.5em;
-  background: var(--button-background-active, gray);
-  color: var(--button-color-active);
-  outline: none;
-  padding: 0.75rem;
-  font-size: 1rem;
-  text-align: center;
+sl-menu,
+sl-menu-item {
+  -moz-user-focus: ignore;
 }
 
-:host .button-ok:active {
-  filter: brightness(1.2);
+/*
+Using <button> or <sl-button> always steals the focus, so we create a fake button look and feel here :(
+These styles are copied from Shoelace's src/component/button/button.style.ts
+*/
+:host .button-ok {
+  display: inline-block;
+  position: relative;
+  width: auto;
+  cursor: pointer;
+}
+
+.button {
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  border-style: solid;
+  border-width: var(--sl-input-border-width);
+  font-family: var(--sl-input-font-family);
+  font-weight: var(--sl-font-weight-semibold);
+  text-decoration: none;
+  user-select: none;
+  white-space: nowrap;
+  vertical-align: middle;
+  padding: 0;
+  transition: var(--sl-transition-fast) background-color,
+    var(--sl-transition-fast) color, var(--sl-transition-fast) border,
+    var(--sl-transition-fast) box-shadow;
+  cursor: inherit;
+
+  /* primary button color */
+  background-color: var(--sl-color-primary-600);
+  border-color: var(--sl-color-primary-600);
+  color: var(--sl-color-neutral-0);
+
+  /* medium size */
+  font-size: var(--sl-button-font-size-medium);
+  height: var(--sl-input-height-medium);
+  line-height: calc(
+    var(--sl-input-height-medium) - var(--sl-input-border-width) * 2
+  );
+  border-radius: var(--sl-input-border-radius-medium);
+
+  padding: 0 var(--sl-spacing-x-small);
+}
+
+.button:hover {
+  background-color: var(--sl-color-primary-500);
+  border-color: var(--sl-color-primary-500);
+  color: var(--sl-color-neutral-0);
+}
+
+.button-ok:active {
+  background-color: var(--sl-color-primary-600);
+  border-color: var(--sl-color-primary-600);
+  color: var(--sl-color-neutral-0);
 }

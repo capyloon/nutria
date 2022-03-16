@@ -63,8 +63,9 @@ export class SelectUi extends HTMLElement {
     shadow.innerHTML = `
     <link rel="stylesheet" href="components/select_ui.css">
     <h4></h4>
+    <sl-divider></sl-divider>
     <ul></ul>
-    <div class="button-ok" data-l10n-id="button-ok"></div>
+    <div class="button-ok"><div class="button" data-l10n-id="button-ok"></div></div>
     `;
 
     document.l10n.translateFragment(shadow);
