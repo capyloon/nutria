@@ -539,6 +539,7 @@ class WindowManager extends HTMLElement {
     }
 
     this.updateFrameList();
+    this.dispatchEvent(new Event("frameclosed"));
   }
 
   updateFrameList() {

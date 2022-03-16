@@ -316,8 +316,6 @@ class StatusBar extends HTMLElement {
     let left = this.getElem(".left-text");
     left.classList.remove("insecure");
     this.updateClock(true);
-    let moreElem = this.getElem(`sl-icon[name="more-vertical"]`);
-    moreElem.classList.remove("hidden");
   }
 
   updateContentState(state) {
@@ -361,21 +359,31 @@ class StatusBar extends HTMLElement {
     // to the quick settings.
     // Hitting "Home" closes the app instead of going to the home screen.
     let moreElem = this.getElem(`sl-icon[name="more-vertical"]`);
-    if (state.fromLockscreen) {
+    let homeElem = this.getElem(`sl-icon[name="home"]`);
+    if (state.fromLockscreen && homeElem.oncontextmenu) {
       moreElem.classList.add("hidden");
 
-      let homeElem = this.getElem(`sl-icon[name="home"]`);
       homeElem.oncontextmenu = null;
       homeElem.onclick = async () => {
         if (state.whenClosed) {
           await state.whenClosed();
-          moreElem.classList.remove("hidden");
         }
         window.wm.closeFrame();
-        homeElem.onclick = this.homeClick;
-        homeElem.oncontextmenu = this.homeContextMenu;
       };
-    } else {
+
+      // Observes the next frame being closed: it's either the FTU or
+      // an app launched from the lockscreen.
+      // In both cases we can now reset the UI to show the "more" icon.
+      window.wm.addEventListener(
+        "frameclosed",
+        async () => {
+          homeElem.onclick = this.homeClick;
+          homeElem.oncontextmenu = this.homeContextMenu;
+          moreElem.classList.remove("hidden");
+        },
+        { once: true }
+      );
+    } else if (!state.fromLockscreen) {
       moreElem.classList.remove("hidden");
     }
   }
