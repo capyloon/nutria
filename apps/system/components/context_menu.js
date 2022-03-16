@@ -62,7 +62,7 @@ class ContextMenu extends HTMLElement {
         <sl-menu-item class="when-image" data-l10n-id="image-set-wallpaper"></sl-menu-item>
         <sl-menu-item class="when-image" data-l10n-id="image-save" disabled></sl-menu-item>
         <sl-menu-item class="when-image" data-l10n-id="image-share" disabled></sl-menu-item>
-        <sl-divider class="when-image"></sl-divider>
+        <sl-divider class="when-image-and-link"></sl-divider>
         <sl-menu-label class="when-link"><sl-icon name="link"></sl-icon><span data-l10n-id="link-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-link" data-l10n-id="link-new-tab"></sl-menu-item>
       </sl-menu>
@@ -121,6 +121,14 @@ class ContextMenu extends HTMLElement {
     });
     this.shadowRoot.querySelectorAll(".when-link").forEach((item) => {
       if (hasLink) {
+        item.classList.remove("hidden");
+      } else {
+                item.classList.add("hidden");
+      }
+    });
+
+    this.shadowRoot.querySelectorAll(".when-image-and-link").forEach((item) => {
+      if (hasImage && hasLink) {
         item.classList.remove("hidden");
       } else {
         item.classList.add("hidden");
