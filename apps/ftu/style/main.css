@@ -133,3 +133,26 @@ sl-input::part(password-toggle-button) {
 #privacy-tor-icon.disabled {
   filter: grayscale(100%);
 }
+
+#search-panel img {
+  width: 24px;
+}
+
+#search-panel sl-alert {
+  margin-top: 0.5em;
+}
+
+#search-panel .name {
+  font-weight: bolder;
+  line-height: 1.5em;
+}
+
+#search-panel .desc {
+  font-size: smaller;
+  line-height: 1.5em;
+  color: var(--sl-color-neutral-500);
+}
+
+#search-panel sl-menu-item:hover .desc {
+  color: var(--sl-color-neutral-0);
+}

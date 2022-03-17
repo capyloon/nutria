@@ -6,7 +6,7 @@ btn-done = You're All Set!
 
 # Language selection panel
 language-title = Language Selection
-language-select = Select Your Language
+language-select = Select your language
 
 # Wifi setup panel
 wifi-title = Wifi Setup
@@ -39,3 +39,9 @@ privacy-tp-enabled = Enable Tracking Protection
 # Display preferences panel
 display-title = Display Preferences
 display-prefer-dark = Use Dark Mode
+
+# Search engines panel
+search-title = Search Engines
+search-select = Enable your search engines
+search-details = When doing a keyword search, one of the enabled search engines will be randomly selected.
+search-error-no-enabled = Please enable at least one search engine!

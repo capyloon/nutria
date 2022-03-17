@@ -220,6 +220,34 @@
       </div>
     </template>
 
+    <!-- The search engines setup panel -->
+    <template id="search-panel-tmpl">
+      <div class="drawer-content">
+        <h1 data-l10n-id="search-title" class="branded-text"></h1>
+        <header>
+          <sl-icon name="search"></sl-icon>&nbsp;
+          <span data-l10n-id="search-select"></span>
+        </header>
+        <p data-l10n-id="search-details"></p>
+
+        <sl-menu class="initial-focus"> </sl-menu>
+
+        <sl-alert variant="danger">
+          <sl-icon slot="icon" name="alert-circle"></sl-icon>
+          <strong data-l10n-id="search-error-no-enabled"></strong>
+        </sl-alert>
+      </div>
+
+      <div slot="footer">
+        <sl-button class="panel-back" data-l10n-id="btn-back"></sl-button>
+        <sl-button
+          class="panel-ok"
+          variant="success"
+          data-l10n-id="btn-ok"
+        ></sl-button>
+      </div>
+    </template>
+
     <!-- The display preferences setup panel -->
     <template id="display-panel-tmpl">
       <div class="drawer-content">

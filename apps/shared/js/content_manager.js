@@ -586,6 +586,14 @@ class ContentResource {
     return `http://127.0.0.1:${window.config.port}/cmgr/${this._http_key}/${this._meta.id}/${variant}`;
   }
 
+  async addTag(tag) {
+    this._meta = await this._svc.addTag(this._meta.id, tag);
+  }
+
+  async removeTag(tag) {
+    this._meta = await this._svc.removeTag(this._meta.id, tag);
+  }
+
   debug() {
     return JSON.stringify(this._meta || "<no meta>");
   }

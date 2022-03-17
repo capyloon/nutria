@@ -16,6 +16,7 @@
       "name": "The Capyloon team"
     },
     "permissions": {
+      "content-manager": {},
       "settings": { "access": "readwrite" },
       "system-time": { "access": "readwrite" },
       "wifi-manage": {}

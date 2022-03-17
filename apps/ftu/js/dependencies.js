@@ -55,6 +55,23 @@ const kDeps = [
     ],
   },
   {
+    name: "search-panel",
+    kind: "virtual",
+    deps: [
+      "shoelace-alert",
+      "shoelace-icon",
+      "shoelace-menu",
+      "shoelace-menu-item",
+      "content manager",
+      "search-module",
+    ],
+  },
+  {
+    name: "content manager",
+    kind: "sharedWindowModule",
+    param: ["js/content_manager.js", "contentManager", "ContentManager"],
+  },
+  {
     name: "privacy-panel",
     kind: "virtual",
     deps: ["shoelace-icon", "shoelace-switch", "privacy-module"],
@@ -73,6 +90,7 @@ const kDeps = [
     param: "js/privacy_panel.js",
     deps: ["switch-setting"],
   },
+  { name: "search-module", kind: "module", param: "js/search_panel.js" },
   {
     name: "switch-setting",
     kind: "module",
