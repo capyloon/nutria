@@ -263,9 +263,17 @@ class ParallelGraphLoader {
         break;
       case "shoelaceComp":
         // The parameter is the Shoelace component name, eg. "input" to use <sl-input>
-        runner = sharedModuleLoader(
-          `shoelace/components/${dep.param}/${dep.param}.js`
+        let name = dep.param;
+        let slModule = sharedModuleLoader(
+          `shoelace/components/${name}/${name}.js`
         );
+
+        runner = async () => {
+          await Promise.all([
+            slModule(),
+            customElements.whenDefined(`sl-${name}`),
+          ]);
+        };
         break;
       case "style":
         runner = styleLoader(dep.param);
