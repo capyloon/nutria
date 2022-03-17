@@ -145,14 +145,26 @@ sl-input::part(password-toggle-button) {
 #search-panel .name {
   font-weight: bolder;
   line-height: 1.5em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 #search-panel .desc {
   font-size: smaller;
   line-height: 1.5em;
   color: var(--sl-color-neutral-500);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 #search-panel sl-menu-item:hover .desc {
   color: var(--sl-color-neutral-0);
+}
+
+#search-panel sl-menu-item::part(label) {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
