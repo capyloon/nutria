@@ -10,7 +10,7 @@ class BrowserActionPopup extends HTMLElement {
     console.log(`BrowserActionPopup::constructor`);
     this.addEventListener("click", (event) => {
       //   console.log(`BrowserActionPopup click on ${event.target.localName}`);
-      if (event.target.localName === "lucide-icon") {
+      if (event.target.localName === "sl-icon") {
         this.hide("webext-browser-action");
       }
     });
@@ -66,7 +66,7 @@ class BrowserActionPopup extends HTMLElement {
         remote="true"
         remoteType="extension"
         browsingContextGroupId="${this.browsingContextGroupId}"></web-view>
-      <footer><lucide-icon kind="x"></lucide-icon></footer>
+      <footer><sl-icon name="x"></sl-icon></footer>
     </div`;
 
     this.querySelector("footer").prepend(action);

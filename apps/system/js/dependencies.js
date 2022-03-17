@@ -230,7 +230,7 @@ const kDeps = [
     name: "browser actions popup comp",
     kind: "module",
     param: ["./components/browser_action_popup.js"],
-    deps: ["lucide icons"],
+    deps: ["shoelace-icon"],
   },
   {
     name: "notification comp",

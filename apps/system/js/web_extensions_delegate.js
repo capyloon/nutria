@@ -71,6 +71,9 @@ export class WebExtensionsDelegate {
         }
         this.log(`click on ${extensionId}`);
         if (action.popup) {
+          // Close the quick settings if needed.
+          actionsDispatcher.dispatch("hide-quick-settings");
+
           // Open the modal browser action popup.
           let popup = document.querySelector("webext-browser-action");
           popup.setAction(node.action, browsingContextGroupId);

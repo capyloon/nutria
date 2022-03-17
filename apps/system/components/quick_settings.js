@@ -44,6 +44,10 @@ class QuickSettings extends HTMLElement {
       this.drawer.show();
     });
 
+    actionsDispatcher.addListener("hide-quick-settings", () => {
+      this.drawer.hide();
+    });
+
     this.initWifi();
     this.initFlashlight();
     this.initBrightness();
