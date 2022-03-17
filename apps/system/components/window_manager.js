@@ -783,7 +783,7 @@ class WindowManager extends HTMLElement {
         }" />
         <div class="flex-fill"></div>
         <div class="close-icon">
-          <lucide-icon kind="x"></lucide-icon>
+          <sl-icon name="x"></sl-icon>
         </div>
       </div>`;
       screenshot.querySelector(".close-icon").addEventListener(

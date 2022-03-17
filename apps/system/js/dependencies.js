@@ -99,7 +99,7 @@ const kDeps = [
     name: "window manager",
     kind: "module",
     param: "./components/window_manager.js",
-    deps: ["content window"],
+    deps: ["content window", "shoelace-icon"],
   },
   {
     name: "content window",
