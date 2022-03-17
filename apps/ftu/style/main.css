@@ -7,6 +7,15 @@ body {
   padding: 2em;
 }
 
+body {
+  opacity: 0;
+}
+
+body.ready {
+  opacity: 1;
+  transition: 0.25s opacity;
+}
+
 * {
   box-sizing: border-box;
 }

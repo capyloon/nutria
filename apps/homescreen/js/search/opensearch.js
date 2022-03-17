@@ -12,14 +12,13 @@ class OpenSearch {
 
   async init() {
     this.log(`init`);
-    this.openSearch = contentManager.getOpenSearchManager(async (items) => {
+    this.openSearch = contentManager.getOpenSearchManager((items) => {
       this.searchEngines = [];
       for (let item of items) {
         let meta = item.meta;
         if (meta.tags.includes("enabled")) {
           this.log(`Adding ${meta.name} ${meta.tags}`);
-          let json = await item.variant("default").text();
-          this.searchEngines.push(JSON.parse(json));
+          this.searchEngines.push(item.variant("default"));
         }
       }
     });

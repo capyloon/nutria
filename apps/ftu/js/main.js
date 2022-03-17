@@ -65,6 +65,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   let graph = new ParallelGraphLoader(addShoelaceDeps(kDeps));
   await Promise.all([getSharedDeps("shared-all"), graph.waitForDeps("intro")]);
 
+  document.body.classList.add("ready");
+
   // Get the list of drawers based on the set of templates.
   let templates = Array.from(document.querySelectorAll("template")).map(
     (template) => template.getAttribute("id").split("-")[0]

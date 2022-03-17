@@ -54,7 +54,7 @@ class SearchPanel {
 
     let rendered = false;
 
-    this.openSearch = contentManager.getOpenSearchManager(async (items) => {
+    this.openSearch = contentManager.getOpenSearchManager((items) => {
       // TODO: smarter update of the engine list.
       if (rendered) {
         return;
@@ -62,8 +62,7 @@ class SearchPanel {
       for (let item of items) {
         let meta = item.meta;
         this.log(`Adding ${meta.name} ${meta.tags}`);
-        let text = await item.variant("default").text();
-        let json = JSON.parse(text).OpenSearchDescription;
+        let json = item.variant("default").OpenSearchDescription;
         let menuItem = document.createElement("sl-menu-item");
         menuItem.checked = meta.tags.includes("enabled");
         if (menuItem.checked) {

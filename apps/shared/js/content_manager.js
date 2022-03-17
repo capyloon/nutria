@@ -771,13 +771,13 @@ class OpenSearchManager extends ContentManager {
         let children = await cursor.next();
         for (let child of children) {
           if (child.kind === this.lib.ResourceKind.LEAF) {
-            let blob = await this.svc.getVariant(child.id, "default");
+            let json = await this.svc.getVariantJson(child.id, "default");
             this.list.push(
               new ContentResource(
                 this.svc,
                 this.http_key,
                 child,
-                blob,
+                json,
                 "default"
               )
             );
