@@ -237,7 +237,7 @@ class ContentWindow extends HTMLElement {
       <link rel="stylesheet" href="components/content_window.css">
       <web-view remote="true" remoteType="${remoteType}" ${browsingContextGroupIdAttr} ${transparent}></web-view>
       <div class="loader running">
-        <lucide-icon kind="loader"></lucide-icon>
+        <sl-icon name="loader"></sl-icon>
         <img class="hidden"/>
         <div class="title hidden"></div>
       </div>
@@ -247,11 +247,11 @@ class ContentWindow extends HTMLElement {
       </div>
       <div class="select-ui hidden"><select-ui></select-ui></div>
       <div class="navigation hidden">
-        <lucide-icon id="scroll-top" kind="chevron-up"></lucide-icon>
-        <lucide-icon id="scroll-bottom" kind="chevron-down"></lucide-icon>
+        <sl-icon id="scroll-top" name="chevron-up"></sl-icon>
+        <sl-icon id="scroll-bottom" name="chevron-down"></sl-icon>
       </div>
       <div class="overscroll hidden">
-        <lucide-icon kind="refresh-cw"></lucide-icon>
+        <sl-icon name="refresh-cw"></sl-icon>
       </div>
       `;
 
@@ -286,7 +286,7 @@ class ContentWindow extends HTMLElement {
       }
       if (icon) {
         this.loader.classList.remove("running");
-        this.loader.querySelector("lucide-icon").classList.add("hidden");
+        this.loader.querySelector("sl-icon").classList.add("hidden");
         let img = this.loader.querySelector("img");
         img.classList.remove("hidden");
         img.src = icon;

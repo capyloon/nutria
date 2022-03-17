@@ -105,7 +105,7 @@ const kDeps = [
     name: "content window",
     kind: "module",
     param: "./components/content_window.js",
-    deps: ["api daemon core", "content manager"],
+    deps: ["api daemon core", "content manager", "shoelace-icon"],
   },
   {
     name: "api daemon core",
@@ -128,17 +128,6 @@ const kDeps = [
     kind: "module",
     param: "./components/status_bar.js",
     deps: ["battery helper", "shoelace-icon", "shoelace-badge"],
-  },
-  {
-    name: "lucide icons",
-    kind: "sharedModule",
-    param: "components/lucide_icon.js",
-    deps: ["lucide"],
-  },
-  {
-    name: "lucide",
-    kind: "sharedStyle",
-    param: "lucide/Lucide.css",
   },
   {
     name: "wallpaper",

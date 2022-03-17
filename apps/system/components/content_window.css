@@ -39,7 +39,7 @@ content-window .select-ui {
   align-items: center;
 }
 
-content-window .loader.running lucide-icon {
+content-window .loader.running sl-icon {
   animation: spin 2s linear infinite;
   font-size: 4em;
 }
@@ -91,7 +91,7 @@ content-window .navigation {
   width: 3em;
 }
 
-content-window .navigation lucide-icon {
+content-window .navigation sl-icon {
   background-color: white;
   border-radius: 50%;
   font-size: 2em;
@@ -116,18 +116,18 @@ content-window .overscroll.hidden {
   transition: opacity 1s;
 }
 
-content-window .overscroll.will-reload lucide-icon {
+content-window .overscroll.will-reload sl-icon {
   color: var(--icon-background-active);
   transition: none;
 }
 
-content-window .overscroll.hidden lucide-icon {
+content-window .overscroll.hidden sl-icon {
   transform: rotate(360deg);
   transition: all 3s;
   background-color: white;
 }
 
-content-window .overscroll lucide-icon {
+content-window .overscroll sl-icon {
   background-color: black;
   color: white;
   border-radius: 50%;
