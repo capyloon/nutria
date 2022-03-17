@@ -26,12 +26,15 @@ webext-browser-action.offscreen {
 
 webext-browser-action .container {
   margin: var(--margin);
-  border-radius: 5px;
   padding: 1em;
   font-size: smaller;
   font-family: sans-serif;
-  color: var(--dialog-text);
-  background-color: var(--dialog-background);
+  border-radius: var(--sl-border-radius-medium);
+  border-color: var(--sl-panel-border-color);
+  border-width: var(--sl-panel-border-width);
+  box-shadow: var(--sl-shadow-large);
+  background-color: var(--sl-panel-background-color);
+  color: var(--sl-color-neutral-700);
   width: calc(100% - 2 * var(--margin));
   height: calc(100% - 2 * var(--margin));
   display: flex;

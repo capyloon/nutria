@@ -19,8 +19,8 @@ class AudioVolumeIndicator extends LitElement {
     return html`
     <link rel="stylesheet" href="components/audio_volume_indicator.css">
     <div>
-      <lucide-icon kind="${this.headphones ? "headphones" : "volume-1"}"></lucide-icon>
-      <meter min="0" max="100" value="${this.volume}"></meter>
+      <sl-icon name="${this.headphones ? "headphones" : "volume-1"}"></sl-icon>
+      <sl-progress-bar min="0" max="100" value="${this.volume}"></sl-progress-bar>
     </div>`;
   }
 

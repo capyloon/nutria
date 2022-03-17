@@ -181,6 +181,7 @@ const kDeps = [
     name: "audio volume",
     kind: "module",
     param: ["./js/audio_volume/__PLATFORM__.js"],
+    deps: ["shoelace-icon", "shoelace-progress-bar"],
   },
   {
     name: "power manager",
