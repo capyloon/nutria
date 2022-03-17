@@ -52,7 +52,13 @@ class SearchPanel {
 
     let menu = this.panel.querySelector("sl-menu");
 
+    let rendered = false;
+
     this.openSearch = contentManager.getOpenSearchManager(async (items) => {
+      // TODO: smarter update of the engine list.
+      if (rendered) {
+        return;
+      }
       for (let item of items) {
         let meta = item.meta;
         this.log(`Adding ${meta.name} ${meta.tags}`);
@@ -75,6 +81,8 @@ class SearchPanel {
       }
 
       this.okBtn.disabled = this.alert.open = this.enabled === 0;
+
+      rendered = true;
     });
     await this.openSearch.init();
 
