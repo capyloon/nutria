@@ -79,6 +79,12 @@ window-manager .carousel > div.screenshot {
   background-position: center;
   transition: all 0.1s linear;
   border-radius: 0.5em;
+  opacity: 0;
+}
+
+window-manager .carousel > div.screenshot.show {
+  opacity: 1;
+  transition: opacity 0.05s linear;
 }
 
 window-manager .carousel > div.screenshot.middle {

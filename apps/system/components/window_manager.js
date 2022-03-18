@@ -753,9 +753,8 @@ class WindowManager extends HTMLElement {
 
       let { current, next } = frame.getScreenshot();
       if (current) {
-        let url = URL.createObjectURL(current);
-        screenshot.style.backgroundImage = `url(${url})`;
-        screenshot.blobUrl = url;
+        screenshot.blobUrl = URL.createObjectURL(current);
+        screenshot.style.backgroundImage = `url(${screenshot.blobUrl})`;
       }
 
       next.then((blob) => {
@@ -763,15 +762,17 @@ class WindowManager extends HTMLElement {
         // This is obviously not true in general, but good enough here to prevent most
         // useless background updates.
         if (blob.size === current.size) {
+          screenshot.classList.add("show");
           return;
         }
         if (screenshot.blobUrl) {
           URL.revokeObjectURL(screenshot.blobUrl);
         }
-        let url = URL.createObjectURL(blob);
-        screenshot.style.backgroundImage = `url(${url})`;
-        screenshot.blobUrl = url;
+        screenshot.blobUrl = URL.createObjectURL(blob);
+        screenshot.style.backgroundImage = `url(${screenshot.blobUrl})`;
+        screenshot.classList.add("show");
       });
+
       screenshot.setAttribute("frame", id);
       screenshot.setAttribute("id", `carousel-screenshot-${index}`);
       index += 1;

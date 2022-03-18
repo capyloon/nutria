@@ -685,6 +685,7 @@ class ContentWindow extends HTMLElement {
         if (this.config.isHomescreen) {
           actionsDispatcher.dispatch("homescreen-ready");
         }
+        this.updateScreenshot();
         break;
       case "titlechange":
         this.state.title = detail.title;
@@ -719,6 +720,8 @@ class ContentWindow extends HTMLElement {
         this.navigation.classList.remove("hidden");
 
         this.navigationTimer = window.setTimeout(() => {
+          // Scrolling stabilized, time to take a screenshot.
+          this.updateScreenshot();
           this.navigationAnimation = this.navigation.animate(
             [
               { opacity: 1, transform: "scale(1.0)" },
@@ -799,7 +802,6 @@ class ContentWindow extends HTMLElement {
               await this.updateUi(true);
             });
         }
-        this.updateScreenshot();
         break;
       case "iconchange":
         await this.iconchanged(detail);
