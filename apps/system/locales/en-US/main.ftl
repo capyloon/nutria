@@ -29,6 +29,7 @@ site-info-android-ua = Android
 site-info-desktop-ua = Desktop
 success-add-to-home = Success Adding Site To Home
 error-add-to-home = Error Adding Site To Home
+site-info-search = Search '{$query}' on…
 
 # Lockscreen
 lockscreen-emergency-call = Emergency Call

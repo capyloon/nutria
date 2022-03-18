@@ -257,6 +257,10 @@ const kDeps = [
       "shoelace-icon",
       "shoelace-divider",
       "shoelace-select",
+      "shoelace-dropdown",
+      "shoelace-menu",
+      "shoelace-menu-item",
+      "content manager",
     ],
   },
   {

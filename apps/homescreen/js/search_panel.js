@@ -52,8 +52,8 @@ export class SearchPanel {
       .setAttribute("content", "transparent");
   }
 
-  openURL(url) {
-    return SearchSource.openURL(url);
+  openURL(url, search) {
+    return SearchSource.openURL(url, search);
   }
 
   clearAllResults() {

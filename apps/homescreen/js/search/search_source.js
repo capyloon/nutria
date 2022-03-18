@@ -26,7 +26,7 @@ class SearchSource {
     window["search-results"].appendChild(this.title);
   }
 
-  static openURL(url) {
+  static openURL(url, search = null) {
     if (!url || url.length == 0) {
       return false;
     }
@@ -48,7 +48,7 @@ class SearchSource {
       url = `https://${url}`;
     }
 
-    let activity = new WebActivity("launch", { url });
+    let activity = new WebActivity("launch", { url, search });
     activity.start();
     return true;
   }

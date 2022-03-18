@@ -37,7 +37,11 @@ window.addEventListener("serviceworkermessage", ({ detail }) => {
           title: config.title,
           icon: config.icon,
           backgroundColor: config.backgroundColor,
+          search: config.search,
         };
+        if (config.search) {
+          console.log(`LAUNCH: search query was '${config.search}'`);
+        }
         wm.openFrame(config.url, { activate: true, details });
         break;
       default:

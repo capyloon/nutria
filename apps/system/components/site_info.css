@@ -85,3 +85,13 @@
   gap: 0.5em;
   align-items: center;
 }
+
+:host .search sl-menu-item::part(label) {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:host .search img {
+  width: 24px;
+}

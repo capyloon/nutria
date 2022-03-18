@@ -153,7 +153,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       searchBox.blur();
       if (!panelManager.openURL(input)) {
         // Keyword search, redirect to the current search engine.
-        panelManager.openURL(opensearchEngine.getSearchUrlFor(input));
+        panelManager.openURL(opensearchEngine.getSearchUrlFor(input), input);
       }
     }, 0);
   });

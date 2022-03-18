@@ -299,6 +299,8 @@ class ContentWindow extends HTMLElement {
           text.style.color = backgroundColor;
         }
       }
+
+      this.state.search = this.config.details.search;
     }
 
     // If loading about:blank, no need for a loader.

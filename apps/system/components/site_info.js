@@ -18,8 +18,16 @@ class SiteInfo extends HTMLElement {
         </div>
       </h4>
       <sl-divider></sl-divider>
+      <div class="utils search">
+        <sl-dropdown placement="top-start" hoist>
+          <sl-button slot="trigger" caret></sl-button>
+          <sl-menu>
+          </sl-menu>
+        </sl-dropdown>
+        <span class="flex-fill"></span>
+      </div>
       <div class="utils">
-        <sl-button variant="neutral" size="small" class="add-home hidden" >
+        <sl-button variant="neutral" size="small" class="add-home hidden">
           <img src="resources/pwalogo.svg" height="12px">
           <span data-l10n-id="site-info-add-home"></span>
         </sl-button>
@@ -85,6 +93,9 @@ class SiteInfo extends HTMLElement {
     this.readerMode = shadow.querySelector("sl-icon.reader-mode");
     this.zoomLevel = shadow.querySelector(".zoom-level");
 
+    this.searchSection = shadow.querySelector(".search");
+    this.searchEngines = null;
+
     this.stateUpdater = this.updateState.bind(this);
     this.drawer = this.parentElement;
   }
@@ -147,9 +158,91 @@ class SiteInfo extends HTMLElement {
     }
   }
 
+  async initSearchEngines() {
+    if (this.searchEnginesReady) {
+      return;
+    }
+
+    let menu = this.searchSection.querySelector("sl-menu");
+
+    menu.addEventListener("sl-select", (event) => {
+      let resource = event.detail.item.value;
+      let desc = resource.variant("default").OpenSearchDescription;
+
+      let urls = desc.Url;
+      if (typeof urls == "string") {
+        urls = [urls];
+      }
+      let found = urls.find((item) => item._attributes.type == "text/html");
+      if (!found) {
+        return;
+      }
+      let template = found._attributes.template;
+      let encoded = encodeURIComponent(this.state.search).replace(
+        /[!'()*]/g,
+        function (c) {
+          return "%" + c.charCodeAt(0).toString(16);
+        }
+      );
+      let url = template.replace("{searchTerms}", encoded);
+      actionsDispatcher.dispatch("navigate-to", url);
+      contentManager.visitPlace(url, true);
+      this.close();
+    });
+
+    let openSearch = contentManager.getOpenSearchManager((items) => {
+      menu.innerHTML = "";
+
+      for (let item of items) {
+        let meta = item.meta;
+        if (!meta.tags.includes("enabled")) {
+          continue;
+        }
+
+        let json = item.variant("default").OpenSearchDescription;
+        let menuItem = document.createElement("sl-menu-item");
+        menuItem.value = item;
+        menuItem.innerHTML = `<div class="name"></div>
+        <img src="${item.variantUrl("icon")}" slot="prefix"/>`;
+
+        menuItem.querySelector(".name").textContent =
+          json.LongName?._text || json.ShortName?._text;
+
+        menu.append(menuItem);
+      }
+    });
+    await openSearch.init();
+    this.searchEnginesReady = true;
+  }
+
+  async showSearchEngines() {
+    let text = this.searchSection.querySelector("sl-button");
+
+    let msg = await window.utils.l10n("site-info-search", {
+      query: this.state.search,
+    });
+    text.textContent = msg;
+
+    if (!this.searchEngines) {
+      this.initSearchEngines();
+    }
+
+    this.searchSection.classList.remove("hidden");
+  }
+
+  async hideSearchEngines() {
+    this.searchSection.classList.add("hidden");
+  }
+
   updateState(_name, state) {
     // console.log(`SiteInfo::updateState() ${JSON.stringify(state)}`);
     this.state = state;
+
+    if (state.search) {
+      this.showSearchEngines();
+    } else {
+      this.hideSearchEngines();
+    }
 
     // If this is an about:reader url, get the original uri.
     if (state.url.startsWith("about:reader?url=")) {
