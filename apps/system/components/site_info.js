@@ -194,11 +194,6 @@ class SiteInfo extends HTMLElement {
       menu.innerHTML = "";
 
       for (let item of items) {
-        let meta = item.meta;
-        if (!meta.tags.includes("enabled")) {
-          continue;
-        }
-
         let json = item.variant("default").OpenSearchDescription;
         let menuItem = document.createElement("sl-menu-item");
         menuItem.value = item;
