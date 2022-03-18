@@ -760,6 +760,10 @@ class OpenSearchManager extends ContentManager {
     await this.update();
   }
 
+  hasEngine(url) {
+    return !!this.list.find((resource) => resource.meta.name == url);
+  }
+
   // Refresh the list of search engines.
   async update() {
     let cursor = await this.svc.childrenOf(this.container);

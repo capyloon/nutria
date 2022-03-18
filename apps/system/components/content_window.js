@@ -911,6 +911,9 @@ class ContentWindow extends HTMLElement {
         this.state.readerMode = detail;
         uiUpdateNeeded = true;
         break;
+      case "opensearch":
+        this.maybeAddOpenSearch(detail.href);
+        break;
       default:
         console.error(
           `${event.type} ============ for ${
@@ -925,6 +928,18 @@ class ContentWindow extends HTMLElement {
       if (!this.config.isHomescreen && eventType === "locationchange") {
         await contentManager.visitPlace(this.state.url);
       }
+    }
+  }
+
+  // Register an opensearch provider if it's not known yet.
+  async maybeAddOpenSearch(url) {
+    if (!this.openSearchManager) {
+      this.openSearchManager = contentManager.getOpenSearchManager();
+      await this.openSearchManager.init();
+    }
+
+    if (!this.openSearchManager.hasEngine(url)) {
+      await this.openSearchManager.addFromUrl(url);
     }
   }
 
