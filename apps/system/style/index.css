@@ -90,6 +90,10 @@ body.screen-off #screen {
   min-height: 26px;
 }
 
+#status-top.ftu {
+  min-height: 0;
+}
+
 #lockscreen.hidden {
   display: none;
 }

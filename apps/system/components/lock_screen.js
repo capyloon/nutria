@@ -179,9 +179,12 @@ class LockScreen extends HTMLElement {
       this.tempClose();
 
       let statusbar;
+      let statustop;
       if (options.ftu) {
         statusbar = document.getElementById("statusbar");
         statusbar.classList.add("ftu");
+        statustop = document.getElementById("status-top");
+        statustop.classList.add("ftu");
       }
 
       // Call into the window manager to launch an app in lockscreen mode.
@@ -193,6 +196,7 @@ class LockScreen extends HTMLElement {
           await this.open();
           if (options.ftu) {
             statusbar.classList.remove("ftu");
+            statustop.classList.remove("ftu");
           }
           resolve();
         },
