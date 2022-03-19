@@ -17,6 +17,18 @@ for FILE in /opt/b2gos/env.d/* ; do
     source $FILE;
 done
 
+if [ -z ${B2GOS_LAUNCH_WESTON+x} ];
+then
+    echo "B2GOS_LAUNCH_WESTON is not set: not starting weston"
+else
+    # Start Weston in kiosk mode
+    /opt/bin/weston --shell=kiosk-shell.so &
+
+    sleep 2
+fi
+
+export WAYLAND_DISPLAY=wayland-1
+
 mkdir -p ${HOME}/.b2gos/profile
 
 # Copy the daemon config file and substitute the ${HOME} value.

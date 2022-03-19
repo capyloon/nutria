@@ -28,6 +28,8 @@
 //!                  +- b2gos-mobile.desktop
 //!                  +- b2gos-desktop.desktop
 //!  /usr/lib/systemd/system/b2ghald.service
+//!  /usr/lib/systemd/system/b2gos.service
+//! /opt/{bin, include, lib, libexec, share}/... : optional custom Weston build.
 
 use crate::build_config::BuildConfig;
 use crate::common::{DesktopCommand, DesktopParams};
@@ -51,6 +53,7 @@ static PREINST: &str = include_str!("templates/debian/preinst");
 static POSTINST: &str = include_str!("templates/debian/postinst");
 static CONTROL: &str = include_str!("templates/debian/control");
 static B2GHALD_SERVICE: &str = include_str!("templates/debian/b2ghald.service");
+static B2GOS_SERVICE: &str = include_str!("templates/debian/b2gos.service");
 static PINEPHONE_ENV: &str = include_str!("templates/debian/env.d/pinephone.sh");
 
 // TODO: Move to some configuration
@@ -109,6 +112,11 @@ impl DebianTarget {
                 vec![(PINEPHONE_ENV.to_owned(), "env.d/pinephone.sh".to_owned())]
             }
         }
+    }
+
+    // Returns true if we need the custom Weston package for this target.
+    fn needs_weston(&self) -> bool {
+        self == &DebianTarget::Pinephone
     }
 }
 
@@ -223,6 +231,36 @@ impl DebianCommand {
             }
         }
 
+        // If needed, unpack the weston archive.
+        if device.needs_weston() {
+            let status = {
+                let source = BuildConfig::weston_package();
+                let _timer = Timer::start_with_message("Weston unpacked", "Unpacking weston...");
+                std::process::Command::new("tar")
+                    .arg("xf")
+                    .arg(format!("{}", source.display()))
+                    .arg("-C")
+                    .arg(format!("{}", default_output.display()))
+                    .status()
+            };
+            match status {
+                Ok(exit) => {
+                    if exit.code() != Some(0) {
+                        return Err(DebianError::Other(format!(
+                            "Unexpected result code unpacking weston: {}",
+                            exit
+                        )));
+                    }
+                }
+                Err(err) => {
+                    return Err(DebianError::Other(format!(
+                        "Failed to unpack weston: {}",
+                        err
+                    )));
+                }
+            }
+        }
+
         // Add the default prefs file.
         let prefs_dir = opt_b2gos.join("b2g").join("defaults").join("pref");
         let _ = create_dir_all(&prefs_dir);
@@ -266,6 +304,9 @@ impl DebianCommand {
         let _ = create_dir_all(&systemd);
         template!(B2GHALD_SERVICE, systemd.join("b2ghald.service"), None);
 
+        // Create /usr/lib/systemd/system/b2gos.service
+        template!(B2GOS_SERVICE, systemd.join("b2gos.service"), None);
+
         // Debian specific files.
         let debian_dir = default_output.join("DEBIAN");
         let _ = create_dir_all(&debian_dir);
@@ -273,7 +314,6 @@ impl DebianCommand {
         template!(PREINST, debian_dir.join("preinst"), Some(0o755));
         template!(POSTINST, debian_dir.join("postinst"), Some(0o755));
 
-        // TODO: don't hardcode the architecture substitution.
         let control = CONTROL
             .replace("${PKG_NAME}", PACKAGE_NAME)
             .replace("${VERSION}", PACKAGE_VERSION)

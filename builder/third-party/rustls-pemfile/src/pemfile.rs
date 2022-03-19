@@ -2,6 +2,7 @@ use base64;
 use std::io::{self, ErrorKind};
 
 /// The contents of a single recognised block in a PEM file.
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum Item {
     /// A DER-encoded x509 certificate.
@@ -12,6 +13,9 @@ pub enum Item {
 
     /// A DER-encoded plaintext private key; as specified in PKCS#8/RFC5958
     PKCS8Key(Vec<u8>),
+
+    /// A Sec1-encoded plaintext private key; as specified in RFC5915
+    ECKey(Vec<u8>),
 }
 
 impl Item {
@@ -20,6 +24,7 @@ impl Item {
             "CERTIFICATE" => Some(Item::X509Certificate(der)),
             "RSA PRIVATE KEY" => Some(Item::RSAKey(der)),
             "PRIVATE KEY" => Some(Item::PKCS8Key(der)),
+            "EC PRIVATE KEY" => Some(Item::ECKey(der)),
             _ => None,
         }
     }
@@ -46,16 +51,25 @@ pub fn read_one(rd: &mut dyn io::BufRead) -> Result<Option<Item>, io::Error> {
         if len == 0 {
             // EOF
             if end_marker.is_some() {
-                return Err(io::Error::new(ErrorKind::InvalidData, format!("section end {:?} missing", end_marker.unwrap())));
+                return Err(io::Error::new(
+                    ErrorKind::InvalidData,
+                    format!("section end {:?} missing", end_marker.unwrap()),
+                ));
             }
             return Ok(None);
         }
 
         if line.starts_with("-----BEGIN ") {
-            let trailer = line[11..].find("-----")
-                .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, format!("illegal section start: {:?}", line)))?;
+            let trailer = line[11..]
+                .find("-----")
+                .ok_or_else(|| {
+                    io::Error::new(
+                        ErrorKind::InvalidData,
+                        format!("illegal section start: {:?}", line),
+                    )
+                })?;
 
-            let ty = &line[11..11+trailer];
+            let ty = &line[11..11 + trailer];
 
             section_type = Some(ty.to_string());
             end_marker = Some(format!("-----END {}-----", ty).to_string());

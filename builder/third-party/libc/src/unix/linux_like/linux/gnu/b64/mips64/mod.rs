@@ -567,6 +567,7 @@ pub const SYS_pkey_mprotect: ::c_long = 5000 + 323;
 pub const SYS_pkey_alloc: ::c_long = 5000 + 324;
 pub const SYS_pkey_free: ::c_long = 5000 + 325;
 pub const SYS_statx: ::c_long = 5000 + 326;
+pub const SYS_rseq: ::c_long = 5000 + 327;
 pub const SYS_pidfd_send_signal: ::c_long = 5000 + 424;
 pub const SYS_io_uring_setup: ::c_long = 5000 + 425;
 pub const SYS_io_uring_enter: ::c_long = 5000 + 426;
@@ -628,12 +629,6 @@ pub const EFD_CLOEXEC: ::c_int = 0x80000;
 pub const O_DIRECT: ::c_int = 0x8000;
 pub const O_DIRECTORY: ::c_int = 0x10000;
 pub const O_NOFOLLOW: ::c_int = 0x20000;
-
-pub const RLIMIT_NOFILE: ::__rlimit_resource_t = 5;
-pub const RLIMIT_AS: ::__rlimit_resource_t = 6;
-pub const RLIMIT_RSS: ::__rlimit_resource_t = 7;
-pub const RLIMIT_NPROC: ::__rlimit_resource_t = 8;
-pub const RLIMIT_MEMLOCK: ::__rlimit_resource_t = 9;
 
 pub const O_APPEND: ::c_int = 8;
 pub const O_CREAT: ::c_int = 256;

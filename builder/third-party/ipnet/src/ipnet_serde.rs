@@ -2,7 +2,7 @@ use {IpNet, Ipv4Net, Ipv6Net};
 use std::fmt;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
-use serde::ser::{SerializeTuple};
+use serde::ser::SerializeTuple;
 use serde::de::{EnumAccess, Error, VariantAccess, Visitor};
 
 impl Serialize for IpNet {
@@ -53,7 +53,7 @@ impl<'de> Deserialize<'de> for IpNet {
                 V4,
                 V6,
             }
-            
+
             impl<'de> Visitor<'de> for EnumVisitor {
                 type Value = IpNet;
 
@@ -64,7 +64,7 @@ impl<'de> Deserialize<'de> for IpNet {
                 fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
                     where A: EnumAccess<'de>
                 {
-                    match try!(data.variant()) {
+                    match data.variant()? {
                         (IpNetKind::V4, v) => v.newtype_variant().map(IpNet::V4),
                         (IpNetKind::V6, v) => v.newtype_variant().map(IpNet::V6),
                     }
@@ -196,7 +196,7 @@ mod tests {
             Token::TupleEnd,
         ]);
     }
-    
+
     #[test]
     fn test_serialize_ipnet_v6() {
         let net_str = "fd00::/32";
@@ -225,7 +225,7 @@ mod tests {
             Token::U8(0),
             Token::U8(32),
             Token::TupleEnd,
-        ]); 
+        ]);
     }
 
     #[test]

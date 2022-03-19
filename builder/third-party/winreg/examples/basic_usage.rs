@@ -43,6 +43,11 @@ fn main() -> io::Result<()> {
     key.delete_value("TestSZ")?;
     println!("TestSZ = {}", sz_val);
 
+    key.set_value("TestMultiSZ", &vec!["written", "by", "Rust"])?;
+    let multi_sz_val: Vec<String> = key.get_value("TestMultiSZ")?;
+    key.delete_value("TestMultiSZ")?;
+    println!("TestMultiSZ = {:?}", multi_sz_val);
+
     key.set_value("TestDWORD", &1_234_567_890u32)?;
     let dword_val: u32 = key.get_value("TestDWORD")?;
     println!("TestDWORD = {}", dword_val);

@@ -16,15 +16,18 @@ Rust bindings to MS Windows Registry API. Work in progress.
 Current features:
 * Basic registry operations:
     * open/create/delete keys
+    * load application hive from a file
     * read and write values
     * seamless conversion between `REG_*` types and rust primitives
         * `String` and `OsString` <= `REG_SZ`, `REG_EXPAND_SZ` or `REG_MULTI_SZ`
-        * `String`, `&str` and `OsStr` => `REG_SZ`
+        * `String`, `&str`, `OsString`, `&OsStr` => `REG_SZ`
+        * `Vec<String>`, `Vec<OsString>` <= `REG_MULTI_SZ`
+        * `Vec<String>`, `Vec<&str>`, `Vec<OsString>`, `Vec<&OsStr>` => `REG_MULTI_SZ`
         * `u32` <=> `REG_DWORD`
         * `u64` <=> `REG_QWORD`
 * Iteration through key names and through values
 * Transactions
-* Transacted serialization of rust types into/from registry (only primitives and structures for now)
+* Transacted serialization of rust types into/from registry (only primitives, structures and maps for now)
 
 ## Usage
 
@@ -33,7 +36,7 @@ Current features:
 ```toml
 # Cargo.toml
 [dependencies]
-winreg = "0.7"
+winreg = "0.10"
 ```
 
 ```rust
@@ -78,6 +81,11 @@ fn main() -> io::Result<()> {
     let sz_val: String = key.get_value("TestSZ")?;
     key.delete_value("TestSZ")?;
     println!("TestSZ = {}", sz_val);
+
+    key.set_value("TestMultiSZ", &vec!["written", "by", "Rust"])?;
+    let multi_sz_val: Vec<String> = key.get_value("TestMultiSZ")?;
+    key.delete_value("TestMultiSZ")?;
+    println!("TestMultiSZ = {:?}", multi_sz_val);
 
     key.set_value("TestDWORD", &1234567890u32)?;
     let dword_val: u32 = key.get_value("TestDWORD")?;
@@ -132,7 +140,7 @@ fn main() -> io::Result<()> {
 ```toml
 # Cargo.toml
 [dependencies]
-winreg = { version = "0.7", features = ["transactions"] }
+winreg = { version = "0.10", features = ["transactions"] }
 ```
 
 ```rust
@@ -174,7 +182,7 @@ fn main() -> io::Result<()> {
 ```toml
 # Cargo.toml
 [dependencies]
-winreg = { version = "0.7", features = ["serialization-serde"] }
+winreg = { version = "0.10", features = ["serialization-serde"] }
 serde = "1"
 serde_derive = "1"
 ```
@@ -183,6 +191,7 @@ serde_derive = "1"
 #[macro_use]
 extern crate serde_derive;
 extern crate winreg;
+use std::collections::HashMap;
 use std::error::Error;
 use winreg::enums::*;
 
@@ -213,7 +222,10 @@ struct Test {
     t_u64: u64,
     t_usize: usize,
     t_struct: Rectangle,
+    t_map: HashMap<String, u32>,
     t_string: String,
+    #[serde(rename = "")] // empty name becomes the (Default) value in the registry
+    t_char: char,
     t_i8: i8,
     t_i16: i16,
     t_i32: i32,
@@ -223,28 +235,37 @@ struct Test {
     t_f32: f32,
 }
 
-fn main() -> Result<(), Box<Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let hkcu = winreg::RegKey::predef(HKEY_CURRENT_USER);
     let (key, _disp) = hkcu.create_subkey("Software\\RustEncode")?;
-    let v1 = Test{
+
+    let mut map = HashMap::new();
+    map.insert("".to_owned(), 0); // empty name becomes the (Default) value in the registry
+    map.insert("v1".to_owned(), 1);
+    map.insert("v2".to_owned(), 2);
+    map.insert("v3".to_owned(), 3);
+
+    let v1 = Test {
         t_bool: false,
         t_u8: 127,
         t_u16: 32768,
-        t_u32: 123456789,
-        t_u64: 123456789101112,
-        t_usize: 1234567891,
-        t_struct: Rectangle{
-            coords: Coords{ x: 55, y: 77 },
-            size: Size{ w: 500, h: 300 },
+        t_u32: 123_456_789,
+        t_u64: 123_456_789_101_112,
+        t_usize: 1_234_567_891,
+        t_struct: Rectangle {
+            coords: Coords { x: 55, y: 77 },
+            size: Size { w: 500, h: 300 },
         },
+        t_map: map,
         t_string: "test 123!".to_owned(),
+        t_char: 'a',
         t_i8: -123,
         t_i16: -2049,
         t_i32: 20100,
-        t_i64: -12345678910,
-        t_isize: -1234567890,
+        t_i64: -12_345_678_910,
+        t_isize: -1_234_567_890,
         t_f64: -0.01,
-        t_f32: 3.14,
+        t_f32: 3.15,
     };
 
     key.encode(&v1)?;
@@ -258,6 +279,36 @@ fn main() -> Result<(), Box<Error>> {
 ```
 
 ## Changelog
+
+### 0.10.1
+
+* Bump minimal required version of `winapi` to `0.3.9` (required for `load_app_key`)
+* Reexport `REG_PROCESS_APPKEY` and use it in the `load_app_key` example
+
+### 0.10.0
+
+* Add `RegKey::load_app_key()` and `RegKey::load_app_key_with_flags()` ([#30](https://github.com/gentoo90/winreg-rs/issues/30))
+* Update dev dependency `rand` to `0.8`
+* Add Github actions
+* Fix some clippy warnings
+
+### 0.9.0
+
+* Breaking change: `OsStr` and `OsString` registry values are not `NULL`-terminated any more ([#34](https://github.com/gentoo90/winreg-rs/issues/34), [#42](https://github.com/gentoo90/winreg-rs/issues/42))
+* Refactoring: use macros for `ToRegValue` impls and tests for string values
+* Fix `bare_trait_objects` warning in the doctests
+* Add `impl ToRegValue for OsString`
+* Add conversion between `REG_MULTI_SZ` and vectors of strings ([#16](https://github.com/gentoo90/winreg-rs/issues/16))
+* Fix: set minimal `winapi` version to 0.3.7 (earlier versions don't have `impl-default` and `impl-debug` features which we use)
+* Appveyor now checks the crate against `rust-1.31.1` too
+
+### 0.8.0
+
+* Implement serialization of `char` and maps
+* Implement `std::fmt::Display` for `RegValue`
+* Make `RegKey::{predef,raw_handle,enum_keys,enum_values}` functions `const`
+* Give a better error message when compiling on platforms other than Windows ([#38](https://github.com/gentoo90/winreg-rs/pull/38))
+* Tests are moved from `src/lib.rs` to `tests/reg_key.rs`
 
 ### 0.7.0
 

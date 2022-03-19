@@ -121,11 +121,11 @@ impl<'de, 'a> Deserializer<'de> for &'a mut Decoder {
         visitor.visit_f64(parse_string!(self)?)
     }
 
-    fn deserialize_char<V>(self, _visitor: V) -> DecodeResult<V::Value>
+    fn deserialize_char<V>(self, visitor: V) -> DecodeResult<V::Value>
     where
         V: Visitor<'de>,
     {
-        no_impl!("deserialize_char")
+        self.deserialize_string(visitor)
     }
 
     fn deserialize_str<V>(self, _visitor: V) -> DecodeResult<V::Value>

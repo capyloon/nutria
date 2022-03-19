@@ -23,8 +23,8 @@ impl<'a> Serializer for &'a mut Encoder {
     type SerializeTuple = TupleEncoder;
     type SerializeTupleStruct = TupleStructEncoder;
     type SerializeTupleVariant = TupleVariantEncoder;
-    type SerializeMap = MapEncoder<'a>;
-    type SerializeStruct = StructEncoder<'a>;
+    type SerializeMap = StructMapEncoder<'a>;
+    type SerializeStruct = StructMapEncoder<'a>;
     type SerializeStructVariant = StructVariantEncoder;
 
     fn serialize_bool(self, value: bool) -> EncodeResult<Self::Ok> {
@@ -74,8 +74,10 @@ impl<'a> Serializer for &'a mut Encoder {
         emit_value!(self, s)
     }
 
-    fn serialize_char(self, _value: char) -> EncodeResult<Self::Ok> {
-        no_impl!("serialize_char")
+    fn serialize_char(self, value: char) -> EncodeResult<Self::Ok> {
+        let mut s = String::new();
+        s.push(value);
+        emit_value!(self, s)
     }
 
     fn serialize_str(self, value: &str) -> EncodeResult<Self::Ok> {
@@ -156,18 +158,11 @@ impl<'a> Serializer for &'a mut Encoder {
     }
 
     fn serialize_map(self, _len: Option<usize>) -> EncodeResult<Self::SerializeMap> {
-        Ok(MapEncoder { _enc: self })
-    }
-
-    fn serialize_struct(
-        self,
-        _name: &'static str,
-        _len: usize,
-    ) -> EncodeResult<Self::SerializeStruct> {
         match mem::replace(&mut self.state, Start) {
+            // ---
             Start => {
                 // root structure
-                Ok(StructEncoder {
+                Ok(StructMapEncoder {
                     enc: self,
                     is_root: true,
                 })
@@ -181,7 +176,7 @@ impl<'a> Serializer for &'a mut Encoder {
                 ) {
                     Ok((subkey, _disp)) => {
                         self.keys.push(subkey);
-                        Ok(StructEncoder {
+                        Ok(StructMapEncoder {
                             enc: self,
                             is_root: true,
                         })
@@ -190,6 +185,14 @@ impl<'a> Serializer for &'a mut Encoder {
                 }
             }
         }
+    }
+
+    fn serialize_struct(
+        self,
+        _name: &'static str,
+        _len: usize,
+    ) -> EncodeResult<Self::SerializeStruct> {
+        self.serialize_map(Some(_len))
     }
 
     fn serialize_struct_variant(
@@ -261,33 +264,194 @@ impl SerializeTupleVariant for TupleVariantEncoder {
     }
 }
 
-pub struct MapEncoder<'a> {
-    _enc: &'a mut Encoder,
-}
+struct MapKeySerializer;
 
-impl<'a> SerializeMap for MapEncoder<'a> {
-    type Ok = ();
+impl serde::Serializer for MapKeySerializer {
+    type Ok = String;
     type Error = EncoderError;
 
-    fn serialize_key<T: ?Sized + Serialize>(&mut self, _key: &T) -> EncodeResult<Self::Ok> {
-        no_impl!("SerializeMap::serialize_key")
+    type SerializeSeq = Impossible<String, EncoderError>;
+    type SerializeTuple = Impossible<String, EncoderError>;
+    type SerializeTupleStruct = Impossible<String, EncoderError>;
+    type SerializeTupleVariant = Impossible<String, EncoderError>;
+    type SerializeMap = Impossible<String, EncoderError>;
+    type SerializeStruct = Impossible<String, EncoderError>;
+    type SerializeStructVariant = Impossible<String, EncoderError>;
+
+    #[inline]
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> EncodeResult<Self::Ok> {
+        Ok(variant.to_owned())
     }
 
-    fn serialize_value<T: ?Sized + Serialize>(&mut self, _value: &T) -> EncodeResult<Self::Ok> {
-        no_impl!("SerializeMap::serialize_value")
+    #[inline]
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> EncodeResult<Self::Ok>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
     }
 
-    fn end(self) -> EncodeResult<Self::Ok> {
-        no_impl!("SerializeMap::end")
+    fn serialize_bool(self, _value: bool) -> EncodeResult<Self::Ok> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_i8(self, value: i8) -> EncodeResult<Self::Ok> {
+        Ok(value.to_string())
+    }
+
+    fn serialize_i16(self, value: i16) -> EncodeResult<Self::Ok> {
+        Ok(value.to_string())
+    }
+
+    fn serialize_i32(self, value: i32) -> EncodeResult<Self::Ok> {
+        Ok(value.to_string())
+    }
+
+    fn serialize_i64(self, value: i64) -> EncodeResult<Self::Ok> {
+        Ok(value.to_string())
+    }
+
+    fn serialize_u8(self, value: u8) -> EncodeResult<Self::Ok> {
+        Ok(value.to_string())
+    }
+
+    fn serialize_u16(self, value: u16) -> EncodeResult<Self::Ok> {
+        Ok(value.to_string())
+    }
+
+    fn serialize_u32(self, value: u32) -> EncodeResult<Self::Ok> {
+        Ok(value.to_string())
+    }
+
+    fn serialize_u64(self, value: u64) -> EncodeResult<Self::Ok> {
+        Ok(value.to_string())
+    }
+
+    fn serialize_f32(self, _value: f32) -> EncodeResult<Self::Ok> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_f64(self, _value: f64) -> EncodeResult<Self::Ok> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    #[inline]
+    fn serialize_char(self, value: char) -> EncodeResult<Self::Ok> {
+        Ok({
+            let mut s = String::new();
+            s.push(value);
+            s
+        })
+    }
+
+    #[inline]
+    fn serialize_str(self, value: &str) -> EncodeResult<Self::Ok> {
+        Ok(value.to_owned())
+    }
+
+    fn serialize_bytes(self, _value: &[u8]) -> EncodeResult<Self::Ok> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_unit(self) -> EncodeResult<Self::Ok> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_unit_struct(self, _name: &'static str) -> EncodeResult<Self::Ok> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_newtype_variant<T>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _value: &T,
+    ) -> EncodeResult<Self::Ok>
+    where
+        T: ?Sized + Serialize,
+    {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_none(self) -> EncodeResult<Self::Ok> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_some<T>(self, _value: &T) -> EncodeResult<Self::Ok>
+    where
+        T: ?Sized + Serialize,
+    {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_seq(self, _len: Option<usize>) -> EncodeResult<Self::SerializeSeq> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_tuple(self, _len: usize) -> EncodeResult<Self::SerializeTuple> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_tuple_struct(
+        self,
+        _name: &'static str,
+        _len: usize,
+    ) -> EncodeResult<Self::SerializeTupleStruct> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_tuple_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
+    ) -> EncodeResult<Self::SerializeTupleVariant> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_map(self, _len: Option<usize>) -> EncodeResult<Self::SerializeMap> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_struct(
+        self,
+        _name: &'static str,
+        _len: usize,
+    ) -> EncodeResult<Self::SerializeStruct> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn serialize_struct_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
+    ) -> EncodeResult<Self::SerializeStructVariant> {
+        Err(EncoderError::KeyMustBeAString)
+    }
+
+    fn collect_str<T: ?Sized>(self, value: &T) -> EncodeResult<String>
+    where
+        T: fmt::Display,
+    {
+        Ok(value.to_string())
     }
 }
 
-pub struct StructEncoder<'a> {
+pub struct StructMapEncoder<'a> {
     enc: &'a mut Encoder,
     is_root: bool,
 }
 
-impl<'a> SerializeStruct for StructEncoder<'a> {
+impl<'a> SerializeStruct for StructMapEncoder<'a> {
     type Ok = ();
     type Error = EncoderError;
 
@@ -297,6 +461,27 @@ impl<'a> SerializeStruct for StructEncoder<'a> {
         value: &T,
     ) -> EncodeResult<Self::Ok> {
         self.enc.state = NextKey(String::from(key));
+        value.serialize(&mut *self.enc)
+    }
+
+    fn end(self) -> EncodeResult<Self::Ok> {
+        if self.is_root {
+            self.enc.keys.pop();
+        }
+        Ok(())
+    }
+}
+
+impl<'a> SerializeMap for StructMapEncoder<'a> {
+    type Ok = ();
+    type Error = EncoderError;
+
+    fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> EncodeResult<Self::Ok> {
+        self.enc.state = NextKey(key.serialize(MapKeySerializer)?);
+        Ok(())
+    }
+
+    fn serialize_value<T: ?Sized + Serialize>(&mut self, value: &T) -> EncodeResult<Self::Ok> {
         value.serialize(&mut *self.enc)
     }
 

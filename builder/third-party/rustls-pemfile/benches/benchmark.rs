@@ -8,7 +8,12 @@ fn parse_cert() {
     let data = include_bytes!("../tests/data/certificate.chain.pem");
     let mut reader = BufReader::new(&data[..]);
 
-    assert_eq!(rustls_pemfile::certs(&mut reader).unwrap().len(), 3);
+    assert_eq!(
+        rustls_pemfile::certs(&mut reader)
+            .unwrap()
+            .len(),
+        3
+    );
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

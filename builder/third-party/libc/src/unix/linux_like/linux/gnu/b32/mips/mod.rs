@@ -516,6 +516,7 @@ pub const SYS_pkey_mprotect: ::c_long = 4000 + 363;
 pub const SYS_pkey_alloc: ::c_long = 4000 + 364;
 pub const SYS_pkey_free: ::c_long = 4000 + 365;
 pub const SYS_statx: ::c_long = 4000 + 366;
+pub const SYS_rseq: ::c_long = 4000 + 367;
 pub const SYS_pidfd_send_signal: ::c_long = 4000 + 424;
 pub const SYS_io_uring_setup: ::c_long = 4000 + 425;
 pub const SYS_io_uring_enter: ::c_long = 4000 + 426;
@@ -539,13 +540,6 @@ pub const SYS_mount_setattr: ::c_long = 4000 + 442;
 pub const O_DIRECT: ::c_int = 0x8000;
 pub const O_DIRECTORY: ::c_int = 0x10000;
 pub const O_NOFOLLOW: ::c_int = 0x20000;
-
-pub const RLIM_INFINITY: ::rlim_t = 0x7fffffff;
-pub const RLIMIT_NOFILE: ::__rlimit_resource_t = 5;
-pub const RLIMIT_AS: ::__rlimit_resource_t = 6;
-pub const RLIMIT_RSS: ::__rlimit_resource_t = 7;
-pub const RLIMIT_NPROC: ::__rlimit_resource_t = 8;
-pub const RLIMIT_MEMLOCK: ::__rlimit_resource_t = 9;
 
 pub const O_APPEND: ::c_int = 8;
 pub const O_CREAT: ::c_int = 256;

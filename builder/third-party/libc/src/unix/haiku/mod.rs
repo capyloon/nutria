@@ -33,14 +33,12 @@ pub type fd_mask = u32;
 
 pub type Elf32_Addr = u32;
 pub type Elf32_Half = u16;
-pub type Elf32_Lword = u64;
 pub type Elf32_Off = u32;
 pub type Elf32_Sword = i32;
 pub type Elf32_Word = u32;
 
 pub type Elf64_Addr = u64;
 pub type Elf64_Half = u16;
-pub type Elf64_Lword = u64;
 pub type Elf64_Off = u64;
 pub type Elf64_Sword = i32;
 pub type Elf64_Sxword = i64;
@@ -120,12 +118,12 @@ s! {
 
     pub struct ifaddrs {
         pub ifa_next: *mut ifaddrs,
-        pub ifa_name: *mut ::c_char,
+        pub ifa_name: *const ::c_char,
         pub ifa_flags: ::c_uint,
         pub ifa_addr: *mut ::sockaddr,
         pub ifa_netmask: *mut ::sockaddr,
         pub ifa_dstaddr: *mut ::sockaddr,
-        pub ida_data: *mut ::c_void,
+        pub ifa_data: *mut ::c_void,
     }
 
     pub struct fd_set {
@@ -369,6 +367,18 @@ s! {
         pub dlpi_subs: ::c_ulonglong,
         pub dlpi_tls_modid: usize,
         pub dlpi_tls_data: *mut ::c_void,
+    }
+
+    pub struct spwd {
+        pub sp_namp: *mut ::c_char,
+        pub sp_pwdp: *mut ::c_char,
+        pub sp_lstchg: ::c_int,
+        pub sp_min: ::c_int,
+        pub sp_max: ::c_int,
+        pub sp_warn: ::c_int,
+        pub sp_inact: ::c_int,
+        pub sp_expire: ::c_int,
+        pub sp_flag: ::c_int,
     }
 }
 
@@ -1516,6 +1526,40 @@ extern "C" {
         timeout: *const ::timespec,
         sigMask: *const sigset_t,
     ) -> ::c_int;
+
+    pub fn getspent() -> *mut spwd;
+    pub fn getspent_r(
+        pwd: *mut spwd,
+        buf: *mut ::c_char,
+        bufferSize: ::size_t,
+        res: *mut *mut spwd,
+    ) -> ::c_int;
+    pub fn setspent();
+    pub fn endspent();
+    pub fn getspnam(name: *const ::c_char) -> *mut spwd;
+    pub fn getspnam_r(
+        name: *const ::c_char,
+        spwd: *mut spwd,
+        buffer: *mut ::c_char,
+        bufferSize: ::size_t,
+        res: *mut *mut spwd,
+    ) -> ::c_int;
+    pub fn sgetspent(line: *const ::c_char) -> *mut spwd;
+    pub fn sgetspent_r(
+        line: *const ::c_char,
+        spwd: *mut spwd,
+        buffer: *mut ::c_char,
+        bufferSize: ::size_t,
+        res: *mut *mut spwd,
+    ) -> ::c_int;
+    pub fn fgetspent(file: *mut ::FILE) -> *mut spwd;
+    pub fn fgetspent_r(
+        file: *mut ::FILE,
+        spwd: *mut spwd,
+        buffer: *mut ::c_char,
+        bufferSize: ::size_t,
+        res: *mut *mut spwd,
+    ) -> ::c_int;
 }
 
 #[link(name = "bsd")]
@@ -1706,6 +1750,14 @@ extern "C" {
 
     pub fn login_tty(_fd: ::c_int) -> ::c_int;
     pub fn fgetln(stream: *mut ::FILE, _length: *mut ::size_t) -> *mut ::c_char;
+
+    pub fn realhostname(host: *mut ::c_char, hsize: ::size_t, ip: *const in_addr) -> ::c_int;
+    pub fn realhostname_sa(
+        host: *mut ::c_char,
+        hsize: ::size_t,
+        addr: *mut sockaddr,
+        addrlen: ::c_int,
+    ) -> ::c_int;
 }
 
 cfg_if! {

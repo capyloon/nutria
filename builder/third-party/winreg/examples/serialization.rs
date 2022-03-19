@@ -6,6 +6,7 @@
 #[macro_use]
 extern crate serde_derive;
 extern crate winreg;
+use std::collections::HashMap;
 use std::error::Error;
 use winreg::enums::*;
 
@@ -36,7 +37,10 @@ struct Test {
     t_u64: u64,
     t_usize: usize,
     t_struct: Rectangle,
+    t_map: HashMap<String, u32>,
     t_string: String,
+    #[serde(rename = "")] // empty name becomes the (Default) value in the registry
+    t_char: char,
     t_i8: i8,
     t_i16: i16,
     t_i32: i32,
@@ -44,12 +48,18 @@ struct Test {
     t_isize: isize,
     t_f64: f64,
     t_f32: f32,
-    // t_char: char,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let hkcu = winreg::RegKey::predef(HKEY_CURRENT_USER);
     let (key, _disp) = hkcu.create_subkey("Software\\RustEncode")?;
+
+    let mut map = HashMap::new();
+    map.insert("".to_owned(), 0); // empty name becomes the (Default) value in the registry
+    map.insert("v1".to_owned(), 1);
+    map.insert("v2".to_owned(), 2);
+    map.insert("v3".to_owned(), 3);
+
     let v1 = Test {
         t_bool: false,
         t_u8: 127,
@@ -61,7 +71,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             coords: Coords { x: 55, y: 77 },
             size: Size { w: 500, h: 300 },
         },
+        t_map: map,
         t_string: "test 123!".to_owned(),
+        t_char: 'a',
         t_i8: -123,
         t_i16: -2049,
         t_i32: 20100,
@@ -69,7 +81,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         t_isize: -1_234_567_890,
         t_f64: -0.01,
         t_f32: 3.15,
-        // t_char: 'a',
     };
 
     key.encode(&v1)?;

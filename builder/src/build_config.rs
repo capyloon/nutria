@@ -164,6 +164,16 @@ impl BuildConfig {
         }
     }
 
+    pub fn weston_package() -> PathBuf {
+        match env::var("NUTRIA_WESTON_PACKAGE") {
+            Ok(path) => PathBuf::from_str(&path)
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_WESTON_PACKAGE path: {}", path)),
+            Err(_) => {
+                panic!("Please set NUTRIA_WESTON_PACKAGE to the path of the Weston package.");
+            }
+        }
+    }
+
     pub fn b2ghald_binary() -> PathBuf {
         match env::var("NUTRIA_B2GHALD_BINARY") {
             Ok(path) => PathBuf::from_str(&path)

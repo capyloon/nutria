@@ -202,12 +202,6 @@ pub const RTLD_NOLOAD: ::c_int = 0x4;
 pub const VEOF: usize = 4;
 pub const __SIZEOF_PTHREAD_RWLOCK_T: usize = 56;
 
-pub const RLIMIT_RSS: ::__rlimit_resource_t = 5;
-pub const RLIMIT_AS: ::__rlimit_resource_t = 9;
-pub const RLIMIT_MEMLOCK: ::__rlimit_resource_t = 8;
-pub const RLIMIT_NOFILE: ::__rlimit_resource_t = 7;
-pub const RLIMIT_NPROC: ::__rlimit_resource_t = 6;
-
 pub const O_APPEND: ::c_int = 1024;
 pub const O_CREAT: ::c_int = 64;
 pub const O_EXCL: ::c_int = 128;
@@ -934,6 +928,7 @@ pub const SYS_preadv2: ::c_long = 380;
 pub const SYS_pwritev2: ::c_long = 381;
 pub const SYS_kexec_file_load: ::c_long = 382;
 pub const SYS_statx: ::c_long = 383;
+pub const SYS_rseq: ::c_long = 387;
 pub const SYS_pidfd_send_signal: ::c_long = 424;
 pub const SYS_io_uring_setup: ::c_long = 425;
 pub const SYS_io_uring_enter: ::c_long = 426;

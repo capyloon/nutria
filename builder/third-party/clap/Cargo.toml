@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "clap"
-version = "3.1.2"
+version = "3.1.6"
 include = ["build.rs", "src/**/*", "Cargo.toml", "LICENSE*", "README.md", "benches/**/*", "examples/**/*"]
 description = "A simple to use, efficient, and full-featured Command Line Argument Parser"
 documentation = "https://docs.rs/clap/"
@@ -139,7 +139,6 @@ required-features = ["cargo"]
 [[example]]
 name = "02_apps"
 path = "examples/tutorial_builder/02_apps.rs"
-required-features = ["cargo"]
 
 [[example]]
 name = "02_crate"
@@ -349,7 +348,7 @@ optional = true
 version = "1.2"
 
 [dependencies.clap_derive]
-version = "3.1.0"
+version = "3.1.4"
 optional = true
 
 [dependencies.indexmap]
@@ -379,7 +378,7 @@ version = "0.1.12"
 optional = true
 
 [dependencies.textwrap]
-version = "0.14.0"
+version = "0.15.0"
 features = []
 default-features = false
 
@@ -424,5 +423,6 @@ unstable-doc = ["derive", "cargo", "wrap_help", "yaml", "env", "unicode", "regex
 unstable-grouped = []
 unstable-multicall = []
 unstable-replace = []
+unstable-v4 = []
 wrap_help = ["terminal_size", "textwrap/terminal_size"]
 yaml = ["yaml-rust"]

@@ -1,11 +1,17 @@
-version: 0.7.{build}
+version: 0.10.{build}
 pull_requests:
   do_not_increment_build_number: true
+
+branches:
+  except:
+    - github-actions
 
 os: Visual Studio 2015
 
 environment:
   matrix:
+    - TARGET: x86_64-pc-windows-msvc
+      CHANNEL: 1.31.1
     - TARGET: x86_64-pc-windows-gnu
       CHANNEL: stable
     - TARGET: x86_64-pc-windows-msvc
@@ -17,16 +23,15 @@ environment:
 
 install:
   - curl -sSf -o rustup-init.exe https://win.rustup.rs
-  - rustup-init.exe --profile=minimal --default-host %TARGET% --default-toolchain %CHANNEL% -y
+  - rustup-init.exe --profile=minimal --component rustfmt,clippy --default-host %TARGET% --default-toolchain %CHANNEL% -y
   - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
-  - rustup component add rustfmt clippy
   - rustc -Vv
   - cargo -V
 
 build: false
 
 test_script:
-  - cargo fmt --all -- --check
-  - cargo clippy --all-features --all-targets
+  - if not "%CHANNEL%"=="1.31.1" cargo fmt --all -- --check
+  - if not "%CHANNEL%"=="1.31.1" cargo clippy --all-features --all-targets
   - cargo test --release --no-default-features
   - cargo test --release --all-features

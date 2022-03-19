@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.49.0"
 name = "tracing"
-version = "0.1.31"
+version = "0.1.32"
 authors = ["Eliza Weisman <eliza@buoyant.io>", "Tokio Contributors <team@tokio.rs>"]
 description = "Application-level tracing for Rust.\n"
 homepage = "https://tokio.rs"
@@ -45,7 +45,7 @@ optional = true
 version = "0.2"
 
 [dependencies.tracing-attributes]
-version = "0.1.19"
+version = "0.1.20"
 optional = true
 
 [dependencies.tracing-core]

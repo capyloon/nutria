@@ -1527,6 +1527,8 @@ pub const B3500000: ::speed_t = 0o010016;
 pub const B4000000: ::speed_t = 0o010017;
 pub const IBSHIFT: ::tcflag_t = 16;
 
+pub const BLKIOMIN: ::c_int = 0x1278;
+pub const BLKIOOPT: ::c_int = 0x1279;
 pub const BLKSSZGET: ::c_int = 0x1268;
 pub const BLKPBSZGET: ::c_int = 0x127B;
 
@@ -2470,6 +2472,9 @@ pub const MPOL_PREFERRED: ::c_int = 1;
 pub const MPOL_BIND: ::c_int = 2;
 pub const MPOL_INTERLEAVE: ::c_int = 3;
 pub const MPOL_LOCAL: ::c_int = 4;
+pub const MPOL_F_NUMA_BALANCING: ::c_int = 1 << 13;
+pub const MPOL_F_RELATIVE_NODES: ::c_int = 1 << 14;
+pub const MPOL_F_STATIC_NODES: ::c_int = 1 << 15;
 
 // bits/seek_constants.h
 pub const SEEK_DATA: ::c_int = 3;

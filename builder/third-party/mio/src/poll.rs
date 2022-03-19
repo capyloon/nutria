@@ -234,6 +234,47 @@ pub struct Registry {
 }
 
 impl Poll {
+    cfg_os_poll! {
+        /// Return a new `Poll` handle.
+        ///
+        /// This function will make a syscall to the operating system to create
+        /// the system selector. If this syscall fails, `Poll::new` will return
+        /// with the error.
+        ///
+        /// See [struct] level docs for more details.
+        ///
+        /// [struct]: struct.Poll.html
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// # use std::error::Error;
+        /// # fn main() -> Result<(), Box<dyn Error>> {
+        /// use mio::{Poll, Events};
+        /// use std::time::Duration;
+        ///
+        /// let mut poll = match Poll::new() {
+        ///     Ok(poll) => poll,
+        ///     Err(e) => panic!("failed to create Poll instance; err={:?}", e),
+        /// };
+        ///
+        /// // Create a structure to receive polled events
+        /// let mut events = Events::with_capacity(1024);
+        ///
+        /// // Wait for events, but none will be received because no
+        /// // `event::Source`s have been registered with this `Poll` instance.
+        /// poll.poll(&mut events, Some(Duration::from_millis(500)))?;
+        /// assert!(events.is_empty());
+        /// #     Ok(())
+        /// # }
+        /// ```
+        pub fn new() -> io::Result<Poll> {
+            sys::Selector::new().map(|selector| Poll {
+                registry: Registry { selector },
+            })
+        }
+    }
+
     /// Create a separate `Registry` which can be used to register
     /// `event::Source`s.
     pub fn registry(&self) -> &Registry {
@@ -335,49 +376,6 @@ impl Poll {
     /// [struct]: #
     pub fn poll(&mut self, events: &mut Events, timeout: Option<Duration>) -> io::Result<()> {
         self.registry.selector.select(events.sys(), timeout)
-    }
-}
-
-cfg_os_poll! {
-    impl Poll {
-        /// Return a new `Poll` handle.
-        ///
-        /// This function will make a syscall to the operating system to create
-        /// the system selector. If this syscall fails, `Poll::new` will return
-        /// with the error.
-        ///
-        /// See [struct] level docs for more details.
-        ///
-        /// [struct]: struct.Poll.html
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// # use std::error::Error;
-        /// # fn main() -> Result<(), Box<dyn Error>> {
-        /// use mio::{Poll, Events};
-        /// use std::time::Duration;
-        ///
-        /// let mut poll = match Poll::new() {
-        ///     Ok(poll) => poll,
-        ///     Err(e) => panic!("failed to create Poll instance; err={:?}", e),
-        /// };
-        ///
-        /// // Create a structure to receive polled events
-        /// let mut events = Events::with_capacity(1024);
-        ///
-        /// // Wait for events, but none will be received because no
-        /// // `event::Source`s have been registered with this `Poll` instance.
-        /// poll.poll(&mut events, Some(Duration::from_millis(500)))?;
-        /// assert!(events.is_empty());
-        /// #     Ok(())
-        /// # }
-        /// ```
-        pub fn new() -> io::Result<Poll> {
-            sys::Selector::new().map(|selector| Poll {
-                registry: Registry { selector },
-            })
-        }
     }
 }
 
@@ -637,6 +635,7 @@ impl Registry {
     ///
     /// Event sources registered with this `Registry` will be registered with
     /// the original `Registry` and `Poll` instance.
+    #[cfg(not(target_os = "wasi"))]
     pub fn try_clone(&self) -> io::Result<Registry> {
         self.selector
             .try_clone()
@@ -645,7 +644,7 @@ impl Registry {
 
     /// Internal check to ensure only a single `Waker` is active per [`Poll`]
     /// instance.
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, not(target_os = "wasi")))]
     pub(crate) fn register_waker(&self) {
         assert!(
             !self.selector.register_waker(),
@@ -654,6 +653,7 @@ impl Registry {
     }
 
     /// Get access to the `sys::Selector`.
+    #[cfg(any(not(target_os = "wasi"), feature = "net"))]
     pub(crate) fn selector(&self) -> &sys::Selector {
         &self.selector
     }

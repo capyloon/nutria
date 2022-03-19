@@ -13,7 +13,7 @@
 //!```toml,ignore
 //!# Cargo.toml
 //![dependencies]
-//!winreg = "0.7"
+//!winreg = "0.10"
 //!```
 //!
 //!```no_run
@@ -58,6 +58,11 @@
 //!    let sz_val: String = key.get_value("TestSZ")?;
 //!    key.delete_value("TestSZ")?;
 //!    println!("TestSZ = {}", sz_val);
+//!
+//!    key.set_value("TestMultiSZ", &vec!["written", "by", "Rust"])?;
+//!    let multi_sz_val: Vec<String> = key.get_value("TestMultiSZ")?;
+//!    key.delete_value("TestMultiSZ")?;
+//!    println!("TestMultiSZ = {:?}", multi_sz_val);
 //!
 //!    key.set_value("TestDWORD", &1234567890u32)?;
 //!    let dword_val: u32 = key.get_value("TestDWORD")?;
@@ -202,7 +207,7 @@ macro_rules! format_reg_value {
     };
 }
 
-impl fmt::Debug for RegValue {
+impl fmt::Display for RegValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let f_val = match self.vtype {
             REG_SZ | REG_EXPAND_SZ | REG_MULTI_SZ => format_reg_value!(self => String),
@@ -210,7 +215,13 @@ impl fmt::Debug for RegValue {
             REG_QWORD => format_reg_value!(self => u64),
             _ => format!("{:?}", self.bytes), //TODO: implement more types
         };
-        write!(f, "RegValue({:?}: {})", self.vtype, f_val)
+        write!(f, "{}", f_val)
+    }
+}
+
+impl fmt::Debug for RegValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "RegValue({:?}: {})", self.vtype, self)
     }
 }
 
@@ -243,8 +254,63 @@ impl RegKey {
     /// # use winreg::enums::*;
     /// let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     /// ```
-    pub fn predef(hkey: HKEY) -> RegKey {
+    pub const fn predef(hkey: HKEY) -> RegKey {
         RegKey { hkey }
+    }
+
+    /// Load a registry hive from a file as an application hive.
+    /// If `lock` is set to `true`, then the hive cannot be loaded again until
+    /// it's unloaded (i.e. all keys from it go out of scope).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use std::error::Error;
+    /// # use winreg::RegKey;
+    /// # use winreg::enums::*;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// let handle = RegKey::load_app_key("C:\\myhive.dat", false)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn load_app_key<N: AsRef<OsStr>>(filename: N, lock: bool) -> io::Result<RegKey> {
+        let options = if lock {
+            winapi_reg::REG_PROCESS_APPKEY
+        } else {
+            0
+        };
+        RegKey::load_app_key_with_flags(filename, enums::KEY_ALL_ACCESS, options)
+    }
+
+    /// Load a registry hive from a file as an application hive with desired
+    /// permissions and options. If `options` is set to `REG_PROCESS_APPKEY`,
+    /// then the hive cannot be loaded again until it's unloaded (i.e. all keys
+    /// from it go out of scope).
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use std::error::Error;
+    /// # use winreg::RegKey;
+    /// # use winreg::enums::*;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// let handle = RegKey::load_app_key_with_flags("C:\\myhive.dat", KEY_READ, 0)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn load_app_key_with_flags<N: AsRef<OsStr>>(
+        filename: N,
+        perms: winapi_reg::REGSAM,
+        options: DWORD,
+    ) -> io::Result<RegKey> {
+        let c_filename = to_utf16(filename);
+        let mut new_hkey: HKEY = ptr::null_mut();
+        match unsafe {
+            winapi_reg::RegLoadAppKeyW(c_filename.as_ptr(), &mut new_hkey, perms, options, 0)
+                as DWORD
+        } {
+            0 => Ok(RegKey { hkey: new_hkey }),
+            err => werr!(err),
+        }
     }
 
     /// Return inner winapi HKEY of a key:
@@ -255,14 +321,14 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     /// let soft = hklm.open_subkey("SOFTWARE")?;
     /// let handle = soft.raw_handle();
     /// # Ok(())
     /// # }
     /// ```
-    pub fn raw_handle(&self) -> HKEY {
+    pub const fn raw_handle(&self) -> HKEY {
         self.hkey
     }
 
@@ -277,7 +343,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let soft = RegKey::predef(HKEY_CURRENT_USER)
     ///     .open_subkey("Software")?;
     /// # Ok(())
@@ -296,7 +362,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     /// hklm.open_subkey_with_flags("SOFTWARE\\Microsoft", KEY_READ)?;
     /// # Ok(())
@@ -367,7 +433,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     /// let (settings, disp) = hkcu.create_subkey("Software\\MyProduct\\Settings")?;
     ///
@@ -464,7 +530,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     /// let src = hkcu.open_subkey_with_flags("Software\\MyProduct", KEY_READ)?;
     /// let (dst, dst_disp) = hkcu.create_subkey("Software\\MyProduct\\Section2")?;
@@ -518,7 +584,7 @@ impl RegKey {
     ///     println!("{}", i);
     /// }
     /// ```
-    pub fn enum_keys(&self) -> EnumKeys {
+    pub const fn enum_keys(&self) -> EnumKeys {
         EnumKeys {
             key: self,
             index: 0,
@@ -533,7 +599,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let system = RegKey::predef(HKEY_LOCAL_MACHINE)
     ///     .open_subkey_with_flags("HARDWARE\\DESCRIPTION\\System", KEY_READ)?;
     /// for (name, value) in system.enum_values().map(|x| x.unwrap()) {
@@ -542,7 +608,7 @@ impl RegKey {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn enum_values(&self) -> EnumValues {
+    pub const fn enum_values(&self) -> EnumValues {
         EnumValues {
             key: self,
             index: 0,
@@ -559,7 +625,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// RegKey::predef(HKEY_CURRENT_USER)
     ///     .delete_subkey(r"Software\MyProduct\History")?;
     /// # Ok(())
@@ -577,7 +643,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// // delete the key from the 32-bit registry view
     /// RegKey::predef(HKEY_LOCAL_MACHINE)
     ///     .delete_subkey_with_flags(r"Software\MyProduct\History", KEY_WOW64_32KEY)?;
@@ -646,7 +712,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// RegKey::predef(HKEY_CURRENT_USER)
     ///     .delete_subkey_all("Software\\MyProduct")?;
     /// # Ok(())
@@ -681,7 +747,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     /// let settings = hkcu.open_subkey("Software\\MyProduct\\Settings")?;
     /// let server: String = settings.get_value("server")?;
@@ -705,7 +771,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     /// let settings = hkcu.open_subkey("Software\\MyProduct\\Settings")?;
     /// let data = settings.get_raw_value("data")?;
@@ -761,7 +827,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     /// let (settings, disp) = hkcu.create_subkey("Software\\MyProduct\\Settings")?;
     /// settings.set_value("server", &"www.example.com")?;
@@ -782,7 +848,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// use winreg::{RegKey, RegValue};
     /// use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     /// let settings = hkcu.open_subkey("Software\\MyProduct\\Settings")?;
     /// let bytes: Vec<u8> = vec![1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
@@ -819,7 +885,7 @@ impl RegKey {
     /// # use std::error::Error;
     /// # use winreg::RegKey;
     /// # use winreg::enums::*;
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     /// let settings = hkcu.open_subkey("Software\\MyProduct\\Settings")?;
     /// settings.delete_value("data")?;
@@ -862,7 +928,7 @@ impl RegKey {
     ///     show_in_tray: bool,
     /// }
     ///
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let s: Settings = Settings{
     ///     current_dir: "C:\\".to_owned(),
     ///     window_pos: Rectangle{ x:200, y: 100, w: 800, h: 500 },
@@ -909,7 +975,7 @@ impl RegKey {
     ///     show_in_tray: bool,
     /// }
     ///
-    /// # fn main() -> Result<(), Box<Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let s_key = RegKey::predef(HKEY_CURRENT_USER)
     ///     .open_subkey("Software\\MyProduct\\Settings")?;
     /// let s: Settings = s_key.decode()?;
@@ -935,6 +1001,7 @@ impl RegKey {
 
     fn enum_key(&self, index: DWORD) -> Option<io::Result<String>> {
         let mut name_len = 2048;
+        #[allow(clippy::unnecessary_cast)]
         let mut name = [0 as WCHAR; 2048];
         match unsafe {
             winapi_reg::RegEnumKeyExW(
@@ -959,6 +1026,7 @@ impl RegKey {
 
     fn enum_value(&self, index: DWORD) -> Option<io::Result<(String, RegValue)>> {
         let mut name_len = 2048;
+        #[allow(clippy::unnecessary_cast)]
         let mut name = [0 as WCHAR; 2048];
 
         let mut buf_len: DWORD = 2048;
@@ -1072,304 +1140,4 @@ fn to_utf16<P: AsRef<OsStr>>(s: P) -> Vec<u16> {
 
 fn v16_to_v8(v: &[u16]) -> Vec<u8> {
     unsafe { slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 2).to_vec() }
-}
-
-#[cfg(all(test, feature = "serialization-serde"))]
-#[macro_use]
-extern crate serde_derive;
-
-#[cfg(test)]
-#[cfg_attr(feature = "clippy", allow(option_unwrap_used))]
-#[cfg_attr(feature = "clippy", allow(result_unwrap_used))]
-mod test {
-    extern crate rand;
-    use self::rand::Rng;
-    use super::*;
-    use std::collections::HashMap;
-    use std::ffi::{OsStr, OsString};
-
-    #[test]
-    fn test_raw_handle() {
-        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-        let handle = hklm.raw_handle();
-        assert_eq!(HKEY_LOCAL_MACHINE, handle);
-    }
-
-    #[test]
-    fn test_open_subkey_with_flags_query_info() {
-        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-        let win = hklm
-            .open_subkey_with_flags("Software\\Microsoft\\Windows", KEY_READ)
-            .unwrap();
-
-        let info = win.query_info().unwrap();
-        info.get_last_write_time_system();
-        #[cfg(feature = "chrono")]
-        info.get_last_write_time_chrono();
-
-        assert!(win
-            .open_subkey_with_flags("CurrentVersion\\", KEY_READ)
-            .is_ok());
-        assert!(hklm
-            .open_subkey_with_flags("i\\just\\hope\\nobody\\created\\that\\key", KEY_READ)
-            .is_err());
-    }
-
-    #[test]
-    fn test_create_subkey_disposition() {
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let path = "Software\\WinRegRsTestCreateSubkey";
-        let (_subkey, disp) = hkcu.create_subkey(path).unwrap();
-        assert_eq!(disp, REG_CREATED_NEW_KEY);
-        let (_subkey2, disp2) = hkcu.create_subkey(path).unwrap();
-        assert_eq!(disp2, REG_OPENED_EXISTING_KEY);
-        hkcu.delete_subkey_all(&path).unwrap();
-    }
-
-    macro_rules! with_key {
-        ($k:ident, $path:expr => $b:block) => {{
-            let mut path = "Software\\WinRegRsTest".to_owned();
-            path.push_str($path);
-            let ($k, _disp) = RegKey::predef(HKEY_CURRENT_USER)
-                .create_subkey(&path).unwrap();
-            $b
-            RegKey::predef(HKEY_CURRENT_USER)
-            .delete_subkey_all(path).unwrap();
-        }}
-    }
-
-    #[test]
-    fn test_delete_subkey() {
-        let path = "Software\\WinRegRsTestDeleteSubkey";
-        RegKey::predef(HKEY_CURRENT_USER)
-            .create_subkey(path)
-            .unwrap();
-        assert!(RegKey::predef(HKEY_CURRENT_USER)
-            .delete_subkey(path)
-            .is_ok());
-    }
-
-    #[test]
-    fn test_delete_subkey_with_flags() {
-        let path = "Software\\Classes\\WinRegRsTestDeleteSubkeyWithFlags";
-        RegKey::predef(HKEY_CURRENT_USER)
-            .create_subkey_with_flags(path, KEY_WOW64_32KEY)
-            .unwrap();
-        assert!(RegKey::predef(HKEY_CURRENT_USER)
-            .delete_subkey_with_flags(path, KEY_WOW64_32KEY)
-            .is_ok());
-    }
-
-    #[test]
-    fn test_copy_tree() {
-        with_key!(key, "CopyTree" => {
-            let (sub_tree, _sub_tree_disp) = key.create_subkey("Src\\Sub\\Tree").unwrap();
-            for v in &["one", "two", "three"] {
-                sub_tree.set_value(v, v).unwrap();
-            }
-            let (dst, _dst_disp) = key.create_subkey("Dst").unwrap();
-            assert!(key.copy_tree("Src", &dst).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_long_value() {
-        with_key!(key, "LongValue" => {
-            let name = "RustLongVal";
-            let val1 = RegValue { vtype: REG_BINARY, bytes: (0..6000).map(|_| rand::random::<u8>()).collect() };
-            key.set_raw_value(name, &val1).unwrap();
-            let val2 = key.get_raw_value(name).unwrap();
-            assert_eq!(val1, val2);
-        });
-    }
-
-    #[test]
-    fn test_string_value() {
-        with_key!(key, "StringValue" => {
-            let name = "RustStringVal";
-            let val1 = "Test123 \n$%^&|+-*/\\()".to_owned();
-            key.set_value(name, &val1).unwrap();
-            let val2: String = key.get_value(name).unwrap();
-            assert_eq!(val1, val2);
-        });
-    }
-
-    #[test]
-    fn test_long_string_value() {
-        with_key!(key, "LongStringValue" => {
-            let name = "RustLongStringVal";
-            let val1 : String = rand::thread_rng().gen_ascii_chars().take(7000).collect();
-            key.set_value(name, &val1).unwrap();
-            let val2: String = key.get_value(name).unwrap();
-            assert_eq!(val1, val2);
-        });
-    }
-
-    #[test]
-    fn test_os_string_value() {
-        with_key!(key, "OsStringValue" => {
-            let name = "RustOsStringVal";
-            let val1 = OsStr::new("Test123 \n$%^&|+-*/\\()\u{0}");
-            key.set_value(name, &val1).unwrap();
-            let val2: OsString = key.get_value(name).unwrap();
-            assert_eq!(val1, val2);
-        });
-    }
-
-    #[test]
-    fn test_long_os_string_value() {
-        with_key!(key, "LongOsStringValue" => {
-        let name = "RustLongOsStringVal";
-        let mut val1 = rand::thread_rng().gen_ascii_chars().take(7000).collect::<String>();
-        val1.push('\u{0}');
-        let val1 = OsStr::new(&val1);
-        key.set_value(name, &val1).unwrap();
-        let val2: OsString = key.get_value(name).unwrap();
-        assert_eq!(val1, val2);
-        });
-    }
-
-    #[test]
-    fn test_u32_value() {
-        with_key!(key, "U32Value" => {
-            let name = "RustU32Val";
-            let val1 = 1_234_567_890u32;
-            key.set_value(name, &val1).unwrap();
-            let val2: u32 = key.get_value(name).unwrap();
-            assert_eq!(val1, val2);
-        });
-    }
-
-    #[test]
-    fn test_u64_value() {
-        with_key!(key, "U64Value" => {
-            let name = "RustU64Val";
-            let val1 = 1_234_567_891_011_121_314u64;
-            key.set_value(name, &val1).unwrap();
-            let val2: u64 = key.get_value(name).unwrap();
-            assert_eq!(val1, val2);
-        });
-    }
-
-    #[test]
-    fn test_delete_value() {
-        with_key!(key, "DeleteValue" => {
-            let name = "WinregRsTestVal";
-            key.set_value(name, &"Qwerty123").unwrap();
-            assert!(key.delete_value(name).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_enum_keys() {
-        with_key!(key, "EnumKeys" => {
-            let mut keys1 = vec!("qwerty", "asdf", "1", "2", "3", "5", "8", "йцукен");
-            keys1.sort();
-            for i in &keys1 {
-                key.create_subkey(i).unwrap();
-            }
-            let keys2: Vec<_> = key.enum_keys().map(|x| x.unwrap()).collect();
-            assert_eq!(keys1, keys2);
-        });
-    }
-
-    #[test]
-    fn test_enum_values() {
-        with_key!(key, "EnumValues" => {
-            let mut vals1 = vec!("qwerty", "asdf", "1", "2", "3", "5", "8", "йцукен");
-            vals1.sort();
-            for i in &vals1 {
-                key.set_value(i,i).unwrap();
-            }
-            let mut vals2: Vec<String> = Vec::with_capacity(vals1.len());
-            let mut vals3: Vec<String> = Vec::with_capacity(vals1.len());
-            for (name, val) in key.enum_values()
-                .map(|x| x.unwrap())
-            {
-                vals2.push(name);
-                vals3.push(String::from_reg_value(&val).unwrap());
-            }
-            assert_eq!(vals1, vals2);
-            assert_eq!(vals1, vals3);
-        });
-    }
-
-    #[test]
-    fn test_enum_long_values() {
-        with_key!(key, "EnumLongValues" => {
-            let mut vals = HashMap::with_capacity(3);
-
-            for i in &[5500, 9500, 15000] {
-                let name: String = format!("val{}", i);
-                let val = RegValue { vtype: REG_BINARY, bytes: (0..*i).map(|_| rand::random::<u8>()).collect() };
-                vals.insert(name, val);
-            }
-
-            for (name, val) in key.enum_values()
-                                  .map(|x| x.unwrap())
-            {
-                assert_eq!(val.bytes, vals[&name].bytes);
-            }
-        });
-    }
-
-    #[cfg(feature = "serialization-serde")]
-    #[test]
-    fn test_serialization() {
-        #[derive(Debug, PartialEq, Serialize, Deserialize)]
-        struct Rectangle {
-            x: u32,
-            y: u32,
-            w: u32,
-            h: u32,
-        }
-
-        #[derive(Debug, PartialEq, Serialize, Deserialize)]
-        struct Test {
-            t_bool: bool,
-            t_u8: u8,
-            t_u16: u16,
-            t_u32: u32,
-            t_u64: u64,
-            t_usize: usize,
-            t_struct: Rectangle,
-            t_string: String,
-            t_i8: i8,
-            t_i16: i16,
-            t_i32: i32,
-            t_i64: i64,
-            t_isize: isize,
-            t_f64: f64,
-            t_f32: f32,
-        }
-
-        let v1 = Test {
-            t_bool: false,
-            t_u8: 127,
-            t_u16: 32768,
-            t_u32: 123_456_789,
-            t_u64: 123_456_789_101_112,
-            t_usize: 1_234_567_891,
-            t_struct: Rectangle {
-                x: 55,
-                y: 77,
-                w: 500,
-                h: 300,
-            },
-            t_string: "Test123 \n$%^&|+-*/\\()".to_owned(),
-            t_i8: -123,
-            t_i16: -2049,
-            t_i32: 20100,
-            t_i64: -12_345_678_910,
-            t_isize: -1_234_567_890,
-            t_f64: -0.01,
-            t_f32: 3.15,
-        };
-
-        with_key!(key, "Serialization" => {
-            key.encode(&v1).unwrap();
-            let v2: Test = key.decode().unwrap();
-            assert_eq!(v1, v2);
-        });
-    }
 }

@@ -479,7 +479,7 @@ impl Iterator for Ipv4AddrRange {
                 let count: u32 = self.end.saturating_sub(self.start);
 
                 // usize might only be 16 bits,
-                // so need to explicitely check for overflow.
+                // so need to explicitly check for overflow.
                 // 'usize::MAX as u32' is okay here - if usize is 64 bits,
                 // value truncates to u32::MAX
                 if count <= std::usize::MAX as u32 {

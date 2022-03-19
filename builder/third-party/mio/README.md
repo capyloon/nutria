@@ -21,6 +21,7 @@ overhead as possible over the OS abstractions.
 **API documentation**
 
 * [master](https://tokio-rs.github.io/mio/doc/mio/)
+* [v0.8](https://docs.rs/mio/^0.8)
 * [v0.7](https://docs.rs/mio/^0.7)
 * [v0.6](https://docs.rs/mio/^0.6)
 
@@ -33,7 +34,7 @@ To use `mio`, first add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-mio = "0.7"
+mio = "0.8"
 ```
 
 Next we can start using Mio. The following is quick introduction using
@@ -135,7 +136,6 @@ Currently supported platforms:
 * Linux
 * NetBSD
 * OpenBSD
-* Solaris
 * Windows
 * iOS
 * macOS
@@ -157,8 +157,10 @@ This uses the Windows AFD system to access socket readiness events.
 ### Unsupported
 
 * Haiku, see [issue #1472]
+* Solaris, see [issue #1152]
 
 [issue #1472]: https://github.com/tokio-rs/mio/issues/1472
+[issue #1152]: https://github.com/tokio-rs/mio/issues/1152
 
 ## Community
 

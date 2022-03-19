@@ -38,6 +38,7 @@ pub enum EncoderError {
     SerializerError(String),
     IoError(io::Error),
     NoFieldName,
+    KeyMustBeAString,
 }
 
 impl fmt::Display for EncoderError {

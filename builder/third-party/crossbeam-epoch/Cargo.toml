@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.36"
 name = "crossbeam-epoch"
-version = "0.9.7"
+version = "0.9.8"
 description = "Epoch-based garbage collection"
 homepage = "https://github.com/crossbeam-rs/crossbeam/tree/master/crossbeam-epoch"
 keywords = [
@@ -33,10 +33,6 @@ repository = "https://github.com/crossbeam-rs/crossbeam"
 [dependencies.cfg-if]
 version = "1"
 
-[dependencies.const_fn]
-version = "0.4.4"
-optional = true
-
 [dependencies.crossbeam-utils]
 version = "0.8.5"
 default-features = false
@@ -55,6 +51,12 @@ default-features = false
 [dev-dependencies.rand]
 version = "0.8"
 
+[dev-dependencies.rustversion]
+version = "1"
+
+[build-dependencies.autocfg]
+version = "1"
+
 [features]
 alloc = []
 default = ["std"]
@@ -62,10 +64,7 @@ loom = [
     "loom-crate",
     "crossbeam-utils/loom",
 ]
-nightly = [
-    "crossbeam-utils/nightly",
-    "const_fn",
-]
+nightly = ["crossbeam-utils/nightly"]
 std = [
     "alloc",
     "crossbeam-utils/std",

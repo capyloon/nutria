@@ -370,7 +370,6 @@ cfg_if! {
     }
 }
 
-pub const RLIM_INFINITY: ::rlim_t = !0;
 pub const VEOF: usize = 4;
 pub const RTLD_DEEPBIND: ::c_int = 0x8;
 pub const RTLD_GLOBAL: ::c_int = 0x100;
@@ -390,11 +389,6 @@ pub const O_DSYNC: ::c_int = 4096;
 pub const O_FSYNC: ::c_int = 0x101000;
 pub const O_ASYNC: ::c_int = 0x2000;
 pub const O_NDELAY: ::c_int = 0x800;
-pub const RLIMIT_NOFILE: ::__rlimit_resource_t = 7;
-pub const RLIMIT_NPROC: ::__rlimit_resource_t = 6;
-pub const RLIMIT_RSS: ::__rlimit_resource_t = 5;
-pub const RLIMIT_AS: ::__rlimit_resource_t = 9;
-pub const RLIMIT_MEMLOCK: ::__rlimit_resource_t = 8;
 
 pub const MADV_SOFT_OFFLINE: ::c_int = 101;
 pub const MAP_LOCKED: ::c_int = 0x02000;
@@ -1026,6 +1020,7 @@ pub const SYS_pkey_mprotect: ::c_long = 380;
 pub const SYS_pkey_alloc: ::c_long = 381;
 pub const SYS_pkey_free: ::c_long = 382;
 pub const SYS_statx: ::c_long = 383;
+pub const SYS_rseq: ::c_long = 386;
 pub const SYS_pidfd_send_signal: ::c_long = 424;
 pub const SYS_io_uring_setup: ::c_long = 425;
 pub const SYS_io_uring_enter: ::c_long = 426;

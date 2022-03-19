@@ -9,6 +9,9 @@ poor and doing so doesn't address a meaningful threat model.
 [![Documentation](https://docs.rs/rustls-pemfile/badge.svg)](https://docs.rs/rustls-pemfile/)
 
 # Release history
+- 0.3.0 (2022-02-05)
+  * Add SEC1 EC key format support (ie, "EC PRIVATE KEY" sections) thanks to @farcaller.
+  * Make `Item` enum non-exhaustive.
 - 0.2.1 (2021-04-17)
   * Performance improvements thanks to @zz85.
 - 0.2.0 (2020-12-28)

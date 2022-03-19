@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "clap_derive"
-version = "3.1.2"
+version = "3.1.4"
 include = ["src/**/*", "Cargo.toml", "LICENSE-*", "README.md"]
 description = "Parse command line argument by defining a struct, derive crate."
 documentation = "https://docs.rs/clap_derive"
@@ -25,6 +25,7 @@ repository = "https://github.com/clap-rs/clap/tree/master/clap_derive"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [package.metadata.release]
+dependent-version = "upgrade"
 shared-version = true
 tag-name = "v{{version}}"
 

@@ -40,6 +40,7 @@ use ipext::{IpAdd, IpSub, IpStep, IpAddrRange, Ipv4AddrRange, Ipv6AddrRange};
 /// assert_eq!(Ok(net.network()), "fd00::".parse());
 /// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "json", derive(schemars::JsonSchema))]
 pub enum IpNet {
     V4(Ipv4Net),
     V6(Ipv6Net),
@@ -56,7 +57,7 @@ pub enum IpNet {
 /// addresses represented in CIDR notation. See [IETF RFC 4632] for the
 /// CIDR notation.
 ///
-/// [`IpNet`]: enum.IpAddr.html
+/// [`IpNet`]: enum.IpNet.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 /// [IETF RFC 4632]: https://tools.ietf.org/html/rfc4632
 ///
@@ -70,6 +71,7 @@ pub enum IpNet {
 /// assert_eq!(Ok(net.network()), "10.1.1.0".parse());
 /// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "json", derive(schemars::JsonSchema))]
 pub struct Ipv4Net {
     addr: Ipv4Addr,
     prefix_len: u8,
@@ -86,7 +88,7 @@ pub struct Ipv4Net {
 /// addresses represented in CIDR notation. See [IETF RFC 4632] for the
 /// CIDR notation.
 ///
-/// [`IpNet`]: enum.IpAddr.html
+/// [`IpNet`]: enum.IpNet.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 /// [IETF RFC 4632]: https://tools.ietf.org/html/rfc4632
 ///
@@ -100,6 +102,7 @@ pub struct Ipv4Net {
 /// assert_eq!(Ok(net.network()), "fd00::".parse());
 /// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "json", derive(schemars::JsonSchema))]
 pub struct Ipv6Net {
     addr: Ipv6Addr,
     prefix_len: u8,
@@ -120,6 +123,28 @@ impl fmt::Display for PrefixLenError {
 impl Error for PrefixLenError {}
 
 impl IpNet {
+    /// Creates a new IP network address from an `IpAddr` and prefix
+    /// length.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::net::Ipv6Addr;
+    /// use ipnet::{IpNet, PrefixLenError};
+    ///
+    /// let net = IpNet::new(Ipv6Addr::LOCALHOST.into(), 48);
+    /// assert!(net.is_ok());
+    /// 
+    /// let bad_prefix_len = IpNet::new(Ipv6Addr::LOCALHOST.into(), 129);
+    /// assert_eq!(bad_prefix_len, Err(PrefixLenError));
+    /// ```
+    pub fn new(ip: IpAddr, prefix_len: u8) -> Result<IpNet, PrefixLenError> {
+        Ok(match ip {
+            IpAddr::V4(a) => Ipv4Net::new(a, prefix_len)?.into(),
+            IpAddr::V6(a) => Ipv6Net::new(a, prefix_len)?.into(),
+        })
+    }
+
     /// Returns a copy of the network with the address truncated to the
     /// prefix length.
     ///
@@ -1258,7 +1283,7 @@ impl<'a> Contains<&'a Ipv6Addr> for Ipv6Net {
 /// Generates the subnets between the provided `start` and `end` IP
 /// addresses inclusive of `end`. Each iteration generates the next
 /// network address of the largest valid size it can, while using a
-/// prefix lenth not less than `min_prefix_len`.
+/// prefix length not less than `min_prefix_len`.
 ///
 /// # Examples
 ///
@@ -1305,7 +1330,7 @@ pub enum IpSubnets {
 /// Generates the subnets between the provided `start` and `end` IP
 /// addresses inclusive of `end`. Each iteration generates the next
 /// network address of the largest valid size it can, while using a
-/// prefix lenth not less than `min_prefix_len`.
+/// prefix length not less than `min_prefix_len`.
 ///
 /// # Examples
 ///
@@ -1339,7 +1364,7 @@ pub struct Ipv4Subnets {
 /// Generates the subnets between the provided `start` and `end` IP
 /// addresses inclusive of `end`. Each iteration generates the next
 /// network address of the largest valid size it can, while using a
-/// prefix lenth not less than `min_prefix_len`.
+/// prefix length not less than `min_prefix_len`.
 ///
 /// # Examples
 ///

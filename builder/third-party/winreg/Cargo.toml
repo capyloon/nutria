@@ -12,7 +12,7 @@
 
 [package]
 name = "winreg"
-version = "0.7.0"
+version = "0.10.1"
 authors = ["Igor Shaula <gentoo90@gmail.com>"]
 description = "Rust bindings to MS Windows Registry API"
 documentation = "https://docs.rs/winreg"
@@ -23,7 +23,7 @@ license = "MIT"
 repository = "https://github.com/gentoo90/winreg-rs"
 [package.metadata.docs.rs]
 all-features = true
-default-target = "x86_64-pc-windows-msvc"
+targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]
 
 [[example]]
 name = "basic_usage"
@@ -33,11 +33,18 @@ required-features = ["chrono"]
 name = "enum"
 
 [[example]]
+name = "load_app_key"
+
+[[example]]
 name = "transactions"
 required-features = ["transactions"]
 
 [[example]]
 name = "serialization"
+required-features = ["serialization-serde"]
+
+[[example]]
+name = "map_key_serialization"
 required-features = ["serialization-serde"]
 
 [[example]]
@@ -52,13 +59,16 @@ version = "1"
 optional = true
 
 [dependencies.winapi]
-version = "0.3"
+version = "0.3.9"
 features = ["impl-default", "impl-debug", "minwindef", "minwinbase", "timezoneapi", "winerror", "winnt", "winreg", "handleapi"]
 [dev-dependencies.rand]
 version = "0.3"
 
 [dev-dependencies.serde_derive]
 version = "1"
+
+[dev-dependencies.tempfile]
+version = "~3.0"
 
 [features]
 serialization-serde = ["transactions", "serde"]

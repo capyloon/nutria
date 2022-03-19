@@ -1,17 +1,27 @@
 pub type blkcnt_t = i32;
 pub type blksize_t = i32;
 pub type clockid_t = ::c_ulong;
-pub type dev_t = u32;
+
+cfg_if! {
+    if #[cfg(target_os = "espidf")] {
+        pub type dev_t = ::c_short;
+        pub type ino_t = ::c_ushort;
+        pub type off_t = ::c_long;
+    } else {
+        pub type dev_t = u32;
+        pub type ino_t = u32;
+        pub type off_t = i64;
+    }
+}
+
 pub type fsblkcnt_t = u64;
 pub type fsfilcnt_t = u32;
 pub type id_t = u32;
-pub type ino_t = u32;
 pub type key_t = ::c_int;
 pub type loff_t = ::c_longlong;
 pub type mode_t = ::c_uint;
 pub type nfds_t = u32;
 pub type nlink_t = ::c_ushort;
-pub type off_t = i64;
 pub type pthread_t = ::c_ulong;
 pub type pthread_key_t = ::c_uint;
 pub type rlim_t = u32;
@@ -129,26 +139,6 @@ s! {
         pub tm_isdst: ::c_int,
     }
 
-    pub struct stat {
-        pub st_dev: ::dev_t,
-        pub st_ino: ::ino_t,
-        pub st_mode: ::mode_t,
-        pub st_nlink: ::nlink_t,
-        pub st_uid: ::uid_t,
-        pub st_gid: ::gid_t,
-        pub st_rdev: dev_t,
-        pub st_size: off_t,
-        pub st_atime: time_t,
-        pub st_spare1: ::c_long,
-        pub st_mtime: time_t,
-        pub st_spare2: ::c_long,
-        pub st_ctime: time_t,
-        pub st_spare3: ::c_long,
-        pub st_blksize: blksize_t,
-        pub st_blocks: blkcnt_t,
-        pub st_spare4: [::c_long; 2usize],
-    }
-
     pub struct statvfs {
         pub f_bsize: ::c_ulong,
         pub f_frsize: ::c_ulong,
@@ -161,10 +151,6 @@ s! {
         pub f_fsid: ::c_ulong,
         pub f_flag: ::c_ulong,
         pub f_namemax: ::c_ulong,
-    }
-
-    pub struct sigset_t {
-        __val: [::c_ulong; 16],
     }
 
     pub struct sigaction {
@@ -283,7 +269,14 @@ pub const __PTHREAD_RWLOCK_INT_FLAGS_SHARED: usize = 1;
 pub const PTHREAD_MUTEX_NORMAL: ::c_int = 0;
 pub const PTHREAD_MUTEX_RECURSIVE: ::c_int = 1;
 pub const PTHREAD_MUTEX_ERRORCHECK: ::c_int = 2;
-pub const FD_SETSIZE: usize = 1024;
+
+cfg_if! {
+    if #[cfg(target_os = "horizon")] {
+        pub const FD_SETSIZE: usize = 64;
+    } else {
+        pub const FD_SETSIZE: usize = 1024;
+    }
+}
 // intentionally not public, only used for fd_set
 const ULONG_SIZE: usize = 32;
 
@@ -728,6 +721,8 @@ extern "C" {
     pub fn popen(command: *const c_char, mode: *const c_char) -> *mut ::FILE;
     pub fn uname(buf: *mut ::utsname) -> ::c_int;
 }
+
+mod generic;
 
 cfg_if! {
     if #[cfg(target_os = "espidf")] {

@@ -7,7 +7,8 @@
   "aarch64-unknown-linux-gnu": {
     "api-daemon": "https://dweb.link/ipfs/bafybeiaq4h7bui3wpfxaoqh65kosfsyg52ac3o2b7j2scwjpzuoco37w4m",
     "b2ghald": "https://dweb.link/ipfs/bafkreicubnr35digo74jp7cuxsev7svgdn5szc3xfmadjrzghzgoiig5wa",
-    "b2g": "https://dweb.link/ipfs/bafybeies2ofgsp7mijjbyoyffd6uw23l6vys7hpw5xbybvmzua67qz5sf4"
+    "b2g": "https://dweb.link/ipfs/bafybeies2ofgsp7mijjbyoyffd6uw23l6vys7hpw5xbybvmzua67qz5sf4",
+    "weston": "https://dweb.link/ipfs/bafybeicjh65tebonciv2qruod42xfdi2ceijucvnmmv2i7x4a7lyhwg22u"
   },
   "x86_64-apple-darwin": {
     "api-daemon": "https://dweb.link/ipfs/bafybeicwwduee42qhlxj4j56xhcxstq4xuiy32rhpuvqo5rbtunpk57e3u",

@@ -1,3 +1,27 @@
+# 0.8.2
+
+## Added
+
+* Experimental support for Redox.
+
+# 0.8.1
+
+## Added
+
+* Add `try_io` method to all I/O types (#1551). This execute a user defined I/O
+  closure while updating Mio's internal state ensuring that the I/O type
+  receives more events if it hits a WouldBlock error. This is added to the
+  following types:
+   * `TcpStream`
+   * `UdpSocket`
+   * `UnixDatagram`
+   * `UnixStream`
+   * `unix::pipe::Sender`
+   * `unix::pipe::Receiver`
+* Basic, experimental support for `wasm32-wasi` target (#1549). Note that a lot
+  of time type are still missing, e.g. the `Waker`, and may never be possible to
+  implement.
+
 # 0.8.0
 
 ## Removed
@@ -8,6 +32,7 @@
   * udp (replaced with "net" feature).
   * uds (replaced with "net" feature).
   * pipe (replaced with "os-ext" feature).
+  * os-util (replaced with "os-ext" feature).
 * `TcpSocket` type
   (https://github.com/tokio-rs/mio/commit/02e9be41f27daf822575444fdd2b3067433a5996).
   The socket2 crate provides all the functionality and more.

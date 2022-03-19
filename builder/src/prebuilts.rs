@@ -207,6 +207,25 @@ struct PrebuiltsList {
     api_daemon: Option<String>,
     b2ghald: Option<String>,
     b2g: Option<String>,
+    weston: Option<String>,
+}
+
+fn maybe_add_package(env_file: &mut File, topdir: &Path, url: &Url, var_name: &str) {
+    // Get the last component of the url to use as the cached filename for the package.
+    if let Some(segments) = url.path_segments() {
+        match segments.last() {
+            Some(path_name) => {
+                let _ = writeln!(
+                    env_file,
+                    "export {}={}/.cache/{}",
+                    var_name,
+                    topdir.display(),
+                    path_name
+                );
+            }
+            None => error!("Failed to create NUTRIA_B2G_PACKAGE from {}", url),
+        }
+    }
 }
 
 pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), DownloadTaskError> {
@@ -285,7 +304,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
 
         if let Some(url) = &item.b2g {
             let url = Url::parse(url)?;
-            if let Err(err) = task.run((url, "prebuilts".into())) {
+            if let Err(err) = task.run((url.clone(), "prebuilts".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
                 #[cfg(target_os = "macos")]
@@ -300,6 +319,17 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
                     "export NUTRIA_B2G_BINARY={}/b2g/b2g",
                     prebuilts.display()
                 );
+
+                maybe_add_package(&mut env_file, &topdir, &url, "NUTRIA_B2G_PACKAGE");
+            }
+        }
+
+        if let Some(url) = &item.weston {
+            let url = Url::parse(url)?;
+            if let Err(err) = task.run((url.clone(), "prebuilts".into())) {
+                error!("Failed to download & unpack: {}", err);
+            } else {
+                maybe_add_package(&mut env_file, &topdir, &url, "NUTRIA_WESTON_PACKAGE");
             }
         }
 

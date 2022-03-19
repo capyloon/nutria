@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/ipnet/2.3.1")]
+#![doc(html_root_url = "https://docs.rs/ipnet/2.4.0")]
 //! Types for IPv4 and IPv6 network addresses.
 //!
 //! This module provides types and useful methods for working with IPv4
@@ -9,7 +9,7 @@
 //! consistent.
 //! 
 //! The module also provides the [`IpSubnets`], [`Ipv4Subnets`], and
-//! [`Ipv6Subnets`] types for interating over the subnets contained in
+//! [`Ipv6Subnets`] types for iterating over the subnets contained in
 //! an IP address range. The [`IpAddrRange`], [`Ipv4AddrRange`], and
 //! [`Ipv6AddrRange`] types for iterating over IP addresses in a range.
 //! And traits that extend `Ipv4Addr` and `Ipv6Addr` with methods for
@@ -55,7 +55,7 @@
 //! [`IpAdd`]: trait.IpAdd.html
 //! [`IpSub`]: trait.IpSub.html
 //! [`IpBitAnd`]: trait.IpBitAnd.html
-//! [`IpBitOr`]: trait.IpBitOr.htmll
+//! [`IpBitOr`]: trait.IpBitOr.html
 //!
 //! # Serde support
 //!
@@ -79,7 +79,6 @@
 //! [feature]: https://doc.rust-lang.org/cargo/reference/manifest.html#the-features-section
 
 #[cfg(feature = "serde")]
-#[macro_use]
 extern crate serde;
 
 pub use self::ipext::{IpAdd, IpSub, IpBitAnd, IpBitOr, IpAddrRange, Ipv4AddrRange, Ipv6AddrRange};

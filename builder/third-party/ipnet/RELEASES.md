@@ -1,5 +1,10 @@
 # Releases
 
+## Version 2.4.0
+
+* Add 'schemars' feature for deriving JSON schema #31 
+* add convenience IpNet::new method #36 
+
 ## Version 2.3.1 (2020-06-15)
 
 * Merge Fix Error::description() deprecation warning #28.
