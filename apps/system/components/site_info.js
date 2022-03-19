@@ -170,7 +170,7 @@ class SiteInfo extends HTMLElement {
       let desc = resource.variant("default").OpenSearchDescription;
 
       let urls = desc.Url;
-      if (typeof urls == "string") {
+      if (!Array.isArray(urls)) {
         urls = [urls];
       }
       let found = urls.find((item) => item._attributes.type == "text/html");

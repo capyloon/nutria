@@ -60,7 +60,7 @@ class OpenSearch {
     }
 
     let urls = desc.Url;
-    if (typeof urls == "string") {
+    if (!Array.isArray(urls)) {
       urls = [urls];
     }
     let found = urls.find((item) => item._attributes.type == uType);
