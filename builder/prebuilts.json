@@ -1,20 +1,20 @@
 {
   "x86_64-unknown-linux-gnu": {
-    "api-daemon": "https://dweb.link/ipfs/bafybeia5ypudifty6swl4vex4re2zltvz2erymskr7a725z3yg7xmwe2mq",
-    "b2ghald": "https://dweb.link/ipfs/bafkreigkkiqzdxhy7lphgaxiikluchix7roeelm3brkhinstwan7kkswfe",
-    "b2g": "https://dweb.link/ipfs/bafybeibmykob4oyggtasvhbwdacd6heporev36g6tthjokwn2linphgqzq"
+    "api-daemon": "https://dweb.link/ipfs/bafybeie55vlfrgoqe2dsi7ufoqbatkx7exsp6mhkkabzgzdif5hbt6x4qe",
+    "b2ghald": "https://dweb.link/ipfs/bafkreid5ta5d5i6q3gu7bsyoiy5uynunn236gde7o6475lhmyk7olvk6ka",
+    "b2g": "https://dweb.link/ipfs/bafybeiaqfrqykhqqakobw32q2fi7hiakg4mqgtaxsjvkeofeu74blj2z6q"
   },
   "aarch64-unknown-linux-gnu": {
-    "api-daemon": "https://dweb.link/ipfs/bafybeiha6dbd3nunyjefkbgcqhildvzuhbhqjtyfvkax6rjpg4zwyylsme",
-    "b2ghald": "https://dweb.link/ipfs/bafkreidgugarshjwom64hkas75epbcl4zmoarf7vp33jf7d3bdg5u2jl54",
-    "b2g": "https://dweb.link/ipfs/bafybeidyzn7d6do6nyi7sdqvdlhf7qiv436dypg3xvdz4mm2o4wyygffay"
+    "api-daemon": "https://dweb.link/ipfs/bafybeiaq4h7bui3wpfxaoqh65kosfsyg52ac3o2b7j2scwjpzuoco37w4m",
+    "b2ghald": "https://dweb.link/ipfs/bafkreicubnr35digo74jp7cuxsev7svgdn5szc3xfmadjrzghzgoiig5wa",
+    "b2g": "https://dweb.link/ipfs/bafybeies2ofgsp7mijjbyoyffd6uw23l6vys7hpw5xbybvmzua67qz5sf4"
   },
   "x86_64-apple-darwin": {
-    "api-daemon": "https://dweb.link/ipfs/bafybeiad3w4kxfppva22vbqdawyfprwahsf5ge53yzgew2bz2gjx5g4wa4",
-    "b2g": "https://dweb.link/ipfs/bafybeiestawzaxh4j5rmebwb2etjauvwtaigyj6jugugqr36jn7d66dfra"
+    "api-daemon": "https://dweb.link/ipfs/bafybeicwwduee42qhlxj4j56xhcxstq4xuiy32rhpuvqo5rbtunpk57e3u",
+    "b2g": "https://dweb.link/ipfs/bafybeihit3sebgq5tcvybgv6loaay6fatsa6ojdodeimdtla2s4wtusmd4"
   },
   "aarch64-apple-darwin": {
-    "api-daemon": "https://dweb.link/ipfs/bafybeif4jdcraotphnaqciqa3qbkydvgow5doo6wsnzzpt4dkui4vcsnqe",
-    "b2g": "https://dweb.link/ipfs/bafybeicrfpbcozccjyeqqpxvph6x6veou5j274c3qu3do46g3nob5dqysy"
+    "api-daemon": "https://dweb.link/ipfs/bafybeiewgg2v7mnzaigitwubdlobaujm7r5lvtau3gpelqb256wdq4x76i",
+    "b2g": "https://dweb.link/ipfs/bafybeibq6kajmh3nwf5ornthcwordb3wc3o6xhjwitgbjyozhgypm372w4"
   }
 }
