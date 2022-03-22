@@ -37,6 +37,7 @@ use crate::daemon_config::DaemonConfigKind;
 use crate::tasks::{PrepareDaemon, Task, ZipApp, USER_DESKTOP_JS};
 use crate::timer::Timer;
 use log::error;
+use std::fmt;
 use std::fs::{copy, create_dir_all, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
@@ -74,6 +75,7 @@ pub enum DebianError {
 pub enum DebianTarget {
     Desktop,
     Pinephone,
+    Librem5,
 }
 
 impl Default for DebianTarget {
@@ -86,14 +88,16 @@ impl DebianTarget {
     fn arch(&self) -> String {
         match &self {
             DebianTarget::Desktop => "x86_64-unknown-linux-gnu".to_owned(),
-            DebianTarget::Pinephone => "aarch64-unknown-linux-gnu".to_owned(),
+            DebianTarget::Pinephone | DebianTarget::Librem5 => {
+                "aarch64-unknown-linux-gnu".to_owned()
+            }
         }
     }
 
     fn deb_arch(&self) -> String {
         match &self {
             DebianTarget::Desktop => "amd64".to_owned(),
-            DebianTarget::Pinephone => "arm64".to_owned(),
+            DebianTarget::Pinephone | DebianTarget::Librem5 => "arm64".to_owned(),
         }
     }
 
@@ -101,6 +105,7 @@ impl DebianTarget {
         match &self {
             DebianTarget::Desktop => None,
             DebianTarget::Pinephone => Some("pinephone.js".to_owned()),
+            DebianTarget::Librem5 => Some("librem5.js".to_owned()),
         }
     }
 
@@ -108,7 +113,7 @@ impl DebianTarget {
     fn extra_files(&self) -> Vec<(String, String)> {
         match &self {
             DebianTarget::Desktop => vec![],
-            DebianTarget::Pinephone => {
+            DebianTarget::Pinephone | DebianTarget::Librem5 => {
                 vec![(PINEPHONE_ENV.to_owned(), "env.d/pinephone.sh".to_owned())]
             }
         }
@@ -116,7 +121,20 @@ impl DebianTarget {
 
     // Returns true if we need the custom Weston package for this target.
     fn needs_weston(&self) -> bool {
-        self == &DebianTarget::Pinephone
+        match &self {
+            DebianTarget::Desktop => false,
+            DebianTarget::Pinephone | DebianTarget::Librem5 => true,
+        }
+    }
+}
+
+impl fmt::Display for DebianTarget {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        match &self {
+            DebianTarget::Desktop => formatter.write_str("desktop"),
+            DebianTarget::Pinephone => formatter.write_str("pinephone"),
+            DebianTarget::Librem5 => formatter.write_str("librem5"),
+        }
     }
 }
 
@@ -325,8 +343,9 @@ impl DebianCommand {
             let _timer = Timer::start_with_message("Debian packaging", "Starting Debian packaging");
 
             let package_path = default_output.join(&format!(
-                "{}_{}_{}.deb",
+                "{}-{}_{}_{}.deb",
                 PACKAGE_NAME,
+                device,
                 device.arch(),
                 PACKAGE_VERSION
             ));
