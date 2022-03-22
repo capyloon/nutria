@@ -128,6 +128,10 @@ document.addEventListener(
     window["headers"].onclick = testFetch;
 
     window["geoloc"].onclick = startGeoloc;
+
+    window["vibrate"].onclick = () => {
+      navigator.vibrate(500);
+    };
   },
   { once: true }
 );
