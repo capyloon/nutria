@@ -150,6 +150,24 @@ const UAHelper = {
 
     suggestServiceWorkerProcess(scope) {
       console.log(`suggestServiceWorkerProcess ${scope}`);
+
+      let current = embedder.getContentProcesses();
+      // console.log(`suggestServiceWorkerProcess ${JSON.stringify(current)}`);
+
+      for (let process of current) {
+        if (!process.isAlive || process.willShutdown) {
+          continue;
+        }
+        for (let uri of process.tabURIs) {
+          if (uri.href.startsWith(scope)) {
+            console.log(
+              `suggestServiceWorkerProcess will re-use process ${process.processId}`
+            );
+            return process.processId;
+          }
+        }
+      }
+
       // For now don't try to be smart with Service Workers pid.
       return 0;
     },
