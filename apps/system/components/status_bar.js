@@ -159,6 +159,9 @@ class StatusBar extends HTMLElement {
     let quickLaunchElem = this.getElem(`.quicklaunch`);
     hapticFeedback.register(quickLaunchElem);
     quickLaunchElem.onpointerdown = () => {
+      if (this.isCarouselOpen) {
+        actionsDispatcher.dispatch("close-carousel");
+      }
       let activity = new WebActivity("toggle-app-list", {});
       activity.start().catch((e) => {
         console.error(e);
