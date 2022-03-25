@@ -1002,12 +1002,12 @@ class ContentWindow extends HTMLElement {
     if (this.config.isHomescreen) {
       // No need to take screenshots of the homescreen since it doesn't
       // appear in the carousel view.
-      return;
+      return Promise.resolve(new Blob());
     }
 
     // We are already waiting for a screenshot, bail out.
     if (this.screenshotId) {
-      return;
+      return Promise.resolve(new Blob());
     }
 
     return new Promise((resolve) => {
