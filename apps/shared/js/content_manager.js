@@ -801,7 +801,7 @@ class OpenSearchManager extends ContentManager {
   }
 
   // Add a new search engine from the JSON representation.
-  async addFromJson(json, url, enabled = false) {
+  async addFromJson(json, url, enabled = false, favicon = null) {
     this.log(`addFromJson ${url}, enabled=${enabled}`);
 
     await this.ready();
@@ -827,7 +827,7 @@ class OpenSearchManager extends ContentManager {
     let resource = new ContentResource(this.svc, this.http_key, meta);
 
     // Download the icon and store it as the 'icon' variant.
-    let iconUrl = json.OpenSearchDescription?.Image?._text.trim();
+    let iconUrl = json.OpenSearchDescription?.Image?._text.trim() || favicon;
     if (iconUrl) {
       await resource.updateVariantFromUrl(iconUrl, "icon");
     }
@@ -836,7 +836,7 @@ class OpenSearchManager extends ContentManager {
   }
 
   // Add a new search engine from a url.
-  async addFromUrl(url, enabled = false, substituteUrl = null) {
+  async addFromUrl(url, enabled = false, substituteUrl = null, favicon = null) {
     await this.ready();
 
     try {
@@ -855,7 +855,8 @@ class OpenSearchManager extends ContentManager {
       await this.addFromJson(
         this.xmlToJson(xml),
         substituteUrl || url,
-        enabled
+        enabled,
+        favicon
       );
     } catch (e) {
       this.error(`Failed to add search engine: ${e}`);

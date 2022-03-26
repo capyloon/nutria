@@ -941,7 +941,7 @@ class ContentWindow extends HTMLElement {
     }
 
     if (!this.openSearchManager.hasEngine(url)) {
-      await this.openSearchManager.addFromUrl(url);
+      await this.openSearchManager.addFromUrl(url, false, null, this.state.icon);
     }
   }
 
