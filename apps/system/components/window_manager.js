@@ -761,7 +761,7 @@ class WindowManager extends HTMLElement {
         // Optimistic heuristic: if blob are the exact same size, images should be the same.
         // This is obviously not true in general, but good enough here to prevent most
         // useless background updates.
-        if (blob.size === current.size) {
+        if (blob.size === current?.size) {
           screenshot.classList.add("show");
           return;
         }

@@ -22,6 +22,7 @@ body {
   flex-direction: column;
   align-items: center;
   scroll-snap-align: start;
+  height: 100%;
 }
 
 .current .city {
