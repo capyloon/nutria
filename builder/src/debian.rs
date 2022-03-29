@@ -7,6 +7,7 @@
 //!     |       +- <device specific files>
 //!     |- api-daemon
 //!     |       +- api-daemon
+//!     |       +- appscmd
 //!     |       +- config.toml
 //!     |       +- default-settings.json
 //!     |       +- http_root
@@ -214,6 +215,8 @@ impl DebianCommand {
             .expect("Failed to prepare api-daemon");
         let _ = std::fs::copy(config.daemon_binary(), daemon_dir.join("api-daemon"))
             .expect("Failed to copy api-daemon binary");
+        let _ = std::fs::copy(config.appscmd_binary(), daemon_dir.join("appscmd"))
+            .expect("Failed to copy appscmd binary");
         // Copy the default settings files to /opt/b2gos/api-daemon/default-settings.json
         let _ = std::fs::copy(
             &config.default_settings,
