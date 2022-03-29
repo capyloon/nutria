@@ -28,10 +28,8 @@ body {
   -moz-user-select: none;
 }
 
-body.screen-off #screen {
-  opacity: 0;
+body.screen-off {
   pointer-events: none;
-  background: black;
 }
 
 #logo {
@@ -94,7 +92,7 @@ body.screen-off #screen {
   min-height: 0;
 }
 
-#lockscreen.hidden {
+#lockscreen.unlocked {
   display: none;
 }
 

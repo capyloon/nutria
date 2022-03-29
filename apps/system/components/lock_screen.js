@@ -147,7 +147,7 @@ class LockScreen extends HTMLElement {
     let callback = (entries, observer) => {
       entries.forEach(async (entry) => {
         if (!this.enabled && entry.intersectionRatio > 0.999) {
-          this.close();
+          this.unlock();
         }
       });
     };
@@ -176,7 +176,7 @@ class LockScreen extends HTMLElement {
   // Returns a promise that resolves when the app is closed.
   launch(url, options = {}) {
     return new Promise((resolve) => {
-      this.tempClose();
+      this.temporaryUnlock();
 
       let statusbar;
       let statustop;
@@ -193,7 +193,7 @@ class LockScreen extends HTMLElement {
         fromLockscreen: true,
         whenClosed: async () => {
           window.wm.unlockSwipe();
-          await this.open();
+          await this.lock();
           if (options.ftu) {
             statusbar.classList.remove("ftu");
             statustop.classList.remove("ftu");
@@ -237,7 +237,7 @@ class LockScreen extends HTMLElement {
   onCheck() {
     // TODO: check the lock code.
     console.log(`Unlocking with ${this.value.get()}`);
-    this.close();
+    this.unlock();
   }
 
   onDigit(event) {
@@ -281,17 +281,16 @@ class LockScreen extends HTMLElement {
     this.shadowRoot.querySelector(".slider").scrollTo(0, 0);
   }
 
-  // close temporarily, when opening a "lockscreen app"
-  tempClose() {
+  // Unlock temporarily, when opening a "lockscreen app"
+  temporaryUnlock() {
     this.reset();
 
-    this.classList.add("hidden");
-    document.body.classList.remove("screen-off");
+    this.classList.add("unlocked");
     actionsDispatcher.dispatch("lockscreen-unlocked");
     this.clockTimer.suspend();
   }
 
-  async close() {
+  async unlock() {
     let service = await apiDaemon.getSettings();
     let expected = "0000";
     try {
@@ -311,13 +310,12 @@ class LockScreen extends HTMLElement {
 
     this.reset();
 
-    this.classList.add("hidden");
-    document.body.classList.remove("screen-off");
+    this.classList.add("unlocked");
     actionsDispatcher.dispatch("lockscreen-unlocked");
     this.clockTimer.suspend();
   }
 
-  async open() {
+  async lock() {
     actionsDispatcher.dispatch("lockscreen-locked");
     this.reset();
 
@@ -338,12 +336,19 @@ class LockScreen extends HTMLElement {
     this.updateTimeAndDate();
     this.clockTimer.resume();
 
-    document.body.classList.add("screen-off");
-    this.classList.remove("hidden");
+    this.classList.remove("unlocked");
   }
 
-  isOpen() {
-    return !this.classList.contains("hidden");
+  isLocked() {
+    return !this.classList.contains("unlocked");
+  }
+
+  setBackground(background) {
+    if (background.startsWith("url(")) {
+      this.style.backgroundImage = background;
+    } else {
+      this.style.background = background;
+    }
   }
 }
 

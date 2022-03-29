@@ -152,7 +152,7 @@ async function setupTelephony() {
 
     // If the screen is locked, launch through the lockscreen.
     let url = `http://dialer.localhost:${config.port}/index.html?incoming`;
-    if (window.lockscreen.isOpen()) {
+    if (window.lockscreen.isLocked()) {
       window.lockscreen.launch(url);
     } else {
       window.wm.openFrame(url, {
@@ -366,7 +366,7 @@ document.addEventListener(
     // Start with the lock screen on before we load the homescreen to avoid a
     // flash of the homescreen.
     await graph.waitForDeps("lockscreen comp");
-    window.lockscreen.open();
+    window.lockscreen.lock();
 
     await graph.waitForDeps("phase1");
     await graph.waitForDeps("launch");

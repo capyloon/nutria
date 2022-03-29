@@ -31,11 +31,14 @@ class WallpaperManager extends EventTarget {
     let url = this.asURL();
     this.log(`updateBackground -> ${this.url}`);
     if (url) {
-      document.body.style.backgroundImage = `url(${url}?r=${Math.random()})`;
+      let bgUrl = `url(${url}?r=${Math.random()})`
+      document.body.style.backgroundImage = bgUrl;
+      window.lockscreen.setBackground(bgUrl);
     } else {
       // Fallback to a gradient.
-      document.body.style.background =
-        "linear-gradient(135deg, rgba(131,58,180,1) 0%, rgba(253,29,29,1) 50%, rgba(252,176,69,1) 100%)";
+      let gradient = "linear-gradient(135deg, rgba(131,58,180,1) 0%, rgba(253,29,29,1) 50%, rgba(252,176,69,1) 100%)";
+      document.body.style.background = gradient;
+      window.lockscreen.setBackground(gradient);
     }
   }
 

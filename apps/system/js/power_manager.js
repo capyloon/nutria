@@ -5,12 +5,12 @@ const kDefaultIdleTimeoutSec = 30;
 class ScreenManager {
   constructor() {
     actionsDispatcher.addListener("set-screen-on", () => {
-      // document.body.classList.remove("screen-off");
+      document.body.classList.remove("screen-off");
     });
 
     actionsDispatcher.addListener("set-screen-off", () => {
       document.body.classList.add("screen-off");
-      window.lockscreen.open();
+      window.lockscreen.lock();
     });
   }
 }

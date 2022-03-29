@@ -148,7 +148,7 @@ class WindowManagerKeys {
       this.isCtrlDown &&
       event.type === "keydown" &&
       event.key === "t" &&
-      !window.lockscreen.isOpen()
+      !window.lockscreen.isLocked()
     ) {
       this.wm.goHome();
       let activity = new WebActivity("new-tab", {});
