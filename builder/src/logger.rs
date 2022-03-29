@@ -1,9 +1,11 @@
 /// A Custom logger
-use log::Level;
+use log::{Level, LevelFilter};
 use std::io::Write;
 
 pub fn init() {
     env_logger::builder()
+        .filter_module("mozdevice", LevelFilter::Error)
+        .filter_module("rustls::check", LevelFilter::Error)
         .format(|buf, record| {
             let emoji = match record.level() {
                 Level::Error => "🔴",
