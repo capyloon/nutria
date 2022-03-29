@@ -25,6 +25,9 @@ class AppsListHelper {
 }
 
 const appsList = new AppsListHelper();
+window.requestIdleCallback(() => {
+  appsList.ensureReady();
+});
 
 const kBindingsModifier = "Control";
 // Global key bindings for the homescreen.

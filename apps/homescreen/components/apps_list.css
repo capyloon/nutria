@@ -1,5 +1,6 @@
 :host {
   display: flex;
+  flex-direction: column;
   border-radius: 0.5em;
   background-color: rgba(0, 0, 0, 0.5);
   height: 0;
@@ -22,7 +23,6 @@
 }
 
 :host(.open) {
-  flex-direction: column;
   opacity: 1;
   transform: none;
   transition: all 0.3s;
