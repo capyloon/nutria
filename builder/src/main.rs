@@ -5,17 +5,18 @@ mod commands;
 mod common;
 mod daemon_config;
 mod debian;
+mod gonk;
 mod logger;
 mod newapp;
 mod prebuilts;
 mod tasks;
 mod timer;
 
-use crate::commands::{
-    DevCommand, InstallCommand, ProdCommand, PushB2gCommand, PushCommand, ResetDataCommand,
-    ResetTimeCommand, RestartCommand,
-};
+use crate::commands::{DevCommand, InstallCommand, ProdCommand};
 use crate::debian::{DebianCommand, DebianTarget};
+use crate::gonk::{
+    PushB2gCommand, PushCommand, ResetDataCommand, ResetTimeCommand, RestartCommand,
+};
 use clap::{Parser, Subcommand};
 use log::{error, info};
 use thiserror::Error;
@@ -101,7 +102,7 @@ enum Commands {
 #[derive(Error, Debug)]
 enum CommandError {
     #[error("Adb error: {0}")]
-    Adb(#[from] crate::commands::AdbError),
+    Adb(#[from] crate::gonk::AdbError),
     #[error("Io error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Configuration error: {0}")]
