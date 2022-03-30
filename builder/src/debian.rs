@@ -313,9 +313,11 @@ impl DebianCommand {
 
         // b2ghald
         let b2ghald_bin = BuildConfig::b2ghald_binary();
+        let b2ghalctl_bin = BuildConfig::b2ghalctl_binary();
         let b2ghald_dir = opt_b2gos.join("b2ghald");
         let _ = create_dir_all(&b2ghald_dir);
         copy(b2ghald_bin, b2ghald_dir.join("b2ghald"))?;
+        copy(b2ghalctl_bin, b2ghald_dir.join("b2ghalctl"))?;
         // Create /usr/lib/systemd/system/b2ghald.service
         let systemd = default_output
             .join("usr")

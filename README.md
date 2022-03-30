@@ -61,18 +61,22 @@ SUBCOMMANDS:
 ```
 
 `jackady` also relies on some environment variables to be set to control its behavior:
-| Variable                 | Description                                                                                 | Default value                              |
-| ------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| NUTRIA_OUPUT_ROOT        | The path where build artefacts are created.                                                 | `./builder/output`                         |
-| NUTRIA_API_DAEMON_ROOT   | The path to a checkout of the [`api-daemon` crate](https://github.com/capyloon/api-daemon). |                                            |
-| NUTRIA_API_DAEMON_BINARY | The path to the `api-daemon` executable built for the desktop platform.                     | `./prebuilts/${HOST_TARGET}/api-daemon`    |
-| NUTRIA_API_DAEMON_PORT   | The port on which the api-daemon should run.                                                | 80 but needs to be set to 8081 on desktop. |
-| NUTRIA_APPS_ROOT         | The path to the apps directory.                                                             | `./apps`                                   |
-| NUTRIA_APPSCMD_BINARY    | The path to the `appscmd` executable built for the desktop platform.                        | `./prebuilts/${HOST_TARGET}/appscmd`       |
-| NUTRIA_B2GHALD_BINARY    | The path to a host version of the `b2ghald` executable. Only required for debian packaging. |                                            |
-| NUTRIA_B2G_BINARY        | The path to the b2g binary used for running on desktop.                                     | `./b2g`                                    |
-| NUTRIA_B2G_PACKAGE       | The path to a b2g package that will be pushed to a device.                                  |                                            |
-| NUTRIA_PREBUILTS_JSON    | The path to a json file describing where to find prebuilts artifacts.                       |                                            |
+| Variable                 | Description                                                                                     | Default value                              |
+| ------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| NUTRIA_OUPUT_ROOT        | The path where build artefacts are created.                                                     | `./builder/output`                         |
+| NUTRIA_API_DAEMON_ROOT   | The path to a checkout of the [`api-daemon` crate](https://github.com/capyloon/api-daemon).     |                                            |
+| NUTRIA_API_DAEMON_BINARY | The path to the `api-daemon` executable built for the desktop platform.                         | `./prebuilts/${HOST_TARGET}/api-daemon`    |
+| NUTRIA_API_DAEMON_PORT   | The port on which the api-daemon should run.                                                    | 80 but needs to be set to 8081 on desktop. |
+| NUTRIA_APPS_ROOT         | The path to the apps directory.                                                                 | `./apps`                                   |
+| NUTRIA_APPSCMD_BINARY    | The path to the `appscmd` executable built for the target platform.                             | `./prebuilts/${HOST_TARGET}/appscmd`       |
+| NUTRIA_B2GHALD_BINARY    | The path to a taget version of the `b2ghald` executable. Only required for debian packaging.    |                                            |
+| NUTRIA_B2GHALCTL_BINARY  | The path to a target version of the `b2ghalctl` executable. Only required for debian packaging. |                                            |
+| NUTRIA_B2G_BINARY        | The path to the b2g binary used for running on desktop.                                         | `./b2g`                                    |
+| NUTRIA_B2G_PACKAGE       | The path to a b2g package that will be pushed to a device.                                      |                                            |
+| NUTRIA_PREBUILTS_JSON    | The path to a json file describing where to find prebuilts artifacts.                           |                                            |
+| NUTRIA_LINUX_USER        | The user name to use when connecting to a remote Linux device.                                  | mobian                                     |
+| NUTRIA_LINUX_HOST        | The hostname or ip of the remote Linux device                                                   | pinephone                                  |
+| NUTRIA_LINUX_DISABLED    | Set this variable to any value to disable detection of Linux devices.                           |                                            |
 
 ## The `clean` command
 

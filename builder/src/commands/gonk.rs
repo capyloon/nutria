@@ -1,10 +1,8 @@
 /// Gonk specific commands: device commands relying on ADB
 use crate::build_config::BuildConfig;
-use crate::tasks::{GetAppList, Task};
 use crate::timer::Timer;
 use log::{error, info};
 use mozdevice::{AndroidStorageInput, Device, Host, UnixPath};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
@@ -143,51 +141,11 @@ pub struct PushCommand {
 
 impl PushCommand {
     fn new(config: BuildConfig, requested_apps: &Option<String>) -> Self {
-        // Get the list of possible apps.
-        let task = GetAppList::new(&config);
-        let app_list = task.run(()).unwrap_or_default();
-
-        let mut source_apps = HashMap::new();
-        app_list.iter().for_each(|(name, path)| {
-            source_apps.insert(name, path.clone());
-        });
-
-        // Doing a 'push' with no constraints will push the system app.
-        let mut system_update = requested_apps.is_none();
-        let mut homescreen_update = false;
-
-        // The resulting list is the intersection of the requested and available apps.
-        let apps = match requested_apps {
-            None => app_list.iter().map(|item| item.1.clone()).collect(),
-            Some(requested_apps) => {
-                let list: Vec<String> = requested_apps.split(',').map(|s| s.to_owned()).collect();
-                let mut res = vec![];
-                for app_name in list {
-                    if let Some(path) = source_apps.get(&app_name) {
-                        res.push(path.clone());
-                        if app_name == "system" || app_name == "shared" {
-                            system_update = true;
-                        }
-                        if app_name == "homescreen" || app_name == "shared" {
-                            homescreen_update = true;
-                        }
-                    } else {
-                        error!("Requested app '{}' unknown.", app_name);
-                    }
-                }
-                res
-            }
-        };
-
-        info!("Will push apps: {:?}", apps);
-        info!(
-            "System update: {}, homescreen update: {}",
-            system_update, homescreen_update
-        );
+        let data = crate::commands::common::PushedApps::new(&config, requested_apps);
         Self {
-            apps,
-            system_update,
-            homescreen_update,
+            apps: data.apps,
+            system_update: data.system_update,
+            homescreen_update: data.homescreen_update,
             appscmd: config.appscmd_binary(),
         }
     }
@@ -383,7 +341,7 @@ impl AdbCommand for PushB2gCommand {
 }
 
 // Returns a description of the first connected android device.
-fn detect_device() -> Result<String, AdbError> {
+pub fn detect_device() -> Result<String, AdbError> {
     let host = Host::default();
     let devices = host
         .devices::<Vec<_>>()
@@ -398,7 +356,7 @@ fn detect_device() -> Result<String, AdbError> {
                     .unwrap_or_else(|| "<none>".to_owned())
             })
         });
-        Ok(format!("{} : {:?}", device.serial, desc))
+        Ok(format!("{} ({})", device.serial, desc))
     } else {
         Err(AdbError::NoDeviceFound)
     }

@@ -299,6 +299,12 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
                     prebuilts.display(),
                     target
                 );
+                let _ = writeln!(
+                    env_file,
+                    "export NUTRIA_B2GHALCTL_BINARY={}/{}/b2ghalctl",
+                    prebuilts.display(),
+                    target
+                );
             }
         }
 

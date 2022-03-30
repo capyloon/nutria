@@ -1,4 +1,4 @@
-//! High level commands.
+//! Local commands running on the desktop host.
 
 use crate::build_config::BuildConfig;
 use crate::common::{DesktopCommand, DesktopCommandError, DesktopParams};

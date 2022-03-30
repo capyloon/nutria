@@ -183,4 +183,14 @@ impl BuildConfig {
             }
         }
     }
+
+    pub fn b2ghalctl_binary() -> PathBuf {
+        match env::var("NUTRIA_B2GHALCTL_BINARY") {
+            Ok(path) => PathBuf::from_str(&path)
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_B2GHALCTL_BINARY path: {}", path)),
+            Err(_) => {
+                panic!("Please set NUTRIA_B2GHALCTL_BINARY to the path of the b2ghalctl executable.");
+            }
+        }
+    }
 }

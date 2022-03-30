@@ -4,14 +4,6 @@ cleanup() {
     pkill -P $$
 }
 
-for sig in INT QUIT HUP TERM; do
-  trap "
-    cleanup
-    trap - $sig EXIT
-    kill -s $sig "'"$$"' "$sig"
-done
-trap cleanup EXIT
-
 for FILE in /opt/b2gos/env.d/* ; do
     echo "Sourcing environment from $FILE"
     source $FILE;
@@ -20,6 +12,15 @@ done
 if [ -z ${B2GOS_LAUNCH_WESTON+x} ];
 then
     echo "B2GOS_LAUNCH_WESTON is not set: not starting weston"
+
+for sig in INT QUIT HUP TERM; do
+  trap "
+    cleanup
+    trap - $sig EXIT
+    kill -s $sig "'"$$"' "$sig"
+done
+trap cleanup EXIT
+
 else
     # Start Weston in kiosk mode
     /opt/bin/weston --shell=kiosk-shell.so &

@@ -5,18 +5,17 @@ mod commands;
 mod common;
 mod daemon_config;
 mod debian;
-mod gonk;
 mod logger;
 mod newapp;
 mod prebuilts;
 mod tasks;
 mod timer;
 
-use crate::commands::{DevCommand, InstallCommand, ProdCommand};
-use crate::debian::{DebianCommand, DebianTarget};
-use crate::gonk::{
-    PushB2gCommand, PushCommand, ResetDataCommand, ResetTimeCommand, RestartCommand,
+use crate::commands::desktop::{DevCommand, InstallCommand, ProdCommand};
+use crate::commands::gonk::{
+    PushB2gCommand, ResetDataCommand, ResetTimeCommand, RestartCommand,
 };
+use crate::debian::{DebianCommand, DebianTarget};
 use clap::{Parser, Subcommand};
 use log::{error, info};
 use thiserror::Error;
@@ -57,7 +56,7 @@ enum Commands {
         #[clap(long, short)]
         debug: bool,
     },
-    /// Gonk: push the packaged apps to the device.
+    /// Gonk/Linux: push the packaged apps to the device.
     Push {
         /// An optional comma separated list of apps.
         apps: Option<String>,
@@ -102,7 +101,7 @@ enum Commands {
 #[derive(Error, Debug)]
 enum CommandError {
     #[error("Adb error: {0}")]
-    Adb(#[from] crate::gonk::AdbError),
+    Adb(#[from] crate::commands::gonk::AdbError),
     #[error("Io error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Configuration error: {0}")]
@@ -115,6 +114,8 @@ enum CommandError {
     DownloadTaskError(#[from] crate::prebuilts::DownloadTaskError),
     #[error("new-app command error: {0}")]
     NewAppCommand(#[from] crate::newapp::NewAppCommandError),
+    #[error("Device error: {0}")]
+    Device(#[from] crate::commands::DeviceError),
 }
 
 fn main() {
@@ -191,7 +192,7 @@ fn main() {
         }
         Commands::ResetData {} => ResetDataCommand::start().map_err(|e| e.into()),
         Commands::ResetTime {} => ResetTimeCommand::start().map_err(|e| e.into()),
-        Commands::Push { apps } => PushCommand::start(config, apps).map_err(|e| e.into()),
+        Commands::Push { apps } => commands::push(config, apps).map_err(|e| e.into()),
         Commands::PushB2g { path } => PushB2gCommand::start(path).map_err(|e| e.into()),
         Commands::Restart {} => RestartCommand::start().map_err(|e| e.into()),
         Commands::Install { path } => {
@@ -216,6 +217,11 @@ fn main() {
             }
         }
         Commands::Clean {} => {
+            info!(
+                "Linux device: {:?}",
+                crate::commands::linux::detect_device()
+            );
+
             if let Err(err) = {
                 let _timer = crate::timer::Timer::start("Clean output directory");
                 std::fs::remove_dir_all(&config.output_path)
