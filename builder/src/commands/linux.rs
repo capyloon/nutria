@@ -250,3 +250,13 @@ pub fn restart() -> Result<(), LinuxError> {
     let _ = device.command("/opt/b2gos/b2ghald/b2ghalctl restart-service b2gos")?;
     Ok(())
 }
+
+/// Clears up all data (b2g profile including cache, costaeres) and restarts.
+pub fn reset_data() -> Result<(), LinuxError> {
+    let device = Device::connect()?;
+    let _ = device.command("/opt/b2gos/b2ghald/b2ghalctl stop-service b2gos")?;
+    let _ = device.command("rm -rf /home/*/.b2gos")?;
+    let _ = device.command("/opt/b2gos/b2ghald/b2ghalctl start-service b2gos")?;
+
+    Ok(())
+}

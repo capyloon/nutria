@@ -76,3 +76,16 @@ pub fn restart() -> Result<(), DeviceError> {
         },
     )
 }
+
+pub fn reset_data() -> Result<(), DeviceError> {
+    gonk_or_linux(
+        || {
+            let _ = gonk::ResetDataCommand::start()?;
+            Ok(())
+        },
+        || {
+            let _ = linux::reset_data()?;
+            Ok(())
+        },
+    )
+}

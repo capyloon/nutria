@@ -12,7 +12,7 @@ mod tasks;
 mod timer;
 
 use crate::commands::desktop::{DevCommand, InstallCommand, ProdCommand};
-use crate::commands::gonk::{PushB2gCommand, ResetDataCommand, ResetTimeCommand};
+use crate::commands::gonk::{PushB2gCommand, ResetTimeCommand};
 use crate::debian::{DebianCommand, DebianTarget};
 use clap::{Parser, Subcommand};
 use log::{error, info};
@@ -64,7 +64,7 @@ enum Commands {
         /// The full path to the Gecko package (eg. /home/user/b2g-98.0.en-US.linux-android-aarch64.tar.bz2)
         path: String,
     },
-    /// Gonk: reset the user data on the device.
+    /// Gonk/Linux: reset the user data on the device.
     ResetData {},
     /// Gonk: reset the time on device.
     ResetTime {},
@@ -188,7 +188,7 @@ fn main() {
                 ))
             }
         }
-        Commands::ResetData {} => ResetDataCommand::start().map_err(|e| e.into()),
+        Commands::ResetData {} => commands::reset_data().map_err(|e| e.into()),
         Commands::ResetTime {} => ResetTimeCommand::start().map_err(|e| e.into()),
         Commands::Push { apps } => commands::push(config, apps).map_err(|e| e.into()),
         Commands::PushB2g { path } => PushB2gCommand::start(path).map_err(|e| e.into()),
