@@ -195,18 +195,21 @@ fn push_app(path: &Path, app_name: &str, device: &Device) -> Result<(), LinuxErr
 }
 
 // Push command
-pub fn push_apps(config: BuildConfig, requested_apps: &Option<String>) -> Result<(), LinuxError> {
+pub fn push_apps(config: &BuildConfig, requested_apps: &Option<String>) -> Result<(), LinuxError> {
     let data = crate::commands::common::PushedApps::new(&config, requested_apps);
 
     let device = Device::connect()?;
     let mut failed = vec![];
     for app in data.apps {
-        let _timer = Timer::start(&format!("Pushing {}", app.display()));
         let app_name = format!(
             "{}",
             app.file_name()
                 .unwrap_or_else(|| std::ffi::OsStr::new("<no app name>"))
                 .to_string_lossy()
+        );
+        let _timer = Timer::start_with_message(
+            &format!("{} pushed", app_name),
+            &format!("Pushing {}", app_name),
         );
 
         if let Err(err) = push_app(&app, &app_name, &device) {
@@ -238,5 +241,12 @@ pub fn push_apps(config: BuildConfig, requested_apps: &Option<String>) -> Result
         }
     }
 
+    Ok(())
+}
+
+/// Restarts the b2gos service.
+pub fn restart() -> Result<(), LinuxError> {
+    let device = Device::connect()?;
+    let _ = device.command("/opt/b2gos/b2ghald/b2ghalctl restart-service b2gos")?;
     Ok(())
 }

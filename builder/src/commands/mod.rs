@@ -19,8 +19,11 @@ pub enum DeviceError {
     Linux(#[from] linux::LinuxError),
 }
 
-// Common entry points for commands that are available both for Gonk and Linux.
-pub fn push(config: BuildConfig, requested_apps: &Option<String>) -> Result<(), DeviceError> {
+fn gonk_or_linux<F, G>(when_gonk: F, when_linux: G) -> Result<(), DeviceError>
+where
+    F: FnOnce() -> Result<(), DeviceError>,
+    G: FnOnce() -> Result<(), DeviceError>,
+{
     let has_gonk = gonk::detect_device();
     let has_linux = linux::detect_device();
 
@@ -38,13 +41,38 @@ pub fn push(config: BuildConfig, requested_apps: &Option<String>) -> Result<(), 
         }
         (Ok(_), Err(_)) => {
             // Gonk device present.
-            let _ = gonk::PushCommand::start(config, requested_apps)?;
+            return when_gonk();
         }
         (Err(_), Ok(_)) => {
             // Linux device present.
-            let _ = linux::push_apps(config, requested_apps)?;
+            return when_linux();
         }
     }
+}
 
-    Ok(())
+// Common entry points for commands that are available both for Gonk and Linux.
+pub fn push(config: BuildConfig, requested_apps: &Option<String>) -> Result<(), DeviceError> {
+    gonk_or_linux(
+        || {
+            let _ = gonk::PushCommand::start(&config, requested_apps)?;
+            Ok(())
+        },
+        || {
+            let _ = linux::push_apps(&config, requested_apps)?;
+            Ok(())
+        },
+    )
+}
+
+pub fn restart() -> Result<(), DeviceError> {
+    gonk_or_linux(
+        || {
+            let _ = gonk::RestartCommand::start()?;
+            Ok(())
+        },
+        || {
+            let _ = linux::restart()?;
+            Ok(())
+        },
+    )
 }
