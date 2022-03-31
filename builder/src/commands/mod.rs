@@ -89,3 +89,16 @@ pub fn reset_data() -> Result<(), DeviceError> {
         },
     )
 }
+
+pub fn reset_time() -> Result<(), DeviceError> {
+    gonk_or_linux(
+        || {
+            let _ = gonk::ResetTimeCommand::start()?;
+            Ok(())
+        },
+        || {
+            let _ = linux::reset_time()?;
+            Ok(())
+        },
+    )
+}

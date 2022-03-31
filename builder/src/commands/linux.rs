@@ -7,6 +7,7 @@ use std::env;
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
 static DEFAULT_LINUX_USER: &str = "mobian";
@@ -24,6 +25,8 @@ pub enum LinuxError {
     Io(#[from] IoError),
     #[error("scp failed: {0}")]
     Scp(String),
+    #[error("Other error: {0}")]
+    Other(String),
 }
 
 // A Command-like struct that relies on a ssh connection.
@@ -259,4 +262,22 @@ pub fn reset_data() -> Result<(), LinuxError> {
     let _ = device.command("/opt/b2gos/b2ghald/b2ghalctl start-service b2gos")?;
 
     Ok(())
+}
+
+/// Sets the time on device to the current host time.
+pub fn reset_time() -> Result<(), LinuxError> {
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(duration) => {
+            let device = Device::connect()?;
+            let _ = device.command(&format!(
+                "/opt/b2gos/b2ghald/b2ghalctl set-time {}",
+                duration.as_millis()
+            ));
+            Ok(())
+        }
+        Err(err) => Err(LinuxError::Other(format!(
+            "Failed to get seconds since UNIX EPOCH: {}",
+            err
+        ))),
+    }
 }

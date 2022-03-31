@@ -12,7 +12,7 @@ mod tasks;
 mod timer;
 
 use crate::commands::desktop::{DevCommand, InstallCommand, ProdCommand};
-use crate::commands::gonk::{PushB2gCommand, ResetTimeCommand};
+use crate::commands::gonk::PushB2gCommand;
 use crate::debian::{DebianCommand, DebianTarget};
 use clap::{Parser, Subcommand};
 use log::{error, info};
@@ -66,7 +66,7 @@ enum Commands {
     },
     /// Gonk/Linux: reset the user data on the device.
     ResetData {},
-    /// Gonk: reset the time on device.
+    /// Gonk/Linux: reset the time on device.
     ResetTime {},
     /// Gonk/Linux: force a restart of the api-daemon and b2g.
     Restart {},
@@ -189,7 +189,7 @@ fn main() {
             }
         }
         Commands::ResetData {} => commands::reset_data().map_err(|e| e.into()),
-        Commands::ResetTime {} => ResetTimeCommand::start().map_err(|e| e.into()),
+        Commands::ResetTime {} => commands::reset_time().map_err(|e| e.into()),
         Commands::Push { apps } => commands::push(config, apps).map_err(|e| e.into()),
         Commands::PushB2g { path } => PushB2gCommand::start(path).map_err(|e| e.into()),
         Commands::Restart {} => commands::restart().map_err(|e| e.into()),
