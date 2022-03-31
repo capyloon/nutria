@@ -1,12 +1,10 @@
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 
-use quickcheck::quickcheck;
 use quickcheck::Arbitrary;
 use quickcheck::Gen;
+use quickcheck::QuickCheck;
 use quickcheck::TestResult;
-
-use rand::Rng;
 
 use fnv::FnvHasher;
 use std::hash::{BuildHasher, BuildHasherDefault};
@@ -41,7 +39,42 @@ where
     IndexMap::from_iter(iter.into_iter().copied().map(|k| (k, ())))
 }
 
-quickcheck! {
+// Helper macro to allow us to use smaller quickcheck limits under miri.
+macro_rules! quickcheck_limit {
+    (@as_items $($i:item)*) => ($($i)*);
+    {
+        $(
+            $(#[$m:meta])*
+            fn $fn_name:ident($($arg_name:ident : $arg_ty:ty),*) -> $ret:ty {
+                $($code:tt)*
+            }
+        )*
+    } => (
+        quickcheck::quickcheck! {
+            @as_items
+            $(
+                #[test]
+                $(#[$m])*
+                fn $fn_name() {
+                    fn prop($($arg_name: $arg_ty),*) -> $ret {
+                        $($code)*
+                    }
+                    let mut quickcheck = QuickCheck::new();
+                    if cfg!(miri) {
+                        quickcheck = quickcheck
+                            .gen(Gen::new(10))
+                            .tests(10)
+                            .max_tests(100);
+                    }
+
+                    quickcheck.quickcheck(prop as fn($($arg_ty),*) -> $ret);
+                }
+            )*
+        }
+    )
+}
+
+quickcheck_limit! {
     fn contains(insert: Vec<u32>) -> bool {
         let mut map = IndexMap::new();
         for &key in &insert {
@@ -96,7 +129,8 @@ quickcheck! {
         true
     }
 
-    fn with_cap(cap: usize) -> bool {
+    fn with_cap(template: Vec<()>) -> bool {
+        let cap = template.len();
         let map: IndexMap<u8, u8> = IndexMap::with_capacity(cap);
         println!("wish: {}, got: {} (diff: {})", cap, map.capacity(), map.capacity() as isize - cap as isize);
         map.capacity() >= cap
@@ -199,8 +233,8 @@ where
     K: Arbitrary,
     V: Arbitrary,
 {
-    fn arbitrary<G: Gen>(g: &mut G) -> Self {
-        match g.gen::<u32>() % 4 {
+    fn arbitrary(g: &mut Gen) -> Self {
+        match u32::arbitrary(g) % 4 {
             0 => Add(K::arbitrary(g), V::arbitrary(g)),
             1 => AddEntry(K::arbitrary(g), V::arbitrary(g)),
             2 => Remove(K::arbitrary(g)),
@@ -261,7 +295,7 @@ where
     true
 }
 
-quickcheck! {
+quickcheck_limit! {
     fn operations_i8(ops: Large<Vec<Op<i8, i8>>>) -> bool {
         let mut map = IndexMap::new();
         let mut reference = HashMap::new();
@@ -452,12 +486,12 @@ impl Deref for Alpha {
 const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
 
 impl Arbitrary for Alpha {
-    fn arbitrary<G: Gen>(g: &mut G) -> Self {
-        let len = g.next_u32() % g.size() as u32;
+    fn arbitrary(g: &mut Gen) -> Self {
+        let len = usize::arbitrary(g) % g.size();
         let len = min(len, 16);
         Alpha(
             (0..len)
-                .map(|_| ALPHABET[g.next_u32() as usize % ALPHABET.len()] as char)
+                .map(|_| ALPHABET[usize::arbitrary(g) % ALPHABET.len()] as char)
                 .collect(),
         )
     }
@@ -482,8 +516,8 @@ impl<T> Arbitrary for Large<Vec<T>>
 where
     T: Arbitrary,
 {
-    fn arbitrary<G: Gen>(g: &mut G) -> Self {
-        let len = g.next_u32() % (g.size() * 10) as u32;
+    fn arbitrary(g: &mut Gen) -> Self {
+        let len = usize::arbitrary(g) % (g.size() * 10);
         Large((0..len).map(|_| T::arbitrary(g)).collect())
     }
 

@@ -1,3 +1,5 @@
+use core::convert::Infallible;
+
 use super::{
     clone,
     CloneFlags,
@@ -17,7 +19,7 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    pub fn new<F: FnOnce(Daemon) -> !>(f: F) -> Result<!> {
+    pub fn new<F: FnOnce(Daemon) -> Infallible>(f: F) -> Result<Infallible> {
         let mut pipes = [0; 2];
         pipe2(&mut pipes, 0)?;
 
@@ -29,6 +31,8 @@ impl Daemon {
             f(Daemon {
                 write_pipe,
             });
+            // TODO: Replace Infallible with the never type once it is stabilized.
+            unreachable!();
         } else {
             let _ = close(write_pipe);
 

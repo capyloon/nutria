@@ -1,4 +1,5 @@
 use core::{mem, slice};
+use core::arch::asm;
 use core::ops::{Deref, DerefMut};
 
 use super::error::{Error, Result};

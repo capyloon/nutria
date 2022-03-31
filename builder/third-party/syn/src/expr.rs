@@ -87,6 +87,7 @@ ast_enum_of_structs! {
     /// see names getting repeated in your code, like accessing
     /// `receiver.receiver` or `pat.pat` or `cond.cond`.
     #[cfg_attr(doc_cfg, doc(cfg(any(feature = "full", feature = "derive"))))]
+    #[cfg_attr(not(syn_no_non_exhaustive), non_exhaustive)]
     pub enum Expr {
         /// A slice literal expression: `[a, b, c, d]`.
         Array(ExprArray),
@@ -224,18 +225,17 @@ ast_enum_of_structs! {
         /// A yield expression: `yield expr`.
         Yield(ExprYield),
 
-        // The following is the only supported idiom for exhaustive matching of
-        // this enum.
+        // Not public API.
+        //
+        // For testing exhaustiveness in downstream code, use the following idiom:
         //
         //     match expr {
-        //         Expr::Array(e) => {...}
-        //         Expr::Assign(e) => {...}
+        //         Expr::Array(expr) => {...}
+        //         Expr::Assign(expr) => {...}
         //         ...
-        //         Expr::Yield(e) => {...}
+        //         Expr::Yield(expr) => {...}
         //
-        //         #[cfg(test)]
-        //         Expr::__TestExhaustive(_) => unimplemented!(),
-        //         #[cfg(not(test))]
+        //         #[cfg_attr(test, deny(non_exhaustive_omitted_patterns))]
         //         _ => { /* some sane fallback */ }
         //     }
         //
@@ -243,12 +243,9 @@ ast_enum_of_structs! {
         // a variant. You will be notified by a test failure when a variant is
         // added, so that you can add code to handle it, but your library will
         // continue to compile and work for downstream users in the interim.
-        //
-        // Once `deny(reachable)` is available in rustc, Expr will be
-        // reimplemented as a non_exhaustive enum.
-        // https://github.com/rust-lang/rust/issues/44109#issuecomment-521781237
+        #[cfg(syn_no_non_exhaustive)]
         #[doc(hidden)]
-        __TestExhaustive(crate::private),
+        __NonExhaustive,
     }
 }
 
@@ -784,6 +781,16 @@ ast_struct! {
 }
 
 impl Expr {
+    #[cfg(all(feature = "parsing", not(syn_no_const_vec_new)))]
+    const DUMMY: Self = Expr::Path(ExprPath {
+        attrs: Vec::new(),
+        qself: None,
+        path: Path {
+            leading_colon: None,
+            segments: Punctuated::new(),
+        },
+    });
+
     #[cfg(all(feature = "parsing", feature = "full"))]
     pub(crate) fn replace_attrs(&mut self, new: Vec<Attribute>) -> Vec<Attribute> {
         match self {
@@ -828,9 +835,7 @@ impl Expr {
             | Expr::Yield(ExprYield { attrs, .. }) => mem::replace(attrs, new),
             Expr::Verbatim(_) => Vec::new(),
 
-            #[cfg(test)]
-            Expr::__TestExhaustive(_) => unimplemented!(),
-            #[cfg(not(test))]
+            #[cfg(syn_no_non_exhaustive)]
             _ => unreachable!(),
         }
     }
@@ -2500,9 +2505,7 @@ pub(crate) mod parsing {
                 Pat::Verbatim(_) => {}
                 Pat::Wild(pat) => pat.attrs = attrs,
 
-                #[cfg(test)]
-                Pat::__TestExhaustive(_) => unimplemented!(),
-                #[cfg(not(test))]
+                #[cfg(syn_no_non_exhaustive)]
                 _ => unreachable!(),
             }
             Ok(pat)
@@ -2868,7 +2871,10 @@ pub(crate) mod parsing {
         }
         for part in float_repr.split('.') {
             let index = crate::parse_str(part).map_err(|err| Error::new(float.span(), err))?;
-            let base = mem::replace(e, Expr::__TestExhaustive(crate::private(())));
+            #[cfg(not(syn_no_const_vec_new))]
+            let base = mem::replace(e, Expr::DUMMY);
+            #[cfg(syn_no_const_vec_new)]
+            let base = mem::replace(e, Expr::Verbatim(TokenStream::new()));
             *e = Expr::Field(ExprField {
                 attrs: Vec::new(),
                 base: Box::new(base),
@@ -3356,7 +3362,7 @@ pub(crate) mod printing {
     impl ToTokens for ExprPath {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             outer_attrs_to_tokens(&self.attrs, tokens);
-            private::print_path(tokens, &self.qself, &self.path);
+            path::printing::print_path(tokens, &self.qself, &self.path);
         }
     }
 

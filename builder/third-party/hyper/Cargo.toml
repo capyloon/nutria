@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "hyper"
-version = "0.14.17"
+version = "0.14.18"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 include = [
     "Cargo.toml",
@@ -58,13 +58,6 @@ incremental = false
 [profile.release]
 codegen-units = 1
 incremental = false
-
-[lib]
-crate-type = [
-    "lib",
-    "staticlib",
-    "cdylib",
-]
 
 [[example]]
 name = "client"

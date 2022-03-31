@@ -215,11 +215,6 @@ fn main() {
             }
         }
         Commands::Clean {} => {
-            info!(
-                "Linux device: {:?}",
-                crate::commands::linux::detect_device()
-            );
-
             if let Err(err) = {
                 let _timer = crate::timer::Timer::start("Clean output directory");
                 std::fs::remove_dir_all(&config.output_path)
