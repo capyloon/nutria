@@ -169,67 +169,27 @@ window.utils = {
   },
 };
 
-async function installWebExtensions() {
-  // Load the json file with the list of extensions.
-  let extensions = [];
-  try {
-    let list = await fetch(
-      `http://shared.localhost:${config.port}/extensions/extensions.json`
-    );
-    extensions = await list.json();
+async function setupWebExtensions() {
+  // Listen to WebExtension lifecycle events.
+  [
+    "onEnabling",
+    "onEnabled",
+    "onDisabling",
+    "onDisabled",
+    "onInstalling",
+    "onInstalled",
+    "onUninstalling",
+    "onUninstalled",
+    "onOperationCancelled",
+  ].forEach((event) => {
+    navigator.mozAddonManager.addEventListener(event, (data) => {
+      console.log(`WebExtensions: event ${data.type} id=${data.id}`);
 
-    [
-      "onEnabling",
-      "onEnabled",
-      "onDisabling",
-      "onDisabled",
-      "onInstalling",
-      "onInstalled",
-      "onUninstalling",
-      "onUninstalled",
-      "onOperationCancelled",
-    ].forEach((event) => {
-      navigator.mozAddonManager.addEventListener(event, (data) => {
-        console.log(`WebExtensions: event ${data.type} id=${data.id}`);
-
-        if (data.type == "onUninstalling") {
-          let settings = document.querySelector("quick-settings");
-          settings.removeBrowserAction(data.id);
-        }
-      });
+      if (data.type == "onUninstalling") {
+        let settings = document.querySelector("quick-settings");
+        settings.removeBrowserAction(data.id);
+      }
     });
-  } catch (e) {
-    console.log(`WebExtensions: Error: ${e}`);
-  }
-
-  extensions.forEach(async (extension) => {
-    let url = `http://shared.localhost:${config.port}/extensions/${extension.url}`;
-    console.log(`WebExtensions: Installing ${extension} from ${url}`);
-    try {
-      let installed = false;
-      try {
-        let addon = await navigator.mozAddonManager.getAddonByID(extension.id);
-        installed = !!addon;
-        installed &&
-          console.log(
-            `WebExtensions:: the ${extension.id} extension is already installed: ${addon.name}, enabled=${addon.isEnabled} active=${addon.isActive}`
-          );
-      } catch (e) {
-        console.log(
-          `WebExtensions: the ${extension.id} extension failed to install: ${e.stack}`
-        );
-      }
-
-      if (!installed) {
-        let install = await navigator.mozAddonManager.createInstall({ url });
-
-        if (install.state == "STATE_AVAILABLE") {
-          await install.install();
-        }
-      }
-    } catch (e) {
-      console.error(`WebExtensions: Error installing Extension: ${e.stack}`);
-    }
   });
 }
 
@@ -425,7 +385,7 @@ document.addEventListener(
     console.log(`D/hal device events set.`);
 
     const torFilter = new TorProxyChannelFilter();
-    installWebExtensions();
+    setupWebExtensions();
   },
   { once: true }
 );
