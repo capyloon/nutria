@@ -191,6 +191,11 @@ async function installWebExtensions() {
     ].forEach((event) => {
       navigator.mozAddonManager.addEventListener(event, (data) => {
         console.log(`WebExtensions: event ${data.type} id=${data.id}`);
+
+        if (data.type == "onUninstalling") {
+          let settings = document.querySelector("quick-settings");
+          settings.removeBrowserAction(data.id);
+        }
       });
     });
   } catch (e) {
