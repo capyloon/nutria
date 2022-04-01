@@ -22,13 +22,17 @@ content-window > .container > * {
 content-window .loader,
 content-window .content-crash {
   height: 100%;
-  background: var(--loader-background);
-  color: var(--loader-color);
+  background: var(--sl-panel-background-color);
+  color: var(--sl-color-neutral-700);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 1em;
+}
+
+content-window .content-crash .message {
+  margin-bottom: 1em;
 }
 
 content-window .select-ui {

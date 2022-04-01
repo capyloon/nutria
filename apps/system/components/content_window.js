@@ -242,8 +242,11 @@ class ContentWindow extends HTMLElement {
         <div class="title hidden"></div>
       </div>
       <div class="content-crash hidden">
-        <h3>Opps, something went wrong with this page!</h3>
-        <button id="reload">Reload</button>
+        <sl-alert variant="danger" open>
+          <sl-icon slot="icon" name="skull"></sl-icon>
+          <div class="message" data-l10n-id="content-crashed"></div>
+          <sl-button variant="primary" class="reload-button" data-l10n-id="content-reload"></sl-button>
+        </sl-alert>
       </div>
       <div class="select-ui hidden"><select-ui></select-ui></div>
       <div class="navigation hidden">
@@ -842,7 +845,7 @@ class ContentWindow extends HTMLElement {
         } else if (detail.type === "fatal") {
           // Content crash, display the dialog that allows reloading.
           this.contentCrash.classList.remove("hidden");
-          this.contentCrash.querySelector("button").addEventListener(
+          this.contentCrash.querySelector(".reload-button").addEventListener(
             "click",
             () => {
               // Reloading the crashed content.

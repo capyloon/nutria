@@ -12,6 +12,10 @@ empty-carousel = No content open :(
 learn-something-text = Let's learn something!
 learn-something-url = https://en.wikipedia.org/wiki/Special:Random
 
+# Message displayed when a site crashes.
+content-crashed = Something went wrong with this page!
+content-reload = Reload
+
 # Context Menu
 image-section-title = Image
 image-set-wallpaper = Set As wallpaper
