@@ -6,17 +6,21 @@ body {
   font-family: "Open Sans", arial, "sans serif";
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
-  padding: 1em;
+  padding: 2em;
+  background: var(--sl-panel-background-color);
+  color: var(--sl-color-neutral-700);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 #view {
   border-left: 3px solid gray;
   padding-left: 0.5em;
   margin: 1em;
-}
-
-button {
-  font-size: larger;
-  padding: 0.4em;
 }

@@ -4,7 +4,7 @@ function getErrorFromURI() {
   // Quick check to ensure it's the URI format we're expecting.
   if (!uri.startsWith("about:neterror?")) {
     // A blank error will generate the default error message (no network).
-    return uri;
+    return { d: uri };
   }
 
   // Small hack to get the URL object to parse the URI correctly.
@@ -27,16 +27,31 @@ function getErrorFromURI() {
     case "unknownSocketType":
     case "unknownProtocolFound":
     case "cspFrameAncestorBlocked":
-      this.error.e = "invalidConnection";
+      error.e = "invalidConnection";
       break;
   }
 
   return error;
 }
 
+const kDeps = [
+  {
+    name: "main",
+    kind: "virtual",
+    deps: ["shoelace-button", "shoelace-light-theme", "shoelace-setup"],
+  },
+];
+
 document.addEventListener(
   "DOMContentLoaded",
-  () => {
+  async () => {
+    window.config = { port: await detectPort() };
+
+    await depGraphLoaded();
+
+    let graph = new ParallelGraphLoader(addShoelaceDeps(kDeps));
+    await graph.waitForDeps("main");
+
     document.getElementById("reload").onclick = () => {
       window.location.reload();
     };
