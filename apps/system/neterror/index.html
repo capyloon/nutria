@@ -6,7 +6,12 @@
       content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
     />
     <meta charset="utf-8" />
+    <meta name="theme-color" content="#ffffff" />
+
     <meta name="defaultLanguage" content="en-US" />
+    <meta name="availableLanguages" content="en-US" />
+    <link rel="localization" href="neterror.ftl" />
+
     <!--
       We can't use relative URLs, so we specify both device and desktop
       urls. Only one will load on each platform - the other will be blocked by the CSP.
@@ -24,10 +29,10 @@
     <script src="http://system.localhost/neterror/main.js"></script>
   </head>
   <body id="net-error">
-    <h1>Oops, we failed to load the site :(</h1>
+    <h1 data-l10n-id="neterror-title"></h1>
     <div id="view"></div>
     <div>
-      <sl-button variant="primary" id="reload">Reload</sl-button>
+      <sl-button variant="primary" id="reload" data-l10n-id="neterror-reload"></sl-button>
     </div>
   </body>
 </html>

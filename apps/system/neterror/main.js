@@ -4,7 +4,7 @@ function getErrorFromURI() {
   // Quick check to ensure it's the URI format we're expecting.
   if (!uri.startsWith("about:neterror?")) {
     // A blank error will generate the default error message (no network).
-    return { d: uri };
+    return { d: uri, e: "connectionFailed" };
   }
 
   // Small hack to get the URL object to parse the URI correctly.
@@ -57,7 +57,8 @@ document.addEventListener(
     };
 
     let error = getErrorFromURI();
-    document.getElementById("view").textContent = error.d;
+    document.getElementById("view").textContent =
+      await document.l10n.formatValue(`neterror-${error.e}`, { url: error.u });
   },
   { once: true }
 );
