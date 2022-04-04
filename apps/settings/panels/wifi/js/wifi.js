@@ -13,8 +13,10 @@ function associate(network) {
 
 function updateNetworkList(manager, networks) {
   console.log(`Wifi updateNetworkList ${networks.length} networks`);
-  let list = window.networks;
+  let list = document.getElementById("networks");
+  let connectedList = document.getElementById("connected-networks");
   list.innerHTML = "";
+  connectedList.innerHTML = "";
 
   if (!networks) {
     return;
@@ -31,14 +33,29 @@ function updateNetworkList(manager, networks) {
       return;
     }
 
-    let detail = document.createElement("network-item");
-    detail.configure(manager, network, panelMode === PanelModes.LIVE_NETWORKS);
-    let item = document.createElement("li");
+    let item = document.createElement("sl-menu-item");
+    let detail = document.createElement("div");
+    detail.classList.add("wifi-detail");
+    let nameElement = document.createElement("span");
+    nameElement.classList.add("wifi-name");
+    let statusElement = document.createElement("span");
+    statusElement.classList.add("wifi-status");
+    nameElement.innerText = network.ssid.trim();
+    statusElement.setAttribute("data-l10n-id", network.connected ? "wifi-connected" 
+      : (network.known ? "wifi-saved" 
+      : (network.security === "OPEN" ? "wifi-open" : "wifi-secure")));
+    let icon = document.createElement("sl-icon");
+    icon.name = network.connected ? "wifi" : (network.known ? "wifi-off" : (network.security === "OPEN" ? "shield-alert": "lock"));
+    icon.slot = "prefix";
+
+    detail.appendChild(nameElement);
+    detail.appendChild(statusElement);
+    item.appendChild(icon);
     item.appendChild(detail);
 
-    // Make sure the connected network will be the first of the list.
+    // Make sure the connected network will be in the correct list.
     if (network.connected) {
-      list.prepend(item);
+      connectedList.appendChild(item);
     } else {
       list.appendChild(item);
     }
@@ -74,14 +91,14 @@ function switchMode(newMode) {
 
   panelMode = newMode;
 
-  let footer = document.querySelector("footer");
+  /*let footer = document.querySelector("footer");
   if (newMode === PanelModes.SAVED_NETWORKS) {
     footer.classList.add("saved-networks");
   } else {
     footer.classList.remove("saved-networks");
-  }
+  }*/
 
-  clearNetworkList();
+  //clearNetworkList();
 }
 
 function forceScan(manager) {
@@ -95,7 +112,7 @@ function forceScan(manager) {
   }
 }
 
-function setupWifi() {
+export function setupWifi() {
   let manager = navigator.b2g?.wifiManager;
   if (!manager) {
     console.error("navigator.b2g.wifiManager is not available.");
@@ -106,19 +123,13 @@ function setupWifi() {
 
   switchMode(PanelModes.LIVE_NETWORKS);
 
-  let statusText = window["status-text"];
-  statusText.setAttribute(
-    "data-l10n-id",
-    manager.enabled ? "status-enabled" : "status-disabled"
-  );
-
   let onOffSwitch = window["on-off-switch"];
   onOffSwitch.checked = manager.enabled;
-  onOffSwitch.onchange = () => {
+  onOffSwitch.addEventListener("sl-change", () => {
     manager.setWifiEnabled(onOffSwitch.checked);
-  };
+  });
 
-  let forceScanButton = window["force-scan"];
+  /*let forceScanButton = window["force-scan"];
   if (!manager.enabled) {
     forceScanButton.disabled = true;
   }
@@ -139,16 +150,16 @@ function setupWifi() {
   liveNetworks.onclick = () => {
     switchMode(PanelModes.LIVE_NETWORKS);
     updateNetworkList(manager, manager.scanResult);
-  };
+  };*/
 
   manager.onenabled = () => {
-    statusText.setAttribute("data-l10n-id", "status-enabled");
+    //statusText.setAttribute("data-l10n-id", "status-enabled");
     forceScanButton.disabled = false;
     onOffSwitch.checked = true;
   };
 
   manager.ondisabled = () => {
-    statusText.setAttribute("data-l10n-id", "status-disabled");
+    //statusText.setAttribute("data-l10n-id", "status-disabled");
     forceScanButton.disabled = true;
     onOffSwitch.checked = false;
     clearNetworkList();

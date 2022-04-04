@@ -1,54 +1,116 @@
 html,
 body {
+  font-family: "Open Sans", arial, "sans serif";
   width: 100%;
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: "Open Sans", arial, "sans serif";
+  background-color: var(--sl-color-neutral-0);
   user-select: none;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-#main {
-  padding: 1em;
-}
-
-#search {
-  width: 100%;
-  font-size: 1rem;
-  padding: 0.5em;
-  background-color: rgba(255, 255, 255, 0.5);
-  border-radius: 5px;
-  font-family: "Open Sans", arial, "sans serif";
-}
-
-#search:focus {
-  border-color: skyblue;
-}
-
-ul {
-  list-style: none;
-  padding-left: 0;
-}
-
-#panel {
-  width: 100%;
-  height: 100%;
+section {
   position: absolute;
   top: 0;
+  bottom: 0;
   left: 0;
-  z-index: 5;
-  background-color: white;
-  border: none;
-  transform: translateX(100%);
-  transition: all 0.5s;
+  right: 0;
+  overflow: scroll;
+  opacity: 1;
+  transition: visibility 0.5s linear,opacity 0.4s linear;
 }
 
-#panel.open {
-  transform: none;
-  transition: all 0.5s;
+section.hidden {
+  visibility: hidden;
+  opacity: 0;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  padding: 1rem;
+  background-color: var(--sl-color-neutral-0);
+  width: calc(100% - 2rem);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  z-index: 100;
+}
+
+header sl-input {
+  width: 100%;
+}
+
+header h1 {
+  display: inline-block; 
+  font-weight: bold;
+  font-size: 2rem;
+  margin: 0.5rem 0;
+}
+
+header sl-switch {
+  margin-left: auto;
+}
+
+sl-menu::part(base) {
+  border-style: none;
+  border-width: 0;
+  padding-top: 0;
+}
+
+sl-menu p {
+  margin-top: 0;
+  margin-left: 1rem;
+  margin-right: 1rem;
+}
+
+sl-menu-item::part(base) {
+  background-color: var(--sl-color-neutral-0);
+  color: var(--sl-color-neutral-1000);
+}
+
+sl-menu-item:active::part(base) {
+  background-color: var(--sl-color-primary-600);
+  color: var(--sl-color-neutral-0);
+}
+
+sl-menu-item[active]::part(base) {
+  background-color: var(--sl-color-primary-600);
+  color: var(--sl-color-neutral-0);
+}
+
+sl-menu-item sl-icon {
+  font-size: 1.5rem;
+}
+
+#spinner {
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+}
+
+#spinner sl-spinner {
+  font-size: 5rem;
+}
+
+.wifi-detail {
+    display: flex;
+    flex-direction: column;
+}
+
+.wifi-status {
+    font-size: 0.5rem;
+}
+
+#logo-div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+#logo {
+  width: 20mm;
+  height: 20mm;
 }

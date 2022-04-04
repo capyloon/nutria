@@ -17,21 +17,78 @@
     <link rel="stylesheet" href="style/index.css" type="text/css" />
 
     <script src="js/config.js"></script>
-    <script src="components/panel_link.js"></script>
+    <script src="js/dependencies.js"></script>
     <script src="js/bootstrap.js"></script>
   </head>
   <body>
-    <div id="main">
-      <input id="search" data-l10n-id="search-settings" />
-      <ul>
-        <panel-link name="wifi" icon="wifi"></panel-link>
-        <panel-link name="telephony" icon="phone"></panel-link>
-        <panel-link name="display" icon="image" disabled></panel-link>
-        <panel-link name="lockscreen" icon="lock"></panel-link>
-        <panel-link name="region_language" icon="globe" disabled></panel-link>
-        <panel-link name="date_time" icon="clock" disabled></panel-link>
-        <panel-link name="system_info" icon="info"></panel-link>
-      </ul>
-    </div>
+    <section id="spinner">
+      <sl-spinner></sl-spinner>
+    </section>
+    <section id="main" class="hidden">
+      <header>
+        <sl-input id="search" clearable data-l10n-id="search-settings" data-l10n-attrs="placeholder">
+          <sl-icon name="search" slot="prefix" />
+        </sl-input>
+      </header>
+      <sl-menu id="main-menu">
+        <sl-menu-label data-l10n-id="connectivity"></sl-menu-label>
+        <sl-menu-item value="wifi">
+            <sl-icon name="wifi" slot="prefix"></sl-icon>
+            <sl-icon name="chevron-right" slot="suffix"></sl-icon>
+            <span data-l10n-id="wifi"></span>
+        </sl-menu-item>
+        <sl-menu-item value="mobile">
+            <sl-icon name="signal" slot="prefix"></sl-icon>
+            <sl-icon name="chevron-right" slot="suffix"></sl-icon>
+            <span data-l10n-id="mobile"></span>
+        </sl-menu-item>
+        <sl-menu-item value="bluetooth">
+            <sl-icon name="bluetooth" slot="prefix"></sl-icon>
+            <sl-icon name="chevron-right" slot="suffix"></sl-icon>
+            <span data-l10n-id="bluetooth"></span>
+        </sl-menu-item>
+        <sl-divider></sl-divider>
+        <sl-menu-label data-l10n-id="device"></sl-menu-label>
+        <sl-menu-item value="battery">
+            <sl-icon name="battery" slot="prefix"></sl-icon>
+            <sl-icon name="chevron-right" slot="suffix"></sl-icon>
+            <span data-l10n-id="battery"></span>
+        </sl-menu-item>
+        <sl-menu-item value="display">
+            <sl-icon name="image" slot="prefix"></sl-icon>
+            <sl-icon name="chevron-right" slot="suffix"></sl-icon>
+            <span data-l10n-id="display"></span>
+        </sl-menu-item>
+        <sl-menu-item value="region">
+            <sl-icon name="globe-2" slot="prefix"></sl-icon>
+            <sl-icon name="chevron-right" slot="suffix"></sl-icon>
+            <span data-l10n-id="region-language"></span>
+        </sl-menu-item>
+        <sl-menu-item value="time">
+            <sl-icon name="clock" slot="prefix"></sl-icon>
+            <sl-icon name="chevron-right" slot="suffix"></sl-icon>
+            <span data-l10n-id="date-time"></span>
+        </sl-menu-item>
+        <sl-menu-item value="sound">
+            <sl-icon name="volume-2" slot="prefix"></sl-icon>
+            <sl-icon name="chevron-right" slot="suffix"></sl-icon>
+            <span data-l10n-id="sound"></span>
+        </sl-menu-item>
+        <sl-menu-item value="security">
+            <sl-icon name="lock" slot="prefix"></sl-icon>
+            <sl-icon name="chevron-right" slot="suffix"></sl-icon>
+            <span data-l10n-id="security"></span>
+        </sl-menu-item>
+        <sl-divider></sl-divider>
+        <sl-menu-label data-l10n-id="info"></sl-menu-label>
+        <sl-menu-item value="info">
+            <sl-icon name="info" slot="prefix"></sl-icon>
+            <sl-icon name="chevron-right" slot="suffix"></sl-icon>
+            <span data-l10n-id="system-info"></span>
+        </sl-menu-item>
+      </sl-menu>
+    </section>
+    <section id="wifi" class="hidden"></section>
+    <section id="info" class="hidden"></section>
   </body>
 </html>
