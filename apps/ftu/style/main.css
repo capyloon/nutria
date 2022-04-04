@@ -143,7 +143,8 @@ sl-input::part(password-toggle-button) {
   filter: grayscale(100%);
 }
 
-#search-panel img {
+#search-panel img,
+#webext-panel img {
   width: 24px;
 }
 
@@ -151,7 +152,8 @@ sl-input::part(password-toggle-button) {
   margin-top: 0.5em;
 }
 
-#search-panel .name {
+#search-panel .name,
+#webext-panel .name {
   font-weight: bolder;
   line-height: 1.5em;
   overflow: hidden;
@@ -159,7 +161,8 @@ sl-input::part(password-toggle-button) {
   text-overflow: ellipsis;
 }
 
-#search-panel .desc {
+#search-panel .desc,
+#webext-panel .desc {
   font-size: smaller;
   line-height: 1.5em;
   color: var(--sl-color-neutral-500);
@@ -168,12 +171,19 @@ sl-input::part(password-toggle-button) {
   text-overflow: ellipsis;
 }
 
-#search-panel sl-menu-item:hover .desc {
+#search-panel sl-menu-item:hover .desc,
+#webext-panel sl-menu-item:hover .desc {
   color: var(--sl-color-neutral-0);
 }
 
-#search-panel sl-menu-item::part(label) {
+#search-panel sl-menu-item::part(label),
+#webext-panel sl-menu-item::part(label) {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+#webext-panel sl-alert {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
 }

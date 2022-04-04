@@ -191,6 +191,7 @@ class LockScreen extends HTMLElement {
       window.wm.openFrame(url, {
         activate: true,
         fromLockscreen: true,
+        isFtu: options.ftu,
         whenClosed: async () => {
           window.wm.unlockSwipe();
           await this.lock();

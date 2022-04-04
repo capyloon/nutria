@@ -67,6 +67,17 @@ const kDeps = [
     ],
   },
   {
+    name: "webext-panel",
+    kind: "virtual",
+    deps: [
+      "shoelace-alert",
+      "shoelace-icon",
+      "shoelace-menu",
+      "shoelace-menu-item",
+      "webext-module",
+    ],
+  },
+  {
     name: "content manager",
     kind: "sharedWindowModule",
     param: ["js/content_manager.js", "contentManager", "ContentManager"],
@@ -91,6 +102,7 @@ const kDeps = [
     deps: ["switch-setting"],
   },
   { name: "search-module", kind: "module", param: "js/search_panel.js" },
+  { name: "webext-module", kind: "module", param: "js/webext_panel.js" },
   {
     name: "switch-setting",
     kind: "module",

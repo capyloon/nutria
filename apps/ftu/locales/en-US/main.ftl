@@ -45,3 +45,9 @@ search-title = Search Engines
 search-select = Enable your search engines
 search-details = When doing a keyword search, one of the enabled search engines will be randomly selected.
 search-error-no-enabled = Please enable at least one search engine!
+
+# WebExt panel
+webext-title = Web Extensions
+webext-install = Install recommended extensions
+webext-details = You can install some extensions right away and manage them in the Settings app. You can also install extensions at any time form the Mozilla Addons web site.
+webext-error-no-network = Please configure networking to install extensions.

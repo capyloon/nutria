@@ -248,6 +248,34 @@
       </div>
     </template>
 
+    <!-- The web extensions setup panel -->
+    <template id="webext-panel-tmpl">
+      <div class="drawer-content">
+        <h1 data-l10n-id="webext-title" class="branded-text"></h1>
+        <header>
+          <sl-icon name="layout-dashboard"></sl-icon>&nbsp;
+          <span data-l10n-id="webext-install"></span>
+        </header>
+        <p data-l10n-id="webext-details"></p>
+
+        <sl-alert variant="danger">
+          <sl-icon slot="icon" name="alert-circle"></sl-icon>
+          <strong data-l10n-id="webext-error-no-network"></strong>
+        </sl-alert>
+
+        <sl-menu class="initial-focus"> </sl-menu>
+      </div>
+
+      <div slot="footer">
+        <sl-button class="panel-back" data-l10n-id="btn-back"></sl-button>
+        <sl-button
+          class="panel-ok"
+          variant="success"
+          data-l10n-id="btn-ok"
+        ></sl-button>
+      </div>
+    </template>
+
     <!-- The display preferences setup panel -->
     <template id="display-panel-tmpl">
       <div class="drawer-content">

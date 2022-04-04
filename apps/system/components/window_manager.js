@@ -382,6 +382,14 @@ class WindowManager extends HTMLElement {
   openFrame(url = "about:blank", config = {}) {
     this.log(`openFrame ${url}`);
 
+    // If the FTU is not completed, deny other frame openings except the homescreen.
+    // This is useful to prevent WebExtensions "first run" pages to open
+    // when installing recommended extensions during the FTU.
+    if (!window.config.ftuDone && !config.isFtu && !config.isHomescreen) {
+      this.error(`FTU is running, denying frame creation for ${url}`);
+      return null;
+    }
+
     let startId = this.startedAt[url];
     if (startId && this.frames[startId]) {
       if (this.isCarouselOpen) {
