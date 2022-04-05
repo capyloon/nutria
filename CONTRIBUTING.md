@@ -29,4 +29,4 @@ We use [Fluent](https://projectfluent.org/) for localization needs.
 
 The icon set is [Lucide](https://lucide.dev/).
 
-We don't have a reusable set of components yet. [Shoelace](https://shoelace.style/) could be an interesting option but may be on the heavy side.
+We started to use [Shoelace](https://shoelace.style/) for generic UI components, but not all apps have been updated yet.
