@@ -9,7 +9,7 @@ This repo contains a suite of apps and their build system. Several running mode 
 
 The included build system is available by running the `jackady` (spelled like the French "Jacques a dit") command. This lets you run locally in development or production mode, and manage device operations.
 
-If you want to contribute, please read the [Contributing Guide](./CONTRIBUTING.md).
+If you want to contribute, please read the [Contributing Guide](./docs/contributing.md) and [Debugging Guide](./docs/debugging.md).
 
 [
 <img src="./screenshots/mobile-1.webp" width=240 alt="Mobile Version" title="Nutria in Mobile Mode">
