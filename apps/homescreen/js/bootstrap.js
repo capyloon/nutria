@@ -186,6 +186,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.requestIdleCallback(() => {
     appsList.ensureReady();
   });
+
+  let xac = await import(`http://shared.localhost:${config.port}/xac/peer.js`);
+  let peer = new xac.Peer(["system"]);
+  peer.addEventListener("ready", () => {
+    console.log(`XAC: Homescreen received ready!`);
+  });
 });
 
 window.utils = {

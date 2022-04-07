@@ -2,7 +2,7 @@
 
 (function (window) {
   function log() {
-    console.log("YYY [swproxy][helper.js]", ...arguments);
+    console.log("[swproxy][helper.js]", ...arguments);
   }
 
   log("init");
@@ -25,7 +25,7 @@
   iframeSwProxy.setAttribute("id", "sw-proxy");
   const proxySrc = `http://system.localhost:${window.config.port}/swproxy/proxy.html`;
   iframeSwProxy.src = proxySrc;
-  window.document.body.appendChild(iframeSwProxy);
+  document.body.appendChild(iframeSwProxy);
   // post 'port-transfer' message when iframe is ready.
   // since the 'load' event won't fired when iframe src URL is invalid,
   // we use 'pageshow' event instead.
