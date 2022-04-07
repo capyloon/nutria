@@ -23,19 +23,18 @@ class Addon {
   async updateState() {
     this.log(`Setting state for addon ${this.addon.guid}`);
     let icon = this.button.querySelector("sl-icon");
+    let obj = null;
     try {
-      let obj = await navigator.mozAddonManager.getAddonByID(this.addon.guid);
-
-      if (obj) {
-        icon.setAttribute("name", "trash-2");
-        this.canInstall = false;
-      } else {
-        icon.setAttribute("name", "plus");
-        this.canInstall = true;
-      }
-    } catch (e) {
+      obj = await navigator.mozAddonManager.getAddonByID(this.addon.guid);
+    } catch (e) {}
+    if (obj) {
+      icon.setAttribute("name", "trash-2");
+      this.canInstall = false;
+      this.button.parentElement.checked = true;
+    } else {
       icon.setAttribute("name", "plus");
       this.canInstall = true;
+      this.button.parentElement.checked = false;
     }
     this.button.loading = false;
   }

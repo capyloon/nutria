@@ -9,3 +9,4 @@ region-language = Region & language
 date-time = Date & Time
 system-info = System Information
 lockscreen = Lock Screen
+extensions = Web Extensions
