@@ -154,9 +154,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Configure activity handlers.
   let activities = new ActivityManager({
     "new-tab": openSearchBox,
-    "toggle-app-list": () => {
-      appsList.toggle();
-    },
     "add-to-home": addToHome,
   });
 
@@ -185,6 +182,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   window.requestIdleCallback(() => {
     appsList.ensureReady();
+  });
+
+  const HomescreenFns = {
+    toggleAppList: () => {
+      appsList.toggle();
+      return Promise.resolve();
+    },
+  };
+
+  let xac = await import(`http://shared.localhost:${config.port}/xac/peer.js`);
+  let peer = new xac.Peer(
+    [{ host: "system", fns: ["toggleAppList"] }],
+    HomescreenFns
+  );
+  peer.addEventListener("ready", () => {
+    console.log(`XAC: Homescreen received ready!`);
   });
 });
 

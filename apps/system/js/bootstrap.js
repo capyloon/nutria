@@ -484,6 +484,20 @@ document.addEventListener(
       let status = document.getElementById("status-icons");
       status.geoloc = event.detail.active;
     });
+
+    let xac = await import(
+      `http://shared.localhost:${config.port}/xac/peer.js`
+    );
+    let peer = new xac.Peer();
+    peer.addEventListener("ready", () => {
+      console.log(`XAC: SystemApp received ready!`);
+    });
+
+    window.XacHomescreen = {
+      toggleAppList: () => {
+        peer.send("homescreen.localhost", "toggleAppList");
+      },
+    };
   },
   { once: true }
 );

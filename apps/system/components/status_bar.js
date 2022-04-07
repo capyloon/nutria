@@ -158,14 +158,12 @@ class StatusBar extends HTMLElement {
 
     let quickLaunchElem = this.getElem(`.quicklaunch`);
     hapticFeedback.register(quickLaunchElem);
-    quickLaunchElem.onpointerdown = () => {
+    quickLaunchElem.onpointerdown = async () => {
       if (this.isCarouselOpen) {
         actionsDispatcher.dispatch("close-carousel");
       }
-      let activity = new WebActivity("toggle-app-list", {});
-      activity.start().catch((e) => {
-        console.error(e);
-      });
+      await window.XacHomescreen.toggleAppList();
+      console.log(`XAC status bar: toggleAppList done!`);
     };
 
     let leftText = this.getElem(`.left-text`);
