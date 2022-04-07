@@ -49,5 +49,5 @@ search-error-no-enabled = Please enable at least one search engine!
 # WebExt panel
 webext-title = Web Extensions
 webext-install = Install recommended extensions
-webext-details = You can install some extensions right away and manage them in the Settings app. You can also install extensions at any time form the Mozilla Addons web site.
+webext-details = You can install some extensions right away and manage them in the Settings app. You can also install extensions at any time from the Mozilla Addons web site.
 webext-error-no-network = Please configure networking to install extensions.
