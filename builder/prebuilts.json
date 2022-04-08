@@ -1,20 +1,20 @@
 {
   "x86_64-unknown-linux-gnu": {
-    "b2g": "https://dweb.link/ipfs/bafybeig3pphhhc5uf3zxnk5sxeu6llp23px72telnmrffdjwroau4phv4a",
-    "api-daemon": "https://dweb.link/ipfs/bafybeig4ql72ai3fwdnibz76c554pdo66s2kohkqlknrvzz6j2d2hqwcfu",
-    "b2ghald": "https://dweb.link/ipfs/bafkreiepv4afbzulxp6ocu235k5aa77ybfvorcpfeoicha7ib62u2gu6su"
-  },
-  "x86_64-apple-darwin": {
-    "b2g": "https://dweb.link/ipfs/bafybeibecv5x53nha4657pcvw7ozlunvojsbc4wq7zvem7mq4njplxbuay",
-    "api-daemon": "https://dweb.link/ipfs/bafybeib5n24ix44n7gq6sr24h533kdee7zbnegk3tge3ofzwg5zp6l46fu"
+    "b2g": "https://dweb.link/ipfs/bafybeiguk7ru2jq3sv7jfyl34liqmdeqomuwxfp2jtcdykydaqhq3crfay",
+    "api-daemon": "https://dweb.link/ipfs/bafybeifg7u7u2ebbn2xhevwlwmlanrpg5bqkbepeizigpapwv3iyxupdue",
+    "b2ghald": "https://dweb.link/ipfs/bafkreigwmbvueakdeexlyvu6kbfc5cd7kwwcdv3u7zjdiryw7klduiqwh4"
   },
   "aarch64-apple-darwin": {
-    "b2g": "https://dweb.link/ipfs/bafybeiek7jmvsf34onfleo4re2x2s645nceqkxp4vdrzb4p7nqgks4p6k4",
-    "api-daemon": "https://dweb.link/ipfs/bafybeif7q23qvaatovwu3gftk2cppqugt7wixaeiz36vribiuww7vlgywm"
+    "b2g": "https://dweb.link/ipfs/bafybeig5sse6nwp7j7lzuzxjv7wtiw6lmsi3earto2xirdxgpzmqcg6qii",
+    "api-daemon": "https://dweb.link/ipfs/bafybeibhboelfb2y4xb5hx6hv54yh6c5rllkl3r47h7n3tt5hq6jn5dzqa"
   },
   "aarch64-unknown-linux-gnu": {
     "b2g": "https://dweb.link/ipfs/bafybeiek7hdzddvntq3chk2yz4p56nlf4tme4axr6x4jknykdofg6aldlm",
-    "api-daemon": "https://dweb.link/ipfs/bafybeicjesipqtldtio7u5ky5ztlrvy2r2rnaan7wzufstqbsysjq7zooy",
-    "b2ghald": "https://dweb.link/ipfs/bafkreifr5duwncuyxzytlnhlak7jzfecw7q233od3bhxuoc7dbhp7huh2m"
+    "api-daemon": "https://dweb.link/ipfs/bafybeihbrzjaatzlv6juv3mu54kphy3mjvoz3etofqyyo54g7266szkrtm",
+    "b2ghald": "https://dweb.link/ipfs/bafkreig2i6uig5yusjdbe6xzegthpkxpxxt4mviijbajkfxgpjlt4hhiya"
+  },
+  "x86_64-apple-darwin": {
+    "b2g": "https://dweb.link/ipfs/bafybeihneoqzkabdwu5ayxgc5xaljrqfwjddz4ngvklwaw4elnaoznq75e",
+    "api-daemon": "https://dweb.link/ipfs/bafybeihaoffwq43jak7pfbujh6azkb5jzjhlon4ciikg37eqjklewxikem"
   }
 }
