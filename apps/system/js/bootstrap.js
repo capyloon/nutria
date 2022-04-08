@@ -202,6 +202,8 @@ async function manageFTU() {
     ftuDone = result.value;
   } catch (e) {}
 
+  window.config.ftuDone = ftuDone;
+
   if (ftuDone) {
     return;
   }
@@ -212,6 +214,7 @@ async function manageFTU() {
   );
   try {
     await settings.set([{ name: "ftu.done", value: true }]);
+    window.config.ftuDone = true;
   } catch (e) {
     console.error(`Failed to register FTU as done: ${e}`);
   }

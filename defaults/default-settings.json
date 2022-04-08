@@ -11,5 +11,6 @@
   "geolocation.debugging.enabled": true,
   "nutria.branding": "branding-capyloon",
   "tor.enabled": false,
-  "privacy.trackingprotection.enabled": true
+  "privacy.trackingprotection.enabled": true,
+  "ftu.done": false
 }
