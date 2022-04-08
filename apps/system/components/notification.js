@@ -1,69 +1,80 @@
 // <web-notification> web component
 // Displays a single notification.
 
-class WebNotification extends HTMLElement {
-  constructor(notification) {
+export class WebNotification extends LitElement {
+  constructor(wrapper) {
     super();
 
-    this.notification = notification;
-    this.attachShadow({ mode: "open" });
+    this._wrapper = wrapper;
+    this._count = 0;
+    this.addEventListener("sl-after-hide", this);
   }
 
-  update(notification) {
-    this.notification = notification;
-    this.connectedCallback();
+  static properties = {
+    _count: { state: true },
+  };
+
+  static get styles() {
+    return css`
+      :host .icon {
+        width: 2.5em;
+      }
+
+      :host sl-alert::part(base) {
+        border-top-width: var(--sl-panel-border-width);
+        border-top-color: var(--sl-panel-border-color);
+      }
+    `;
   }
 
-  connectedCallback() {
-    let data = this.notification.notification;
-    // console.log(`YYY ${JSON.stringify(data)}`);
+  setNotification(wrapper) {
+    this._wrapper = wrapper;
+    // this._wrapper doesn´t actually change, only the inner notification values,
+    // so we trigger re-rendering with this ugly hack.
+    this._count += 1;
+  }
 
-    let shadow = this.shadowRoot;
+  render() {
+    let notification = this._wrapper.notification;
 
-    let iconPart = `<img class="icon" src="${data.icon}" />`;
-    if (data.icon.startsWith("system-icon:")) {
-      iconPart = `<sl-icon class="icon" name=${data.icon.split(":")[1]}></sl-icon>`;
+    let iconPart = html`<img class="icon" src="${notification.icon}" />`;
+    if (notification.icon.startsWith("system-icon:")) {
+      iconPart = html`<sl-icon
+        class="icon"
+        name=${notification.icon.split(":")[1]}
+      ></sl-icon>`;
     }
 
-    shadow.innerHTML = `
-    <link rel="stylesheet" href="components/notification.css">
-    <div class="notification">
-        ${iconPart}
-        <div class="center">
-            <div class="title">${data.title}</div>
-            <div class="text">${data.text}</div>
+    return html`
+      <sl-alert variant="neutral" closable open>
+        <div class="icon-slot" slot="icon">${iconPart}</div>
+        <div @click=${this.clicked}>
+          <div><strong class="title">${notification.title}</strong></div>
+          <div class="message">${notification.text}</div>
         </div>
-        <sl-icon name="x" class="close-icon"></sl-icon>
-    </div>
+      </sl-alert>
     `;
-
-    shadow.querySelector(".icon").onclick = shadow.querySelector(
-      ".center"
-    ).onclick = (event) => {
-      event.stopPropagation();
-      this.notification.click();
-      this.notification.remove();
-      this.fadeOut();
-      // Close the quick settings panel;
-      document.getElementById("quick-settings").hide();
-    };
-
-    shadow.querySelector(".close-icon").onclick = (event) => {
-      event.stopPropagation();
-      this.notification.remove();
-      this.fadeOut();
-    };
   }
 
-  fadeOut() {
-    this.addEventListener(
-      "transitionend",
-      () => {
-        this.remove();
-      },
-      { once: true }
-    );
-    this.classList.add("closing");
+  handleEvent(event) {
+    if (event.type === "sl-after-hide") {
+      this._wrapper.remove();
+      this.close();
+    } else {
+      console.error(`XYZ WebNotification: unexpected event: ${event.type}`);
+    }
+  }
+
+  clicked() {
+    this._wrapper.click();
+    this._wrapper.remove();
+    this.close();
+    this.dispatchEvent(new CustomEvent("clicked"));
+  }
+
+  close() {
+    this.removeEventListener("sl-after-hide", this);
+    this.remove();
   }
 }
 

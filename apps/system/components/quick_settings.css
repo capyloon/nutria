@@ -29,7 +29,6 @@
 }
 
 :host section.notifications:not(:empty) {
-  border-top: 1px solid var(--sl-color-neutral-700);
   padding-top: 0.5em;
   padding-bottom: 0.5em;
   max-height: 40vh;

@@ -236,11 +236,18 @@ class QuickSettings extends HTMLElement {
     let unique = await notification.id;
     let existing = this.shadowRoot.querySelector(`#notification-${unique}`);
     if (existing) {
-      existing.update(notification);
+      existing.setNotification(notification);
     } else {
       let node = new WebNotification(notification);
       node.setAttribute("id", `notification-${unique}`);
       this.shadowRoot.querySelector(".notifications").appendChild(node);
+      node.addEventListener(
+        "clicked",
+        () => {
+          this.drawer.hide();
+        },
+        { once: true }
+      );
     }
   }
 

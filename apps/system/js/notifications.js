@@ -22,7 +22,7 @@ class NotificationsManager {
 
   status() {
     let count = this.notifications.size;
-    console.log(`YYY We have now ${count} notifications.`);
+    // console.log(`YYY We have now ${count} notifications.`);
     if (count !== this.currentCount) {
       this.currentCount = count;
       actionsDispatcher.dispatch("notifications-count", count);
@@ -43,6 +43,8 @@ class NotificationsManager {
     let settings = document.querySelector("quick-settings");
     settings.addOrUpdateNotification(wrapped);
     this.status();
+
+    window.toaster.show(notification.text);
   }
 
   remove(id) {
