@@ -2,7 +2,7 @@
   "x86_64-unknown-linux-gnu": {
     "b2g": "https://dweb.link/ipfs/bafybeiguk7ru2jq3sv7jfyl34liqmdeqomuwxfp2jtcdykydaqhq3crfay",
     "api-daemon": "https://dweb.link/ipfs/bafybeifg7u7u2ebbn2xhevwlwmlanrpg5bqkbepeizigpapwv3iyxupdue",
-    "b2ghald": "https://dweb.link/ipfs/bafkreigwmbvueakdeexlyvu6kbfc5cd7kwwcdv3u7zjdiryw7klduiqwh4"
+    "b2ghald": "https://dweb.link/ipfs/bafkreihyjavyvhuawaoytyioyfj2cfj553m3kxieq7q43lorplcfy3knta"
   },
   "aarch64-apple-darwin": {
     "b2g": "https://dweb.link/ipfs/bafybeig5sse6nwp7j7lzuzxjv7wtiw6lmsi3earto2xirdxgpzmqcg6qii",
