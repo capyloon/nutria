@@ -78,10 +78,12 @@ document.addEventListener(
     window["tagged-notification"].onclick = () => {
       console.log(`Tagged desktop notification`);
 
+      let progress = Math.round(Math.random() * 100);
       let notification = new Notification("Tagged!", {
-        body: `Some random number: ${Math.round(Math.random() * 100)}`,
+        body: `Some random number: ${progress}`,
         icon: `http://branding.localhost:${location.port}/resources/logo.webp`,
         tag: "notif-tag",
+        data: { progress },
       });
 
       notification.onshow = () => {

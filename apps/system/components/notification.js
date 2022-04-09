@@ -24,6 +24,10 @@ export class WebNotification extends LitElement {
         border-top-width: var(--sl-panel-border-width);
         border-top-color: var(--sl-panel-border-color);
       }
+
+      :host sl-progress-bar {
+        --height: 0.5rem;
+      }
     `;
   }
 
@@ -45,12 +49,25 @@ export class WebNotification extends LitElement {
       ></sl-icon>`;
     }
 
+    let progress = html``;
+    if (notification.data?.progress !== undefined) {
+      let value = notification.data.progress;
+
+      if (value < 0) {
+        progress = html`<sl-progress-bar indeterminate></sl-progress-bar>`;
+      } else {
+        value = Math.max(0, Math.min(value, 100));
+        progress = html`<sl-progress-bar value="${value}"></sl-progress-bar>`;
+      }
+    }
+
     return html`
       <sl-alert variant="neutral" closable open>
         <div class="icon-slot" slot="icon">${iconPart}</div>
         <div @click=${this.clicked}>
           <div><strong class="title">${notification.title}</strong></div>
           <div class="message">${notification.text}</div>
+          ${progress}
         </div>
       </sl-alert>
     `;
@@ -62,7 +79,7 @@ export class WebNotification extends LitElement {
       this._wrapper.remove();
       this.close();
     } else {
-      console.error(`XYZ WebNotification: unexpected event: ${event.type}`);
+      console.error(`WebNotification: unexpected event: ${event.type}`);
     }
   }
 

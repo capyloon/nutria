@@ -33,10 +33,12 @@ class NotificationsManager {
     // If the notification is tagged, update it instead of creating
     // a new one.
     let wrapped = this.notifications.get(notification.id);
+    let newNotification = false;
     if (wrapped) {
       wrapped.update(notification);
     } else {
       wrapped = new NotificationWrapper(notification, this);
+      newNotification = true;
     }
 
     this.notifications.set(notification.id, wrapped);
@@ -44,7 +46,9 @@ class NotificationsManager {
     settings.addOrUpdateNotification(wrapped);
     this.status();
 
-    window.toaster.show(notification.text);
+    if (newNotification) {
+      window.toaster.show(notification.text);
+    }
   }
 
   remove(id) {
