@@ -58,6 +58,7 @@ export class WebNotification extends LitElement {
 
   handleEvent(event) {
     if (event.type === "sl-after-hide") {
+      this._wrapper.close();
       this._wrapper.remove();
       this.close();
     } else {
