@@ -822,7 +822,7 @@ class ContentWindow extends HTMLElement {
       case "contextmenu":
         // console.log(`Got ContextMenu event detail=${JSON.stringify(detail)}`);
         let menu = document.body.querySelector("context-menu");
-        menu.open(detail);
+        menu.open(detail, this.webView);
         break;
       case "close":
         if (this.state.fromLockscreen && this.state.whenClosed) {

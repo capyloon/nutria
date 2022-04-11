@@ -60,7 +60,7 @@ class ContextMenu extends HTMLElement {
       <sl-menu>
         <sl-menu-label class="when-image"><sl-icon name="image"></sl-icon><span data-l10n-id="image-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-image" data-l10n-id="image-set-wallpaper"></sl-menu-item>
-        <sl-menu-item class="when-image" data-l10n-id="image-save" disabled></sl-menu-item>
+        <sl-menu-item class="when-image" data-l10n-id="image-download"></sl-menu-item>
         <sl-menu-item class="when-image" data-l10n-id="image-share" disabled></sl-menu-item>
         <sl-divider class="when-image-and-link"></sl-divider>
         <sl-menu-label class="when-link"><sl-icon name="link"></sl-icon><span data-l10n-id="link-section-title"></span></sl-menu-label>
@@ -77,6 +77,13 @@ class ContextMenu extends HTMLElement {
       actionsDispatcher.dispatch("set-wallpaper", this.imageUrl);
     };
 
+    shadow.querySelector(
+      "sl-menu-item[data-l10n-id=image-download]"
+    ).onclick = () => {
+      this.close();
+      this.webView.download(this.imageUrl);
+    };
+
     shadow.querySelector("sl-menu-item[data-l10n-id=link-new-tab]").onclick =
       () => {
         this.close();
@@ -90,11 +97,13 @@ class ContextMenu extends HTMLElement {
     this.dialog.hide();
   }
 
-  open(data) {
+  open(data, webView) {
     if (!data) {
       console.error(`ContextMenu: no data!`);
       return;
     }
+
+    this.webView = webView;
 
     // Check the context menu data to decide which sections to show.
     this.imageUrl = null;

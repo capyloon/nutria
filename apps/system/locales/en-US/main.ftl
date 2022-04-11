@@ -19,7 +19,7 @@ content-reload = Reload
 # Context Menu
 image-section-title = Image
 image-set-wallpaper = Set As wallpaper
-image-save = Save As…
+image-download = Download
 image-share = Share…
 link-section-title = Link
 link-new-tab = Open Link In New Tab
