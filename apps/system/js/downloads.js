@@ -20,10 +20,25 @@ class Downloads {
     let title = await window.utils.l10n(
       `download-notification-title-${download.state}`
     );
+
+    let data = {};
+
+    if (download.state == "downloading") {
+      if (download.totalBytes != 0) {
+        data.progress = Math.round(
+          (100 * download.currentBytes) / download.totalBytes
+        );
+      } else {
+        // Indeterminate progress.
+        data.progress = -1;
+      }
+    }
+
     let notification = new Notification(title, {
       body: download.url,
       icon: `system-icon:download`,
       tag: download.id,
+      data,
     });
     return notification;
   }
