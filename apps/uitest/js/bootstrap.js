@@ -99,6 +99,11 @@ document.addEventListener(
       };
     };
 
+    window["action-notification"].onclick = () => {
+      // Send a message to the service worker since actions are only available from service worker notifications.
+      navigator.serviceWorker.controller.postMessage("show-notification");
+    };
+
     window["play-sound"].onclick = () => {
       window["sound"].play();
     };

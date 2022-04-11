@@ -28,6 +28,13 @@ export class WebNotification extends LitElement {
       :host sl-progress-bar {
         --height: 0.5rem;
       }
+
+      :host .actions {
+        display: flex;
+        gap: 1em;
+        justify-content: end;
+        overflow-y: scroll;
+      }
     `;
   }
 
@@ -61,13 +68,31 @@ export class WebNotification extends LitElement {
       }
     }
 
+    let actions = html``;
+    this.hasActions = false;
+    if (notification.actions?.length > 0) {
+      this.hasActions = true;
+      actions = html`<div class="actions">
+        ${notification.actions.map(
+          (action) =>
+            html`<sl-button
+              @click=${this.onAction}
+              data-action="${action.action}"
+              variant="neutral"
+              size="small"
+              >${action.title}</sl-button
+            >`
+        )}
+      </div>`;
+    }
+
     return html`
       <sl-alert variant="neutral" closable open>
         <div class="icon-slot" slot="icon">${iconPart}</div>
         <div @click=${this.clicked}>
           <div><strong class="title">${notification.title}</strong></div>
           <div class="message">${notification.text}</div>
-          ${progress}
+          ${progress} ${actions}
         </div>
       </sl-alert>
     `;
@@ -83,8 +108,15 @@ export class WebNotification extends LitElement {
     }
   }
 
-  clicked() {
-    this._wrapper.click();
+  clicked(event) {
+    if (this.hasActions) {
+      return;
+    }
+    this.onAction(event);
+  }
+
+  onAction(event) {
+    this._wrapper.click(event.target.getAttribute("data-action"));
     this._wrapper.remove();
     this.close();
     this.dispatchEvent(new CustomEvent("clicked"));

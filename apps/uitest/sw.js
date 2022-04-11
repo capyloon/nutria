@@ -1,8 +1,10 @@
+function log(msg) {
+  console.log(`UITest SW: ${msg}`);
+}
+
 self.addEventListener("install", function (event) {
   // Perform install steps
-  console.log(
-    `UITest ============================== sw.js is now installed`
-  );
+  log(`installed`);
   evt.waitUntil(self.skipWaiting());
 });
 
@@ -31,9 +33,7 @@ function testFetch() {
 
 self.addEventListener("activate", function (event) {
   // Perform activation steps
-  console.log(
-    `UITest ============================== sw.js is now activated`
-  );
+  log(`activated`);
 
   // self.setInterval(() => {
   //   console.log(`ZZZ =========== Hello from UITest sw.js`);
@@ -44,7 +44,7 @@ self.addEventListener("activate", function (event) {
 
 self.onsystemmessage = async (event) => {
   if (event.name !== "activity") {
-    console.error(`Unexpected system message: ${event.name}`);
+    log(`Unexpected system message: ${event.name}`);
     return;
   }
 
@@ -52,7 +52,7 @@ self.onsystemmessage = async (event) => {
   let source = handler.source;
 
   if (source.name !== "new-contact") {
-    console.error(`Unexpected activity: ${source.name}`);
+    log(`Unexpected activity: ${source.name}`);
     return;
   }
 
@@ -75,4 +75,24 @@ self.onsystemmessage = async (event) => {
     win.postMessage(source.data);
   }
   resolver();
+};
+
+self.onmessage = (event) => {
+  if (event.data === "show-notification") {
+    self.registration.showNotification("To do list", {
+      body: "Persistent Notification With Actions",
+      icon: `http://branding.localhost:${location.port}/resources/logo.webp`,
+      tag: `sw-notif`,
+      actions: [
+        { title: "First Action", action: "action-1" },
+        { title: "Second Action", action: "action-2" },
+      ],
+    });
+
+    self.onnotificationclick = (event) => {
+      log(
+        `notification click: action=${event.action} tag=${event.notification.tag}`
+      );
+    };
+  }
 };
