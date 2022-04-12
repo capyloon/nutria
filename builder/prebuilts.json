@@ -1,20 +1,20 @@
 {
   "x86_64-unknown-linux-gnu": {
-    "b2g": "https://dweb.link/ipfs/bafybeiguk7ru2jq3sv7jfyl34liqmdeqomuwxfp2jtcdykydaqhq3crfay",
-    "api-daemon": "https://dweb.link/ipfs/bafybeifg7u7u2ebbn2xhevwlwmlanrpg5bqkbepeizigpapwv3iyxupdue",
-    "b2ghald": "https://dweb.link/ipfs/bafkreihyjavyvhuawaoytyioyfj2cfj553m3kxieq7q43lorplcfy3knta"
-  },
-  "aarch64-apple-darwin": {
-    "b2g": "https://dweb.link/ipfs/bafybeig5sse6nwp7j7lzuzxjv7wtiw6lmsi3earto2xirdxgpzmqcg6qii",
-    "api-daemon": "https://dweb.link/ipfs/bafybeibhboelfb2y4xb5hx6hv54yh6c5rllkl3r47h7n3tt5hq6jn5dzqa"
-  },
-  "aarch64-unknown-linux-gnu": {
-    "b2g": "https://dweb.link/ipfs/bafybeiek7hdzddvntq3chk2yz4p56nlf4tme4axr6x4jknykdofg6aldlm",
-    "api-daemon": "https://dweb.link/ipfs/bafybeihbrzjaatzlv6juv3mu54kphy3mjvoz3etofqyyo54g7266szkrtm",
-    "b2ghald": "https://dweb.link/ipfs/bafkreig2i6uig5yusjdbe6xzegthpkxpxxt4mviijbajkfxgpjlt4hhiya"
+    "b2g": "https://dweb.link/ipfs/bafybeigqr2tda3shig5rlvdoj7c6tk2zsqmycuzc2p3k4oqfjtuswjjzai",
+    "api-daemon": "https://dweb.link/ipfs/bafybeiffihbh3bhhlnykujbjw552wgzgtyaic67eewcjkmjz5u3io4ccqm",
+    "b2ghald": "https://dweb.link/ipfs/bafkreickqjxpvojyssunaeenk3nhlvv7gvxiarajqfahxfmr23rhcfz3ta"
   },
   "x86_64-apple-darwin": {
-    "b2g": "https://dweb.link/ipfs/bafybeihneoqzkabdwu5ayxgc5xaljrqfwjddz4ngvklwaw4elnaoznq75e",
-    "api-daemon": "https://dweb.link/ipfs/bafybeihaoffwq43jak7pfbujh6azkb5jzjhlon4ciikg37eqjklewxikem"
+    "b2g": "https://dweb.link/ipfs/bafybeiel3y6hldawbm4xey4jhkbrhfifrulgpcjh2agpdc5eav6zjwwpbe",
+    "api-daemon": "https://dweb.link/ipfs/bafybeifdhwg4apyau6v74okijcwe6f336qj7niysngmylf67kkors5y53y"
+  },
+  "aarch64-apple-darwin": {
+    "b2g": "https://dweb.link/ipfs/bafybeifsnhyozdm4mhbimmtg5guos3bfe3lplfjyy625bmjozstzmdlypa",
+    "api-daemon": "https://dweb.link/ipfs/bafybeicnueaocwxipry52qwd5mpcdum5ozlwiji7stsv2cbzgzo24qsxgi"
+  },
+  "aarch64-unknown-linux-gnu": {
+    "b2g": "https://dweb.link/ipfs/bafybeielovwq4q5ghxe7p3azdwlgoetdi27ztq5nyx6apj276l5psrsdsq",
+    "api-daemon": "https://dweb.link/ipfs/bafybeiah7xvey4wn452lati4lg5sbykxoyty36bacwcrb3x6nobbx3ggay",
+    "b2ghald": "https://dweb.link/ipfs/bafkreicglynulktk3gmtxxlwwrkrfebarcp4uxf4rnsq3zmct74vl3df2q"
   }
 }
