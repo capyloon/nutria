@@ -204,12 +204,12 @@ export class ImageRenderer extends LitElement {
       <img crossorigin="anonymous" src=${this.src} />
       <footer class="${this.editMode ? "" : "hidden"}">
         <div @click="${this.save}">
-          <lucide-icon kind="download"></lucide-icon>
+          <sl-icon name="download"></sl-icon>
         </div>
         <div @click="${this.effects}">
-          <lucide-icon kind="image"></lucide-icon>
+          <sl-icon name="image"></sl-icon>
         </div>
-        <div @click="${this.undo}"><lucide-icon kind="undo"></lucide-icon></div>
+        <div @click="${this.undo}"><sl-icon name="undo"></sl-icon></div>
       </footer>
       <dialog>
         <ul>
@@ -218,12 +218,12 @@ export class ImageRenderer extends LitElement {
               @click="${this.applyEffect}"
               data-cmd="${item.url}|${item.name}"
             >
-              <lucide-icon kind="chevron-right"></lucide-icon>
+              <sl-icon name="chevron-right"></sl-icon>
               ${item.description}
             </li>`;
           })}
         </ul>
-        <button @click="${this.closeDialog}" data-l10n-id="close"></button>
+        <sl-button @click="${this.closeDialog}" data-l10n-id="close"></sl-button>
       </dialog> `;
   }
 

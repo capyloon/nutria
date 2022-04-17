@@ -27,7 +27,7 @@
   background-color: var(--dialog-text);
 }
 
-:host #list lucide-icon {
+:host #list sl-icon {
   font-size: 2em;
 }
 :host #list .details {

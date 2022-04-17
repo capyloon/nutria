@@ -46,12 +46,7 @@ class MainScreen extends LitElement {
       });
       this.resourcePath = [];
       for (let { path, id } of paths) {
-        if (this.resourcePath.length > 0) {
-          this.resourcePath.push(
-            html`<lucide-icon kind="chevron-right"></lucide-icon>`
-          );
-        }
-        this.resourcePath.push(html`<span data-id="${id}">${path}</span>`);
+        this.resourcePath.push(html`<sl-breadcrumb-item data-id="${id}">${path}</sl-breadcrumb-item>`);
       }
     });
   }
@@ -176,23 +171,26 @@ class MainScreen extends LitElement {
     let content = this.renderer || html`<div></div>`;
 
     return html`<link rel="stylesheet" href="components/main_screen.css" />
-      <header @click="${this.switchPath}">${this.resourcePath}</header>
+      <sl-breadcrumb @click="${this.switchPath}">${this.resourcePath}</sl-breadcrumb>
       <div id="main">${content}</div>
       <footer class="${this.editMode || this.isContainer ? "hidden" : ""}">
         <div
           @click="${this.enterEditMode}"
           class="${this.renderer?.canEdit() ? "" : "hidden"}"
         >
-          <lucide-icon kind="edit"></lucide-icon>
+          <sl-icon name="edit"></sl-icon>
         </div>
         <div>
-          <lucide-icon kind="share-2"></lucide-icon>
+          <sl-icon name="upload"></sl-icon>
+        </div>
+        <div>
+          <sl-icon name="share-2"></sl-icon>
         </div>
         <div @click="${this.deleteResource}">
-          <lucide-icon kind="trash-2"></lucide-icon>
+          <sl-icon name="trash-2"></sl-icon>
         </div>
         <div @click="${this.closeApp}">
-          <lucide-icon kind="x"></lucide-icon>
+          <sl-icon name="x"></sl-icon>
         </div>
       </footer>`;
   }

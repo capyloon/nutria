@@ -16,6 +16,7 @@
     },
     "permissions": {
       "content-manager": {},
+      "settings": { "access": "readwrite" },
       "web-view": {}
     },
     "serviceworker": {

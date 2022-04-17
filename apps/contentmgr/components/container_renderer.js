@@ -83,7 +83,7 @@ export class ContainerRenderer extends LitElement {
         data-id="${item.id}"
         data-kind="${isFolder ? "container" : "leaf"}"
       >
-        <lucide-icon kind="${kind}"></lucide-icon>
+        <sl-icon name="${kind}"></sl-icon>
         <div class="details">
           <span class="name">${item.name}</span>
           <div>
@@ -168,7 +168,7 @@ export class ContainerRenderer extends LitElement {
     let optionalDelete;
     if (this.selected.size > 0) {
       optionalDelete = html`<div @click="${this.deleteSelected}">
-        <lucide-icon kind="trash-2"></lucide-icon>
+        <sl-icon name="trash-2"></sl-icon>
       </div>`;
     }
 
@@ -182,13 +182,13 @@ export class ContainerRenderer extends LitElement {
       <div class="flex-fill"></div>
       <footer>
         <div @click="${this.switchMode}">
-          <lucide-icon
-            kind="${this.iconLayout ? "list" : "layout-grid"}"
-          ></lucide-icon>
+          <sl-icon
+            name="${this.iconLayout ? "list" : "layout-grid"}"
+          ></sl-icon>
         </div>
         ${optionalDelete}
         <div @click="${this.closeApp}">
-          <lucide-icon kind="x"></lucide-icon>
+          <sl-icon name="x"></sl-icon>
         </div>
       </footer>`;
   }

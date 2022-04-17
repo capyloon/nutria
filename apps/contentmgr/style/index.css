@@ -6,8 +6,8 @@ body {
   padding: 0;
   font-family: "Open Sans", arial, "sans serif";
   user-select: none;
-  background-color: var(--dialog-background);
-  color: var(--dialog-text);
+  background-color: var(--sl-panel-background-color);
+  color: var(--sl-color-neutral-700);
 }
 
 * {

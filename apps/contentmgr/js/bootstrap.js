@@ -2,7 +2,7 @@ const kDeps = [
   {
     name: "main",
     kind: "virtual",
-    deps: ["main screen"],
+    deps: ["main screen", "shoelace-light-theme", "shoelace-setup"],
   },
   {
     name: "lit element",
@@ -13,7 +13,14 @@ const kDeps = [
     name: "main screen",
     kind: "module",
     param: ["./components/main_screen.js"],
-    deps: ["lit element", "content manager"],
+    deps: [
+      "lit element",
+      "content manager",
+      "shoelace-icon",
+      "shoelace-button",
+      "shoelace-breadcrumb",
+      "shoelace-breadcrumb-item",
+    ],
   },
   {
     name: "api daemon core",
@@ -38,7 +45,7 @@ document.addEventListener(
     log(`DOMContentLoaded`);
     await depGraphLoaded;
 
-    let graph = new ParallelGraphLoader(kDeps);
+    let graph = new ParallelGraphLoader(addShoelaceDeps(kDeps));
     await Promise.all([getSharedDeps("shared-all"), graph.waitForDeps("main")]);
 
     log(`Starting at ${document.location}`);

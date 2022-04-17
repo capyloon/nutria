@@ -7,19 +7,11 @@
   flex-direction: column;
 }
 
-:host header {
+:host sl-breadcrumb {
   padding: 0.5em;
   overflow-x: scroll;
   font-size: smaller;
   display: flex;
-}
-
-:host header span:not(:last-child) {
-  cursor: pointer;
-}
-
-:host header span:hover:not(:last-child) {
-  text-decoration: underline;
 }
 
 :host .hidden {
