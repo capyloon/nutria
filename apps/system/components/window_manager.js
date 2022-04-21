@@ -166,13 +166,15 @@ class WindowManagerKeys {
     }
 
     // Reload the current tab with [Ctrl] + [r]
-    // Zoom in the current tab with [Ctrl] + [+]
+    // Zoom in the current tab with [Ctrl] + [+] and [Ctrl] + [=]
     // Zoom out the current tab with [Ctrl] + [-]
     // Reset zoom for the current tab with [Ctrl] + [0]
     if (this.isCtrlDown && event.type === "keydown" && !this.isCarouselOpen) {
       if (event.key === "r") {
         this.wm.reloadCurrentFrame();
       } else if (event.key === "+") {
+        this.wm.zoomInCurrentFrame();
+      } else if (event.key === "=") {
         this.wm.zoomInCurrentFrame();
       } else if (event.key === "-") {
         this.wm.zoomOutCurrentFrame();
