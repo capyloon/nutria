@@ -46,7 +46,9 @@ class MainScreen extends LitElement {
       });
       this.resourcePath = [];
       for (let { path, id } of paths) {
-        this.resourcePath.push(html`<sl-breadcrumb-item data-id="${id}">${path}</sl-breadcrumb-item>`);
+        this.resourcePath.push(
+          html`<sl-breadcrumb-item data-id="${id}">${path}</sl-breadcrumb-item>`
+        );
       }
     });
   }
@@ -166,12 +168,28 @@ class MainScreen extends LitElement {
     }
   }
 
+  async uploadResource() {
+    // Moves the resource to the "shared on ipfs" folder and let the IPFS
+    // publisher module take care of the actual upload.
+    try {
+      let target = await contentManager.ensureTopLevelContainer(
+        "shared on ipfs"
+      );
+      let svc = await contentManager.getService();
+      let _meta = await svc.copyResource(this.data.id, target);
+    } catch (e) {
+      this.error(JSON.stringify(e));
+    }
+  }
+
   render() {
     this.log(`render editMode=${this.editMode}`);
     let content = this.renderer || html`<div></div>`;
 
     return html`<link rel="stylesheet" href="components/main_screen.css" />
-      <sl-breadcrumb @click="${this.switchPath}">${this.resourcePath}</sl-breadcrumb>
+      <sl-breadcrumb @click="${this.switchPath}">${
+      this.resourcePath
+    }</sl-breadcrumb>
       <div id="main">${content}</div>
       <footer class="${this.editMode || this.isContainer ? "hidden" : ""}">
         <div
@@ -180,7 +198,7 @@ class MainScreen extends LitElement {
         >
           <sl-icon name="edit"></sl-icon>
         </div>
-        <div>
+        <div @click="${this.uploadResource}">
           <sl-icon name="upload"></sl-icon>
         </div>
         <div>

@@ -38,6 +38,7 @@
 :host #list .details div {
   font-size: smaller;
   font-weight: lighter;
+  color: var(--sl-color-neutral-500);
 }
 
 /* Icon layout mode */
