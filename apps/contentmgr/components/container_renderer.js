@@ -64,7 +64,8 @@ export class ContainerRenderer extends LitElement {
 
       // Manually apply offset to UTC since we have no guarantee that
       // anything else but `UTC` will work in DateTimeFormat.
-      let modified = item.modified.getTime() - new Date().getTimezoneOffset() * 60 * 1000;
+      let modified =
+        item.modified.getTime() - new Date().getTimezoneOffset() * 60 * 1000;
       const timeFormat = new Intl.DateTimeFormat("default", {
         weekday: "long",
         month: "long",
@@ -77,6 +78,13 @@ export class ContainerRenderer extends LitElement {
 
       let kind = await contentManager.iconForResource(item);
 
+      let isPublishedOnIpfs = !!item.tags.find((tag) =>
+        tag.startsWith(".ipfs://")
+      );
+      let qrCode = isPublishedOnIpfs
+        ? html`<sl-icon @click="${this.onQrCode}" name="qr-code"></sl-icon>`
+        : "";
+
       this.items.push(html`<div
         @click=${this.openResource}
         @contextmenu=${this.toggleSelection}
@@ -84,6 +92,7 @@ export class ContainerRenderer extends LitElement {
         data-kind="${isFolder ? "container" : "leaf"}"
       >
         <sl-icon name="${kind}"></sl-icon>
+        ${qrCode}
         <div class="details">
           <span class="name">${item.name}</span>
           <div>
@@ -94,8 +103,19 @@ export class ContainerRenderer extends LitElement {
         </div>
       </div>`);
     }
-  // TODO(fabrice): figure out why we need that explicit update trigger.
-  this.requestUpdate();
+    // TODO(fabrice): figure out why we need that explicit update trigger.
+    this.requestUpdate();
+  }
+
+  onQrCode(event) {
+    let id = this.findNodeFromEvent(event)?.dataset.id;
+    if (!id) {
+      return;
+    }
+    event.stopPropagation();
+    // Trigger a "resource sharing" activity.
+    let activity = new WebActivity("share-resource", { id });
+    activity.start();
   }
 
   findNodeFromEvent(event) {
@@ -164,6 +184,10 @@ export class ContainerRenderer extends LitElement {
     await this.getItems();
   }
 
+  updated() {
+    document.l10n.translateFragment(this.shadowRoot);
+  }
+
   render() {
     let optionalDelete;
     if (this.selected.size > 0) {
@@ -172,23 +196,26 @@ export class ContainerRenderer extends LitElement {
       </div>`;
     }
 
+    let items =
+      !this.items || this.items.length == 0
+        ? html`<div class="empty" data-l10n-id="empty-container"></div>`
+        : this.items;
+
     return html`<link
         rel="stylesheet"
         href="components/container_renderer.css"
       />
       <div id="list" class="${this.iconLayout ? "icons" : "list"}">
-        ${this.items}
+        ${items}
       </div>
       <div class="flex-fill"></div>
       <footer>
         <div @click="${this.switchMode}">
-          <sl-icon
-            name="${this.iconLayout ? "list" : "layout-grid"}"
-          ></sl-icon>
+          <sl-icon-button name="${this.iconLayout ? "list" : "layout-grid"}"></sl-icon-button>
         </div>
         ${optionalDelete}
         <div @click="${this.closeApp}">
-          <sl-icon name="x"></sl-icon>
+          <sl-icon-button name="x"></sl-icon-button>
         </div>
       </footer>`;
   }

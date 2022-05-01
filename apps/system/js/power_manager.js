@@ -207,6 +207,8 @@ class PowerManagement {
       );
 
       if (topic !== "idle") {
+        this.powerOn = true;
+        actionsDispatcher.dispatch("set-screen-on");
         return;
       }
 

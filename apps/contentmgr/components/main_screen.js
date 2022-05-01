@@ -8,6 +8,7 @@ class MainScreen extends LitElement {
     this.resourcePath = null;
     this.editMode = false;
     this.isContainer = false;
+    this.isPublishedOnIpfs = false;
   }
 
   log(msg) {
@@ -24,6 +25,7 @@ class MainScreen extends LitElement {
       resourcePath: { state: true },
       editMode: { type: Boolean },
       isContainer: { type: Boolean },
+      isPublishedOnIpfs: { type: Boolean },
     };
   }
 
@@ -91,16 +93,23 @@ class MainScreen extends LitElement {
         this.switchTo({ mimeType, id, container: false });
       });
       this.isContainer = true;
-    } else if (data.mimeType.startsWith("image/")) {
-      let { ImageRenderer } = await import("/components/image_renderer.js");
-      let resource = await contentManager.resourceFromId(data.id);
-      this.renderer = new ImageRenderer(resource);
-      this.isContainer = false;
+      this.isPublishedOnIpfs = false;
     } else {
-      let { DefaultRenderer } = await import("/components/default_renderer.js");
-      let resource = await contentManager.resourceFromId(data.id);
-      this.renderer = new DefaultRenderer(resource);
       this.isContainer = false;
+      let resource = await contentManager.resourceFromId(data.id);
+      this.isPublishedOnIpfs = !!resource.meta.tags.find((tag) =>
+        tag.startsWith(".ipfs://")
+      );
+
+      if (data.mimeType.startsWith("image/")) {
+        let { ImageRenderer } = await import("/components/image_renderer.js");
+        this.renderer = new ImageRenderer(resource);
+      } else {
+        let { DefaultRenderer } = await import(
+          "/components/default_renderer.js"
+        );
+        this.renderer = new DefaultRenderer(resource);
+      }
     }
 
     this.buildBreadCrumb(data.id);
@@ -169,7 +178,7 @@ class MainScreen extends LitElement {
   }
 
   async uploadResource() {
-    // Moves the resource to the "shared on ipfs" folder and let the IPFS
+    // Copy the resource to the "shared on ipfs" folder and let the IPFS
     // publisher module take care of the actual upload.
     try {
       let target = await contentManager.ensureTopLevelContainer(
@@ -187,28 +196,30 @@ class MainScreen extends LitElement {
     let content = this.renderer || html`<div></div>`;
 
     return html`<link rel="stylesheet" href="components/main_screen.css" />
-      <sl-breadcrumb @click="${this.switchPath}">${
-      this.resourcePath
-    }</sl-breadcrumb>
+      <sl-breadcrumb @click="${this.switchPath}"
+        >${this.resourcePath}</sl-breadcrumb
+      >
       <div id="main">${content}</div>
       <footer class="${this.editMode || this.isContainer ? "hidden" : ""}">
         <div
           @click="${this.enterEditMode}"
           class="${this.renderer?.canEdit() ? "" : "hidden"}"
         >
-          <sl-icon name="edit"></sl-icon>
+          <sl-icon-button name="edit"></sl-icon-button>
         </div>
         <div @click="${this.uploadResource}">
-          <sl-icon name="upload"></sl-icon>
+          ${this.isPublishedOnIpfs
+            ? html`<sl-icon-button disabled name="upload"></sl-icon-button>`
+            : html`<sl-icon-button name="upload"></sl-icon-button>`}
         </div>
         <div>
-          <sl-icon name="share-2"></sl-icon>
+          <sl-icon-button name="share-2"></sl-icon-button>
         </div>
         <div @click="${this.deleteResource}">
-          <sl-icon name="trash-2"></sl-icon>
+          <sl-icon-button name="trash-2"></sl-icon-button>
         </div>
         <div @click="${this.closeApp}">
-          <sl-icon name="x"></sl-icon>
+          <sl-icon-button name="x"></sl-icon-button>
         </div>
       </footer>`;
   }

@@ -47,3 +47,20 @@ body {
   opacity: 0;
   transition: opacity 10ms ease-in;
 }
+
+#last-image {
+  width: 64px;
+}
+
+#last-container {
+  border: 1px solid gray;
+  border-radius: 5px;
+  padding: 3px;
+  display: none;
+  gap: 0.5em;
+  align-items: center;
+}
+
+#last-container.shown {
+  display: flex;
+}

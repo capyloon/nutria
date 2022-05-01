@@ -17,6 +17,7 @@ const kDeps = [
       "lit element",
       "content manager",
       "shoelace-icon",
+      "shoelace-icon-button",
       "shoelace-button",
       "shoelace-breadcrumb",
       "shoelace-breadcrumb-item",

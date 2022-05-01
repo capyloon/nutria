@@ -204,12 +204,12 @@ export class ImageRenderer extends LitElement {
       <img crossorigin="anonymous" src=${this.src} />
       <footer class="${this.editMode ? "" : "hidden"}">
         <div @click="${this.save}">
-          <sl-icon name="download"></sl-icon>
+          <sl-icon-button name="download"></sl-icon-button>
         </div>
         <div @click="${this.effects}">
-          <sl-icon name="image"></sl-icon>
+          <sl-icon-button name="image"></sl-icon-button>
         </div>
-        <div @click="${this.undo}"><sl-icon name="undo"></sl-icon></div>
+        <div @click="${this.undo}"><sl-icon-button name="undo"></sl-icon-button></div>
       </footer>
       <dialog>
         <ul>

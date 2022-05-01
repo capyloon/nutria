@@ -74,8 +74,25 @@ export class CameraBase {
     this.log(`Photos container is ${container}, adding ${filename}`);
 
     contentManager.create(container, filename, blob).then(
-      () => {
+      (resource) => {
         this.log(`Photo saved in camera/${filename}`);
+        document.getElementById("last-image").src =
+          resource.variantUrl("default");
+        let container = document.getElementById("last-container");
+        container.classList.add("shown");
+        container.onclick = async () => {
+          // Copy the resource to the "shared on ipfs" folder and let the IPFS
+          // publisher module take care of the actual upload.
+          try {
+            let target = await contentManager.ensureTopLevelContainer(
+              "shared on ipfs"
+            );
+            let svc = await contentManager.getService();
+            let _meta = await svc.copyResource(resource.meta.id, target);
+          } catch (e) {
+            this.error(JSON.stringify(e));
+          }
+        };
       },
       (error) => {
         this.error(`Error saving photo: ${JSON.stringify(error)}`);
@@ -84,7 +101,7 @@ export class CameraBase {
   }
 
   startShutterEffect() {
-      this.preview.classList.add("shutter");
+    this.preview.classList.add("shutter");
   }
 
   endShutterEffect() {

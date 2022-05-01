@@ -44,6 +44,12 @@ window.addEventListener("serviceworkermessage", ({ detail }) => {
         }
         wm.openFrame(config.url, { activate: true, details });
         break;
+      case "share-resource":
+        actionsDispatcher.dispatch("share-resource", source.data.id);
+        break;
+      case "publish-to-ipfs":
+        actionsDispatcher.dispatch("publish-to-ipfs", source.data);
+        break;
       default:
         console.error(`Unexpected system app activity name: ${source.name}`);
         break;

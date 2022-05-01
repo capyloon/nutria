@@ -1,4 +1,3 @@
-
 let settings = [
   "deviceinfo.build_number",
   "deviceinfo.software",
@@ -25,14 +24,13 @@ function displaySettings(service) {
       });
 
       let row = document.createElement("tr");
-        let nameCell = document.createElement("td");
-        nameCell.setAttribute("data-l10n-id", "user-agent");
-        let valueCell = document.createElement("td");
-        valueCell.textContent = navigator.userAgent;
-        row.appendChild(nameCell);
-        row.appendChild(valueCell);
-        table.appendChild(row);
-
+      let nameCell = document.createElement("td");
+      nameCell.setAttribute("data-l10n-id", "user-agent");
+      let valueCell = document.createElement("td");
+      valueCell.textContent = navigator.userAgent;
+      row.appendChild(nameCell);
+      row.appendChild(valueCell);
+      table.appendChild(row);
     },
     () => console.error("Failed to get get deviceinfo settings.")
   );
@@ -100,6 +98,22 @@ function displayTelephony() {
   // });
 }
 
+async function manageIpfs(settings) {
+  let input = document.getElementById("estuary-key");
+  const settingsKey = "ipfs.estuary.api-token";
+
+  input.oninput = async () => {
+    console.log(`Estuary token: ${input.value}`);
+    let setting = { name: settingsKey, value: input.value.trim() };
+    await settings.set([setting]);
+    console.log(`Estuary setting ${settingsKey} updated to '${setting.value}'`);
+  };
+
+  try {
+    let setting = await settings.get(settingsKey);
+    input.value = setting.value;
+  } catch (e) {}
+}
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
@@ -113,6 +127,8 @@ document.addEventListener(
         (settings) => {
           console.log(`ApiDaemon we got a settings service! ${settings}`);
           displaySettings(settings);
+
+          manageIpfs(settings);
         },
         (error) => console.error(error)
       );

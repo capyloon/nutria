@@ -151,6 +151,9 @@ const kDeps = [
       "url edit comp",
       "select ui comp",
       "downloads",
+      "ipfs",
+      "text share comp",
+      "confirm dialog comp",
     ],
   },
   {
@@ -268,5 +271,44 @@ const kDeps = [
     kind: "module",
     param: ["./components/url_edit.js"],
     deps: ["content manager"],
+  },
+  {
+    name: "ipfs",
+    kind: "virtual",
+    deps: ["ipfs publisher", "estuary"],
+  },
+  {
+    name: "ipfs publisher",
+    kind: "module",
+    param: ["./js/ipfs_publisher.js"],
+    deps: ["content manager"],
+  },
+  {
+    name: "estuary",
+    kind: "module",
+    param: ["./js/estuary.js", ["Estuary"]],
+  },
+  {
+    name: "text share comp",
+    kind: "module",
+    param: ["./components/text_share.js"],
+    deps: [
+      "lit element",
+      "shoelace-button",
+      "shoelace-icon-button",
+      "shoelace-dialog",
+      "shoelace-qr-code",
+    ],
+  },
+  {
+    name: "confirm dialog comp",
+    kind: "module",
+    param: ["./components/confirm_dialog.js"],
+    deps: [
+      "lit element",
+      "shoelace-button",
+      "shoelace-icon-button",
+      "shoelace-dialog",
+    ],
   },
 ];
