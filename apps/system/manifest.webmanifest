@@ -18,6 +18,7 @@
     "permissions": {
       "content-manager": {},
       "datacall": {},
+      "desktop-notification": {},
       "downloads": {},
       "flashlight": {},
       "power": {},
@@ -37,6 +38,19 @@
       "launch": {
         "filters": {
           "url": { "required": true }
+        },
+        "returnValue": false
+      },
+      "share-resource": {
+        "filters": {
+          "id": { "required": true }
+        },
+        "returnValue": false
+      },
+      "publish-to-ipfs": {
+        "filters": {
+          "blob": { "required": true },
+          "name": { "required": true }
         },
         "returnValue": false
       }

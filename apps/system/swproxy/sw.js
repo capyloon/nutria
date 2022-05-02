@@ -79,6 +79,7 @@ self.addEventListener("message", (event) => {
   // Message received from clients
   console.log("service worker receive message: ", event.data);
   const { data } = event;
+  console.log(`SW Ipfs ${JSON.stringify(data)}`);
 
   if (data.isKeepalive) {
     console.log("Receiving a keepalive message, nothing more to do.");
@@ -112,6 +113,41 @@ self.addEventListener("message", (event) => {
         type: "activity_keepalive",
         data: "stop",
       });
+    }
+  }
+
+  if (data.notification) {
+    console.log(`SW Ipfs notification`);
+    try {
+      let notification = data.notification;
+      let { title, body, icon, tag, actions } = notification;
+      console.log(
+        `SW Ipfs notif data: title=${title} body=${body} tag=${tag} actions=${actions}`
+      );
+      self.registration
+        .showNotification(title, {
+          body,
+          icon,
+          tag,
+          actions,
+        })
+        .catch((e) => {
+          console.log(`SW Ipfs showNotification error: ${e}`);
+        });
+
+      self.onnotificationclick = (event) => {
+        console.log(
+          `notification click: action=${event.action} tag=${event.notification.tag}`
+        );
+        // Send back the notification click action.
+        postMessage(event, {
+          category: "notification",
+          type: "action",
+          data: { action: event.action, tag: event.notification.tag },
+        });
+      };
+    } catch (e) {
+      console.error(`SW Ipfs Oops: ${e}`);
     }
   }
 });

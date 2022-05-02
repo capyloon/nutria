@@ -62,3 +62,19 @@ download-notification-title-finalized = Download Finalized
 tor-enabling = Enabling Tor…
 tor-enabled = Tor is now enabled
 tor-disabled = Tor is now disabled
+
+# IPFS publishing
+ipfs-publish-title = Publishing to IPFS
+ipfs-publish-error = Error publishing {$name}
+ipfs-publish-success = Successfully published {$name}
+ipfs-publish-share = Share…
+ipfs-button-publish = Publish
+ipfs-confirm-publish = The file named '{$name}' will be permanently published to a public place.
+ipfs-estuary-missing-token = Unable to publish: missing Estuary api token
+
+# <text-share> element
+text-share-copy =
+    .label = Copy To Clipboard
+text-share-share =
+    .label = Share…
+text-share-copied = Text Successfully copied to Clipboard

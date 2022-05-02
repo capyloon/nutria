@@ -15,3 +15,7 @@ user-agent = User Agent
 
 # Telephony information
 telephony-section = Telephony
+
+# IPFS configuration
+ipfs-section = IPFS
+estuary-key-label = Estuary api token:

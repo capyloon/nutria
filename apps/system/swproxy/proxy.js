@@ -25,6 +25,13 @@ function messageHandler(evt) {
         console.error("Failed to send activity result: navigator.serviceWorker.controller is null");
       }
       break;
+    case "notification":
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage(data);
+      } else {
+        console.error("Failed to send notification data: navigator.serviceWorker.controller is null");
+      }
+      break;
     default:
       console.error(`Unexpected data type in proxy message: ${data.type}`);
       break;
@@ -42,7 +49,7 @@ if ("serviceWorker" in navigator) {
         if (port1) {
           if (
             [
-              "systemmessage",
+              "systemmessage", "notification"
               // There might be other categories (service workers) in the future.
             ].includes(data.category)
           ) {

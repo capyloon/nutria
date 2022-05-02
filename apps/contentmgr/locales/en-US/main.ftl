@@ -7,3 +7,6 @@ root-resource = Home
 
 # Generic
 close = close
+
+# <container-renderer>
+empty-container = This Folder is Empty

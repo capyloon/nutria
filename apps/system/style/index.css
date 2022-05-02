@@ -92,6 +92,10 @@ body.screen-off {
   min-height: 0;
 }
 
+#lockscreen {
+  z-index: 1000;
+}
+
 #lockscreen.unlocked {
   display: none;
 }

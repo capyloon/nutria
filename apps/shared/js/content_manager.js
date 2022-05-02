@@ -209,6 +209,17 @@ export class ContentManager {
     }
   }
 
+  // Checks if a child by this name exists, without fetching any variant.
+  async hasChildByName(parent, name) {
+    let svc = await this.service;
+    try {
+      await svc.childByName(parent, name);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Simple way to create a leaf resource with an existing blob.
   async create(parent, name, blob, tags = []) {
     let svc = await this.service;

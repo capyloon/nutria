@@ -23,8 +23,8 @@
 }
 
 :host #list > div.selected {
-  color: var(--dialog-background);
-  background-color: var(--dialog-text);
+  color: var(--sl-panel-background-color);
+  background-color: var(--sl-color-neutral-700);
 }
 
 :host #list sl-icon {
@@ -92,4 +92,11 @@
 
 :host .flex-fill {
   flex: 1;
+}
+
+:host #list > div.empty {
+  text-align: center;
+  display: block;
+  margin-top: 2em;
+  color: var(--sl-color-neutral-500);
 }
