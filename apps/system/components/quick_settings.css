@@ -8,7 +8,7 @@
   background-color: var(--sl-panel-background-color);
   padding: 0.5em;
   margin: 0.5em;
-  border-radius: 25px;
+  border-radius: var(--sl-border-radius-x-large);
   display: flex;
   flex-direction: column;
   box-shadow: 0 5px 10px rgba(0, 0, 0, 0.5);
@@ -105,7 +105,7 @@
 
 :host(.adjust-brightness) .container > #brightness-section {
   background-color: var(--sl-panel-background-color);
-  border-radius: 30px;
+  border-radius: var(--sl-border-radius-x-large);
 }
 
 :host sl-badge {
