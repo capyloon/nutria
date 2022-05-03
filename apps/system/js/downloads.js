@@ -6,6 +6,9 @@ class Downloads {
     this.log(`constructor`);
 
     navigator.b2g.downloadManager.addEventListener("downloadstart", this);
+    actionsDispatcher.addListener("import-download", async (_name, path) => {
+      await this.import(path);
+    });
   }
 
   log(msg) {
@@ -44,11 +47,15 @@ class Downloads {
   }
 
   async saveDownload(download) {
+    await this.import(download.path);
+    navigator.b2g.downloadManager.remove(download);
+  }
+
+  // Import a file a given path into the downloads container.
+  async import(path) {
     let container = await contentManager.ensureTopLevelContainer("downloads");
     let svc = await contentManager.getService();
-    let meta = await svc.importFromPath(container, download.path, true);
-    // this.log(`Saved as ${JSON.stringify(meta)}`);
-    navigator.b2g.downloadManager.remove(download);
+    await svc.importFromPath(container, path, true);
   }
 
   handleEvent(event) {

@@ -169,7 +169,7 @@ window.utils = {
   },
 };
 
-async function setupWebExtensions() {
+function setupWebExtensions() {
   // Listen to WebExtension lifecycle events.
   [
     "onEnabling",

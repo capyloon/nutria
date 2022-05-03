@@ -820,9 +820,12 @@ class ContentWindow extends HTMLElement {
         uiUpdateNeeded = true;
         break;
       case "contextmenu":
-        // console.log(`Got ContextMenu event detail=${JSON.stringify(detail)}`);
-        let menu = document.body.querySelector("context-menu");
-        menu.open(detail, this.webView);
+        if (detail && !this.config.isHomescreen) {
+          console.log(`Got ContextMenu event detail=${JSON.stringify(detail)}`);
+          detail.pageUrl = this.state.url;
+          let menu = document.body.querySelector("context-menu");
+          menu.open(detail, this);
+        }
         break;
       case "close":
         if (this.state.fromLockscreen && this.state.whenClosed) {
@@ -944,7 +947,12 @@ class ContentWindow extends HTMLElement {
     }
 
     if (!this.openSearchManager.hasEngine(url)) {
-      await this.openSearchManager.addFromUrl(url, false, null, this.state.icon);
+      await this.openSearchManager.addFromUrl(
+        url,
+        false,
+        null,
+        this.state.icon
+      );
     }
   }
 
@@ -1049,6 +1057,76 @@ class ContentWindow extends HTMLElement {
     };
     ui.setData(data);
     this.selectUiContainer.classList.remove("hidden");
+  }
+
+  // TODO: That code should move to web-view.js in Gecko.
+  savePage() {
+    let scope = {};
+    Services.scriptloader.loadSubScript(
+      "chrome://global/content/contentAreaUtils.js",
+      scope
+    );
+    scope.saveBrowser(this.webView.linkedBrowser, true /* skipPrompt */);
+  }
+
+  // TODO: That code should move to web-view.js in Gecko.
+  async saveAsPDF() {
+    const { DownloadPaths } = ChromeUtils.import(
+      "resource://gre/modules/DownloadPaths.jsm"
+    );
+    const { OS } = ChromeUtils.import("resource://gre/modules/osfile.jsm");
+
+    let linkedBrowser = this.webView.linkedBrowser;
+    let filename = "";
+    if (linkedBrowser.contentTitle != "") {
+      filename = linkedBrowser.contentTitle;
+    } else {
+      let url = new URL(linkedBrowser.currentURI.spec);
+      let path = decodeURIComponent(url.pathname);
+      path = path.replace(/\/$/, "");
+      filename = path.split("/").pop();
+      if (filename == "") {
+        filename = url.hostname;
+      }
+    }
+    filename = `${DownloadPaths.sanitize(filename)}.pdf`;
+
+    // Create a unique filename for the temporary PDF file
+    const basePath = OS.Path.join(OS.Constants.Path.tmpDir, filename);
+    const { file, path: filePath } = await OS.File.openUnique(basePath);
+    await file.close();
+
+    let psService = Cc["@mozilla.org/gfx/printsettings-service;1"].getService(
+      Ci.nsIPrintSettingsService
+    );
+    const printSettings = psService.newPrintSettings;
+    printSettings.isInitializedFromPrinter = true;
+    printSettings.isInitializedFromPrefs = true;
+    printSettings.outputFormat = Ci.nsIPrintSettings.kOutputFormatPDF;
+    printSettings.printerName = "";
+    printSettings.printSilent = true;
+    printSettings.outputDestination =
+      Ci.nsIPrintSettings.kOutputDestinationFile;
+    printSettings.toFileName = filePath;
+
+    let title = await window.utils.l10n("save-as-pdf-title");
+    let body = await window.utils.l10n("save-as-pdf-processing", { filename });
+    let tag = `notif-save-pdf-${filename}`;
+    let _notif = new Notification(title, { body, tag, data: { progress: -1 } });
+
+    linkedBrowser.browsingContext
+      .print(printSettings)
+      .then(async () => {
+        actionsDispatcher.dispatch("import-download", filePath);
+        let body = await window.utils.l10n("save-as-pdf-done", { filename });
+        let _notif = new Notification(title, { body, tag });
+        window.toaster.show(body);
+      })
+      .catch(async (e) => {
+        let body = await window.utils.l10n("save-as-pdf-error", { filename });
+        let _notif = new Notification(title, { body, tag });
+        window.toaster.show(body, "danger");
+      });
   }
 }
 
