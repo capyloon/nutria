@@ -23,6 +23,8 @@ image-download = Download
 image-share = Share…
 link-section-title = Link
 link-new-tab = Open Link In New Tab
+page-section-title = Page
+page-save-as-pdf = Save As PDF
 
 # Site Info Panel
 site-info-add-home = Add To Home
@@ -78,3 +80,9 @@ text-share-copy =
 text-share-share =
     .label = Share…
 text-share-copied = Text Successfully copied to Clipboard
+
+# Save as PDF
+save-as-pdf-title = Saving as PDF
+save-as-pdf-processing = Processing '{$filename}'
+save-as-pdf-done = Successfully saved '{$filename}'
+save-as-pdf-error = Failed to save '{$filename}'

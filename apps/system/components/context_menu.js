@@ -25,6 +25,7 @@
 //   clientY: 432,
 //   screenX: 93,
 //   screenY: 432,
+//   pageUrl: "https://example.com"
 // }
 
 // {
@@ -58,6 +59,9 @@ class ContextMenu extends HTMLElement {
     <link rel="stylesheet" href="components/context_menu.css">
     <sl-dialog no-header>
       <sl-menu>
+      <sl-menu-label><sl-icon name="file"></sl-icon><span data-l10n-id="page-section-title"></span></sl-menu-label>
+        <sl-menu-item data-l10n-id="page-save-as-pdf"></sl-menu-item>
+        <sl-divider class="when-image-or-link"></sl-divider>
         <sl-menu-label class="when-image"><sl-icon name="image"></sl-icon><span data-l10n-id="image-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-image" data-l10n-id="image-set-wallpaper"></sl-menu-item>
         <sl-menu-item class="when-image" data-l10n-id="image-download"></sl-menu-item>
@@ -77,17 +81,22 @@ class ContextMenu extends HTMLElement {
       actionsDispatcher.dispatch("set-wallpaper", this.imageUrl);
     };
 
-    shadow.querySelector(
-      "sl-menu-item[data-l10n-id=image-download]"
-    ).onclick = () => {
-      this.close();
-      this.webView.download(this.imageUrl);
-    };
+    shadow.querySelector("sl-menu-item[data-l10n-id=image-download]").onclick =
+      () => {
+        this.close();
+        this.contentWindow.webView.download(this.imageUrl);
+      };
 
     shadow.querySelector("sl-menu-item[data-l10n-id=link-new-tab]").onclick =
       () => {
         this.close();
         window.wm.openFrame(this.linkUrl, { activate: true });
+      };
+
+    shadow.querySelector("sl-menu-item[data-l10n-id=page-save-as-pdf]").onclick =
+      () => {
+        this.close();
+        this.contentWindow.saveAsPDF();
       };
 
     this.dialog = shadow.querySelector("sl-dialog");
@@ -97,13 +106,13 @@ class ContextMenu extends HTMLElement {
     this.dialog.hide();
   }
 
-  open(data, webView) {
+  open(data, contentWindow) {
     if (!data) {
       console.error(`ContextMenu: no data!`);
       return;
     }
 
-    this.webView = webView;
+    this.contentWindow = contentWindow;
 
     // Check the context menu data to decide which sections to show.
     this.imageUrl = null;
@@ -128,11 +137,12 @@ class ContextMenu extends HTMLElement {
         item.classList.add("hidden");
       }
     });
+
     this.shadowRoot.querySelectorAll(".when-link").forEach((item) => {
       if (hasLink) {
         item.classList.remove("hidden");
       } else {
-                item.classList.add("hidden");
+        item.classList.add("hidden");
       }
     });
 
@@ -144,10 +154,14 @@ class ContextMenu extends HTMLElement {
       }
     });
 
-    if (!hasImage && !hasLink) {
-      console.error(`ContextMenu: No image or link found!`);
-      return;
-    }
+    this.shadowRoot.querySelectorAll(".when-image-or-link").forEach((item) => {
+      if (hasImage || hasLink) {
+        item.classList.remove("hidden");
+      } else {
+        item.classList.add("hidden");
+      }
+    });
+
     this.dialog.show();
   }
 }

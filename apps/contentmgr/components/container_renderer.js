@@ -132,6 +132,10 @@ export class ContainerRenderer extends LitElement {
       return;
     }
 
+    // Prevent the standard context menu from showing up.
+    event.stopPropagation();
+    event.preventDefault();
+
     const { id } = node.dataset;
     // this.log(`toggleSelection for ${id}`);
     node.classList.toggle("selected");
