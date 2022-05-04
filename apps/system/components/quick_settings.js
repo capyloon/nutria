@@ -300,8 +300,11 @@ class QuickSettings extends HTMLElement {
   }
 
   initTelephony() {
-    let conns = navigator.b2g?.mobileConnections;
-    let dataCallManager = navigator.b2g?.dataCallManager;
+    let conns, dataCallManager;
+    try {
+      conns = navigator.b2g?.mobileConnections;
+      dataCallManager = navigator.b2g?.dataCallManager;
+    } catch (e) {}
 
     if (!conns || !dataCallManager) {
       console.error("mobileConnections or dataCallManager are not available.");
