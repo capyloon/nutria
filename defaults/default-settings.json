@@ -12,5 +12,6 @@
   "nutria.branding": "branding-capyloon",
   "tor.enabled": false,
   "privacy.trackingprotection.enabled": true,
-  "ftu.done": false
+  "ftu.done": false,
+  "ipfs.estuary.api-token": "ESTb4ae60f8-7cf5-4834-b735-1edcf98b0f0bARY"
 }
