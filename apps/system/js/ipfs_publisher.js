@@ -74,6 +74,7 @@ class IpfsPublisher {
         icon,
         tag,
       });
+      await this.resource.delete();
     };
 
     ["abort", "timeout", "error"].forEach((event) => {

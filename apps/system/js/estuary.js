@@ -56,7 +56,13 @@ export class Estuary extends EventTarget {
     // TODO: manage other xhr events.
     xhr.onload = () => {
       this.log(`load`);
-      this.dispatchEvent(new CustomEvent("success", { detail: xhr.response }));
+      if (xhr.response.error || !xhr.response.cid) {
+        this.dispatchEvent(new CustomEvent("error"));
+      } else {
+        this.dispatchEvent(
+          new CustomEvent("success", { detail: xhr.response })
+        );
+      }
     };
 
     xhr.responseType = "json";
