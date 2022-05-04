@@ -26,6 +26,7 @@ function TimedPromise(promise, msg) {
 
 export class ApiDaemon {
   constructor(config, global) {
+    console.log(`ApiDaemon [${window.location.hostname}] constructor`);
     this.port = config.port;
     this.global = global;
 
@@ -72,6 +73,7 @@ export class ApiDaemon {
           externalapi
             .getToken()
             .then((token) => {
+              console.log(`ApiDaemon [${window.location.hostname}] Opening websocket session for token ${token}`);
               this.session.open(
                 "websocket",
                 `localhost:${this.port}`,

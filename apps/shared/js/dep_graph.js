@@ -142,6 +142,10 @@ class ParallelGraphLoader {
       let name = this.applyConfig(target.name);
       this.nodes.set(name, target);
     });
+
+    // Keep track of window properties set from modules in order
+    // to not create them twice from rules named differently.
+    this.winProps = new Set();
   }
 
   // Substitute configurable elements in a string.
@@ -252,14 +256,24 @@ class ParallelGraphLoader {
         }
         break;
       case "windowModule":
-        runner = windowModuleLoader(dep.param[0], dep.param[1], dep.param[2]);
+        if (this.winProps.has(dep.param[1])) {
+          runner = () => Promise.resolve();
+        } else {
+          this.winProps.add(dep.param[1]);
+          runner = windowModuleLoader(dep.param[0], dep.param[1], dep.param[2]);
+        }
         break;
       case "sharedWindowModule":
-        runner = sharedWindowModuleLoader(
-          dep.param[0],
-          dep.param[1],
-          dep.param[2]
-        );
+        if (this.winProps.has(dep.param[1])) {
+          runner = () => Promise.resolve();
+        } else {
+          this.winProps.add(dep.param[1]);
+          runner = sharedWindowModuleLoader(
+            dep.param[0],
+            dep.param[1],
+            dep.param[2]
+          );
+        }
         break;
       case "shoelaceComp":
         // The parameter is the Shoelace component name, eg. "input" to use <sl-input>
@@ -441,5 +455,10 @@ function addShoelaceDeps(currentDeps) {
     param: ["js/api_daemon.js", "apiDaemon", "ApiDaemon"],
   });
 
+  return currentDeps;
+}
+
+function addSharedDeps(currentDeps) {
+  kSharedDeps.forEach((dep) => currentDeps.push(dep));
   return currentDeps;
 }

@@ -86,8 +86,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   // );
   await depGraphLoaded;
 
-  graph = new ParallelGraphLoader(kDeps);
-  await Promise.all([getSharedDeps("shared-all"), graph.waitForDeps("main")]);
+  graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
+  await Promise.all(
+    ["shared-all", "main"].map((dep) => graph.waitForDeps(dep))
+  );
 
   let actionsPanel = document.getElementById("actions-panel");
   let searchBox = document.getElementById("search-box");

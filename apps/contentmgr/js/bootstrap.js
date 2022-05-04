@@ -46,11 +46,12 @@ document.addEventListener(
     log(`DOMContentLoaded`);
     await depGraphLoaded;
 
-    let graph = new ParallelGraphLoader(addShoelaceDeps(kDeps));
-    await Promise.all([
-      getSharedDeps(["shared-fluent", "shared-api-daemon"]),
-      graph.waitForDeps("main"),
-    ]);
+    let graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
+    await Promise.all(
+      ["shared-fluent", "shared-api-daemon", "main"].map((dep) =>
+        graph.waitForDeps(dep)
+      )
+    );
 
     log(`Starting at ${document.location}`);
 
