@@ -1110,9 +1110,15 @@ class ContentWindow extends HTMLElement {
     printSettings.toFileName = filePath;
 
     let title = await window.utils.l10n("save-as-pdf-title");
-    let body = await window.utils.l10n("save-as-pdf-processing", { filename });
+    let body = await window.utils.l10n("save-as-pdf-processing", {
+      filename,
+    });
     let tag = `notif-save-pdf-${filename}`;
-    let _notif = new Notification(title, { body, tag, data: { progress: -1 } });
+    let _notif = new Notification(title, {
+      body,
+      tag,
+      data: { progress: -1 },
+    });
 
     linkedBrowser.browsingContext
       .print(printSettings)
@@ -1123,6 +1129,7 @@ class ContentWindow extends HTMLElement {
         window.toaster.show(body);
       })
       .catch(async (e) => {
+        console.error(`Saving to PDF failed: ${e}`);
         let body = await window.utils.l10n("save-as-pdf-error", { filename });
         let _notif = new Notification(title, { body, tag });
         window.toaster.show(body, "danger");

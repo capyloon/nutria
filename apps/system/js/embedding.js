@@ -98,8 +98,11 @@ const UAHelper = {
         `browserWindow::createContentWindowInFrame ${aURI} ${aParams.features}`
       );
 
+      // Ci.nsIBrowserDOMWindow.OPEN_PRINT_BROWSER case
+      let isPrinting = aWhere == 4;
+
       let webView = exports.wm.openFrame(aURI, {
-        activate: true,
+        activate: !isPrinting,
         openWindowInfo: aParams.openWindowInfo,
       });
       return webView;
