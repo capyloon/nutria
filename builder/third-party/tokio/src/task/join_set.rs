@@ -4,7 +4,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use crate::runtime::Handle;
-use crate::task::{JoinError, JoinHandle, LocalSet};
+use crate::task::{AbortHandle, Id, JoinError, JoinHandle, LocalSet};
 use crate::util::IdleNotifiedSet;
 
 /// A collection of tasks spawned on a Tokio runtime.
@@ -48,6 +48,7 @@ use crate::util::IdleNotifiedSet;
 /// ```
 ///
 /// [unstable]: crate#unstable-features
+#[cfg_attr(docsrs, doc(cfg(all(feature = "rt", tokio_unstable))))]
 pub struct JoinSet<T> {
     inner: IdleNotifiedSet<JoinHandle<T>>,
 }
@@ -72,61 +73,76 @@ impl<T> JoinSet<T> {
 }
 
 impl<T: 'static> JoinSet<T> {
-    /// Spawn the provided task on the `JoinSet`.
+    /// Spawn the provided task on the `JoinSet`, returning an [`AbortHandle`]
+    /// that can be used to remotely cancel the task.
     ///
     /// # Panics
     ///
     /// This method panics if called outside of a Tokio runtime.
-    pub fn spawn<F>(&mut self, task: F)
+    ///
+    /// [`AbortHandle`]: crate::task::AbortHandle
+    pub fn spawn<F>(&mut self, task: F) -> AbortHandle
     where
         F: Future<Output = T>,
         F: Send + 'static,
         T: Send,
     {
-        self.insert(crate::spawn(task));
+        self.insert(crate::spawn(task))
     }
 
-    /// Spawn the provided task on the provided runtime and store it in this `JoinSet`.
-    pub fn spawn_on<F>(&mut self, task: F, handle: &Handle)
+    /// Spawn the provided task on the provided runtime and store it in this
+    /// `JoinSet` returning an [`AbortHandle`] that can be used to remotely
+    /// cancel the task.
+    ///
+    /// [`AbortHandle`]: crate::task::AbortHandle
+    pub fn spawn_on<F>(&mut self, task: F, handle: &Handle) -> AbortHandle
     where
         F: Future<Output = T>,
         F: Send + 'static,
         T: Send,
     {
-        self.insert(handle.spawn(task));
+        self.insert(handle.spawn(task))
     }
 
-    /// Spawn the provided task on the current [`LocalSet`] and store it in this `JoinSet`.
+    /// Spawn the provided task on the current [`LocalSet`] and store it in this
+    /// `JoinSet`, returning an [`AbortHandle`]  that can be used to remotely
+    /// cancel the task.
     ///
     /// # Panics
     ///
     /// This method panics if it is called outside of a `LocalSet`.
     ///
     /// [`LocalSet`]: crate::task::LocalSet
-    pub fn spawn_local<F>(&mut self, task: F)
+    /// [`AbortHandle`]: crate::task::AbortHandle
+    pub fn spawn_local<F>(&mut self, task: F) -> AbortHandle
     where
         F: Future<Output = T>,
         F: 'static,
     {
-        self.insert(crate::task::spawn_local(task));
+        self.insert(crate::task::spawn_local(task))
     }
 
-    /// Spawn the provided task on the provided [`LocalSet`] and store it in this `JoinSet`.
+    /// Spawn the provided task on the provided [`LocalSet`] and store it in
+    /// this `JoinSet`, returning an [`AbortHandle`] that can be used to
+    /// remotely cancel the task.
     ///
     /// [`LocalSet`]: crate::task::LocalSet
-    pub fn spawn_local_on<F>(&mut self, task: F, local_set: &LocalSet)
+    /// [`AbortHandle`]: crate::task::AbortHandle
+    pub fn spawn_local_on<F>(&mut self, task: F, local_set: &LocalSet) -> AbortHandle
     where
         F: Future<Output = T>,
         F: 'static,
     {
-        self.insert(local_set.spawn_local(task));
+        self.insert(local_set.spawn_local(task))
     }
 
-    fn insert(&mut self, jh: JoinHandle<T>) {
+    fn insert(&mut self, jh: JoinHandle<T>) -> AbortHandle {
+        let abort = jh.abort_handle();
         let mut entry = self.inner.insert_idle(jh);
 
         // Set the waker that is notified when the task completes.
         entry.with_value_and_context(|jh, ctx| jh.set_join_waker(ctx.waker()));
+        abort
     }
 
     /// Waits until one of the tasks in the set completes and returns its output.
@@ -139,6 +155,24 @@ impl<T: 'static> JoinSet<T> {
     /// statement and some other branch completes first, it is guaranteed that no tasks were
     /// removed from this `JoinSet`.
     pub async fn join_one(&mut self) -> Result<Option<T>, JoinError> {
+        crate::future::poll_fn(|cx| self.poll_join_one(cx))
+            .await
+            .map(|opt| opt.map(|(_, res)| res))
+    }
+
+    /// Waits until one of the tasks in the set completes and returns its
+    /// output, along with the [task ID] of the completed task.
+    ///
+    /// Returns `None` if the set is empty.
+    ///
+    /// # Cancel Safety
+    ///
+    /// This method is cancel safe. If `join_one_with_id` is used as the event in a `tokio::select!`
+    /// statement and some other branch completes first, it is guaranteed that no tasks were
+    /// removed from this `JoinSet`.
+    ///
+    /// [task ID]: crate::task::Id
+    pub async fn join_one_with_id(&mut self) -> Result<Option<(Id, T)>, JoinError> {
         crate::future::poll_fn(|cx| self.poll_join_one(cx)).await
     }
 
@@ -175,8 +209,8 @@ impl<T: 'static> JoinSet<T> {
 
     /// Polls for one of the tasks in the set to complete.
     ///
-    /// If this returns `Poll::Ready(Ok(Some(_)))` or `Poll::Ready(Err(_))`, then the task that
-    /// completed is removed from the set.
+    /// If this returns `Poll::Ready(Some((_, Ok(_))))` or `Poll::Ready(Some((_,
+    /// Err(_)))`, then the task that completed is removed from the set.
     ///
     /// When the method returns `Poll::Pending`, the `Waker` in the provided `Context` is scheduled
     /// to receive a wakeup when a task in the `JoinSet` completes. Note that on multiple calls to
@@ -189,17 +223,19 @@ impl<T: 'static> JoinSet<T> {
     ///
     ///  * `Poll::Pending` if the `JoinSet` is not empty but there is no task whose output is
     ///     available right now.
-    ///  * `Poll::Ready(Ok(Some(value)))` if one of the tasks in this `JoinSet` has completed. The
-    ///    `value` is the return value of one of the tasks that completed.
+    ///  * `Poll::Ready(Ok(Some((id, value)))` if one of the tasks in this `JoinSet` has completed. The
+    ///    `value` is the return value of one of the tasks that completed, while
+    ///    `id` is the [task ID] of that task.
     ///  * `Poll::Ready(Err(err))` if one of the tasks in this `JoinSet` has panicked or been
-    ///     aborted.
+    ///     aborted. The `err` is the `JoinError` from the panicked/aborted task.
     ///  * `Poll::Ready(Ok(None))` if the `JoinSet` is empty.
     ///
     /// Note that this method may return `Poll::Pending` even if one of the tasks has completed.
     /// This can happen if the [coop budget] is reached.
     ///
     /// [coop budget]: crate::task#cooperative-scheduling
-    fn poll_join_one(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<T>, JoinError>> {
+    /// [task ID]: crate::task::Id
+    fn poll_join_one(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<(Id, T)>, JoinError>> {
         // The call to `pop_notified` moves the entry to the `idle` list. It is moved back to
         // the `notified` list if the waker is notified in the `poll` call below.
         let mut entry = match self.inner.pop_notified(cx.waker()) {
@@ -217,7 +253,10 @@ impl<T: 'static> JoinSet<T> {
         let res = entry.with_value_and_context(|jh, ctx| Pin::new(jh).poll(ctx));
 
         if let Poll::Ready(res) = res {
-            entry.remove();
+            let entry = entry.remove();
+            // If the task succeeded, add the task ID to the output. Otherwise, the
+            // `JoinError` will already have the task's ID.
+            let res = res.map(|output| (entry.id(), output));
             Poll::Ready(Some(res).transpose())
         } else {
             // A JoinHandle generally won't emit a wakeup without being ready unless

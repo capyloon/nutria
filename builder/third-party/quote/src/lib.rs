@@ -81,7 +81,7 @@
 //! ```
 
 // Quote types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/quote/1.0.17")]
+#![doc(html_root_url = "https://docs.rs/quote/1.0.18")]
 #![allow(
     clippy::doc_markdown,
     clippy::missing_errors_doc,
@@ -468,11 +468,42 @@ pub mod spanned;
 /// #     }
 /// # }
 /// ```
+#[cfg(doc)]
+#[macro_export]
+macro_rules! quote {
+    ($($tt:tt)*) => {
+        ...
+    };
+}
+
+#[cfg(not(doc))]
 #[macro_export]
 macro_rules! quote {
     () => {
         $crate::__private::TokenStream::new()
     };
+
+    // Special case rule for a single tt, for performance.
+    ($tt:tt) => {{
+        let mut _s = $crate::__private::TokenStream::new();
+        $crate::quote_token!($tt _s);
+        _s
+    }};
+
+    // Special case rules for two tts, for performance.
+    (# $var:ident) => {{
+        let mut _s = $crate::__private::TokenStream::new();
+        $crate::ToTokens::to_tokens(&$var, &mut _s);
+        _s
+    }};
+    ($tt1:tt $tt2:tt) => {{
+        let mut _s = $crate::__private::TokenStream::new();
+        $crate::quote_token!($tt1 _s);
+        $crate::quote_token!($tt2 _s);
+        _s
+    }};
+
+    // Rule for any other number of tokens.
     ($($tt:tt)*) => {{
         let mut _s = $crate::__private::TokenStream::new();
         $crate::quote_each_token!(_s $($tt)*);
@@ -576,12 +607,46 @@ macro_rules! quote {
 /// In this example it is important for the where-clause to be spanned with the
 /// line/column information of the user's input type so that error messages are
 /// placed appropriately by the compiler.
+#[cfg(doc)]
+#[macro_export]
+macro_rules! quote_spanned {
+    ($span:expr=> $($tt:tt)*) => {
+        ...
+    };
+}
+
+#[cfg(not(doc))]
 #[macro_export]
 macro_rules! quote_spanned {
     ($span:expr=>) => {{
         let _: $crate::__private::Span = $span;
         $crate::__private::TokenStream::new()
     }};
+
+    // Special case rule for a single tt, for performance.
+    ($span:expr=> $tt:tt) => {{
+        let mut _s = $crate::__private::TokenStream::new();
+        let _span: $crate::__private::Span = $span;
+        $crate::quote_token_spanned!($tt _s _span);
+        _s
+    }};
+
+    // Special case rules for two tts, for performance.
+    ($span:expr=> # $var:ident) => {{
+        let mut _s = $crate::__private::TokenStream::new();
+        let _: $crate::__private::Span = $span;
+        $crate::ToTokens::to_tokens(&$var, &mut _s);
+        _s
+    }};
+    ($span:expr=> $tt1:tt $tt2:tt) => {{
+        let mut _s = $crate::__private::TokenStream::new();
+        let _span: $crate::__private::Span = $span;
+        $crate::quote_token_spanned!($tt1 _s _span);
+        $crate::quote_token_spanned!($tt2 _s _span);
+        _s
+    }};
+
+    // Rule for any other number of tokens.
     ($span:expr=> $($tt:tt)*) => {{
         let mut _s = $crate::__private::TokenStream::new();
         let _span: $crate::__private::Span = $span;

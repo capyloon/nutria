@@ -100,17 +100,17 @@
 //! [`record_value`]: Visit::record_value
 //! [`record_debug`]: Visit::record_debug
 //!
-//! [`Value`]: trait.Value.html
-//! [span]: ../span/
-//! [`Event`]: ../event/struct.Event.html
-//! [`Metadata`]: ../metadata/struct.Metadata.html
-//! [`Attributes`]:  ../span/struct.Attributes.html
-//! [`Record`]: ../span/struct.Record.html
-//! [`new_span`]: ../subscriber/trait.Subscriber.html#method.new_span
-//! [`record`]: ../subscriber/trait.Subscriber.html#method.record
-//! [`event`]:  ../subscriber/trait.Subscriber.html#method.event
-//! [`Value::record`]: trait.Value.html#method.record
-//! [`Visit`]: trait.Visit.html
+//! [`Value`]: Value
+//! [span]: super::span
+//! [`Event`]: super::event::Event
+//! [`Metadata`]: super::metadata::Metadata
+//! [`Attributes`]:  super::span::Attributes
+//! [`Record`]: super::span::Record
+//! [`new_span`]: super::subscriber::Subscriber::new_span
+//! [`record`]: super::subscriber::Subscriber::record
+//! [`event`]:  super::subscriber::Subscriber::event
+//! [`Value::record`]: Value::record
+//! [`Visit`]: Visit
 use crate::callsite;
 use crate::stdlib::{
     borrow::Borrow,
@@ -249,13 +249,13 @@ pub struct Iter {
 /// <code>std::error::Error</code> trait.
 /// </pre></div>
 ///
-/// [`Value`]: trait.Value.html
-/// [recorded]: trait.Value.html#method.record
-/// [`Subscriber`]: ../subscriber/trait.Subscriber.html
-/// [records an `Event`]: ../subscriber/trait.Subscriber.html#method.event
-/// [set of `Value`s added to a `Span`]: ../subscriber/trait.Subscriber.html#method.record
-/// [`Event`]: ../event/struct.Event.html
-/// [`ValueSet`]: struct.ValueSet.html
+/// [`Value`]: Value
+/// [recorded]: Value::record
+/// [`Subscriber`]: super::subscriber::Subscriber
+/// [records an `Event`]: super::subscriber::Subscriber::event
+/// [set of `Value`s added to a `Span`]: super::subscriber::Subscriber::record
+/// [`Event`]: super::event::Event
+/// [`ValueSet`]: ValueSet
 pub trait Visit {
     /// Visits an arbitrary type implementing the [`valuable`] crate's `Valuable` trait.
     ///
@@ -301,7 +301,7 @@ pub trait Visit {
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     fn record_error(&mut self, field: &Field, value: &(dyn std::error::Error + 'static)) {
-        self.record_debug(field, &format_args!("{}", value))
+        self.record_debug(field, &DisplayValue(value))
     }
 
     /// Visit a value implementing `fmt::Debug`.
@@ -314,7 +314,7 @@ pub trait Visit {
 /// the [visitor] passed to their `record` method in order to indicate how
 /// their data should be recorded.
 ///
-/// [visitor]: trait.Visit.html
+/// [visitor]: Visit
 pub trait Value: crate::sealed::Sealed {
     /// Visits this value with the given `Visitor`.
     fn record(&self, key: &Field, visitor: &mut dyn Visit);
@@ -523,6 +523,39 @@ impl Value for dyn std::error::Error + 'static {
     }
 }
 
+#[cfg(feature = "std")]
+impl crate::sealed::Sealed for dyn std::error::Error + Send + 'static {}
+
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+impl Value for dyn std::error::Error + Send + 'static {
+    fn record(&self, key: &Field, visitor: &mut dyn Visit) {
+        (self as &dyn std::error::Error).record(key, visitor)
+    }
+}
+
+#[cfg(feature = "std")]
+impl crate::sealed::Sealed for dyn std::error::Error + Sync + 'static {}
+
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+impl Value for dyn std::error::Error + Sync + 'static {
+    fn record(&self, key: &Field, visitor: &mut dyn Visit) {
+        (self as &dyn std::error::Error).record(key, visitor)
+    }
+}
+
+#[cfg(feature = "std")]
+impl crate::sealed::Sealed for dyn std::error::Error + Send + Sync + 'static {}
+
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+impl Value for dyn std::error::Error + Send + Sync + 'static {
+    fn record(&self, key: &Field, visitor: &mut dyn Visit) {
+        (self as &dyn std::error::Error).record(key, visitor)
+    }
+}
+
 impl<'a, T: ?Sized> crate::sealed::Sealed for &'a T where T: Value + crate::sealed::Sealed + 'a {}
 
 impl<'a, T: ?Sized> Value for &'a T
@@ -552,6 +585,18 @@ impl<'a> crate::sealed::Sealed for fmt::Arguments<'a> {}
 impl<'a> Value for fmt::Arguments<'a> {
     fn record(&self, key: &Field, visitor: &mut dyn Visit) {
         visitor.record_debug(key, self)
+    }
+}
+
+impl<T: ?Sized> crate::sealed::Sealed for crate::stdlib::boxed::Box<T> where T: Value {}
+
+impl<T: ?Sized> Value for crate::stdlib::boxed::Box<T>
+where
+    T: Value,
+{
+    #[inline]
+    fn record(&self, key: &Field, visitor: &mut dyn Visit) {
+        self.as_ref().record(key, visitor)
     }
 }
 
@@ -599,19 +644,19 @@ where
     T: fmt::Display,
 {
     fn record(&self, key: &Field, visitor: &mut dyn Visit) {
-        visitor.record_debug(key, &format_args!("{}", self.0))
+        visitor.record_debug(key, self)
     }
 }
 
 impl<T: fmt::Display> fmt::Debug for DisplayValue<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        fmt::Display::fmt(self, f)
     }
 }
 
 impl<T: fmt::Display> fmt::Display for DisplayValue<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
+        self.0.fmt(f)
     }
 }
 
@@ -630,7 +675,7 @@ where
 
 impl<T: fmt::Debug> fmt::Debug for DebugValue<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
+        self.0.fmt(f)
     }
 }
 
@@ -680,8 +725,8 @@ impl Field {
     /// Returns an [`Identifier`] that uniquely identifies the [`Callsite`]
     /// which defines this field.
     ///
-    /// [`Identifier`]: ../callsite/struct.Identifier.html
-    /// [`Callsite`]: ../callsite/trait.Callsite.html
+    /// [`Identifier`]: super::callsite::Identifier
+    /// [`Callsite`]: super::callsite::Callsite
     #[inline]
     pub fn callsite(&self) -> callsite::Identifier {
         self.fields.callsite()
@@ -746,15 +791,15 @@ impl FieldSet {
     /// Returns an [`Identifier`] that uniquely identifies the [`Callsite`]
     /// which defines this set of fields..
     ///
-    /// [`Identifier`]: ../callsite/struct.Identifier.html
-    /// [`Callsite`]: ../callsite/trait.Callsite.html
+    /// [`Identifier`]: super::callsite::Identifier
+    /// [`Callsite`]: super::callsite::Callsite
     pub(crate) fn callsite(&self) -> callsite::Identifier {
         callsite::Identifier(self.callsite.0)
     }
 
     /// Returns the [`Field`] named `name`, or `None` if no such field exists.
     ///
-    /// [`Field`]: ../struct.Field.html
+    /// [`Field`]: super::Field
     pub fn field<Q: ?Sized>(&self, name: &Q) -> Option<Field>
     where
         Q: Borrow<str>,
@@ -872,8 +917,8 @@ impl<'a> ValueSet<'a> {
     /// Returns an [`Identifier`] that uniquely identifies the [`Callsite`]
     /// defining the fields this `ValueSet` refers to.
     ///
-    /// [`Identifier`]: ../callsite/struct.Identifier.html
-    /// [`Callsite`]: ../callsite/trait.Callsite.html
+    /// [`Identifier`]: super::callsite::Identifier
+    /// [`Callsite`]: super::callsite::Callsite
     #[inline]
     pub fn callsite(&self) -> callsite::Identifier {
         self.fields.callsite()
@@ -1121,5 +1166,25 @@ mod test {
             write!(&mut result, "{:?}", value).unwrap();
         });
         assert_eq!(result, "123".to_owned());
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn record_error() {
+        let fields = TEST_META_1.fields();
+        let err: Box<dyn std::error::Error + Send + Sync + 'static> =
+            std::io::Error::new(std::io::ErrorKind::Other, "lol").into();
+        let values = &[
+            (&fields.field("foo").unwrap(), Some(&err as &dyn Value)),
+            (&fields.field("bar").unwrap(), Some(&Empty as &dyn Value)),
+            (&fields.field("baz").unwrap(), Some(&Empty as &dyn Value)),
+        ];
+        let valueset = fields.value_set(values);
+        let mut result = String::new();
+        valueset.record(&mut |_: &Field, value: &dyn fmt::Debug| {
+            use core::fmt::Write;
+            write!(&mut result, "{:?}", value).unwrap();
+        });
+        assert_eq!(result, format!("{}", err));
     }
 }

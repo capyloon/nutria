@@ -230,7 +230,7 @@ pub mod error {
     ///
     /// [`recv`]: crate::sync::broadcast::Receiver::recv
     /// [`Receiver`]: crate::sync::broadcast::Receiver
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Clone)]
     pub enum RecvError {
         /// There are no more active senders implying no further messages will ever
         /// be sent.
@@ -258,7 +258,7 @@ pub mod error {
     ///
     /// [`try_recv`]: crate::sync::broadcast::Receiver::try_recv
     /// [`Receiver`]: crate::sync::broadcast::Receiver
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Clone)]
     pub enum TryRecvError {
         /// The channel is currently empty. There are still active
         /// [`Sender`] handles, so data may yet become available.
@@ -425,6 +425,11 @@ const MAX_RECEIVERS: usize = usize::MAX >> 2;
 ///     tx.send(20).unwrap();
 /// }
 /// ```
+///
+/// # Panics
+///
+/// This will panic if `capacity` is equal to `0` or larger
+/// than `usize::MAX / 2`.
 pub fn channel<T: Clone>(mut capacity: usize) -> (Sender<T>, Receiver<T>) {
     assert!(capacity > 0, "capacity is empty");
     assert!(capacity <= usize::MAX >> 1, "requested capacity too large");
@@ -691,6 +696,73 @@ impl<T> Drop for Sender<T> {
 }
 
 impl<T> Receiver<T> {
+    /// Returns the number of messages that were sent into the channel and that
+    /// this [`Receiver`] has yet to receive.
+    ///
+    /// If the returned value from `len` is larger than the next largest power of 2
+    /// of the capacity of the channel any call to [`recv`] will return an
+    /// `Err(RecvError::Lagged)` and any call to [`try_recv`] will return an
+    /// `Err(TryRecvError::Lagged)`, e.g. if the capacity of the channel is 10,
+    /// [`recv`] will start to return `Err(RecvError::Lagged)` once `len` returns
+    /// values larger than 16.
+    ///
+    /// [`Receiver`]: crate::sync::broadcast::Receiver
+    /// [`recv`]: crate::sync::broadcast::Receiver::recv
+    /// [`try_recv`]: crate::sync::broadcast::Receiver::try_recv
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tokio::sync::broadcast;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let (tx, mut rx1) = broadcast::channel(16);
+    ///
+    ///     tx.send(10).unwrap();
+    ///     tx.send(20).unwrap();
+    ///
+    ///     assert_eq!(rx1.len(), 2);
+    ///     assert_eq!(rx1.recv().await.unwrap(), 10);
+    ///     assert_eq!(rx1.len(), 1);
+    ///     assert_eq!(rx1.recv().await.unwrap(), 20);     
+    ///     assert_eq!(rx1.len(), 0);
+    /// }
+    /// ```
+    pub fn len(&self) -> usize {
+        let next_send_pos = self.shared.tail.lock().pos;
+        (next_send_pos - self.next) as usize
+    }
+
+    /// Returns true if there aren't any messages in the channel that the [`Receiver`]
+    /// has yet to receive.
+    ///
+    /// [`Receiver]: create::sync::broadcast::Receiver
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tokio::sync::broadcast;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let (tx, mut rx1) = broadcast::channel(16);
+    ///
+    ///     assert!(rx1.is_empty());
+    ///
+    ///     tx.send(10).unwrap();
+    ///     tx.send(20).unwrap();
+    ///
+    ///     assert!(!rx1.is_empty());
+    ///     assert_eq!(rx1.recv().await.unwrap(), 10);
+    ///     assert_eq!(rx1.recv().await.unwrap(), 20);     
+    ///     assert!(rx1.is_empty());
+    /// }
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Locks the next value if there is one.
     fn recv_ref(
         &mut self,

@@ -96,6 +96,12 @@ s! {
         pub imr_ifindex: ::c_int,
     }
 
+    pub struct ip_mreq_source {
+        pub imr_multiaddr: in_addr,
+        pub imr_sourceaddr: in_addr,
+        pub imr_interface: in_addr,
+    }
+
     pub struct glob_t {
         pub gl_pathc:  ::size_t,
         pub gl_matchc: ::size_t,
@@ -963,6 +969,11 @@ pub const IPV6_PKTINFO: ::c_int = 46;
 pub const IPV6_HOPLIMIT: ::c_int = 47;
 pub const IPV6_RECVTCLASS: ::c_int = 57;
 pub const IPV6_TCLASS: ::c_int = 61;
+pub const IPV6_DONTFRAG: ::c_int = 62;
+pub const IP_ADD_SOURCE_MEMBERSHIP: ::c_int = 70;
+pub const IP_DROP_SOURCE_MEMBERSHIP: ::c_int = 71;
+pub const IP_BLOCK_SOURCE: ::c_int = 72;
+pub const IP_UNBLOCK_SOURCE: ::c_int = 73;
 
 pub const TCP_NOPUSH: ::c_int = 4;
 pub const TCP_NOOPT: ::c_int = 8;
@@ -1594,6 +1605,16 @@ extern "C" {
     pub fn pthread_barrier_wait(barrier: *mut pthread_barrier_t) -> ::c_int;
     pub fn pthread_get_name_np(tid: ::pthread_t, name: *mut ::c_char, len: ::size_t);
     pub fn pthread_set_name_np(tid: ::pthread_t, name: *const ::c_char);
+    pub fn pthread_setschedparam(
+        native: ::pthread_t,
+        policy: ::c_int,
+        param: *const sched_param,
+    ) -> ::c_int;
+    pub fn pthread_getschedparam(
+        native: ::pthread_t,
+        policy: *mut ::c_int,
+        param: *mut sched_param,
+    ) -> ::c_int;
     pub fn ptrace(request: ::c_int, pid: ::pid_t, addr: *mut ::c_char, data: ::c_int) -> ::c_int;
     pub fn utrace(addr: *const ::c_void, len: ::size_t) -> ::c_int;
     pub fn pututxline(ut: *const utmpx) -> *mut utmpx;

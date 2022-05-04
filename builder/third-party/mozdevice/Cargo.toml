@@ -3,17 +3,16 @@
 # When uploading crates to the registry Cargo will automatically
 # "normalize" Cargo.toml files for maximal compatibility
 # with all versions of Cargo and also rewrite `path` dependencies
-# to registry (e.g., crates.io) dependencies
+# to registry (e.g., crates.io) dependencies.
 #
-# If you believe there's an error in this file please file an
-# issue against the rust-lang/cargo repository. If you're
-# editing this file be aware that the upstream Cargo.toml
-# will likely look very different (and much more reasonable)
+# If you are reading this file be aware that the original Cargo.toml
+# will likely look very different (and much more reasonable).
+# See Cargo.toml.orig for the original contents.
 
 [package]
 edition = "2018"
 name = "mozdevice"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Mozilla"]
 description = "Client library for the Android Debug Bridge (adb)"
 keywords = ["mozilla", "firefox", "geckoview", "android", "adb"]
@@ -34,6 +33,9 @@ default-features = false
 
 [dependencies.tempfile]
 version = "3"
+
+[dependencies.thiserror]
+version = "1.0.25"
 
 [dependencies.unix_path]
 version = "1.0"

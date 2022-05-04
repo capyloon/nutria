@@ -9,7 +9,7 @@ use std::fmt;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 
-use ipnet::{IpNet, Ipv4Net, Ipv6Net};
+use crate::ipnet::{IpNet, Ipv4Net, Ipv6Net};
 
 pub struct Parser<'a> {
     // parsing as ASCII, so can use byte array

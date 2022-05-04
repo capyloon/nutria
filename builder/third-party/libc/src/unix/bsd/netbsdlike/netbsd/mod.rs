@@ -487,10 +487,6 @@ s! {
         af_arg: [[::c_char; 10]; 24],
     }
 
-    pub struct sched_param {
-        pub sched_priority: ::c_int,
-    }
-
     pub struct kinfo_vmentry {
         pub kve_start: u64,
         pub kve_end: u64,
@@ -527,7 +523,7 @@ s! {
     pub struct posix_spawnattr_t {
         pub sa_flags: ::c_short,
         pub sa_pgroup: ::pid_t,
-        pub sa_schedparam: sched_param,
+        pub sa_schedparam: ::sched_param,
         pub sa_schedpolicy: ::c_int,
         pub sa_sigdefault: sigset_t,
         pub sa_sigmask: sigset_t,
@@ -1305,6 +1301,29 @@ pub const F_GETNOSIGPIPE: ::c_int = 13;
 pub const F_SETNOSIGPIPE: ::c_int = 14;
 pub const F_MAXFD: ::c_int = 11;
 pub const F_GETPATH: ::c_int = 15;
+
+pub const FUTEX_WAIT: ::c_int = 0;
+pub const FUTEX_WAKE: ::c_int = 1;
+pub const FUTEX_FD: ::c_int = 2;
+pub const FUTEX_REQUEUE: ::c_int = 3;
+pub const FUTEX_CMP_REQUEUE: ::c_int = 4;
+pub const FUTEX_WAKE_OP: ::c_int = 5;
+pub const FUTEX_LOCK_PI: ::c_int = 6;
+pub const FUTEX_UNLOCK_PI: ::c_int = 7;
+pub const FUTEX_TRYLOCK_PI: ::c_int = 8;
+pub const FUTEX_WAIT_BITSET: ::c_int = 9;
+pub const FUTEX_WAKE_BITSET: ::c_int = 10;
+pub const FUTEX_WAIT_REQUEUE_PI: ::c_int = 11;
+pub const FUTEX_CMP_REQUEUE_PI: ::c_int = 12;
+pub const FUTEX_PRIVATE_FLAG: ::c_int = 1 << 7;
+pub const FUTEX_CLOCK_REALTIME: ::c_int = 1 << 8;
+pub const FUTEX_CMD_MASK: ::c_int = !(FUTEX_PRIVATE_FLAG | FUTEX_CLOCK_REALTIME);
+pub const FUTEX_WAITERS: u32 = 1 << 31;
+pub const FUTEX_OWNER_DIED: u32 = 1 << 30;
+pub const FUTEX_SYNCOBJ_1: u32 = 1 << 29;
+pub const FUTEX_SYNCOBJ_0: u32 = 1 << 28;
+pub const FUTEX_TID_MASK: u32 = (1 << 28) - 1;
+pub const FUTEX_BITSET_MATCH_ANY: u32 = !0;
 
 pub const IP_RECVDSTADDR: ::c_int = 7;
 pub const IP_SENDSRCADDR: ::c_int = IP_RECVDSTADDR;
@@ -2516,8 +2535,8 @@ extern "C" {
     ) -> *mut ::c_void;
 
     pub fn sched_rr_get_interval(pid: ::pid_t, t: *mut ::timespec) -> ::c_int;
-    pub fn sched_setparam(pid: ::pid_t, param: *const sched_param) -> ::c_int;
-    pub fn sched_getparam(pid: ::pid_t, param: *mut sched_param) -> ::c_int;
+    pub fn sched_setparam(pid: ::pid_t, param: *const ::sched_param) -> ::c_int;
+    pub fn sched_getparam(pid: ::pid_t, param: *mut ::sched_param) -> ::c_int;
     pub fn sched_getscheduler(pid: ::pid_t) -> ::c_int;
     pub fn sched_setscheduler(
         pid: ::pid_t,

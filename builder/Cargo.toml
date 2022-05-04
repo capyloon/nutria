@@ -12,7 +12,7 @@ env_logger = "0.9"
 fs_extra = "1.2"
 indicatif = "0.16"
 log = "0.4"
-mozdevice = "0.4"
+mozdevice = "0.5"
 rayon = "1.5"
 reqwest = {version = "0.11", default-features = false, features = ["rustls-tls-webpki-roots", "blocking", "rustls", "deflate", "gzip", "brotli"]}
 serde = {version = "1.0", features = ["derive"]}

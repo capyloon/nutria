@@ -633,7 +633,7 @@ macro_rules! arg_impl {
 ///
 /// ### Help String
 ///
-/// The help string is denoted between a pair of single quotes `''` and may contain any
+/// The help string is denoted between a pair of double quotes `""` and may contain any
 /// characters.
 ///
 /// # Examples
@@ -933,7 +933,7 @@ macro_rules! debug {
     ($($arg:tt)*) => ({
         let prefix = format!("[{:>w$}] \t", module_path!(), w = 28);
         let body = format!($($arg)*);
-        let mut color = $crate::output::fmt::Colorizer::new(true, $crate::ColorChoice::Auto);
+        let mut color = $crate::output::fmt::Colorizer::new($crate::output::fmt::Stream::Stderr, $crate::ColorChoice::Auto);
         color.hint(prefix);
         color.hint(body);
         color.none("\n");

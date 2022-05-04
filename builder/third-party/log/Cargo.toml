@@ -11,7 +11,7 @@
 
 [package]
 name = "log"
-version = "0.4.16"
+version = "0.4.17"
 authors = ["The Rust Project Developers"]
 build = "build.rs"
 exclude = ["rfcs/**/*"]
@@ -58,7 +58,7 @@ optional = true
 default-features = false
 
 [dependencies.value-bag]
-version = "=1.0.0-alpha.8"
+version = "=1.0.0-alpha.9"
 optional = true
 default-features = false
 
@@ -77,7 +77,7 @@ version = "=1.0.0-alpha.5"
 features = ["derive"]
 
 [dev-dependencies.value-bag]
-version = "=1.0.0-alpha.8"
+version = "=1.0.0-alpha.9"
 features = ["test"]
 
 [features]

@@ -13,19 +13,43 @@
 edition = "2018"
 rust-version = "1.49.0"
 name = "tracing"
-version = "0.1.32"
-authors = ["Eliza Weisman <eliza@buoyant.io>", "Tokio Contributors <team@tokio.rs>"]
-description = "Application-level tracing for Rust.\n"
+version = "0.1.34"
+authors = [
+    "Eliza Weisman <eliza@buoyant.io>",
+    "Tokio Contributors <team@tokio.rs>",
+]
+description = """
+Application-level tracing for Rust.
+"""
 homepage = "https://tokio.rs"
 readme = "README.md"
-keywords = ["logging", "tracing", "metrics", "async"]
-categories = ["development-tools::debugging", "development-tools::profiling", "asynchronous", "no-std"]
+keywords = [
+    "logging",
+    "tracing",
+    "metrics",
+    "async",
+]
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "asynchronous",
+    "no-std",
+]
 license = "MIT"
 repository = "https://github.com/tokio-rs/tracing"
+
 [package.metadata.docs.rs]
 all-features = true
-rustc-args = ["--cfg", "tracing_unstable"]
-rustdoc-args = ["--cfg", "docsrs", "--cfg", "tracing_unstable"]
+rustdoc-args = [
+    "--cfg",
+    "docsrs",
+    "--cfg",
+    "tracing_unstable",
+]
+rustc-args = [
+    "--cfg",
+    "tracing_unstable",
+]
 
 [[bench]]
 name = "subscriber"
@@ -34,6 +58,7 @@ harness = false
 [[bench]]
 name = "no_subscriber"
 harness = false
+
 [dependencies.cfg-if]
 version = "1.0.0"
 
@@ -51,24 +76,21 @@ optional = true
 [dependencies.tracing-core]
 version = "0.1.22"
 default-features = false
+
 [dev-dependencies.criterion]
 version = "0.3"
 default_features = false
 
-[dev-dependencies.futures]
-version = "0.1"
-
 [dev-dependencies.log]
 version = "0.4"
-
-[dev-dependencies.tokio]
-version = "0.2.21"
-features = ["rt-core"]
 
 [features]
 async-await = []
 attributes = ["tracing-attributes"]
-default = ["std", "attributes"]
+default = [
+    "std",
+    "attributes",
+]
 log-always = ["log"]
 max_level_debug = []
 max_level_error = []
@@ -84,7 +106,9 @@ release_max_level_trace = []
 release_max_level_warn = []
 std = ["tracing-core/std"]
 valuable = ["tracing-core/valuable"]
+
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-test]
 version = "^0.3"
+
 [badges.maintenance]
 status = "actively-developed"

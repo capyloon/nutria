@@ -117,10 +117,7 @@ characters. Vietnamese tone marks can be decomposed using the
 
 ## Licensing
 
-TL;DR: ((Apache-2.0 OR MIT) AND BSD-3-Clause) for the code and data combination,
-but [crates.io doesn't support
-parentheses](https://github.com/rust-lang/crates.io/issues/2595), so the crate
-metadata points to a custom file.
+TL;DR: `(Apache-2.0 OR MIT) AND BSD-3-Clause` for the code and data combination.
 
 Please see the file named
 [COPYRIGHT](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT).
@@ -452,6 +449,10 @@ To regenerate the generated code:
 - [ ] Migrate to `std::simd` once it is stable and declare 1.0.
 
 ## Release Notes
+
+### 0.8.31
+
+* Use SPDX with parentheses now that crates.io supports parentheses.
 
 ### 0.8.30
 

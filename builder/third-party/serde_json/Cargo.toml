@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.36"
 name = "serde_json"
-version = "1.0.79"
+version = "1.0.81"
 authors = [
     "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
     "David Tolnay <dtolnay@gmail.com>",
@@ -45,7 +45,8 @@ rustdoc-args = [
 features = ["raw_value"]
 
 [dependencies.indexmap]
-version = "1.5"
+version = "1.5.2"
+features = ["std"]
 optional = true
 
 [dependencies.itoa]
@@ -67,6 +68,10 @@ version = "1.0"
 [dev-dependencies.rustversion]
 version = "1.0"
 
+[dev-dependencies.serde]
+version = "1.0.100"
+features = ["derive"]
+
 [dev-dependencies.serde_bytes]
 version = "0.11"
 
@@ -85,7 +90,10 @@ alloc = ["serde/alloc"]
 arbitrary_precision = []
 default = ["std"]
 float_roundtrip = []
-preserve_order = ["indexmap"]
+preserve_order = [
+    "indexmap",
+    "std",
+]
 raw_value = []
 std = ["serde/std"]
 unbounded_depth = []

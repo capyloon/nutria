@@ -12,19 +12,46 @@
 [package]
 edition = "2018"
 name = "tinyvec"
-version = "1.5.1"
+version = "1.6.0"
 authors = ["Lokathor <zefria@gmail.com>"]
 description = "`tinyvec` provides 100% safe vec-like data structures."
-keywords = ["vec", "no_std", "no-std"]
-categories = ["data-structures", "no-std"]
+readme = "README.md"
+keywords = [
+    "vec",
+    "no_std",
+    "no-std",
+]
+categories = [
+    "data-structures",
+    "no-std",
+]
 license = "Zlib OR Apache-2.0 OR MIT"
 repository = "https://github.com/Lokathor/tinyvec"
+
 [package.metadata.docs.rs]
-features = ["alloc", "std", "grab_spare_slice", "rustc_1_40", "rustc_1_55", "serde"]
-rustdoc-args = ["--cfg", "docs_rs"]
+features = [
+    "alloc",
+    "std",
+    "grab_spare_slice",
+    "rustc_1_40",
+    "rustc_1_55",
+    "serde",
+]
+rustdoc-args = [
+    "--cfg",
+    "docs_rs",
+]
 
 [package.metadata.playground]
-features = ["alloc", "std", "grab_spare_slice", "rustc_1_40", "rustc_1_55", "serde"]
+features = [
+    "alloc",
+    "std",
+    "grab_spare_slice",
+    "rustc_1_40",
+    "rustc_1_55",
+    "serde",
+]
+
 [profile.bench]
 debug = 2
 
@@ -33,7 +60,10 @@ opt-level = 3
 
 [[test]]
 name = "tinyvec"
-required-features = ["alloc", "std"]
+required-features = [
+    "alloc",
+    "std",
+]
 
 [[bench]]
 name = "macros"
@@ -43,7 +73,11 @@ required-features = ["alloc"]
 [[bench]]
 name = "smallvec"
 harness = false
-required-features = ["alloc", "real_blackbox"]
+required-features = [
+    "alloc",
+    "real_blackbox",
+]
+
 [dependencies.arbitrary]
 version = "1"
 optional = true
@@ -56,6 +90,7 @@ default-features = false
 [dependencies.tinyvec_macros]
 version = "0.1"
 optional = true
+
 [dev-dependencies.criterion]
 version = "0.3.0"
 
@@ -74,4 +109,5 @@ nightly_slice_partition_dedup = []
 real_blackbox = ["criterion/real_blackbox"]
 rustc_1_40 = []
 rustc_1_55 = ["rustc_1_40"]
-std = []
+rustc_1_57 = ["rustc_1_55"]
+std = ["alloc"]

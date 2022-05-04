@@ -1519,6 +1519,9 @@ pub const PTHREAD_MUTEX_ERRORCHECK: ::c_int = 2;
 pub const PTHREAD_MUTEX_DEFAULT: ::c_int = PTHREAD_MUTEX_NORMAL;
 pub const PTHREAD_MUTEX_STALLED: ::c_int = 0;
 pub const PTHREAD_MUTEX_ROBUST: ::c_int = 1;
+pub const PTHREAD_PRIO_NONE: ::c_int = 0;
+pub const PTHREAD_PRIO_INHERIT: ::c_int = 1;
+pub const PTHREAD_PRIO_PROTECT: ::c_int = 2;
 pub const PTHREAD_PROCESS_PRIVATE: ::c_int = 0;
 pub const PTHREAD_PROCESS_SHARED: ::c_int = 1;
 pub const __SIZEOF_PTHREAD_COND_T: usize = 48;
@@ -1775,6 +1778,9 @@ pub const PR_CAP_AMBIENT_IS_SET: ::c_int = 1;
 pub const PR_CAP_AMBIENT_RAISE: ::c_int = 2;
 pub const PR_CAP_AMBIENT_LOWER: ::c_int = 3;
 pub const PR_CAP_AMBIENT_CLEAR_ALL: ::c_int = 4;
+
+pub const PR_SET_VMA: ::c_int = 0x53564d41;
+pub const PR_SET_VMA_ANON_NAME: ::c_int = 0;
 
 pub const GRND_NONBLOCK: ::c_uint = 0x0001;
 pub const GRND_RANDOM: ::c_uint = 0x0002;
@@ -3784,6 +3790,14 @@ extern "C" {
         nfds: nfds_t,
         timeout: *const ::timespec,
         sigmask: *const sigset_t,
+    ) -> ::c_int;
+    pub fn pthread_mutexattr_getprotocol(
+        attr: *const pthread_mutexattr_t,
+        protocol: *mut ::c_int,
+    ) -> ::c_int;
+    pub fn pthread_mutexattr_setprotocol(
+        attr: *mut pthread_mutexattr_t,
+        protocol: ::c_int,
     ) -> ::c_int;
     pub fn pthread_mutex_consistent(mutex: *mut pthread_mutex_t) -> ::c_int;
     pub fn pthread_mutex_timedlock(

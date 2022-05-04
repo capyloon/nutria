@@ -7,10 +7,10 @@
  */
 
 partial interface Navigator {
-  [SecureContext, SameObject] readonly attribute XR xr;
+  [SecureContext, SameObject] readonly attribute XRSystem xr;
 };
 
-[SecureContext, Exposed=Window] interface XR : EventTarget {
+[SecureContext, Exposed=Window] interface XRSystem : EventTarget {
   // Methods
   Promise<boolean> isSessionSupported(XRSessionMode mode);
   [NewObject] Promise<XRSession> requestSession(XRSessionMode mode, optional XRSessionInit options = {});
@@ -163,6 +163,7 @@ enum XRTargetRayMode {
 
 [SecureContext, Exposed=Window]
 interface XRInputSource {
+  readonly attribute Gamepad? gamepad;
   readonly attribute XRHandedness handedness;
   readonly attribute XRTargetRayMode targetRayMode;
   [SameObject] readonly attribute XRSpace targetRaySpace;
@@ -192,19 +193,17 @@ dictionary XRWebGLLayerInit {
   double framebufferScaleFactor = 1.0;
 };
 
-// TODO: Change constructor back to original webidl
-// [SecureContext, Exposed=Window]
-[SecureContext, Exposed=Window, Constructor(XRSession session, XRWebGLRenderingContext context, optional XRWebGLLayerInit layerInit = {})]
-interface XRWebGLLayer {
-  //constructor(XRSession session,
-  //  XRWebGLRenderingContext context,
-  //  optional XRWebGLLayerInit layerInit = {});
-
+[SecureContext, Exposed=Window]
+interface XRWebGLLayer: XRLayer {
+  constructor(XRSession session,
+             XRWebGLRenderingContext context,
+             optional XRWebGLLayerInit layerInit = {});
   // Attributes
   readonly attribute boolean antialias;
   readonly attribute boolean ignoreDepthValues;
+  attribute float? fixedFoveation;
 
-  [SameObject] readonly attribute WebGLFramebuffer framebuffer;
+  [SameObject] readonly attribute WebGLFramebuffer? framebuffer;
   readonly attribute unsigned long framebufferWidth;
   readonly attribute unsigned long framebufferHeight;
 

@@ -509,10 +509,11 @@ impl<'a> Serializer<'a> {
     }
 
     fn escape_key(&mut self, key: &str) -> Result<(), Error> {
-        let ok = key.chars().all(|c| match c {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => true,
-            _ => false,
-        });
+        let ok = key.len() > 0
+            && key.chars().all(|c| match c {
+                'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => true,
+                _ => false,
+            });
         if ok {
             write!(self.dst, "{}", key).map_err(ser::Error::custom)?;
         } else {
@@ -751,17 +752,21 @@ impl<'a> Serializer<'a> {
 macro_rules! serialize_float {
     ($this:expr, $v:expr) => {{
         $this.emit_key(ArrayState::Started)?;
-        if ($v.is_nan() || $v == 0.0) && $v.is_sign_negative() {
-            write!($this.dst, "-").map_err(ser::Error::custom)?;
+        match ($v.is_sign_negative(), $v.is_nan(), $v == 0.0) {
+            (true, true, _) => write!($this.dst, "-nan"),
+            (false, true, _) => write!($this.dst, "nan"),
+            (true, false, true) => write!($this.dst, "-0.0"),
+            (false, false, true) => write!($this.dst, "0.0"),
+            (_, false, false) => write!($this.dst, "{}", $v).and_then(|_| {
+                if $v % 1.0 == 0.0 {
+                    write!($this.dst, ".0")
+                } else {
+                    Ok(())
+                }
+            }),
         }
-        if $v.is_nan() {
-            write!($this.dst, "nan").map_err(ser::Error::custom)?;
-        } else {
-            write!($this.dst, "{}", $v).map_err(ser::Error::custom)?;
-        }
-        if $v % 1.0 == 0.0 {
-            write!($this.dst, ".0").map_err(ser::Error::custom)?;
-        }
+        .map_err(ser::Error::custom)?;
+
         if let State::Table { .. } = $this.state {
             $this.dst.push_str("\n");
         }

@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.49.0"
 name = "tracing-core"
-version = "0.1.23"
+version = "0.1.26"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = "Core primitives for application-level tracing.\n"
 homepage = "https://tokio.rs"
@@ -27,7 +27,7 @@ all-features = true
 rustc-args = ["--cfg", "tracing_unstable"]
 rustdoc-args = ["--cfg", "docsrs", "--cfg", "tracing_unstable"]
 [dependencies.lazy_static]
-version = "1"
+version = "1.0.2"
 optional = true
 
 [features]

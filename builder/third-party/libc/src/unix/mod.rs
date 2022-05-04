@@ -515,6 +515,8 @@ extern "C" {
 
     pub fn strcpy(dst: *mut c_char, src: *const c_char) -> *mut c_char;
     pub fn strncpy(dst: *mut c_char, src: *const c_char, n: size_t) -> *mut c_char;
+    pub fn stpcpy(dst: *mut c_char, src: *const c_char) -> *mut c_char;
+    pub fn stpncpy(dst: *mut c_char, src: *const c_char, n: size_t) -> *mut c_char;
     pub fn strcat(s: *mut c_char, ct: *const c_char) -> *mut c_char;
     pub fn strncat(s: *mut c_char, ct: *const c_char, n: size_t) -> *mut c_char;
     pub fn strcmp(cs: *const c_char, ct: *const c_char) -> c_int;
@@ -538,6 +540,7 @@ extern "C" {
     )]
     pub fn strerror(n: c_int) -> *mut c_char;
     pub fn strtok(s: *mut c_char, t: *const c_char) -> *mut c_char;
+    pub fn strtok_r(s: *mut c_char, t: *const c_char, p: *mut *mut c_char) -> *mut c_char;
     pub fn strxfrm(s: *mut c_char, ct: *const c_char, n: size_t) -> size_t;
     pub fn strsignal(sig: c_int) -> *mut c_char;
     pub fn wcslen(buf: *const wchar_t) -> size_t;
@@ -1389,6 +1392,15 @@ extern "C" {
     pub fn getline(lineptr: *mut *mut c_char, n: *mut size_t, stream: *mut FILE) -> ssize_t;
 
     pub fn lockf(fd: ::c_int, cmd: ::c_int, len: ::off_t) -> ::c_int;
+
+}
+cfg_if! {
+    if #[cfg(not(any(target_os = "emscripten",
+                     target_os = "android")))] {
+        extern "C" {
+            pub fn adjtime(delta: *const timeval, olddelta: *mut timeval) -> ::c_int;
+        }
+    }
 }
 
 cfg_if! {

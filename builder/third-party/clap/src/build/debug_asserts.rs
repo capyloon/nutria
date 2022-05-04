@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use os_str_bytes::RawOsStr;
+use clap_lex::RawOsStr;
 
 use crate::build::arg::ArgProvider;
 use crate::mkeymap::KeyType;
@@ -55,6 +55,16 @@ pub(crate) fn assert_app(cmd: &Command) {
 
     for arg in cmd.get_arguments() {
         assert_arg(arg);
+
+        #[cfg(feature = "unstable-multicall")]
+        {
+            assert!(
+                !cmd.is_multicall_set(),
+                "Command {}: Arguments like {} cannot be set on a multicall command",
+                cmd.get_name(),
+                arg.name
+            );
+        }
 
         if let Some(s) = arg.short.as_ref() {
             short_flags.push(Flag::Arg(format!("-{}", s), &*arg.name));

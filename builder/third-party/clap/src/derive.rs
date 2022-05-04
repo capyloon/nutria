@@ -20,7 +20,7 @@ use std::ffi::OsString;
 /// See also [`Subcommand`] and [`Args`].
 ///
 /// See the
-/// [derive reference](https://github.com/clap-rs/clap/blob/v3.1.6/examples/derive_ref/README.md)
+/// [derive reference](https://github.com/clap-rs/clap/blob/v3.1.15/examples/derive_ref/README.md)
 /// for attributes and best practices.
 ///
 /// **NOTE:** Deriving requires the `derive` feature flag
@@ -226,11 +226,11 @@ pub trait Parser: FromArgMatches + CommandFactory + Sized {
     }
 }
 
-/// Create an [`Command`] relevant for a user-defined container.
+/// Create a [`Command`] relevant for a user-defined container.
 ///
 /// Derived as part of [`Parser`].
 pub trait CommandFactory: Sized {
-    /// Build an [`Command`] that can instantiate `Self`.
+    /// Build a [`Command`] that can instantiate `Self`.
     ///
     /// See [`FromArgMatches::from_arg_matches`] for instantiating `Self`.
     fn command<'help>() -> Command<'help> {
@@ -240,7 +240,7 @@ pub trait CommandFactory: Sized {
     /// Deprecated, replaced with `CommandFactory::command`
     #[deprecated(since = "3.1.0", note = "Replaced with `CommandFactory::command")]
     fn into_app<'help>() -> Command<'help>;
-    /// Build an [`Command`] that can update `self`.
+    /// Build a [`Command`] that can update `self`.
     ///
     /// See [`FromArgMatches::update_from_arg_matches`] for updating `self`.
     fn command_for_update<'help>() -> Command<'help> {
@@ -306,7 +306,7 @@ pub trait FromArgMatches: Sized {
 /// - `Variant(ChildArgs)`: No attribute is used with enum variants that impl `Args`.
 ///
 /// See the
-/// [derive reference](https://github.com/clap-rs/clap/blob/v3.1.6/examples/derive_ref/README.md)
+/// [derive reference](https://github.com/clap-rs/clap/blob/v3.1.15/examples/derive_ref/README.md)
 /// for attributes and best practices.
 ///
 /// **NOTE:** Deriving requires the `derive` feature flag
@@ -350,7 +350,7 @@ pub trait Args: FromArgMatches + Sized {
 ///   `Subcommand`.
 ///
 /// See the
-/// [derive reference](https://github.com/clap-rs/clap/blob/v3.1.6/examples/derive_ref/README.md)
+/// [derive reference](https://github.com/clap-rs/clap/blob/v3.1.15/examples/derive_ref/README.md)
 /// for attributes and best practices.
 ///
 /// **NOTE:** Deriving requires the `derive` feature flag
@@ -394,7 +394,7 @@ pub trait Subcommand: FromArgMatches + Sized {
 /// - Allowing using the `#[clap(default_value_t)]` attribute without implementing `Display`.
 ///
 /// See the
-/// [derive reference](https://github.com/clap-rs/clap/blob/v3.1.6/examples/derive_ref/README.md)
+/// [derive reference](https://github.com/clap-rs/clap/blob/v3.1.15/examples/derive_ref/README.md)
 /// for attributes and best practices.
 ///
 /// **NOTE:** Deriving requires the `derive` feature flag

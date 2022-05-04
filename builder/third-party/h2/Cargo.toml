@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "h2"
-version = "0.3.12"
+version = "0.3.13"
 authors = [
     "Carl Lerche <me@carllerche.com>",
     "Sean McArthur <sean@seanmonstar.com>",
@@ -73,7 +73,7 @@ version = "1"
 features = ["io-util"]
 
 [dependencies.tokio-util]
-version = "0.6"
+version = "0.7.1"
 features = ["codec"]
 
 [dependencies.tracing]

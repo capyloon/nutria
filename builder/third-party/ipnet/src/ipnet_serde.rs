@@ -1,4 +1,4 @@
-use {IpNet, Ipv4Net, Ipv6Net};
+use crate::{IpNet, Ipv4Net, Ipv6Net};
 use std::fmt;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
@@ -177,7 +177,7 @@ impl<'de> Deserialize<'de> for Ipv6Net {
 mod tests {
     extern crate serde_test;
 
-    use {IpNet, Ipv4Net, Ipv6Net};
+    use crate::{IpNet, Ipv4Net, Ipv6Net};
     use self::serde_test::{assert_tokens, Configure, Token};
 
     #[test]

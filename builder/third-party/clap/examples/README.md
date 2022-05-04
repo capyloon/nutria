@@ -1,7 +1,7 @@
 # Examples
 
 - Basic demo: [derive](demo.md)
-- Key-value pair arguments: [derive](keyvalue-derive.md)
+- Typed arguments: [derive](typed-derive.md)
   - Topics:
     - Custom `parse()`
 - Custom cargo command: [builder](cargo-example.md), [derive](cargo-example-derive.md)
@@ -12,6 +12,8 @@
   - Topics:
     - Subcommands
     - External subcommands
+    - Optional subcommands
+    - Default subcommands
 - pacman-like interface: [builder](pacman.md)
   - Topics:
     - Flag subcommands
@@ -24,6 +26,9 @@
   - hostname: [builder](multicall-hostname.md)
     - Topics:
       - Subcommands
+- repl: [builder](repl.rs)
+  - Topics:
+    - Read-Eval-Print Loops / Custom command lines
 
 ## Contributing
 

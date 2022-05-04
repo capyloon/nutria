@@ -1603,27 +1603,7 @@ pub(crate) mod parsing {
 
                 let member: Member = input.parse()?;
                 let turbofish = if member.is_named() && input.peek(Token![::]) {
-                    Some(MethodTurbofish {
-                        colon2_token: input.parse()?,
-                        lt_token: input.parse()?,
-                        args: {
-                            let mut args = Punctuated::new();
-                            loop {
-                                if input.peek(Token![>]) {
-                                    break;
-                                }
-                                let value = input.call(generic_method_argument)?;
-                                args.push_value(value);
-                                if input.peek(Token![>]) {
-                                    break;
-                                }
-                                let punct = input.parse()?;
-                                args.push_punct(punct);
-                            }
-                            args
-                        },
-                        gt_token: input.parse()?,
-                    })
+                    Some(input.parse::<MethodTurbofish>()?)
                 } else {
                     None
                 };
@@ -2099,18 +2079,49 @@ pub(crate) mod parsing {
     }
 
     #[cfg(feature = "full")]
-    fn generic_method_argument(input: ParseStream) -> Result<GenericMethodArgument> {
-        if input.peek(Lit) {
-            let lit = input.parse()?;
-            return Ok(GenericMethodArgument::Const(Expr::Lit(lit)));
-        }
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "parsing")))]
+    impl Parse for GenericMethodArgument {
+        fn parse(input: ParseStream) -> Result<Self> {
+            if input.peek(Lit) {
+                let lit = input.parse()?;
+                return Ok(GenericMethodArgument::Const(Expr::Lit(lit)));
+            }
 
-        if input.peek(token::Brace) {
-            let block: ExprBlock = input.parse()?;
-            return Ok(GenericMethodArgument::Const(Expr::Block(block)));
-        }
+            if input.peek(token::Brace) {
+                let block: ExprBlock = input.parse()?;
+                return Ok(GenericMethodArgument::Const(Expr::Block(block)));
+            }
 
-        input.parse().map(GenericMethodArgument::Type)
+            input.parse().map(GenericMethodArgument::Type)
+        }
+    }
+
+    #[cfg(feature = "full")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "parsing")))]
+    impl Parse for MethodTurbofish {
+        fn parse(input: ParseStream) -> Result<Self> {
+            Ok(MethodTurbofish {
+                colon2_token: input.parse()?,
+                lt_token: input.parse()?,
+                args: {
+                    let mut args = Punctuated::new();
+                    loop {
+                        if input.peek(Token![>]) {
+                            break;
+                        }
+                        let value: GenericMethodArgument = input.parse()?;
+                        args.push_value(value);
+                        if input.peek(Token![>]) {
+                            break;
+                        }
+                        let punct = input.parse()?;
+                        args.push_punct(punct);
+                    }
+                    args
+                },
+                gt_token: input.parse()?,
+            })
+        }
     }
 
     #[cfg(feature = "full")]
@@ -2277,18 +2288,19 @@ pub(crate) mod parsing {
     }
 
     impl_by_parsing_expr! {
-        ExprCall, Call, "expected function call expression",
-        ExprMethodCall, MethodCall, "expected method call expression",
-        ExprTuple, Tuple, "expected tuple expression",
-        ExprBinary, Binary, "expected binary operation",
-        ExprCast, Cast, "expected cast expression",
-        ExprType, Type, "expected type ascription expression",
         ExprAssign, Assign, "expected assignment expression",
         ExprAssignOp, AssignOp, "expected compound assignment expression",
+        ExprAwait, Await, "expected await expression",
+        ExprBinary, Binary, "expected binary operation",
+        ExprCall, Call, "expected function call expression",
+        ExprCast, Cast, "expected cast expression",
         ExprField, Field, "expected struct field access",
         ExprIndex, Index, "expected indexing expression",
+        ExprMethodCall, MethodCall, "expected method call expression",
         ExprRange, Range, "expected range expression",
         ExprTry, Try, "expected try expression",
+        ExprTuple, Tuple, "expected tuple expression",
+        ExprType, Type, "expected type ascription expression",
     }
 
     #[cfg(feature = "full")]
@@ -3346,14 +3358,22 @@ pub(crate) mod printing {
 
     #[cfg(feature = "full")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "printing")))]
+    impl ToTokens for RangeLimits {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            match self {
+                RangeLimits::HalfOpen(t) => t.to_tokens(tokens),
+                RangeLimits::Closed(t) => t.to_tokens(tokens),
+            }
+        }
+    }
+
+    #[cfg(feature = "full")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "printing")))]
     impl ToTokens for ExprRange {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             outer_attrs_to_tokens(&self.attrs, tokens);
             self.from.to_tokens(tokens);
-            match &self.limits {
-                RangeLimits::HalfOpen(t) => t.to_tokens(tokens),
-                RangeLimits::Closed(t) => t.to_tokens(tokens),
-            }
+            self.limits.to_tokens(tokens);
             self.to.to_tokens(tokens);
         }
     }

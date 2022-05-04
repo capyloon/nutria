@@ -3,7 +3,6 @@
 // Std
 use std::collections::HashMap;
 use std::env;
-use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fmt;
 use std::io;
@@ -11,7 +10,6 @@ use std::ops::Index;
 use std::path::Path;
 
 // Third Party
-use os_str_bytes::RawOsStr;
 #[cfg(feature = "yaml")]
 use yaml_rust::Yaml;
 
@@ -22,10 +20,12 @@ use crate::build::{arg::ArgProvider, Arg, ArgGroup, ArgPredicate};
 use crate::error::ErrorKind;
 use crate::error::Result as ClapResult;
 use crate::mkeymap::MKeyMap;
+use crate::output::fmt::Stream;
 use crate::output::{fmt::Colorizer, Help, HelpWriter, Usage};
-use crate::parse::{ArgMatcher, ArgMatches, Input, Parser};
+use crate::parse::{ArgMatcher, ArgMatches, Parser};
 use crate::util::ChildGraph;
 use crate::util::{color::ColorChoice, Id, Key};
+use crate::PossibleValue;
 use crate::{Error, INTERNAL_ERROR_MSG};
 
 #[cfg(debug_assertions)]
@@ -58,7 +58,7 @@ use crate::build::debug_asserts::assert_app;
 ///     .version("1.0.2")
 ///     .about("Explains in brief what the program does")
 ///     .arg(
-///         Arg::new("in_file").index(1)
+///         Arg::new("in_file")
 ///     )
 ///     .after_help("Longer explanation to appear after the options when \
 ///                  displaying the help information from --help or -h")
@@ -101,7 +101,7 @@ pub struct App<'help> {
     g_settings: AppFlags,
     args: MKeyMap<'help>,
     subcommands: Vec<App<'help>>,
-    replacers: HashMap<&'help OsStr, &'help [&'help str]>,
+    replacers: HashMap<&'help str, &'help [&'help str]>,
     groups: Vec<ArgGroup<'help>>,
     current_help_heading: Option<&'help str>,
     current_disp_ord: Option<usize>,
@@ -202,7 +202,7 @@ impl<'help> App<'help> {
     /// Command::new("myprog")
     ///     .args(&[
     ///         arg!("[debug] -d 'turns on debugging info'"),
-    ///         Arg::new("input").index(1).help("the input file to use")
+    ///         Arg::new("input").help("the input file to use")
     ///     ])
     /// # ;
     /// ```
@@ -223,7 +223,7 @@ impl<'help> App<'help> {
         self
     }
 
-    /// Allows one to mutate an [`Arg`] after it's been added to an [`Command`].
+    /// Allows one to mutate an [`Arg`] after it's been added to a [`Command`].
     ///
     /// This can be useful for modifying the auto-generated help or version arguments.
     ///
@@ -378,7 +378,7 @@ impl<'help> App<'help> {
     /// # Command::new("myprog")
     /// .subcommands( vec![
     ///        Command::new("config").about("Controls configuration functionality")
-    ///                                 .arg(Arg::new("config_file").index(1)),
+    ///                                 .arg(Arg::new("config_file")),
     ///        Command::new("debug").about("Controls debug functionality")])
     /// # ;
     /// ```
@@ -633,26 +633,27 @@ impl<'help> App<'help> {
         I: IntoIterator<Item = T>,
         T: Into<OsString> + Clone,
     {
-        let mut it = Input::from(itr.into_iter());
+        let mut raw_args = clap_lex::RawArgs::new(itr.into_iter());
+        let mut cursor = raw_args.cursor();
 
         #[cfg(feature = "unstable-multicall")]
         if self.settings.is_set(AppSettings::Multicall) {
-            if let Some((argv0, _)) = it.next() {
+            if let Some(argv0) = raw_args.next_os(&mut cursor) {
                 let argv0 = Path::new(&argv0);
                 if let Some(command) = argv0.file_stem().and_then(|f| f.to_str()) {
                     // Stop borrowing command so we can get another mut ref to it.
                     let command = command.to_owned();
                     debug!(
-                        "App::try_get_matches_from_mut: Parsed command {} from argv",
+                        "Command::try_get_matches_from_mut: Parsed command {} from argv",
                         command
                     );
 
-                    debug!("App::try_get_matches_from_mut: Reinserting command into arguments so subcommand parser matches it");
-                    it.insert(&[&command]);
-                    debug!("App::try_get_matches_from_mut: Clearing name and bin_name so that displayed command name starts with applet name");
+                    debug!("Command::try_get_matches_from_mut: Reinserting command into arguments so subcommand parser matches it");
+                    raw_args.insert(&cursor, &[&command]);
+                    debug!("Command::try_get_matches_from_mut: Clearing name and bin_name so that displayed command name starts with applet name");
                     self.name.clear();
                     self.bin_name = None;
-                    return self._do_parse(&mut it);
+                    return self._do_parse(&mut raw_args, cursor);
                 }
             }
         };
@@ -665,7 +666,7 @@ impl<'help> App<'help> {
         // to display
         // the full path when displaying help messages and such
         if !self.settings.is_set(AppSettings::NoBinaryName) {
-            if let Some((name, _)) = it.next() {
+            if let Some(name) = raw_args.next_os(&mut cursor) {
                 let p = Path::new(name);
 
                 if let Some(f) = p.file_name() {
@@ -678,7 +679,7 @@ impl<'help> App<'help> {
             }
         }
 
-        self._do_parse(&mut it)
+        self._do_parse(&mut raw_args, cursor)
     }
 
     /// Prints the short help message (`-h`) to [`io::stdout()`].
@@ -694,10 +695,10 @@ impl<'help> App<'help> {
     /// ```
     /// [`io::stdout()`]: std::io::stdout()
     pub fn print_help(&mut self) -> io::Result<()> {
-        self._build();
+        self._build_self();
         let color = self.get_color();
 
-        let mut c = Colorizer::new(false, color);
+        let mut c = Colorizer::new(Stream::Stdout, color);
         let usage = Usage::new(self);
         Help::new(HelpWriter::Buffer(&mut c), self, &usage, false).write_help()?;
         c.print()
@@ -719,10 +720,10 @@ impl<'help> App<'help> {
     /// [`-h` (short)]: Arg::help()
     /// [`--help` (long)]: Arg::long_help()
     pub fn print_long_help(&mut self) -> io::Result<()> {
-        self._build();
+        self._build_self();
         let color = self.get_color();
 
-        let mut c = Colorizer::new(false, color);
+        let mut c = Colorizer::new(Stream::Stdout, color);
         let usage = Usage::new(self);
         Help::new(HelpWriter::Buffer(&mut c), self, &usage, true).write_help()?;
         c.print()
@@ -745,7 +746,7 @@ impl<'help> App<'help> {
     /// [`-h` (short)]: Arg::help()
     /// [`--help` (long)]: Arg::long_help()
     pub fn write_help<W: io::Write>(&mut self, w: &mut W) -> io::Result<()> {
-        self._build();
+        self._build_self();
 
         let usage = Usage::new(self);
         Help::new(HelpWriter::Normal(w), self, &usage, false).write_help()?;
@@ -769,7 +770,7 @@ impl<'help> App<'help> {
     /// [`-h` (short)]: Arg::help()
     /// [`--help` (long)]: Arg::long_help()
     pub fn write_long_help<W: io::Write>(&mut self, w: &mut W) -> io::Result<()> {
-        self._build();
+        self._build_self();
 
         let usage = Usage::new(self);
         Help::new(HelpWriter::Normal(w), self, &usage, true).write_help()?;
@@ -837,7 +838,7 @@ impl<'help> App<'help> {
     pub fn render_usage(&mut self) -> String {
         // If there are global arguments, or settings we need to propagate them down to subcommands
         // before parsing incase we run into a subcommand
-        self._build();
+        self._build_self();
 
         Usage::new(self).create_usage_with_title(&[])
     }
@@ -1944,7 +1945,7 @@ impl<'help> App<'help> {
     #[cfg(feature = "unstable-replace")]
     #[must_use]
     pub fn replace(mut self, name: &'help str, target: &'help [&'help str]) -> Self {
-        self.replacers.insert(OsStr::new(name), target);
+        self.replacers.insert(name, target);
         self
     }
 
@@ -2347,7 +2348,6 @@ impl<'help> App<'help> {
     ///         .aliases(&["do-stuff", "do-tests", "tests"]))
     ///         .arg(Arg::new("input")
     ///             .help("the file to add")
-    ///             .index(1)
     ///             .required(false))
     ///     .get_matches_from(vec!["myprog", "do-tests"]);
     /// assert_eq!(m.subcommand_name(), Some("test"));
@@ -2374,7 +2374,6 @@ impl<'help> App<'help> {
     ///         .short_flag_aliases(&['a', 'b', 'c']))
     ///         .arg(Arg::new("input")
     ///             .help("the file to add")
-    ///             .index(1)
     ///             .required(false))
     ///     .get_matches_from(vec!["myprog", "-a"]);
     /// assert_eq!(m.subcommand_name(), Some("test"));
@@ -2403,7 +2402,6 @@ impl<'help> App<'help> {
     ///                 .long_flag_aliases(&["testing", "testall", "test_all"]))
     ///                 .arg(Arg::new("input")
     ///                             .help("the file to add")
-    ///                             .index(1)
     ///                             .required(false))
     ///             .get_matches_from(vec!["myprog", "--testing"]);
     /// assert_eq!(m.subcommand_name(), Some("test"));
@@ -3301,7 +3299,7 @@ impl<'help> App<'help> {
     /// Should we color the output?
     #[inline(never)]
     pub fn get_color(&self) -> ColorChoice {
-        debug!("App::color: Color setting...");
+        debug!("Command::color: Color setting...");
 
         if cfg!(feature = "color") {
             #[allow(deprecated)]
@@ -3449,7 +3447,7 @@ impl<'help> App<'help> {
                 .iter()
                 .map(|id| {
                     self.args.args().find(|arg| arg.id == *id).expect(
-                        "App::get_arg_conflicts_with: \
+                        "Command::get_arg_conflicts_with: \
                     The passed arg conflicts with an arg unknown to the cmd",
                     )
                 })
@@ -3480,7 +3478,7 @@ impl<'help> App<'help> {
                     )
                     .find(|arg| arg.id == *id)
                     .expect(
-                        "App::get_arg_conflicts_with: \
+                        "Command::get_arg_conflicts_with: \
                     The passed arg conflicts with an arg unknown to the cmd",
                     )
             })
@@ -3512,8 +3510,7 @@ impl<'help> App<'help> {
     }
 
     /// Report whether [`Command::no_binary_name`] is set
-    #[allow(unused)]
-    pub(crate) fn is_no_binary_name_set(&self) -> bool {
+    pub fn is_no_binary_name_set(&self) -> bool {
         self.is_set(AppSettings::NoBinaryName)
     }
 
@@ -3642,6 +3639,11 @@ impl<'help> App<'help> {
     #[cfg(feature = "unstable-multicall")]
     pub fn is_multicall_set(&self) -> bool {
         self.is_set(AppSettings::Multicall)
+    }
+
+    #[cfg(not(feature = "unstable-multicall"))]
+    fn is_multicall_set(&self) -> bool {
+        false
     }
 }
 
@@ -3935,7 +3937,7 @@ impl<'help> App<'help> {
         self.max_w
     }
 
-    pub(crate) fn get_replacement(&self, key: &OsStr) -> Option<&[&str]> {
+    pub(crate) fn get_replacement(&self, key: &str) -> Option<&[&str]> {
         self.replacers.get(key).copied()
     }
 
@@ -3957,20 +3959,24 @@ impl<'help> App<'help> {
         }
     }
 
-    fn _do_parse(&mut self, it: &mut Input) -> ClapResult<ArgMatches> {
-        debug!("App::_do_parse");
+    fn _do_parse(
+        &mut self,
+        raw_args: &mut clap_lex::RawArgs,
+        args_cursor: clap_lex::ArgCursor,
+    ) -> ClapResult<ArgMatches> {
+        debug!("Command::_do_parse");
 
         // If there are global arguments, or settings we need to propagate them down to subcommands
         // before parsing in case we run into a subcommand
-        self._build();
+        self._build_self();
 
         let mut matcher = ArgMatcher::new(self);
 
         // do the real parsing
         let mut parser = Parser::new(self);
-        if let Err(error) = parser.get_matches_with(&mut matcher, it) {
+        if let Err(error) = parser.get_matches_with(&mut matcher, raw_args, args_cursor) {
             if self.is_set(AppSettings::IgnoreErrors) {
-                debug!("App::_do_parse: ignoring error: {}", error);
+                debug!("Command::_do_parse: ignoring error: {}", error);
             } else {
                 return Err(error);
             }
@@ -3984,76 +3990,54 @@ impl<'help> App<'help> {
         Ok(matcher.into_inner())
     }
 
-    // used in clap_complete (https://github.com/clap-rs/clap_complete)
     #[doc(hidden)]
+    #[deprecated(since = "3.1.10", note = "Replaced with `Command::build`")]
     pub fn _build_all(&mut self) {
-        self._build();
-        for subcmd in self.get_subcommands_mut() {
-            subcmd._build();
-        }
-        self._build_bin_names();
+        self.build();
     }
 
-    pub(crate) fn _build_subcommand(&mut self, name: &str) -> Option<&mut Self> {
-        use std::fmt::Write;
-
-        let mut mid_string = String::from(" ");
-        if !self.is_subcommand_negates_reqs_set() {
-            let reqs = Usage::new(self).get_required_usage_from(&[], None, true); // maybe Some(m)
-
-            for s in &reqs {
-                mid_string.push_str(s);
-                mid_string.push(' ');
-            }
-        }
-
-        let sc = self.subcommands.iter_mut().find(|s| s.name == name)?;
-
-        // Display subcommand name, short and long in usage
-        let mut sc_names = sc.name.clone();
-        let mut flag_subcmd = false;
-        if let Some(l) = sc.long_flag {
-            write!(sc_names, "|--{}", l).unwrap();
-            flag_subcmd = true;
-        }
-        if let Some(s) = sc.short_flag {
-            write!(sc_names, "|-{}", s).unwrap();
-            flag_subcmd = true;
-        }
-
-        if flag_subcmd {
-            sc_names = format!("{{{}}}", sc_names);
-        }
-
-        sc.usage_name = Some(
-            self.bin_name
-                .as_ref()
-                .map(|bin_name| format!("{}{}{}", bin_name, mid_string, sc_names))
-                .unwrap_or(sc_names),
-        );
-
-        // bin_name should be parent's bin_name + [<reqs>] + the sc's name separated by
-        // a space
-        sc.bin_name = Some(format!(
-            "{}{}{}",
-            self.bin_name.as_ref().unwrap_or(&String::new()),
-            if self.bin_name.is_some() { " " } else { "" },
-            &*sc.name
-        ));
-
-        // Ensure all args are built and ready to parse
-        sc._build();
-
-        Some(sc)
-    }
-
-    // used in clap_complete (https://github.com/clap-rs/clap_complete)
     #[doc(hidden)]
+    #[deprecated(since = "3.1.10", note = "Replaced with `Command::build`")]
     pub fn _build(&mut self) {
-        debug!("App::_build");
+        self._build_self()
+    }
+
+    #[doc(hidden)]
+    #[deprecated(since = "3.1.13", note = "Replaced with `Command::build`")]
+    pub fn _build_bin_names(&mut self) {
+        self._build_bin_names_internal();
+    }
+
+    /// Prepare for introspecting on all included [`Command`]s
+    ///
+    /// Call this on the top-level [`Command`] when done building and before reading state for
+    /// cases like completions, custom help output, etc.
+    pub fn build(&mut self) {
+        self._build_recursive();
+        self._build_bin_names_internal();
+    }
+
+    pub(crate) fn _build_recursive(&mut self) {
+        self._build_self();
+        for subcmd in self.get_subcommands_mut() {
+            subcmd._build_recursive();
+        }
+    }
+
+    pub(crate) fn _build_self(&mut self) {
+        debug!("Command::_build: name={:?}", self.get_name());
         if !self.settings.is_set(AppSettings::Built) {
             // Make sure all the globally set flags apply to us as well
             self.settings = self.settings | self.g_settings;
+
+            #[cfg(feature = "unstable-multicall")]
+            {
+                if self.is_multicall_set() {
+                    self.settings.insert(AppSettings::SubcommandRequired.into());
+                    self.settings.insert(AppSettings::DisableHelpFlag.into());
+                    self.settings.insert(AppSettings::DisableVersionFlag.into());
+                }
+            }
 
             self._propagate();
             self._check_help_and_version();
@@ -4101,7 +4085,142 @@ impl<'help> App<'help> {
             assert_app(self);
             self.settings.set(AppSettings::Built);
         } else {
-            debug!("App::_build: already built");
+            debug!("Command::_build: already built");
+        }
+    }
+
+    pub(crate) fn _build_subcommand(&mut self, name: &str) -> Option<&mut Self> {
+        use std::fmt::Write;
+
+        let mut mid_string = String::from(" ");
+        if !self.is_subcommand_negates_reqs_set() {
+            let reqs = Usage::new(self).get_required_usage_from(&[], None, true); // maybe Some(m)
+
+            for s in &reqs {
+                mid_string.push_str(s);
+                mid_string.push(' ');
+            }
+        }
+
+        let sc = self.subcommands.iter_mut().find(|s| s.name == name)?;
+
+        // Display subcommand name, short and long in usage
+        let mut sc_names = sc.name.clone();
+        let mut flag_subcmd = false;
+        if let Some(l) = sc.long_flag {
+            write!(sc_names, "|--{}", l).unwrap();
+            flag_subcmd = true;
+        }
+        if let Some(s) = sc.short_flag {
+            write!(sc_names, "|-{}", s).unwrap();
+            flag_subcmd = true;
+        }
+
+        if flag_subcmd {
+            sc_names = format!("{{{}}}", sc_names);
+        }
+
+        let usage_name = self
+            .bin_name
+            .as_ref()
+            .map(|bin_name| format!("{}{}{}", bin_name, mid_string, sc_names))
+            .unwrap_or(sc_names);
+        sc.usage_name = Some(usage_name);
+
+        // bin_name should be parent's bin_name + [<reqs>] + the sc's name separated by
+        // a space
+        sc.bin_name = Some(format!(
+            "{}{}{}",
+            self.bin_name.as_ref().unwrap_or(&String::new()),
+            if self.bin_name.is_some() { " " } else { "" },
+            &*sc.name
+        ));
+
+        // Ensure all args are built and ready to parse
+        sc._build_self();
+
+        Some(sc)
+    }
+
+    fn _build_bin_names_internal(&mut self) {
+        debug!("Command::_build_bin_names");
+
+        if !self.is_set(AppSettings::BinNameBuilt) {
+            let mut mid_string = String::from(" ");
+            if !self.is_subcommand_negates_reqs_set() {
+                let reqs = Usage::new(self).get_required_usage_from(&[], None, true); // maybe Some(m)
+
+                for s in &reqs {
+                    mid_string.push_str(s);
+                    mid_string.push(' ');
+                }
+            }
+
+            let self_bin_name =
+                if cfg!(feature = "unstable-multicall") && self.is_multicall_set() {
+                    self.bin_name.as_deref().unwrap_or("")
+                } else {
+                    self.bin_name.as_deref().unwrap_or(&self.name)
+                }
+                .to_owned();
+
+            for mut sc in &mut self.subcommands {
+                debug!("Command::_build_bin_names:iter: bin_name set...");
+
+                if sc.usage_name.is_none() {
+                    use std::fmt::Write;
+                    // Display subcommand name, short and long in usage
+                    let mut sc_names = sc.name.clone();
+                    let mut flag_subcmd = false;
+                    if let Some(l) = sc.long_flag {
+                        write!(sc_names, "|--{}", l).unwrap();
+                        flag_subcmd = true;
+                    }
+                    if let Some(s) = sc.short_flag {
+                        write!(sc_names, "|-{}", s).unwrap();
+                        flag_subcmd = true;
+                    }
+
+                    if flag_subcmd {
+                        sc_names = format!("{{{}}}", sc_names);
+                    }
+
+                    let usage_name = format!("{}{}{}", self_bin_name, mid_string, sc_names);
+                    debug!(
+                        "Command::_build_bin_names:iter: Setting usage_name of {} to {:?}",
+                        sc.name, usage_name
+                    );
+                    sc.usage_name = Some(usage_name);
+                } else {
+                    debug!(
+                        "Command::_build_bin_names::iter: Using existing usage_name of {} ({:?})",
+                        sc.name, sc.usage_name
+                    );
+                }
+
+                if sc.bin_name.is_none() {
+                    let bin_name = format!(
+                        "{}{}{}",
+                        self_bin_name,
+                        if !self_bin_name.is_empty() { " " } else { "" },
+                        &*sc.name
+                    );
+                    debug!(
+                        "Command::_build_bin_names:iter: Setting bin_name of {} to {:?}",
+                        sc.name, bin_name
+                    );
+                    sc.bin_name = Some(bin_name);
+                } else {
+                    debug!(
+                        "Command::_build_bin_names::iter: Using existing bin_name of {} ({:?})",
+                        sc.name, sc.bin_name
+                    );
+                }
+                sc._build_bin_names_internal();
+            }
+            self.set(AppSettings::BinNameBuilt);
+        } else {
+            debug!("Command::_build_bin_names: already built");
         }
     }
 
@@ -4145,7 +4264,7 @@ impl<'help> App<'help> {
 
     /// Propagate global args
     pub(crate) fn _propagate_global_args(&mut self) {
-        debug!("App::_propagate_global_args:{}", self.name);
+        debug!("Command::_propagate_global_args:{}", self.name);
 
         for sc in &mut self.subcommands {
             for a in self.args.args().filter(|a| a.is_global_set()) {
@@ -4179,7 +4298,7 @@ impl<'help> App<'help> {
 
     /// Propagate settings
     pub(crate) fn _propagate(&mut self) {
-        debug!("App::_propagate:{}", self.name);
+        debug!("Command::_propagate:{}", self.name);
         let mut subcommands = std::mem::take(&mut self.subcommands);
         for sc in &mut subcommands {
             self._propagate_subcommand(sc);
@@ -4209,7 +4328,7 @@ impl<'help> App<'help> {
 
     #[allow(clippy::blocks_in_if_conditions)]
     pub(crate) fn _check_help_and_version(&mut self) {
-        debug!("App::_check_help_and_version: {}", self.name);
+        debug!("Command::_check_help_and_version: {}", self.name);
 
         if self.is_set(AppSettings::DisableHelpFlag)
             || self.args.args().any(|x| {
@@ -4221,7 +4340,7 @@ impl<'help> App<'help> {
                 .iter()
                 .any(|sc| sc.long_flag == Some("help"))
         {
-            debug!("App::_check_help_and_version: Removing generated help");
+            debug!("Command::_check_help_and_version: Removing generated help");
 
             let generated_help_pos = self
                 .args
@@ -4264,7 +4383,7 @@ To change `help`s short, call `cmd.arg(Arg::new(\"help\")...)`.",
                     .expect(INTERNAL_ERROR_MSG);
                 help.short = Some('h');
             } else {
-                debug!("App::_check_help_and_version: Removing `-h` from help");
+                debug!("Command::_check_help_and_version: Removing `-h` from help");
             }
         }
 
@@ -4285,10 +4404,10 @@ To change `help`s short, call `cmd.arg(Arg::new(\"help\")...)`.",
                 .iter()
                 .any(|sc| sc.long_flag == Some("version"))
         {
-            debug!("App::_check_help_and_version: Removing generated version");
+            debug!("Command::_check_help_and_version: Removing generated version");
 
             // This is the check mentioned above that only checks for Generated, not
-            // GeneratedMuated args by design.
+            // GeneratedMutated args by design.
             let generated_version_pos = self
                 .args
                 .args()
@@ -4326,7 +4445,7 @@ To change `help`s short, call `cmd.arg(Arg::new(\"help\")...)`.",
             && self.has_subcommands()
             && !self.subcommands.iter().any(|s| s.id == Id::help_hash())
         {
-            debug!("App::_check_help_and_version: Building help subcommand");
+            debug!("Command::_check_help_and_version: Building help subcommand");
             let mut help_subcmd = App::new("help")
                 .about("Print this message or the help of the given subcommand(s)")
                 .arg(
@@ -4352,7 +4471,7 @@ To change `help`s short, call `cmd.arg(Arg::new(\"help\")...)`.",
     }
 
     pub(crate) fn _derive_display_order(&mut self) {
-        debug!("App::_derive_display_order:{}", self.name);
+        debug!("Command::_derive_display_order:{}", self.name);
 
         if self.settings.is_set(AppSettings::DeriveDisplayOrder) {
             for a in self
@@ -4372,45 +4491,8 @@ To change `help`s short, call `cmd.arg(Arg::new(\"help\")...)`.",
         }
     }
 
-    // used in clap_complete (https://github.com/clap-rs/clap_complete)
-    #[doc(hidden)]
-    pub fn _build_bin_names(&mut self) {
-        debug!("App::_build_bin_names");
-
-        if !self.is_set(AppSettings::BinNameBuilt) {
-            for mut sc in &mut self.subcommands {
-                debug!("App::_build_bin_names:iter: bin_name set...");
-
-                if sc.bin_name.is_none() {
-                    debug!("No");
-                    let bin_name = format!(
-                        "{}{}{}",
-                        self.bin_name.as_ref().unwrap_or(&self.name),
-                        if self.bin_name.is_some() { " " } else { "" },
-                        &*sc.name
-                    );
-                    debug!(
-                        "App::_build_bin_names:iter: Setting bin_name of {} to {}",
-                        self.name, bin_name
-                    );
-                    sc.bin_name = Some(bin_name);
-                } else {
-                    debug!("yes ({:?})", sc.bin_name);
-                }
-                debug!(
-                    "App::_build_bin_names:iter: Calling build_bin_names from...{}",
-                    sc.name
-                );
-                sc._build_bin_names();
-            }
-            self.set(AppSettings::BinNameBuilt);
-        } else {
-            debug!("App::_build_bin_names: already built");
-        }
-    }
-
     pub(crate) fn _render_version(&self, use_long: bool) -> String {
-        debug!("App::_render_version");
+        debug!("Command::_render_version");
 
         let ver = if use_long {
             self.long_version.or(self.version).unwrap_or("")
@@ -4547,7 +4629,7 @@ impl<'help> App<'help> {
 
     /// Iterate through the groups this arg is member of.
     pub(crate) fn groups_for_arg<'a>(&'a self, arg: &Id) -> impl Iterator<Item = Id> + 'a {
-        debug!("App::groups_for_arg: id={:?}", arg);
+        debug!("Command::groups_for_arg: id={:?}", arg);
         let arg = arg.clone();
         self.groups
             .iter()
@@ -4587,7 +4669,7 @@ impl<'help> App<'help> {
     }
 
     pub(crate) fn unroll_args_in_group(&self, group: &Id) -> Vec<Id> {
-        debug!("App::unroll_args_in_group: group={:?}", group);
+        debug!("Command::unroll_args_in_group: group={:?}", group);
         let mut g_vec = vec![group];
         let mut args = vec![];
 
@@ -4600,13 +4682,13 @@ impl<'help> App<'help> {
                 .args
                 .iter()
             {
-                debug!("App::unroll_args_in_group:iter: entity={:?}", n);
+                debug!("Command::unroll_args_in_group:iter: entity={:?}", n);
                 if !args.contains(n) {
                     if self.find(n).is_some() {
-                        debug!("App::unroll_args_in_group:iter: this is an arg");
+                        debug!("Command::unroll_args_in_group:iter: this is an arg");
                         args.push(n.clone())
                     } else {
-                        debug!("App::unroll_args_in_group:iter: this is a group");
+                        debug!("Command::unroll_args_in_group:iter: this is a group");
                         g_vec.push(n);
                     }
                 }
@@ -4654,7 +4736,7 @@ impl<'help> App<'help> {
     }
 
     /// Find a flag subcommand name by long flag or an alias
-    pub(crate) fn find_long_subcmd(&self, long: &RawOsStr) -> Option<&str> {
+    pub(crate) fn find_long_subcmd(&self, long: &str) -> Option<&str> {
         self.get_subcommands()
             .find(|sc| sc.long_flag_aliases_to(long))
             .map(|sc| sc.get_name())
@@ -4662,6 +4744,57 @@ impl<'help> App<'help> {
 
     pub(crate) fn get_display_order(&self) -> usize {
         self.disp_ord.unwrap_or(999)
+    }
+
+    pub(crate) fn write_help_err(
+        &self,
+        mut use_long: bool,
+        stream: Stream,
+    ) -> ClapResult<Colorizer> {
+        debug!(
+            "Parser::write_help_err: use_long={:?}, stream={:?}",
+            use_long && self.use_long_help(),
+            stream
+        );
+
+        use_long = use_long && self.use_long_help();
+        let usage = Usage::new(self);
+
+        let mut c = Colorizer::new(stream, self.color_help());
+        Help::new(HelpWriter::Buffer(&mut c), self, &usage, use_long).write_help()?;
+        Ok(c)
+    }
+
+    pub(crate) fn use_long_help(&self) -> bool {
+        debug!("Command::use_long_help");
+        // In this case, both must be checked. This allows the retention of
+        // original formatting, but also ensures that the actual -h or --help
+        // specified by the user is sent through. If hide_short_help is not included,
+        // then items specified with hidden_short_help will also be hidden.
+        let should_long = |v: &Arg| {
+            v.long_help.is_some()
+                || v.is_hide_long_help_set()
+                || v.is_hide_short_help_set()
+                || cfg!(feature = "unstable-v4")
+                    && v.possible_vals.iter().any(PossibleValue::should_show_help)
+        };
+
+        // Subcommands aren't checked because we prefer short help for them, deferring to
+        // `cmd subcmd --help` for more.
+        self.get_long_about().is_some()
+            || self.get_before_long_help().is_some()
+            || self.get_after_long_help().is_some()
+            || self.get_arguments().any(should_long)
+    }
+
+    // Should we color the help?
+    pub(crate) fn color_help(&self) -> ColorChoice {
+        #[cfg(feature = "color")]
+        if self.is_disable_colored_help_set() {
+            return ColorChoice::Never;
+        }
+
+        self.get_color()
     }
 }
 

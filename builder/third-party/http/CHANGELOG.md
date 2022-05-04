@@ -1,3 +1,9 @@
+# 0.2.7 (April 28, 2022)
+
+* Add `extend()` method to `Extensions`.
+* Add `From<Authority>` and `From<PathAndQuery>` impls for `Uri`.
+* Make `HeaderName::from_static` a `const fn`.
+
 # 0.2.6 (December 30, 2021)
 
 * Upgrade internal `itoa` dependency to 1.0.
