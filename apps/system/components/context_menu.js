@@ -128,8 +128,14 @@ class ContextMenu extends HTMLElement {
 
     shadow.querySelector("sl-menu-item[data-l10n-id=link-new-tab]").onclick =
       () => {
+        this.dialog.addEventListener(
+          "sl-after-hide",
+          () => {
+            window.wm.openFrame(this.linkUrl, { activate: true });
+          },
+          { once: true }
+        );
         this.close();
-        window.wm.openFrame(this.linkUrl, { activate: true });
       };
 
     shadow.querySelector(
@@ -142,8 +148,14 @@ class ContextMenu extends HTMLElement {
     shadow.querySelector(
       "sl-menu-item[data-l10n-id=selection-search]"
     ).onclick = (event) => {
+      this.dialog.addEventListener(
+        "sl-after-hide",
+        () => {
+          searchFor(this.selectedText);
+        },
+        { once: true }
+      );
       this.close();
-      searchFor(this.selectedText);
     };
 
     shadow.querySelector("sl-menu-item[data-l10n-id=selection-copy]").onclick =

@@ -571,7 +571,7 @@ class WindowManager extends HTMLElement {
     // If the window-content is already displayed (eg. inactive split frame),
     // do a manual swap of the curent active frame for the new one.
     let frame = this.frames[this.activeFrame];
-    if (frame) {
+    if (frame && frame.classList.contains("split")) {
       let bounding = frame.getBoundingClientRect();
       let visible =
         bounding.top >= 0 &&
