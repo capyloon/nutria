@@ -214,7 +214,7 @@ class SiteInfo extends HTMLElement {
     let text = this.searchSection.querySelector("sl-button");
 
     let msg = await window.utils.l10n("site-info-search", {
-      query: this.state.search,
+      query: window.utils.truncateSearch(this.state.search),
     });
     text.textContent = msg;
 

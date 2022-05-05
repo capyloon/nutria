@@ -25,6 +25,9 @@ link-section-title = Link
 link-new-tab = Open Link In New Tab
 page-section-title = Page
 page-save-as-pdf = Save As PDF
+selection-section-title = Selected Text
+selection-copy = Copy
+selection-search = Search ”{$query}”
 
 # Site Info Panel
 site-info-add-home = Add To Home
@@ -35,7 +38,7 @@ site-info-android-ua = Android
 site-info-desktop-ua = Desktop
 success-add-to-home = Success Adding Site To Home
 error-add-to-home = Error Adding Site To Home
-site-info-search = Search '{$query}' on…
+site-info-search = Search ”{$query}” on…
 
 # Lockscreen
 lockscreen-emergency-call = Emergency Call

@@ -167,6 +167,27 @@ window.utils = {
   l10n: async (id, args) => {
     return await document.l10n.formatValue(id, args);
   },
+
+  // Helper to truncate a search string. Used by the context menu
+  // and by the site info panel.
+  truncateSearch: (text) => {
+    if (text.length > 15) {
+      let truncLength = 15;
+      let truncChar = text[15].charCodeAt(0);
+      if (truncChar >= 0xdc00 && truncChar <= 0xdfff) {
+        truncLength++;
+      }
+      let ellipsis = "\u2026";
+      try {
+        ellipsis = Services.prefs.getComplexValue(
+          "intl.ellipsis",
+          Ci.nsIPrefLocalizedString
+        ).data;
+      } catch (e) {}
+      text = text.substr(0, truncLength) + ellipsis;
+    }
+    return text;
+  },
 };
 
 function setupWebExtensions() {

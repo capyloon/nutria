@@ -25,7 +25,8 @@
 //   clientY: 432,
 //   screenX: 93,
 //   screenY: 432,
-//   pageUrl: "https://example.com"
+//   pageUrl: "https://example.com",
+//   selectionInfo: {"text":"","docSelectionIsCollapsed":true,"isDocumentLevelSelection":true,"linkURL":null,"linkText":""}"
 // }
 
 // {
@@ -50,6 +51,40 @@
 //   screenY: 461,
 // };
 
+// Triggers a search using a randomly selected search engine.
+// TODO: abstract that and share some with the site info panel.
+async function searchFor(text) {
+  let openSearch = contentManager.getOpenSearchManager((items) => {
+    // Remove items that are not enabled.
+    items = items.filter((item) => {
+      let meta = item.meta;
+      return meta.tags.includes("enabled");
+    });
+
+    // Pick one search engine.
+    let engine = items[Math.round(Math.random() * items.length)];
+    let desc = engine.variant("default").OpenSearchDescription;
+
+    // Replace the text in the searchTerms.
+    let urls = desc.Url;
+    if (!Array.isArray(urls)) {
+      urls = [urls];
+    }
+    let found = urls.find((item) => item._attributes.type == "text/html");
+    if (!found) {
+      return;
+    }
+    let template = found._attributes.template;
+    let encoded = encodeURIComponent(text).replace(/[!'()*]/g, function (c) {
+      return "%" + c.charCodeAt(0).toString(16);
+    });
+    let url = template.replace("{searchTerms}", encoded);
+
+    wm.openFrame(url, { activate: true, details: { search: text } });
+  });
+  await openSearch.init();
+}
+
 class ContextMenu extends HTMLElement {
   constructor() {
     super();
@@ -59,8 +94,12 @@ class ContextMenu extends HTMLElement {
     <link rel="stylesheet" href="components/context_menu.css">
     <sl-dialog no-header>
       <sl-menu>
-      <sl-menu-label><sl-icon name="file"></sl-icon><span data-l10n-id="page-section-title"></span></sl-menu-label>
+        <sl-menu-label><sl-icon name="file"></sl-icon><span data-l10n-id="page-section-title"></span></sl-menu-label>
         <sl-menu-item data-l10n-id="page-save-as-pdf"></sl-menu-item>
+        <sl-divider class="when-selection"></sl-divider>
+        <sl-menu-label class="when-selection"><sl-icon name="type"></sl-icon><span data-l10n-id="selection-section-title"></span></sl-menu-label>
+        <sl-menu-item class="when-selection" data-l10n-id="selection-copy"></sl-menu-item>
+        <sl-menu-item class="when-selection" data-l10n-id="selection-search"></sl-menu-item>
         <sl-divider class="when-image-or-link"></sl-divider>
         <sl-menu-label class="when-image"><sl-icon name="image"></sl-icon><span data-l10n-id="image-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-image" data-l10n-id="image-set-wallpaper"></sl-menu-item>
@@ -93,10 +132,34 @@ class ContextMenu extends HTMLElement {
         window.wm.openFrame(this.linkUrl, { activate: true });
       };
 
-    shadow.querySelector("sl-menu-item[data-l10n-id=page-save-as-pdf]").onclick =
-      () => {
+    shadow.querySelector(
+      "sl-menu-item[data-l10n-id=page-save-as-pdf]"
+    ).onclick = () => {
+      this.close();
+      this.contentWindow.saveAsPDF();
+    };
+
+    shadow.querySelector(
+      "sl-menu-item[data-l10n-id=selection-search]"
+    ).onclick = (event) => {
+      this.close();
+      searchFor(this.selectedText);
+    };
+
+    shadow.querySelector("sl-menu-item[data-l10n-id=selection-copy]").onclick =
+      async (event) => {
         this.close();
-        this.contentWindow.saveAsPDF();
+        navigator.clipboard.writeText(this.selectedText).then(
+          async () => {
+            let msg = await window.utils.l10n("text-share-copied");
+            window.toaster.show(msg);
+          },
+          (err) => {
+            this.error(
+              `Failure copying '${this.selectedText}' to the clipboard: ${err}`
+            );
+          }
+        );
       };
 
     this.dialog = shadow.querySelector("sl-dialog");
@@ -127,6 +190,37 @@ class ContextMenu extends HTMLElement {
       } else if (item.nodeName === "A") {
         hasLink = true;
         this.linkUrl = item.data?.uri;
+      }
+    });
+
+    // Selection management.
+    let hasSelection =
+      data.selectionInfo &&
+      data.selectionInfo.text?.length &&
+      !data.selectionInfo.docSelectionIsCollapsed;
+
+    // If the JS character after our truncation point is a trail surrogate,
+    // include it in the truncated string to avoid splitting a surrogate pair.
+    if (hasSelection) {
+      let selectedText = window.utils.truncateSearch(data.selectionInfo.text);
+      // Set the l10n parameter.
+      let node = this.shadowRoot.querySelector(
+        "sl-menu-item[data-l10n-id=selection-search]"
+      );
+      node.setAttribute(
+        "data-l10n-args",
+        JSON.stringify({ query: selectedText })
+      );
+      document.l10n.translateFragment(node);
+
+      this.selectedText = data.selectionInfo.fullText;
+    }
+
+    this.shadowRoot.querySelectorAll(".when-selection").forEach((item) => {
+      if (hasSelection) {
+        item.classList.remove("hidden");
+      } else {
+        item.classList.add("hidden");
       }
     });
 
