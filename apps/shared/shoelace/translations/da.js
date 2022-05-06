@@ -1,6 +1,6 @@
 import {
   registerTranslation
-} from "../chunks/chunk.EBGTCCKY.js";
+} from "../chunks/chunk.H2OTHIKD.js";
 import "../chunks/chunk.ICGTMF5Z.js";
 
 // src/translations/da.ts
@@ -8,13 +8,18 @@ var translation = {
   $code: "da",
   $name: "Danish",
   $dir: "ltr",
+  clearEntry: "Ryd indtastning",
   close: "Luk",
   copy: "Kopier",
+  currentValue: "Nuv\xE6rende regerer",
+  hidePassword: "Skjul adgangskode",
   progress: "Status",
+  remove: "Fjerne",
   resize: "Tipas st\xF8rrelse",
   scrollToEnd: "Scroll til slut",
   scrollToStart: "Scroll til start",
   selectAColorFromTheScreen: "V\xE6lg en farve fra sk\xE6rmen",
+  showPassword: "Vis adgangskode",
   toggleColorFormat: "Skift farveformat"
 };
 registerTranslation(translation);

@@ -393,6 +393,7 @@ const kValidShoelaceNames = new Set([
   "progress-ring",
   "qr-code",
   "radio",
+  "radio-button",
   "radio-group",
   "range",
   "rating",
