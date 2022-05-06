@@ -48,11 +48,13 @@ class TextShare extends LitElement {
               @click="${this.copyToClipboard}"
               name="clipboard-copy"
               data-l10n-id="text-share-copy"
+              data-l10n-attrs="label"
             ></sl-icon-button>
             <sl-icon-button
               @click="${this.share}"
               name="share-2"
               data-l10n-id="text-share-share"
+              data-l10n-attrs="label"
               class="${isUrl}"
             ></sl-icon-button>
           </div>

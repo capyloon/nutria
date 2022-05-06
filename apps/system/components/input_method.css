@@ -8,6 +8,7 @@ input-method {
   pointer-events: none;
   display: flex;
   flex-direction: column;
+  z-index: 1500;
 }
 
 input-method:not(.no-animation) {

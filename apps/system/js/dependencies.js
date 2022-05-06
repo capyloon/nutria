@@ -154,6 +154,7 @@ const kDeps = [
       "ipfs",
       "text share comp",
       "confirm dialog comp",
+      "publish dialog comp",
     ],
   },
   {
@@ -309,6 +310,20 @@ const kDeps = [
       "shoelace-button",
       "shoelace-icon-button",
       "shoelace-dialog",
+    ],
+  },
+  {
+    name: "publish dialog comp",
+    kind: "module",
+    param: ["./components/publish_dialog.js"],
+    deps: [
+      "lit element",
+      "shoelace-button",
+      "shoelace-icon-button",
+      "shoelace-dialog",
+      "shoelace-radio-group",
+      "shoelace-radio-button",
+      "shoelace-input",
     ],
   },
 ];

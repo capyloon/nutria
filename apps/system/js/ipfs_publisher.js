@@ -4,6 +4,62 @@
 // - add a "hidden tag" with the ipfs url (.ipfs://...)
 // - share the IPFS url and the default variant metadata (size, mimeType)
 
+class PasswordBasedSecret {
+  constructor(password) {
+    this.password = password;
+  }
+
+  async getKeyMaterial() {
+    let enc = new TextEncoder();
+    return await window.crypto.subtle.importKey(
+      "raw",
+      enc.encode(this.password),
+      "PBKDF2",
+      false,
+      ["deriveBits", "deriveKey"]
+    );
+  }
+
+  async getSymKey() {
+    let keyMaterial = await this.getKeyMaterial(this.password);
+    let enc = new TextEncoder();
+    return await window.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: enc.encode("capyloon-salt"),
+        iterations: 400000,
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  async encrypt(plaintext) {
+    return await window.crypto.subtle.encrypt(
+      {
+        name: "AES-GCM",
+        iv: new Uint8Array(1),
+      },
+      await this.getSymKey(this.password),
+      plaintext
+    );
+  }
+
+  async decrypt(ciphertext) {
+    return await window.crypto.subtle.decrypt(
+      {
+        name: "AES-GCM",
+        iv: new Uint8Array(1),
+      },
+      await this.getSymKey(this.password),
+      ciphertext
+    );
+  }
+}
+
 class IpfsPublisher {
   constructor(resource) {
     this.resource = resource;
@@ -26,7 +82,7 @@ class IpfsPublisher {
     );
   }
 
-  async publish(blob) {
+  async publish(blob, password) {
     let tag = `ipfs-publish_${this.resource.meta.id}`;
     let name = this.resource.meta.name;
     let title = await window.utils.l10n("ipfs-publish-title");
@@ -52,6 +108,23 @@ class IpfsPublisher {
     }
 
     this.updateNotification({ title, body: name, icon, tag });
+
+    // If a password is set, encrypt the blob.
+    if (password) {
+      // Set an undefinite progress bar during crypto operations.
+      this.updateNotification({
+        title,
+        body: name,
+        icon,
+        tag,
+        data: { progress: -1 },
+      });
+
+      let buffer = await blob.arrayBuffer();
+      let secrets = new PasswordBasedSecret(password);
+      let cipher = await secrets.encrypt(buffer);
+      blob = new Blob([cipher]);
+    }
 
     let estuary = new Estuary(estuaryToken);
 
@@ -85,6 +158,12 @@ class IpfsPublisher {
       this.log(`estuary upload success: ${JSON.stringify(event.detail)}`);
 
       await this.resource.addTag(`.ipfs://${event.detail.cid}`);
+
+      // Add a ".ipfs-password-protected" tag for password protected resources,
+      // so we can generate a different url.
+      if (password) {
+        await this.resource.addTag(".ipfs-password-protected");
+      }
 
       let body = await window.utils.l10n("ipfs-publish-success", { name });
       let actionTitle = await window.utils.l10n("ipfs-publish-share");
@@ -165,26 +244,18 @@ class IpfsObserver {
 
         // Prompt the user to confirm the upload.
         // If the user denies the upload, the resource will be removed from the sharing container.
-        let confirmDialog = document.querySelector("confirm-dialog");
-        let cancelled = false;
+        let publishDialog = document.querySelector("publish-dialog");
+        let cancelled = true;
+        let password = null;
         try {
-          let result = await confirmDialog.open({
-            title: await window.utils.l10n("ipfs-publish-title"),
-            text: await window.utils.l10n("ipfs-confirm-publish", {
-              name: resource.meta.name,
-            }),
-            buttons: [
-              {
-                id: "publish",
-                label: await window.utils.l10n("ipfs-button-publish"),
-                variant: "primary",
-              },
-              { id: "cancel", label: await window.utils.l10n("button-cancel") },
-            ],
+          let answer = await publishDialog.open({
+            name: resource.meta.name,
+            isPublic: true,
           });
-          cancelled = result == "cancel";
+          cancelled = answer.result == "cancel";
+          password = answer.password;
         } catch (e) {
-          this.log(`Publishing cancelled`);
+          this.log(`Publishing cancelled : ${e}`);
           cancelled = true;
         }
 
@@ -199,7 +270,7 @@ class IpfsObserver {
           let response = await fetch(resource.variantUrl("default"));
           let blob = await response.blob();
           let publisher = new IpfsPublisher(resource);
-          publisher.publish(blob);
+          publisher.publish(blob, password);
         } catch (e) {
           this.error(`Failed to get blob for ${change.id} : ${e}`);
         }
@@ -219,6 +290,12 @@ class IpfsObserver {
           this.error(`No ipfs tag found for resource ${resourceId}`);
           return;
         }
+
+        // Check if this is a password protected resource.
+        const hasPassword = !!resource.meta.tags.find(
+          (tag) => tag === ".ipfs-password-protected"
+        );
+
         let defaultVariant = resource.meta.variants.find(
           (variant) => variant.name == "default"
         );
@@ -237,9 +314,14 @@ class IpfsObserver {
         let textShare = document.querySelector("text-share");
         // Create a IPFS gateway url to allow sharing with non-native IPFS targets.
         let ipfsUrl = url.substring(1);
-        let value = `https://${ipfsUrl.substring(
-          "ipfs://".length
-        )}.ipfs.dweb.link`;
+        let cid = ipfsUrl.substring("ipfs://".length);
+        let params = new URLSearchParams();
+        if (hasPassword) {
+          params.append("cid", cid);
+        }
+        let value = hasPassword
+          ? `https://capyloon.org/share.html?${params}`
+          : `https://${cid}.ipfs.dweb.link`;
         textShare.open({ value, label });
       }
     );

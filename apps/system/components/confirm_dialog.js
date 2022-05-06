@@ -1,5 +1,4 @@
-// Represents a <text-share> dialog, displaying the text as a QRCode,
-// and allowing clipboard copy as well as sharing activity.
+// Represents a <confirm-dialog> dialog.
 
 class ConfirmDialog extends LitElement {
   constructor() {
@@ -78,13 +77,11 @@ class ConfirmDialog extends LitElement {
     this.log(`open dialog=${this.dialog}`);
     if (!data || !data.buttons || !data.buttons.length) {
       this.error(`invalid data!`);
-      return;
+      return Promise.reject();
     }
     this.data = data;
-    this.log(`data is set`);
 
     this.dialog.show();
-    this.log(`after show`);
     return new Promise((resolve, reject) => {
       this.deferred = { resolve, reject };
     });

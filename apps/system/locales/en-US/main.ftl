@@ -69,12 +69,16 @@ tor-enabled = Tor is now enabled
 tor-disabled = Tor is now disabled
 
 # IPFS publishing
-ipfs-publish-title = Publishing to IPFS
+ipfs-publish-title =
+    .label = Publishing to IPFS
 ipfs-publish-error = Error publishing {$name}
 ipfs-publish-success = Successfully published {$name}
 ipfs-publish-share = Share…
 ipfs-button-publish = Publish
-ipfs-confirm-publish = The file named '{$name}' will be permanently published to a public place.
+ipfs-confirm-publish-public = The file named '{$name}' will be publicly published to the IPFS network.
+ipfs-confirm-publish-private = The file named '{$name}' will be privately published to the IPFS network.
+ipfs-publish-password =
+    .label = Enter the password protecting this file:
 ipfs-estuary-missing-token = Unable to publish: missing Estuary api token
 
 # <text-share> element
