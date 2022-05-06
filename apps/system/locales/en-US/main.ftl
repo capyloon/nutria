@@ -21,6 +21,7 @@ image-section-title = Image
 image-set-wallpaper = Set As wallpaper
 image-download = Download
 image-share = Share…
+image-new-tab = Open Image In New Tab
 link-section-title = Link
 link-new-tab = Open Link In New Tab
 page-section-title = Page

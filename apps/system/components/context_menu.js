@@ -104,6 +104,7 @@ class ContextMenu extends HTMLElement {
         <sl-menu-label class="when-image"><sl-icon name="image"></sl-icon><span data-l10n-id="image-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-image" data-l10n-id="image-set-wallpaper"></sl-menu-item>
         <sl-menu-item class="when-image" data-l10n-id="image-download"></sl-menu-item>
+        <sl-menu-item class="when-image" data-l10n-id="image-new-tab"></sl-menu-item>
         <sl-menu-item class="when-image" data-l10n-id="image-share" disabled></sl-menu-item>
         <sl-divider class="when-image-and-link"></sl-divider>
         <sl-menu-label class="when-link"><sl-icon name="link"></sl-icon><span data-l10n-id="link-section-title"></span></sl-menu-label>
@@ -126,16 +127,14 @@ class ContextMenu extends HTMLElement {
         this.contentWindow.webView.download(this.imageUrl);
       };
 
+    shadow.querySelector("sl-menu-item[data-l10n-id=image-new-tab]").onclick =
+      () => {
+        this.openUrlInNewTab(this.imageUrl);
+      };
+
     shadow.querySelector("sl-menu-item[data-l10n-id=link-new-tab]").onclick =
       () => {
-        this.dialog.addEventListener(
-          "sl-after-hide",
-          () => {
-            window.wm.openFrame(this.linkUrl, { activate: true });
-          },
-          { once: true }
-        );
-        this.close();
+        this.openUrlInNewTab(this.linkUrl);
       };
 
     shadow.querySelector(
@@ -175,6 +174,17 @@ class ContextMenu extends HTMLElement {
       };
 
     this.dialog = shadow.querySelector("sl-dialog");
+  }
+
+  openUrlInNewTab(url) {
+    this.dialog.addEventListener(
+      "sl-after-hide",
+      () => {
+        window.wm.openFrame(url, { activate: true });
+      },
+      { once: true }
+    );
+    this.close();
   }
 
   close() {
