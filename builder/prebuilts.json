@@ -1,20 +1,20 @@
 {
-  "aarch64-unknown-linux-gnu": {
-    "b2g": "https://dweb.link/ipfs/bafybeihrdhjjt56kiv2bbf36mpxcmztqiav63tthoc64lsgpkysrtooe5i",
-    "api-daemon": "https://dweb.link/ipfs/bafybeihj7dk3rd7sot4l2ip6zzfdtwarvz7zthnb4blgztxhzhy7eynpme",
-    "b2ghald": "https://dweb.link/ipfs/bafkreidusy2lil72b7iewcffoucyrqo4ijqj7wlmv6mklmutc2t557nmii"
+  "x86_64-unknown-linux-gnu": {
+    "b2g": "https://dweb.link/ipfs/bafybeidqixjpn55cir6owu2bf6inoo6xqzozc42kcwvu5vwtdvrhan4j7y",
+    "api-daemon": "https://dweb.link/ipfs/bafybeih6fvxyr2yvkurc76itequhmmlqni55p6taqzm64yxvg4a63z335u",
+    "b2ghald": "https://dweb.link/ipfs/bafkreiblim5qhrqr5l37lcrixtwta3l7er6w6wxgcxyyrltjrknz724zne"
   },
   "aarch64-apple-darwin": {
-    "b2g": "https://dweb.link/ipfs/bafybeihs66lqazczt65gqohwq4mtwbzw6qhmkf26ukyhax4tzun4v3adke",
-    "api-daemon": "https://dweb.link/ipfs/bafybeihm7dshirrc7z342bxlgifrhfiwkcnar63dlmqbhmv2xv6xp644oa"
+    "b2g": "https://dweb.link/ipfs/bafybeidsh4pyvlmnpm3qw4zhq2pcfmc7fmnbd3ai2doqa3fgqyppr345sq",
+    "api-daemon": "https://dweb.link/ipfs/bafybeidqoylwbv2omf3dpsyfaeludyrclksgdlxxkxqjnzpmtpwj7rcszu"
   },
-  "x86_64-unknown-linux-gnu": {
-    "b2g": "https://dweb.link/ipfs/bafybeiayf4oabivutyjcviatd4tjhjfguetwh47s7cxrgqaghsdtcourvu",
-    "api-daemon": "https://dweb.link/ipfs/bafybeig47i2ffd7wbxjgqcdc27yxt4vagauwxdndcnpbmyequl2f6msrc4",
-    "b2ghald": "https://dweb.link/ipfs/bafkreihokyswnsymqbs3dni2avfnxz4tn3y5ijpgm2f33ogkwbc63eojbu"
+  "aarch64-unknown-linux-gnu": {
+    "b2g": "https://dweb.link/ipfs/bafybeiccvoay42kmkcxqloaxr4jbzv32ftjri3u3uxnhxnhhslxhi2ys6i",
+    "api-daemon": "https://dweb.link/ipfs/bafybeid5jsbyg7wpajncsc7pyycqmrjq2c5b4yyrhqztpy2tghanqtkbaa",
+    "b2ghald": "https://dweb.link/ipfs/bafkreigfcy2pfnlhotytwxaodxnemb6nxoi2qmwejq7eju5jawdax7bobq"
   },
   "x86_64-apple-darwin": {
-    "b2g": "https://dweb.link/ipfs/bafybeienhzhxsq56uoq555pt4ht2prmm55npwvzielsz7yzpl65idsxvdi",
-    "api-daemon": "https://dweb.link/ipfs/bafybeib7g67kxbtvytofby2xgljzfwvz55ldzo7wc3cyed52trwunzgn3i"
+    "b2g": "https://dweb.link/ipfs/bafybeigfmvcqfa7oljmfltix6t67rfmhqycauenpxh4y7tuxjrxyfyg6fi",
+    "api-daemon": "https://dweb.link/ipfs/bafybeihniyjdx6kubo52pcf6ernflexdhj7zhhk4ltit7cmb5ydvn2e6ri"
   }
 }
