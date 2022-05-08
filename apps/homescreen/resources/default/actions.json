@@ -45,6 +45,15 @@
     "position": "3, 0"
   },
   {
+    "id": "default-8",
+    "kind": "bookmark",
+    "title": "Publish IPFS",
+    "url": "https://capyloon.org/ipfs.html#publish",
+    "icon": "./resources/capyloon-logo.webp",
+    "backgroundColor": "wheat",
+    "position": "3, 2"
+  },
+  {
     "id": "default-4",
     "kind": "widget",
     "title": "World Clock",
