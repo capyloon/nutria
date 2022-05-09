@@ -44,7 +44,7 @@ class PublishDialog extends LitElement {
     }`;
 
     return html` <link rel="stylesheet" href="components/publish_dialog.css" />
-      <sl-dialog data-l10n-id="ipfs-publish-title" data-l10n-attrs="label">
+      <sl-dialog data-l10n-id="ipfs-publish-dialog-title" data-l10n-attrs="label">
         <div class="container">
           <sl-radio-group label="Publication Mode">
             <sl-radio-button class="public" @click="${this.setPublic}" checked

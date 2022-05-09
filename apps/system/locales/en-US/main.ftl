@@ -70,8 +70,9 @@ tor-enabled = Tor is now enabled
 tor-disabled = Tor is now disabled
 
 # IPFS publishing
-ipfs-publish-title =
+ipfs-publish-dialog-title =
     .label = Publishing to IPFS
+ipfs-publish-title = Publishing to IPFS
 ipfs-publish-error = Error publishing {$name}
 ipfs-publish-success = Successfully published {$name}
 ipfs-publish-share = Share…
