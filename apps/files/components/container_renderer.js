@@ -196,7 +196,7 @@ export class ContainerRenderer extends LitElement {
     let optionalDelete;
     if (this.selected.size > 0) {
       optionalDelete = html`<div @click="${this.deleteSelected}">
-        <sl-icon name="trash-2"></sl-icon>
+        <sl-icon-button name="trash-2"></sl-icon-button>
       </div>`;
     }
 
