@@ -1059,55 +1059,12 @@ class ContentWindow extends HTMLElement {
     this.selectUiContainer.classList.remove("hidden");
   }
 
-  // TODO: That code should move to web-view.js in Gecko.
   savePage() {
-    let scope = {};
-    Services.scriptloader.loadSubScript(
-      "chrome://global/content/contentAreaUtils.js",
-      scope
-    );
-    scope.saveBrowser(this.webView.linkedBrowser, true /* skipPrompt */);
+    this.webView.savePage();
   }
 
-  // TODO: That code should move to web-view.js in Gecko.
   async saveAsPDF() {
-    const { DownloadPaths } = ChromeUtils.import(
-      "resource://gre/modules/DownloadPaths.jsm"
-    );
-    const { OS } = ChromeUtils.import("resource://gre/modules/osfile.jsm");
-
-    let linkedBrowser = this.webView.linkedBrowser;
-    let filename = "";
-    if (linkedBrowser.contentTitle != "") {
-      filename = linkedBrowser.contentTitle;
-    } else {
-      let url = new URL(linkedBrowser.currentURI.spec);
-      let path = decodeURIComponent(url.pathname);
-      path = path.replace(/\/$/, "");
-      filename = path.split("/").pop();
-      if (filename == "") {
-        filename = url.hostname;
-      }
-    }
-    filename = `${DownloadPaths.sanitize(filename)}.pdf`;
-
-    // Create a unique filename for the temporary PDF file
-    const basePath = OS.Path.join(OS.Constants.Path.tmpDir, filename);
-    const { file, path: filePath } = await OS.File.openUnique(basePath);
-    await file.close();
-
-    let psService = Cc["@mozilla.org/gfx/printsettings-service;1"].getService(
-      Ci.nsIPrintSettingsService
-    );
-    const printSettings = psService.newPrintSettings;
-    printSettings.isInitializedFromPrinter = true;
-    printSettings.isInitializedFromPrefs = true;
-    printSettings.outputFormat = Ci.nsIPrintSettings.kOutputFormatPDF;
-    printSettings.printerName = "";
-    printSettings.printSilent = true;
-    printSettings.outputDestination =
-      Ci.nsIPrintSettings.kOutputDestinationFile;
-    printSettings.toFileName = filePath;
+    let { filename, filePath, promise } = await this.webView.saveAsPDF();
 
     let title = await window.utils.l10n("save-as-pdf-title");
     let body = await window.utils.l10n("save-as-pdf-processing", {
@@ -1120,8 +1077,7 @@ class ContentWindow extends HTMLElement {
       data: { progress: -1 },
     });
 
-    linkedBrowser.browsingContext
-      .print(printSettings)
+    promise
       .then(async () => {
         actionsDispatcher.dispatch("import-download", filePath);
         let body = await window.utils.l10n("save-as-pdf-done", { filename });
