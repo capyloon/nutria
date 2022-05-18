@@ -4,7 +4,7 @@ pub mod gonk;
 pub mod linux;
 
 use crate::build_config::BuildConfig;
-use log::error;
+use log::{error, info};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -101,4 +101,13 @@ pub fn reset_time() -> Result<(), DeviceError> {
             Ok(())
         },
     )
+}
+
+pub fn list_devices() {
+    if let Ok(gonk) = gonk::detect_device() {
+        info!("Gonk device: {}", gonk);
+    }
+    if let Ok(linux) = linux::detect_device() {
+        info!("Linux device: {}", linux);
+    }
 }

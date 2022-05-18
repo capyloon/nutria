@@ -94,6 +94,8 @@ enum Commands {
         /// The new app name.
         name: String,
     },
+    /// Displays the list of recognized devices.
+    ListDevices {},
 }
 
 #[derive(Error, Debug)]
@@ -228,6 +230,10 @@ fn main() {
             } else {
                 Ok(())
             }
+        }
+        Commands::ListDevices {} => {
+            commands::list_devices();
+            Ok(())
         }
         Commands::UpdatePrebuilts { target } => {
             prebuilts::update(config, target.clone()).map_err(|e| e.into())
