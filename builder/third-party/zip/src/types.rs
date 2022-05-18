@@ -1,4 +1,48 @@
 //! Types that specify what is contained in a ZIP.
+#[cfg(doc)]
+use {crate::read::ZipFile, crate::write::FileOptions};
+
+#[cfg(not(any(
+    all(target_arch = "arm", target_pointer_width = "32"),
+    target_arch = "mips",
+    target_arch = "powerpc"
+)))]
+use std::sync::atomic;
+
+#[cfg(any(
+    all(target_arch = "arm", target_pointer_width = "32"),
+    target_arch = "mips",
+    target_arch = "powerpc"
+))]
+mod atomic {
+    use crossbeam_utils::sync::ShardedLock;
+    pub use std::sync::atomic::Ordering;
+
+    #[derive(Debug, Default)]
+    pub struct AtomicU64 {
+        value: ShardedLock<u64>,
+    }
+
+    impl AtomicU64 {
+        pub fn new(v: u64) -> Self {
+            Self {
+                value: ShardedLock::new(v),
+            }
+        }
+        pub fn get_mut(&mut self) -> &mut u64 {
+            self.value.get_mut().unwrap()
+        }
+        pub fn load(&self, _: Ordering) -> u64 {
+            *self.value.read().unwrap()
+        }
+        pub fn store(&self, value: u64, _: Ordering) {
+            *self.value.write().unwrap() = value;
+        }
+    }
+}
+
+#[cfg(feature = "time")]
+use time::{error::ComponentRange, Date, Month, OffsetDateTime, PrimitiveDateTime, Time};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum System {
@@ -19,19 +63,23 @@ impl System {
     }
 }
 
-/// A DateTime field to be used for storing timestamps in a zip file
+/// Representation of a moment in time.
 ///
-/// This structure does bounds checking to ensure the date is able to be stored in a zip file.
+/// Zip files use an old format from DOS to store timestamps,
+/// with its own set of peculiarities.
+/// For example, it has a resolution of 2 seconds!
 ///
-/// When constructed manually from a date and time, it will also check if the input is sensible
-/// (e.g. months are from [1, 12]), but when read from a zip some parts may be out of their normal
-/// bounds (e.g. month 0, or hour 31).
+/// A [`DateTime`] can be stored directly in a zipfile with [`FileOptions::last_modified_time`],
+/// or read from one with [`ZipFile::last_modified`]
 ///
 /// # Warning
 ///
-/// Some utilities use alternative timestamps to improve the accuracy of their
-/// ZIPs, but we don't parse them yet. [We're working on this](https://github.com/zip-rs/zip/issues/156#issuecomment-652981904),
-/// however this API shouldn't be considered complete.
+/// Because there is no timezone associated with the [`DateTime`], they should ideally only
+/// be used for user-facing descriptions. This also means [`DateTime::to_time`] returns an
+/// [`OffsetDateTime`] (which is the equivalent of chrono's `NaiveDateTime`).
+///
+/// Modern zip files store more precise timestamps, which are ignored by [`crate::read::ZipArchive`],
+/// so keep in mind that these timestamps are unreliable. [We're working on this](https://github.com/zip-rs/zip/issues/156#issuecomment-652981904).
 #[derive(Debug, Clone, Copy)]
 pub struct DateTime {
     year: u16,
@@ -62,7 +110,7 @@ impl DateTime {
         let seconds = (timepart & 0b0000000000011111) << 1;
         let minutes = (timepart & 0b0000011111100000) >> 5;
         let hours = (timepart & 0b1111100000000000) >> 11;
-        let days = (datepart & 0b0000000000011111) >> 0;
+        let days = datepart & 0b0000000000011111;
         let months = (datepart & 0b0000000111100000) >> 5;
         let years = (datepart & 0b1111111000000000) >> 9;
 
@@ -85,6 +133,7 @@ impl DateTime {
     /// * hour: [0, 23]
     /// * minute: [0, 59]
     /// * second: [0, 60]
+    #[allow(clippy::result_unit_err)]
     pub fn from_date_and_time(
         year: u16,
         month: u8,
@@ -93,8 +142,7 @@ impl DateTime {
         minute: u8,
         second: u8,
     ) -> Result<DateTime, ()> {
-        if year >= 1980
-            && year <= 2107
+        if (1980..=2107).contains(&year)
             && month >= 1
             && month <= 12
             && day >= 1
@@ -117,30 +165,19 @@ impl DateTime {
     }
 
     #[cfg(feature = "time")]
-    /// Converts a ::time::Tm object to a DateTime
+    /// Converts a OffsetDateTime object to a DateTime
     ///
     /// Returns `Err` when this object is out of bounds
-    pub fn from_time(tm: ::time::Tm) -> Result<DateTime, ()> {
-        if tm.tm_year >= 80
-            && tm.tm_year <= 207
-            && tm.tm_mon >= 0
-            && tm.tm_mon <= 11
-            && tm.tm_mday >= 1
-            && tm.tm_mday <= 31
-            && tm.tm_hour >= 0
-            && tm.tm_hour <= 23
-            && tm.tm_min >= 0
-            && tm.tm_min <= 59
-            && tm.tm_sec >= 0
-            && tm.tm_sec <= 60
-        {
+    #[allow(clippy::result_unit_err)]
+    pub fn from_time(dt: OffsetDateTime) -> Result<DateTime, ()> {
+        if dt.year() >= 1980 && dt.year() <= 2107 {
             Ok(DateTime {
-                year: (tm.tm_year + 1900) as u16,
-                month: (tm.tm_mon + 1) as u8,
-                day: tm.tm_mday as u8,
-                hour: tm.tm_hour as u8,
-                minute: tm.tm_min as u8,
-                second: tm.tm_sec as u8,
+                year: (dt.year()) as u16,
+                month: (dt.month()) as u8,
+                day: dt.day() as u8,
+                hour: dt.hour() as u8,
+                minute: dt.minute() as u8,
+                second: dt.second() as u8,
             })
         } else {
             Err(())
@@ -158,20 +195,14 @@ impl DateTime {
     }
 
     #[cfg(feature = "time")]
-    /// Converts the datetime to a Tm structure
-    ///
-    /// The fields `tm_wday`, `tm_yday`, `tm_utcoff` and `tm_nsec` are set to their defaults.
-    pub fn to_time(&self) -> ::time::Tm {
-        ::time::Tm {
-            tm_sec: self.second as i32,
-            tm_min: self.minute as i32,
-            tm_hour: self.hour as i32,
-            tm_mday: self.day as i32,
-            tm_mon: self.month as i32 - 1,
-            tm_year: self.year as i32 - 1900,
-            tm_isdst: -1,
-            ..::time::empty_tm()
-        }
+    /// Converts the DateTime to a OffsetDateTime structure
+    pub fn to_time(&self) -> Result<OffsetDateTime, ComponentRange> {
+        use std::convert::TryFrom;
+
+        let date =
+            Date::from_calendar_date(self.year as i32, Month::try_from(self.month)?, self.day)?;
+        let time = Time::from_hms(self.hour, self.minute, self.second)?;
+        Ok(PrimitiveDateTime::new(date, time).assume_utc())
     }
 
     /// Get the year. There is no epoch, i.e. 2018 will be returned as 2018.
@@ -180,32 +211,83 @@ impl DateTime {
     }
 
     /// Get the month, where 1 = january and 12 = december
+    ///
+    /// # Warning
+    ///
+    /// When read from a zip file, this may not be a reasonable value
     pub fn month(&self) -> u8 {
         self.month
     }
 
     /// Get the day
+    ///
+    /// # Warning
+    ///
+    /// When read from a zip file, this may not be a reasonable value
     pub fn day(&self) -> u8 {
         self.day
     }
 
     /// Get the hour
+    ///
+    /// # Warning
+    ///
+    /// When read from a zip file, this may not be a reasonable value
     pub fn hour(&self) -> u8 {
         self.hour
     }
 
     /// Get the minute
+    ///
+    /// # Warning
+    ///
+    /// When read from a zip file, this may not be a reasonable value
     pub fn minute(&self) -> u8 {
         self.minute
     }
 
     /// Get the second
+    ///
+    /// # Warning
+    ///
+    /// When read from a zip file, this may not be a reasonable value
     pub fn second(&self) -> u8 {
         self.second
     }
 }
 
 pub const DEFAULT_VERSION: u8 = 46;
+
+/// A type like `AtomicU64` except it implements `Clone` and has predefined
+/// ordering.
+///
+/// It uses `Relaxed` ordering because it is not used for synchronisation.
+#[derive(Debug)]
+pub struct AtomicU64(atomic::AtomicU64);
+
+impl AtomicU64 {
+    pub fn new(v: u64) -> Self {
+        Self(atomic::AtomicU64::new(v))
+    }
+
+    pub fn load(&self) -> u64 {
+        self.0.load(atomic::Ordering::Relaxed)
+    }
+
+    pub fn store(&self, val: u64) {
+        self.0.store(val, atomic::Ordering::Relaxed)
+    }
+
+    pub fn get_mut(&mut self) -> &mut u64 {
+        self.0.get_mut()
+    }
+}
+
+impl Clone for AtomicU64 {
+    fn clone(&self) -> Self {
+        Self(atomic::AtomicU64::new(self.load()))
+    }
+}
 
 /// Structure representing a ZIP file.
 #[derive(Debug, Clone)]
@@ -220,6 +302,8 @@ pub struct ZipFileData {
     pub using_data_descriptor: bool,
     /// Compression method used to store the file
     pub compression_method: crate::compression::CompressionMethod,
+    /// Compression level to store the file
+    pub compression_level: Option<i32>,
     /// Last modified time. This will only have a 2 second precision.
     pub last_modified_time: DateTime,
     /// CRC32 checksum
@@ -243,11 +327,13 @@ pub struct ZipFileData {
     /// Note that when this is not known, it is set to 0
     pub central_header_start: u64,
     /// Specifies where the compressed data of the file starts
-    pub data_start: u64,
+    pub data_start: AtomicU64,
     /// External file attributes
     pub external_attributes: u32,
     /// Reserve local ZIP64 extra field
     pub large_file: bool,
+    /// AES mode if applicable
+    pub aes_mode: Option<(AesMode, AesVendorVersion)>,
 }
 
 impl ZipFileData {
@@ -271,10 +357,7 @@ impl ZipFileData {
 
         ::std::path::Path::new(&filename)
             .components()
-            .filter(|component| match *component {
-                ::std::path::Component::Normal(..) => true,
-                _ => false,
-            })
+            .filter(|component| matches!(*component, ::std::path::Component::Normal(..)))
             .fold(::std::path::PathBuf::new(), |mut path, ref cur| {
                 path.push(cur.as_os_str());
                 path
@@ -294,6 +377,39 @@ impl ZipFileData {
             (_, crate::compression::CompressionMethod::Bzip2) => 46,
             (true, _) => 45,
             _ => 20,
+        }
+    }
+}
+
+/// The encryption specification used to encrypt a file with AES.
+///
+/// According to the [specification](https://www.winzip.com/win/en/aes_info.html#winzip11) AE-2
+/// does not make use of the CRC check.
+#[derive(Copy, Clone, Debug)]
+pub enum AesVendorVersion {
+    Ae1,
+    Ae2,
+}
+
+/// AES variant used.
+#[derive(Copy, Clone, Debug)]
+pub enum AesMode {
+    Aes128,
+    Aes192,
+    Aes256,
+}
+
+#[cfg(feature = "aes-crypto")]
+impl AesMode {
+    pub fn salt_length(&self) -> usize {
+        self.key_length() / 2
+    }
+
+    pub fn key_length(&self) -> usize {
+        match self {
+            Self::Aes128 => 16,
+            Self::Aes192 => 24,
+            Self::Aes256 => 32,
         }
     }
 }
@@ -319,6 +435,7 @@ mod test {
             encrypted: false,
             using_data_descriptor: false,
             compression_method: crate::compression::CompressionMethod::Stored,
+            compression_level: None,
             last_modified_time: DateTime::default(),
             crc32: 0,
             compressed_size: 0,
@@ -328,10 +445,11 @@ mod test {
             extra_field: Vec::new(),
             file_comment: String::new(),
             header_start: 0,
-            data_start: 0,
+            data_start: AtomicU64::new(0),
             central_header_start: 0,
             external_attributes: 0,
             large_file: false,
+            aes_mode: None,
         };
         assert_eq!(
             data.file_name_sanitized(),
@@ -340,6 +458,7 @@ mod test {
     }
 
     #[test]
+    #[allow(clippy::unusual_byte_groupings)]
     fn datetime_default() {
         use super::DateTime;
         let dt = DateTime::default();
@@ -348,6 +467,7 @@ mod test {
     }
 
     #[test]
+    #[allow(clippy::unusual_byte_groupings)]
     fn datetime_max() {
         use super::DateTime;
         let dt = DateTime::from_date_and_time(2107, 12, 31, 23, 59, 60).unwrap();
@@ -375,57 +495,25 @@ mod test {
     }
 
     #[cfg(feature = "time")]
+    use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+
+    #[cfg(feature = "time")]
     #[test]
     fn datetime_from_time_bounds() {
         use super::DateTime;
+        use time::macros::datetime;
 
         // 1979-12-31 23:59:59
-        assert!(DateTime::from_time(::time::Tm {
-            tm_sec: 59,
-            tm_min: 59,
-            tm_hour: 23,
-            tm_mday: 31,
-            tm_mon: 11,  // tm_mon has number range [0, 11]
-            tm_year: 79, // 1979 - 1900 = 79
-            ..::time::empty_tm()
-        })
-        .is_err());
+        assert!(DateTime::from_time(datetime!(1979-12-31 23:59:59 UTC)).is_err());
 
         // 1980-01-01 00:00:00
-        assert!(DateTime::from_time(::time::Tm {
-            tm_sec: 0,
-            tm_min: 0,
-            tm_hour: 0,
-            tm_mday: 1,
-            tm_mon: 0,   // tm_mon has number range [0, 11]
-            tm_year: 80, // 1980 - 1900 = 80
-            ..::time::empty_tm()
-        })
-        .is_ok());
+        assert!(DateTime::from_time(datetime!(1980-01-01 00:00:00 UTC)).is_ok());
 
         // 2107-12-31 23:59:59
-        assert!(DateTime::from_time(::time::Tm {
-            tm_sec: 59,
-            tm_min: 59,
-            tm_hour: 23,
-            tm_mday: 31,
-            tm_mon: 11,   // tm_mon has number range [0, 11]
-            tm_year: 207, // 2107 - 1900 = 207
-            ..::time::empty_tm()
-        })
-        .is_ok());
+        assert!(DateTime::from_time(datetime!(2107-12-31 23:59:59 UTC)).is_ok());
 
         // 2108-01-01 00:00:00
-        assert!(DateTime::from_time(::time::Tm {
-            tm_sec: 0,
-            tm_min: 0,
-            tm_hour: 0,
-            tm_mday: 1,
-            tm_mon: 0,    // tm_mon has number range [0, 11]
-            tm_year: 208, // 2108 - 1900 = 208
-            ..::time::empty_tm()
-        })
-        .is_err());
+        assert!(DateTime::from_time(datetime!(2108-01-01 00:00:00 UTC)).is_err());
     }
 
     #[test]
@@ -441,7 +529,7 @@ mod test {
 
         #[cfg(feature = "time")]
         assert_eq!(
-            format!("{}", dt.to_time().rfc3339()),
+            dt.to_time().unwrap().format(&Rfc3339).unwrap(),
             "2018-11-17T10:38:30Z"
         );
     }
@@ -458,10 +546,7 @@ mod test {
         assert_eq!(dt.second(), 62);
 
         #[cfg(feature = "time")]
-        assert_eq!(
-            format!("{}", dt.to_time().rfc3339()),
-            "2107-15-31T31:63:62Z"
-        );
+        assert!(dt.to_time().is_err());
 
         let dt = DateTime::from_msdos(0x0000, 0x0000);
         assert_eq!(dt.year(), 1980);
@@ -472,10 +557,7 @@ mod test {
         assert_eq!(dt.second(), 0);
 
         #[cfg(feature = "time")]
-        assert_eq!(
-            format!("{}", dt.to_time().rfc3339()),
-            "1980-00-00T00:00:00Z"
-        );
+        assert!(dt.to_time().is_err());
     }
 
     #[cfg(feature = "time")]
@@ -484,8 +566,8 @@ mod test {
         use super::DateTime;
 
         // 2020-01-01 00:00:00
-        let clock = ::time::Timespec::new(1577836800, 0);
-        let tm = ::time::at_utc(clock);
-        assert!(DateTime::from_time(tm).is_ok());
+        let clock = OffsetDateTime::from_unix_timestamp(1_577_836_800).unwrap();
+
+        assert!(DateTime::from_time(clock).is_ok());
     }
 }

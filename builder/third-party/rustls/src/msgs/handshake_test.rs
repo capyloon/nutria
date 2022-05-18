@@ -23,6 +23,14 @@ fn reads_random() {
 }
 
 #[test]
+fn debug_random() {
+    assert_eq!(
+        "0101010101010101010101010101010101010101010101010101010101010101",
+        format!("{:?}", Random::from([1; 32]))
+    );
+}
+
+#[test]
 fn rejects_truncated_sessionid() {
     let bytes = [32; 32];
     let mut rd = Reader::init(&bytes);
@@ -65,6 +73,20 @@ fn accepts_empty_sessionid() {
     assert!(sess.is_empty());
     assert_eq!(sess.len(), 0);
     assert!(!rd.any_left());
+}
+
+#[test]
+fn debug_sessionid() {
+    let bytes = [
+        32, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1,
+    ];
+    let mut rd = Reader::init(&bytes);
+    let sess = SessionID::read(&mut rd).unwrap();
+    assert_eq!(
+        "0101010101010101010101010101010101010101010101010101010101010101",
+        format!("{:?}", sess)
+    );
 }
 
 #[test]
@@ -1201,4 +1223,12 @@ fn cannot_decode_huge_certificate() {
     buf[5] = 0x00;
     buf[6] = 0x01;
     assert!(HandshakeMessagePayload::read_bytes(&buf).is_none());
+}
+
+#[test]
+fn can_decode_server_hello_from_api_devicecheck_apple_com() {
+    let data = include_bytes!("hello-api.devicecheck.apple.com.bin");
+    let mut r = Reader::init(data);
+    let hm = HandshakeMessagePayload::read(&mut r).unwrap();
+    println!("msg: {:?}", hm);
 }

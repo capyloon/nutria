@@ -125,11 +125,7 @@ impl<'help, 'cmd> Validator<'help, 'cmd> {
                     let used: Vec<Id> = matcher
                         .arg_names()
                         .filter(|arg_id| matcher.check_explicit(arg_id, ArgPredicate::IsPresent))
-                        .filter(|&n| {
-                            self.cmd.find(n).map_or(true, |a| {
-                                !(a.is_hide_set() || self.required.contains(&a.id))
-                            })
-                        })
+                        .filter(|&n| self.cmd.find(n).map_or(true, |a| !a.is_hide_set()))
                         .cloned()
                         .collect();
                     return Err(Error::invalid_value(
@@ -223,6 +219,11 @@ impl<'help, 'cmd> Validator<'help, 'cmd> {
         debug!("Validator::validate_exclusive");
         // Not bothering to filter for `check_explicit` since defaults shouldn't play into this
         let args_count = matcher.arg_names().count();
+        if args_count <= 1 {
+            // Nothing present to conflict with
+            return Ok(());
+        }
+
         matcher
             .arg_names()
             .filter_map(|name| {
@@ -285,6 +286,10 @@ impl<'help, 'cmd> Validator<'help, 'cmd> {
         let used_filtered: Vec<Id> = matcher
             .arg_names()
             .filter(|arg_id| matcher.check_explicit(arg_id, ArgPredicate::IsPresent))
+            .filter(|n| {
+                // Filter out the args we don't want to specify.
+                self.cmd.find(n).map_or(true, |a| !a.is_hide_set())
+            })
             .filter(|key| !conflicting_keys.contains(key))
             .cloned()
             .collect();
@@ -474,11 +479,22 @@ impl<'help, 'cmd> Validator<'help, 'cmd> {
         debug!("Validator::validate_required: required={:?}", self.required);
         self.gather_requires(matcher);
 
+        let is_exclusive_present = matcher.arg_names().any(|name| {
+            self.cmd
+                .find(name)
+                .map(|arg| arg.is_exclusive_set())
+                .unwrap_or_default()
+        });
+        debug!(
+            "Validator::validate_required: is_exclusive_present={}",
+            is_exclusive_present
+        );
+
         for arg_or_group in self.required.iter().filter(|r| !matcher.contains(r)) {
             debug!("Validator::validate_required:iter:aog={:?}", arg_or_group);
             if let Some(arg) = self.cmd.find(arg_or_group) {
                 debug!("Validator::validate_required:iter: This is an arg");
-                if !self.is_missing_required_ok(arg, matcher, conflicts) {
+                if !is_exclusive_present && !self.is_missing_required_ok(arg, matcher, conflicts) {
                     return self.missing_required_error(matcher, vec![]);
                 }
             } else if let Some(group) = self.cmd.find_group(arg_or_group) {
@@ -566,7 +582,10 @@ impl<'help, 'cmd> Validator<'help, 'cmd> {
 
         let usg = Usage::new(self.cmd).required(&self.required);
 
-        let req_args = usg.get_required_usage_from(&incl, Some(matcher), true);
+        let req_args = usg
+            .get_required_usage_from(&incl, Some(matcher), true)
+            .into_iter()
+            .collect::<Vec<_>>();
 
         debug!(
             "Validator::missing_required_error: req_args={:#?}",
@@ -578,9 +597,7 @@ impl<'help, 'cmd> Validator<'help, 'cmd> {
             .filter(|arg_id| matcher.check_explicit(arg_id, ArgPredicate::IsPresent))
             .filter(|n| {
                 // Filter out the args we don't want to specify.
-                self.cmd
-                    .find(n)
-                    .map_or(true, |a| !a.is_hide_set() && !self.required.contains(&a.id))
+                self.cmd.find(n).map_or(true, |a| !a.is_hide_set())
             })
             .cloned()
             .chain(incl)

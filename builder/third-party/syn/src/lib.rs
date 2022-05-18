@@ -250,7 +250,7 @@
 //!   dynamic library libproc_macro from rustc toolchain.
 
 // Syn types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/syn/1.0.92")]
+#![doc(html_root_url = "https://docs.rs/syn/1.0.95")]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![allow(non_camel_case_types)]
 // Ignored clippy lints.
@@ -310,7 +310,6 @@
 ))]
 extern crate proc_macro;
 extern crate proc_macro2;
-extern crate unicode_xid;
 
 #[cfg(feature = "printing")]
 extern crate quote;

@@ -12,24 +12,49 @@
 [package]
 edition = "2018"
 name = "async-compression"
-version = "0.3.12"
-authors = ["Wim Looman <wim@nemo157.com>", "Allen Bui <fairingrey@gmail.com>"]
-description = "Adaptors between compression crates and Rust's modern asynchronous IO types.\n"
-keywords = ["compression", "gzip", "zstd", "brotli", "async"]
-categories = ["compression", "asynchronous"]
+version = "0.3.13"
+authors = [
+    "Wim Looman <wim@nemo157.com>",
+    "Allen Bui <fairingrey@gmail.com>",
+]
+description = """
+Adaptors between compression crates and Rust's modern asynchronous IO types.
+"""
+keywords = [
+    "compression",
+    "gzip",
+    "zstd",
+    "brotli",
+    "async",
+]
+categories = [
+    "compression",
+    "asynchronous",
+]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Nemo157/async-compression"
+
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+rustdoc-args = [
+    "--cfg",
+    "docsrs",
+]
 
 [[example]]
 name = "zlib_tokio_02_write"
-required-features = ["zlib", "tokio-02"]
+required-features = [
+    "zlib",
+    "tokio-02",
+]
 
 [[example]]
 name = "zstd_gzip"
-required-features = ["zstd", "gzip", "tokio-02"]
+required-features = [
+    "zstd",
+    "gzip",
+    "tokio-02",
+]
 
 [[test]]
 name = "brotli"
@@ -62,6 +87,7 @@ required-features = ["zlib"]
 [[test]]
 name = "zstd"
 required-features = ["zstd"]
+
 [dependencies.brotli]
 version = "3.3.0"
 features = ["std"]
@@ -92,7 +118,7 @@ optional = true
 default-features = false
 
 [dependencies.libzstd]
-version = "0.10.0"
+version = "0.11.1"
 optional = true
 default-features = false
 package = "zstd"
@@ -125,9 +151,10 @@ version = "0.1.6"
 optional = true
 
 [dependencies.zstd-safe]
-version = "4.1.4"
+version = "5.0.1"
 optional = true
 default-features = false
+
 [dev-dependencies.bytes]
 version = "1.0.0"
 
@@ -168,13 +195,21 @@ default-features = false
 
 [dev-dependencies.tokio-02]
 version = "0.2.21"
-features = ["io-util", "stream", "macros", "io-std"]
+features = [
+    "io-util",
+    "stream",
+    "macros",
+    "io-std",
+]
 default-features = false
 package = "tokio"
 
 [dev-dependencies.tokio-03]
 version = "0.3.0"
-features = ["io-util", "stream"]
+features = [
+    "io-util",
+    "stream",
+]
 default-features = false
 package = "tokio"
 
@@ -203,9 +238,27 @@ default-features = false
 package = "tokio-util"
 
 [features]
-all = ["all-implementations", "all-algorithms"]
-all-algorithms = ["brotli", "bzip2", "deflate", "gzip", "lzma", "xz", "zlib", "zstd"]
-all-implementations = ["futures-io", "stream", "tokio-02", "tokio-03", "tokio"]
+all = [
+    "all-implementations",
+    "all-algorithms",
+]
+all-algorithms = [
+    "brotli",
+    "bzip2",
+    "deflate",
+    "gzip",
+    "lzma",
+    "xz",
+    "zlib",
+    "zstd",
+]
+all-implementations = [
+    "futures-io",
+    "stream",
+    "tokio-02",
+    "tokio-03",
+    "tokio",
+]
 default = []
 deflate = ["flate2"]
 futures-bufread = ["futures-io"]
@@ -215,4 +268,7 @@ lzma = ["xz2"]
 stream = ["bytes-05"]
 xz = ["xz2"]
 zlib = ["flate2"]
-zstd = ["libzstd", "zstd-safe"]
+zstd = [
+    "libzstd",
+    "zstd-safe",
+]

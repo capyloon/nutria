@@ -32,6 +32,15 @@ pub(crate) struct Help<'help, 'cmd, 'writer> {
 
 // Public Functions
 impl<'help, 'cmd, 'writer> Help<'help, 'cmd, 'writer> {
+    #[cfg(feature = "unstable-v4")]
+    const DEFAULT_TEMPLATE: &'static str = "\
+        {before-help}{name} {version}\n\
+        {author-with-newline}{about-with-newline}\n\
+        {usage-heading}\n    {usage}\n\
+        \n\
+        {all-args}{after-help}\
+    ";
+    #[cfg(not(feature = "unstable-v4"))]
     const DEFAULT_TEMPLATE: &'static str = "\
         {before-help}{bin} {version}\n\
         {author-with-newline}{about-with-newline}\n\
@@ -40,6 +49,13 @@ impl<'help, 'cmd, 'writer> Help<'help, 'cmd, 'writer> {
         {all-args}{after-help}\
     ";
 
+    #[cfg(feature = "unstable-v4")]
+    const DEFAULT_NO_ARGS_TEMPLATE: &'static str = "\
+        {before-help}{name} {version}\n\
+        {author-with-newline}{about-with-newline}\n\
+        {usage-heading}\n    {usage}{after-help}\
+    ";
+    #[cfg(not(feature = "unstable-v4"))]
     const DEFAULT_NO_ARGS_TEMPLATE: &'static str = "\
         {before-help}{bin} {version}\n\
         {author-with-newline}{about-with-newline}\n\
@@ -953,6 +969,22 @@ impl<'help, 'cmd, 'writer> Help<'help, 'cmd, 'writer> {
     }
 
     /// Writes binary name of a Parser Object to the wrapped stream.
+    fn write_display_name(&mut self) -> io::Result<()> {
+        debug!("Help::write_display_name");
+
+        let display_name = text_wrapper(
+            &self
+                .cmd
+                .get_display_name()
+                .unwrap_or_else(|| self.cmd.get_name())
+                .replace("{n}", "\n"),
+            self.term_w,
+        );
+        self.good(&display_name)?;
+        Ok(())
+    }
+
+    /// Writes binary name of a Parser Object to the wrapped stream.
     fn write_bin_name(&mut self) -> io::Result<()> {
         debug!("Help::write_bin_name");
 
@@ -1019,6 +1051,9 @@ impl<'help, 'cmd, 'writer> Help<'help, 'cmd, 'writer> {
         for part in parts {
             tags! {
                 match part {
+                    "name" => {
+                        self.write_display_name()?;
+                    }
                     "bin" => {
                         self.write_bin_name()?;
                     }
@@ -1108,7 +1143,9 @@ fn should_show_subcommand(subcommand: &Command) -> bool {
 }
 
 fn text_wrapper(help: &str, width: usize) -> String {
-    let wrapper = textwrap::Options::new(width).break_words(false);
+    let wrapper = textwrap::Options::new(width)
+        .break_words(false)
+        .word_splitter(textwrap::WordSplitter::NoHyphenation);
     help.lines()
         .map(|line| textwrap::fill(line, &wrapper))
         .collect::<Vec<String>>()

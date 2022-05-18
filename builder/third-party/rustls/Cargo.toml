@@ -12,25 +12,34 @@
 [package]
 edition = "2018"
 name = "rustls"
-version = "0.20.4"
-authors = ["Joseph Birr-Pixton <jpixton@gmail.com>"]
+version = "0.20.6"
 build = "build.rs"
 autobenches = false
 description = "Rustls is a modern TLS library written in Rust."
 homepage = "https://github.com/rustls/rustls"
 readme = "../README.md"
-categories = ["network-programming", "cryptography"]
+categories = [
+    "network-programming",
+    "cryptography",
+]
 license = "Apache-2.0/ISC/MIT"
 repository = "https://github.com/rustls/rustls"
 resolver = "2"
+
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+rustdoc-args = [
+    "--cfg",
+    "docsrs",
+]
 
 [[example]]
 name = "bogo_shim"
 path = "examples/internal/bogo_shim.rs"
-required-features = ["dangerous_configuration", "quic"]
+required-features = [
+    "dangerous_configuration",
+    "quic",
+]
 
 [[example]]
 name = "trytls_shim"
@@ -44,6 +53,7 @@ path = "examples/internal/bench.rs"
 name = "benchmarks"
 path = "tests/benchmarks.rs"
 harness = false
+
 [dependencies.log]
 version = "0.4.4"
 optional = true
@@ -56,7 +66,11 @@ version = "0.7.0"
 
 [dependencies.webpki]
 version = "0.22.0"
-features = ["alloc", "std"]
+features = [
+    "alloc",
+    "std",
+]
+
 [dev-dependencies.base64]
 version = "0.13.0"
 
@@ -70,17 +84,21 @@ version = "0.9.0"
 version = "0.4.4"
 
 [dev-dependencies.rustls-pemfile]
-version = "0.3.0"
+version = "1.0.0"
 
 [dev-dependencies.webpki-roots]
 version = "0.22.0"
+
 [build-dependencies.rustversion]
 version = "1.0.6"
 optional = true
 
 [features]
 dangerous_configuration = []
-default = ["logging", "tls12"]
+default = [
+    "logging",
+    "tls12",
+]
 logging = ["log"]
 quic = []
 read_buf = ["rustversion"]

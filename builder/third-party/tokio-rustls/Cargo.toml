@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "tokio-rustls"
-version = "0.23.3"
+version = "0.23.4"
 authors = ["quininer kel <quininer@live.com>"]
 description = "Asynchronous TLS/SSL streams for Tokio using Rustls."
 homepage = "https://github.com/tokio-rs/tls"

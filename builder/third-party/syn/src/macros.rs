@@ -1,3 +1,7 @@
+#[cfg_attr(
+    not(any(feature = "full", feature = "derive")),
+    allow(unknown_lints, unused_macro_rules)
+)]
 macro_rules! ast_struct {
     (
         [$($attrs_pub:tt)*]
@@ -53,15 +57,6 @@ macro_rules! ast_enum {
 }
 
 macro_rules! ast_enum_of_structs {
-    (
-        $(#[$enum_attr:meta])*
-        $pub:ident $enum:ident $name:ident #$tag:ident $body:tt
-        $($remaining:tt)*
-    ) => {
-        ast_enum!($(#[$enum_attr])* $pub $enum $name #$tag $body);
-        ast_enum_of_structs_impl!($pub $enum $name $body $($remaining)*);
-    };
-
     (
         $(#[$enum_attr:meta])*
         $pub:ident $enum:ident $name:ident $body:tt
@@ -121,6 +116,10 @@ macro_rules! ast_enum_from_struct {
 }
 
 #[cfg(feature = "printing")]
+#[cfg_attr(
+    not(any(feature = "full", feature = "derive")),
+    allow(unknown_lints, unused_macro_rules)
+)]
 macro_rules! generate_to_tokens {
     (do_not_generate_to_tokens $($foo:tt)*) => ();
 
@@ -173,7 +172,6 @@ macro_rules! strip_attrs_pub {
 }
 
 macro_rules! check_keyword_matches {
-    (struct struct) => {};
     (enum enum) => {};
     (pub pub) => {};
 }

@@ -11,13 +11,13 @@ use crate::msgs::enums::ProtocolVersion;
 use crate::msgs::enums::SignatureScheme;
 use crate::msgs::handshake::{ClientHelloPayload, ServerExtension};
 use crate::msgs::message::Message;
-use crate::sign;
 use crate::suites::SupportedCipherSuite;
 use crate::vecbuf::ChunkVecBuffer;
 use crate::verify;
 use crate::KeyLog;
 #[cfg(feature = "quic")]
 use crate::{conn::Protocol, quic};
+use crate::{sign, CipherSuite};
 
 use super::hs;
 
@@ -112,6 +112,7 @@ pub struct ClientHello<'a> {
     server_name: &'a Option<webpki::DnsName>,
     signature_schemes: &'a [SignatureScheme],
     alpn: Option<&'a Vec<PayloadU8>>,
+    cipher_suites: &'a [CipherSuite],
 }
 
 impl<'a> ClientHello<'a> {
@@ -120,15 +121,18 @@ impl<'a> ClientHello<'a> {
         server_name: &'a Option<webpki::DnsName>,
         signature_schemes: &'a [SignatureScheme],
         alpn: Option<&'a Vec<PayloadU8>>,
+        cipher_suites: &'a [CipherSuite],
     ) -> Self {
         trace!("sni {:?}", server_name);
         trace!("sig schemes {:?}", signature_schemes);
         trace!("alpn protocols {:?}", alpn);
+        trace!("cipher suites {:?}", cipher_suites);
 
         ClientHello {
             server_name,
             signature_schemes,
             alpn,
+            cipher_suites,
         }
     }
 
@@ -157,6 +161,11 @@ impl<'a> ClientHello<'a> {
                 .iter()
                 .map(|proto| proto.0.as_slice())
         })
+    }
+
+    /// Get cipher suites.
+    pub fn cipher_suites(&self) -> &[CipherSuite] {
+        self.cipher_suites
     }
 }
 
@@ -551,10 +560,12 @@ pub struct Accepted {
 impl Accepted {
     /// Get the [`ClientHello`] for this connection.
     pub fn client_hello(&self) -> ClientHello<'_> {
+        let payload = Self::client_hello_payload(&self.message);
         ClientHello::new(
             &self.connection.data.sni,
             &self.sig_schemes,
-            Self::client_hello_payload(&self.message).get_alpn_extension(),
+            payload.get_alpn_extension(),
+            &payload.cipher_suites,
         )
     }
 
@@ -588,7 +599,8 @@ impl Accepted {
 
     fn client_hello_payload(message: &Message) -> &ClientHelloPayload {
         match &message.payload {
-            crate::msgs::message::MessagePayload::Handshake(inner) => match &inner.payload {
+            crate::msgs::message::MessagePayload::Handshake { parsed, .. } => match &parsed.payload
+            {
                 crate::msgs::handshake::HandshakePayload::ClientHello(ch) => ch,
                 _ => unreachable!(),
             },

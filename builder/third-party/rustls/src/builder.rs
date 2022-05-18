@@ -99,14 +99,15 @@ pub struct ConfigBuilder<Side: ConfigSide, State> {
     pub(crate) side: PhantomData<Side>,
 }
 
-impl<Side: ConfigSide, State> fmt::Debug for ConfigBuilder<Side, State> {
+impl<Side: ConfigSide, State: fmt::Debug> fmt::Debug for ConfigBuilder<Side, State> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ConfigBuilder")
-            .field("side", &format_args!("{}", &std::any::type_name::<Side>()))
-            .field(
-                "state",
-                &format_args!("{}", &std::any::type_name::<State>()),
-            )
+        let side_name = std::any::type_name::<Side>();
+        let side_name = side_name
+            .split("::")
+            .last()
+            .unwrap_or(side_name);
+        f.debug_struct(&format!("ConfigBuilder<{}, _>", side_name))
+            .field("state", &self.state)
             .finish()
     }
 }
@@ -114,7 +115,7 @@ impl<Side: ConfigSide, State> fmt::Debug for ConfigBuilder<Side, State> {
 /// Config builder state where the caller must supply cipher suites.
 ///
 /// For more information, see the [`ConfigBuilder`] documentation.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WantsCipherSuites(pub(crate) ());
 
 impl<S: ConfigSide> ConfigBuilder<S, WantsCipherSuites> {
@@ -164,7 +165,7 @@ impl<S: ConfigSide> ConfigBuilder<S, WantsCipherSuites> {
 /// Config builder state where the caller must supply key exchange groups.
 ///
 /// For more information, see the [`ConfigBuilder`] documentation.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WantsKxGroups {
     cipher_suites: Vec<SupportedCipherSuite>,
 }
@@ -195,6 +196,7 @@ impl<S: ConfigSide> ConfigBuilder<S, WantsKxGroups> {
 /// Config builder state where the caller must supply TLS protocol versions.
 ///
 /// For more information, see the [`ConfigBuilder`] documentation.
+#[derive(Clone, Debug)]
 pub struct WantsVersions {
     cipher_suites: Vec<SupportedCipherSuite>,
     kx_groups: Vec<&'static SupportedKxGroup>,
@@ -243,6 +245,7 @@ impl<S: ConfigSide> ConfigBuilder<S, WantsVersions> {
 /// Config builder state where the caller must supply a verifier.
 ///
 /// For more information, see the [`ConfigBuilder`] documentation.
+#[derive(Clone, Debug)]
 pub struct WantsVerifier {
     pub(crate) cipher_suites: Vec<SupportedCipherSuite>,
     pub(crate) kx_groups: Vec<&'static SupportedKxGroup>,

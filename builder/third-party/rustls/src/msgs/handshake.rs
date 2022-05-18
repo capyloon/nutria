@@ -52,8 +52,14 @@ macro_rules! declare_u16_vec(
 declare_u16_vec!(VecU16OfPayloadU8, PayloadU8);
 declare_u16_vec!(VecU16OfPayloadU16, PayloadU16);
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Random(pub [u8; 32]);
+
+impl fmt::Debug for Random {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        super::base::hex(f, &self.0)
+    }
+}
 
 static HELLO_RETRY_REQUEST_RANDOM: Random = Random([
     0xcf, 0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11, 0xbe, 0x1d, 0x8c, 0x02, 0x1e, 0x65, 0xb8, 0x91,
@@ -103,10 +109,8 @@ pub struct SessionID {
 }
 
 impl fmt::Debug for SessionID {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("SessionID")
-            .field(&&self.data[..self.len]) // must be `Sized` to cast to `dyn Debug`
-            .finish()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        super::base::hex(f, &self.data[..self.len])
     }
 }
 
@@ -1214,7 +1218,10 @@ impl Codec for ServerHelloPayload {
         self.session_id.encode(bytes);
         self.cipher_suite.encode(bytes);
         self.compression_method.encode(bytes);
-        codec::encode_vec_u16(bytes, &self.extensions);
+
+        if !self.extensions.is_empty() {
+            codec::encode_vec_u16(bytes, &self.extensions);
+        }
     }
 
     // minus version and random, which have already been read.
@@ -1222,7 +1229,16 @@ impl Codec for ServerHelloPayload {
         let session_id = SessionID::read(r)?;
         let suite = CipherSuite::read(r)?;
         let compression = Compression::read(r)?;
-        let extensions = codec::read_vec_u16::<ServerExtension>(r)?;
+
+        // RFC5246:
+        // "The presence of extensions can be detected by determining whether
+        //  there are bytes following the compression_method field at the end of
+        //  the ServerHello."
+        let extensions = if r.any_left() {
+            codec::read_vec_u16::<ServerExtension>(r)?
+        } else {
+            vec![]
+        };
 
         let ret = Self {
             legacy_version: ProtocolVersion::Unknown(0),
@@ -2146,28 +2162,27 @@ pub enum HandshakePayload {
 
 impl HandshakePayload {
     fn encode(&self, bytes: &mut Vec<u8>) {
+        use self::HandshakePayload::*;
         match *self {
-            HandshakePayload::HelloRequest
-            | HandshakePayload::ServerHelloDone
-            | HandshakePayload::EndOfEarlyData => {}
-            HandshakePayload::ClientHello(ref x) => x.encode(bytes),
-            HandshakePayload::ServerHello(ref x) => x.encode(bytes),
-            HandshakePayload::HelloRetryRequest(ref x) => x.encode(bytes),
-            HandshakePayload::Certificate(ref x) => x.encode(bytes),
-            HandshakePayload::CertificateTLS13(ref x) => x.encode(bytes),
-            HandshakePayload::ServerKeyExchange(ref x) => x.encode(bytes),
-            HandshakePayload::ClientKeyExchange(ref x) => x.encode(bytes),
-            HandshakePayload::CertificateRequest(ref x) => x.encode(bytes),
-            HandshakePayload::CertificateRequestTLS13(ref x) => x.encode(bytes),
-            HandshakePayload::CertificateVerify(ref x) => x.encode(bytes),
-            HandshakePayload::NewSessionTicket(ref x) => x.encode(bytes),
-            HandshakePayload::NewSessionTicketTLS13(ref x) => x.encode(bytes),
-            HandshakePayload::EncryptedExtensions(ref x) => x.encode(bytes),
-            HandshakePayload::KeyUpdate(ref x) => x.encode(bytes),
-            HandshakePayload::Finished(ref x) => x.encode(bytes),
-            HandshakePayload::CertificateStatus(ref x) => x.encode(bytes),
-            HandshakePayload::MessageHash(ref x) => x.encode(bytes),
-            HandshakePayload::Unknown(ref x) => x.encode(bytes),
+            HelloRequest | ServerHelloDone | EndOfEarlyData => {}
+            ClientHello(ref x) => x.encode(bytes),
+            ServerHello(ref x) => x.encode(bytes),
+            HelloRetryRequest(ref x) => x.encode(bytes),
+            Certificate(ref x) => x.encode(bytes),
+            CertificateTLS13(ref x) => x.encode(bytes),
+            ServerKeyExchange(ref x) => x.encode(bytes),
+            ClientKeyExchange(ref x) => x.encode(bytes),
+            CertificateRequest(ref x) => x.encode(bytes),
+            CertificateRequestTLS13(ref x) => x.encode(bytes),
+            CertificateVerify(ref x) => x.encode(bytes),
+            NewSessionTicket(ref x) => x.encode(bytes),
+            NewSessionTicketTLS13(ref x) => x.encode(bytes),
+            EncryptedExtensions(ref x) => x.encode(bytes),
+            KeyUpdate(ref x) => x.encode(bytes),
+            Finished(ref x) => x.encode(bytes),
+            CertificateStatus(ref x) => x.encode(bytes),
+            MessageHash(ref x) => x.encode(bytes),
+            Unknown(ref x) => x.encode(bytes),
         }
     }
 }

@@ -1,18 +1,20 @@
 //! Types for reading ZIP archives
 
+#[cfg(feature = "aes-crypto")]
+use crate::aes::{AesReader, AesReaderValid};
 use crate::compression::CompressionMethod;
+use crate::cp437::FromCp437;
 use crate::crc32::Crc32Reader;
 use crate::result::{InvalidPassword, ZipError, ZipResult};
 use crate::spec;
+use crate::types::{AesMode, AesVendorVersion, AtomicU64, DateTime, System, ZipFileData};
 use crate::zipcrypto::{ZipCryptoReader, ZipCryptoReaderValid, ZipCryptoValidator};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::{self, prelude::*};
 use std::path::{Component, Path};
-
-use crate::cp437::FromCp437;
-use crate::types::{DateTime, System, ZipFileData};
-use byteorder::{LittleEndian, ReadBytesExt};
+use std::sync::Arc;
 
 #[cfg(any(
     feature = "deflate",
@@ -24,39 +26,62 @@ use flate2::read::DeflateDecoder;
 #[cfg(feature = "bzip2")]
 use bzip2::read::BzDecoder;
 
+#[cfg(feature = "zstd")]
+use zstd::stream::read::Decoder as ZstdDecoder;
+
 mod ffi {
     pub const S_IFDIR: u32 = 0o0040000;
     pub const S_IFREG: u32 = 0o0100000;
 }
 
-/// ZIP archive reader
-///
-/// ```no_run
-/// use std::io::prelude::*;
-/// fn list_zip_contents(reader: impl Read + Seek) -> zip::result::ZipResult<()> {
-///     let mut zip = zip::ZipArchive::new(reader)?;
-///
-///     for i in 0..zip.len() {
-///         let mut file = zip.by_index(i)?;
-///         println!("Filename: {}", file.name());
-///         std::io::copy(&mut file, &mut std::io::stdout());
-///     }
-///
-///     Ok(())
-/// }
-/// ```
-#[derive(Clone, Debug)]
-pub struct ZipArchive<R> {
-    reader: R,
-    files: Vec<ZipFileData>,
-    names_map: HashMap<String, usize>,
-    offset: u64,
-    comment: Vec<u8>,
+// Put the struct declaration in a private module to convince rustdoc to display ZipArchive nicely
+pub(crate) mod zip_archive {
+    /// Extract immutable data from `ZipArchive` to make it cheap to clone
+    #[derive(Debug)]
+    pub(crate) struct Shared {
+        pub(super) files: Vec<super::ZipFileData>,
+        pub(super) names_map: super::HashMap<String, usize>,
+        pub(super) offset: u64,
+        pub(super) comment: Vec<u8>,
+    }
+
+    /// ZIP archive reader
+    ///
+    /// At the moment, this type is cheap to clone if this is the case for the
+    /// reader it uses. However, this is not guaranteed by this crate and it may
+    /// change in the future.
+    ///
+    /// ```no_run
+    /// use std::io::prelude::*;
+    /// fn list_zip_contents(reader: impl Read + Seek) -> zip::result::ZipResult<()> {
+    ///     let mut zip = zip::ZipArchive::new(reader)?;
+    ///
+    ///     for i in 0..zip.len() {
+    ///         let mut file = zip.by_index(i)?;
+    ///         println!("Filename: {}", file.name());
+    ///         std::io::copy(&mut file, &mut std::io::stdout());
+    ///     }
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    #[derive(Clone, Debug)]
+    pub struct ZipArchive<R> {
+        pub(super) reader: R,
+        pub(super) shared: super::Arc<Shared>,
+    }
 }
 
+pub use zip_archive::ZipArchive;
+#[allow(clippy::large_enum_variant)]
 enum CryptoReader<'a> {
     Plaintext(io::Take<&'a mut dyn Read>),
     ZipCrypto(ZipCryptoReaderValid<io::Take<&'a mut dyn Read>>),
+    #[cfg(feature = "aes-crypto")]
+    Aes {
+        reader: AesReaderValid<io::Take<&'a mut dyn Read>>,
+        vendor_version: AesVendorVersion,
+    },
 }
 
 impl<'a> Read for CryptoReader<'a> {
@@ -64,6 +89,8 @@ impl<'a> Read for CryptoReader<'a> {
         match self {
             CryptoReader::Plaintext(r) => r.read(buf),
             CryptoReader::ZipCrypto(r) => r.read(buf),
+            #[cfg(feature = "aes-crypto")]
+            CryptoReader::Aes { reader: r, .. } => r.read(buf),
         }
     }
 }
@@ -74,7 +101,23 @@ impl<'a> CryptoReader<'a> {
         match self {
             CryptoReader::Plaintext(r) => r,
             CryptoReader::ZipCrypto(r) => r.into_inner(),
+            #[cfg(feature = "aes-crypto")]
+            CryptoReader::Aes { reader: r, .. } => r.into_inner(),
         }
+    }
+
+    /// Returns `true` if the data is encrypted using AE2.
+    pub fn is_ae2_encrypted(&self) -> bool {
+        #[cfg(feature = "aes-crypto")]
+        return matches!(
+            self,
+            CryptoReader::Aes {
+                vendor_version: AesVendorVersion::Ae2,
+                ..
+            }
+        );
+        #[cfg(not(feature = "aes-crypto"))]
+        false
     }
 }
 
@@ -90,6 +133,8 @@ enum ZipFileReader<'a> {
     Deflated(Crc32Reader<flate2::read::DeflateDecoder<CryptoReader<'a>>>),
     #[cfg(feature = "bzip2")]
     Bzip2(Crc32Reader<BzDecoder<CryptoReader<'a>>>),
+    #[cfg(feature = "zstd")]
+    Zstd(Crc32Reader<ZstdDecoder<'a, io::BufReader<CryptoReader<'a>>>>),
 }
 
 impl<'a> Read for ZipFileReader<'a> {
@@ -106,6 +151,8 @@ impl<'a> Read for ZipFileReader<'a> {
             ZipFileReader::Deflated(r) => r.read(buf),
             #[cfg(feature = "bzip2")]
             ZipFileReader::Bzip2(r) => r.read(buf),
+            #[cfg(feature = "zstd")]
+            ZipFileReader::Zstd(r) => r.read(buf),
         }
     }
 }
@@ -125,6 +172,8 @@ impl<'a> ZipFileReader<'a> {
             ZipFileReader::Deflated(r) => r.into_inner().into_inner().into_inner(),
             #[cfg(feature = "bzip2")]
             ZipFileReader::Bzip2(r) => r.into_inner().into_inner().into_inner(),
+            #[cfg(feature = "zstd")]
+            ZipFileReader::Zstd(r) => r.into_inner().finish().into_inner().into_inner(),
         }
     }
 }
@@ -137,7 +186,7 @@ pub struct ZipFile<'a> {
 }
 
 fn find_content<'a>(
-    data: &mut ZipFileData,
+    data: &ZipFileData,
     reader: &'a mut (impl Read + Seek),
 ) -> ZipResult<io::Take<&'a mut dyn Read>> {
     // Parse local header
@@ -151,12 +200,14 @@ fn find_content<'a>(
     let file_name_length = reader.read_u16::<LittleEndian>()? as u64;
     let extra_field_length = reader.read_u16::<LittleEndian>()? as u64;
     let magic_and_header = 4 + 22 + 2 + 2;
-    data.data_start = data.header_start + magic_and_header + file_name_length + extra_field_length;
+    let data_start = data.header_start + magic_and_header + file_name_length + extra_field_length;
+    data.data_start.store(data_start);
 
-    reader.seek(io::SeekFrom::Start(data.data_start))?;
+    reader.seek(io::SeekFrom::Start(data_start))?;
     Ok((reader as &mut dyn Read).take(data.compressed_size))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_crypto_reader<'a>(
     compression_method: crate::compression::CompressionMethod,
     crc32: u32,
@@ -164,6 +215,8 @@ fn make_crypto_reader<'a>(
     using_data_descriptor: bool,
     reader: io::Take<&'a mut dyn io::Read>,
     password: Option<&[u8]>,
+    aes_info: Option<(AesMode, AesVendorVersion)>,
+    #[cfg(feature = "aes-crypto")] compressed_size: u64,
 ) -> ZipResult<Result<CryptoReader<'a>, InvalidPassword>> {
     #[allow(deprecated)]
     {
@@ -172,9 +225,24 @@ fn make_crypto_reader<'a>(
         }
     }
 
-    let reader = match password {
-        None => CryptoReader::Plaintext(reader),
-        Some(password) => {
+    let reader = match (password, aes_info) {
+        #[cfg(not(feature = "aes-crypto"))]
+        (Some(_), Some(_)) => {
+            return Err(ZipError::UnsupportedArchive(
+                "AES encrypted files cannot be decrypted without the aes-crypto feature.",
+            ))
+        }
+        #[cfg(feature = "aes-crypto")]
+        (Some(password), Some((aes_mode, vendor_version))) => {
+            match AesReader::new(reader, aes_mode, compressed_size).validate(password)? {
+                None => return Ok(Err(InvalidPassword)),
+                Some(r) => CryptoReader::Aes {
+                    reader: r,
+                    vendor_version,
+                },
+            }
+        }
+        (Some(password), None) => {
             let validator = if using_data_descriptor {
                 ZipCryptoValidator::InfoZipMsdosTime(last_modified_time.timepart())
             } else {
@@ -185,17 +253,23 @@ fn make_crypto_reader<'a>(
                 Some(r) => CryptoReader::ZipCrypto(r),
             }
         }
+        (None, Some(_)) => return Ok(Err(InvalidPassword)),
+        (None, None) => CryptoReader::Plaintext(reader),
     };
     Ok(Ok(reader))
 }
 
-fn make_reader<'a>(
+fn make_reader(
     compression_method: CompressionMethod,
     crc32: u32,
-    reader: CryptoReader<'a>,
-) -> ZipFileReader<'a> {
+    reader: CryptoReader,
+) -> ZipFileReader {
+    let ae2_encrypted = reader.is_ae2_encrypted();
+
     match compression_method {
-        CompressionMethod::Stored => ZipFileReader::Stored(Crc32Reader::new(reader, crc32)),
+        CompressionMethod::Stored => {
+            ZipFileReader::Stored(Crc32Reader::new(reader, crc32, ae2_encrypted))
+        }
         #[cfg(any(
             feature = "deflate",
             feature = "deflate-miniz",
@@ -203,12 +277,17 @@ fn make_reader<'a>(
         ))]
         CompressionMethod::Deflated => {
             let deflate_reader = DeflateDecoder::new(reader);
-            ZipFileReader::Deflated(Crc32Reader::new(deflate_reader, crc32))
+            ZipFileReader::Deflated(Crc32Reader::new(deflate_reader, crc32, ae2_encrypted))
         }
         #[cfg(feature = "bzip2")]
         CompressionMethod::Bzip2 => {
             let bzip2_reader = BzDecoder::new(reader);
-            ZipFileReader::Bzip2(Crc32Reader::new(bzip2_reader, crc32))
+            ZipFileReader::Bzip2(Crc32Reader::new(bzip2_reader, crc32, ae2_encrypted))
+        }
+        #[cfg(feature = "zstd")]
+        CompressionMethod::Zstd => {
+            let zstd_reader = ZstdDecoder::new(reader).unwrap();
+            ZipFileReader::Zstd(Crc32Reader::new(zstd_reader, crc32, ae2_encrypted))
         }
         _ => panic!("Compression method not supported"),
     }
@@ -303,7 +382,7 @@ impl<R: Read + io::Seek> ZipArchive<R> {
                 let directory_start = footer
                     .central_directory_offset
                     .checked_add(archive_offset)
-                    .ok_or_else(|| {
+                    .ok_or({
                         ZipError::InvalidArchive("Invalid central directory size or offset")
                     })?;
 
@@ -332,7 +411,7 @@ impl<R: Read + io::Seek> ZipArchive<R> {
         let mut files = Vec::new();
         let mut names_map = HashMap::new();
 
-        if let Err(_) = reader.seek(io::SeekFrom::Start(directory_start)) {
+        if reader.seek(io::SeekFrom::Start(directory_start)).is_err() {
             return Err(ZipError::InvalidArchive(
                 "Could not seek to start of central directory",
             ));
@@ -344,13 +423,14 @@ impl<R: Read + io::Seek> ZipArchive<R> {
             files.push(file);
         }
 
-        Ok(ZipArchive {
-            reader,
+        let shared = Arc::new(zip_archive::Shared {
             files,
             names_map,
             offset: archive_offset,
             comment: footer.zip_file_comment,
-        })
+        });
+
+        Ok(ZipArchive { reader, shared })
     }
     /// Extract a Zip archive into a directory, overwriting files if they
     /// already exist. Paths are sanitized with [`ZipFile::enclosed_name`].
@@ -393,7 +473,7 @@ impl<R: Read + io::Seek> ZipArchive<R> {
 
     /// Number of files contained in this zip.
     pub fn len(&self) -> usize {
-        self.files.len()
+        self.shared.files.len()
     }
 
     /// Whether this zip archive contains no files
@@ -406,20 +486,32 @@ impl<R: Read + io::Seek> ZipArchive<R> {
     /// Normally this value is zero, but if the zip has arbitrary data prepended to it, then this value will be the size
     /// of that prepended data.
     pub fn offset(&self) -> u64 {
-        self.offset
+        self.shared.offset
     }
 
     /// Get the comment of the zip archive.
     pub fn comment(&self) -> &[u8] {
-        &self.comment
+        &self.shared.comment
     }
 
     /// Returns an iterator over all the file and directory names in this archive.
     pub fn file_names(&self) -> impl Iterator<Item = &str> {
-        self.names_map.keys().map(|s| s.as_str())
+        self.shared.names_map.keys().map(|s| s.as_str())
     }
 
     /// Search for a file entry by name, decrypt with given password
+    ///
+    /// # Warning
+    ///
+    /// The implementation of the cryptographic algorithms has not
+    /// gone through a correctness review, and you should assume it is insecure:
+    /// passwords used with this API may be compromised.
+    ///
+    /// This function sometimes accepts wrong password. This is because the ZIP spec only allows us
+    /// to check for a 1/256 chance that the password is correct.
+    /// There are many passwords out there that will also pass the validity checks
+    /// we are able to perform. This is a weakness of the ZipCrypto algorithm,
+    /// due to its fairly primitive approach to cryptography.
     pub fn by_name_decrypt<'a>(
         &'a mut self,
         name: &str,
@@ -438,7 +530,7 @@ impl<R: Read + io::Seek> ZipArchive<R> {
         name: &str,
         password: Option<&[u8]>,
     ) -> ZipResult<Result<ZipFile<'a>, InvalidPassword>> {
-        let index = match self.names_map.get(name) {
+        let index = match self.shared.names_map.get(name) {
             Some(index) => *index,
             None => {
                 return Err(ZipError::FileNotFound);
@@ -448,6 +540,18 @@ impl<R: Read + io::Seek> ZipArchive<R> {
     }
 
     /// Get a contained file by index, decrypt with given password
+    ///
+    /// # Warning
+    ///
+    /// The implementation of the cryptographic algorithms has not
+    /// gone through a correctness review, and you should assume it is insecure:
+    /// passwords used with this API may be compromised.
+    ///
+    /// This function sometimes accepts wrong password. This is because the ZIP spec only allows us
+    /// to check for a 1/256 chance that the password is correct.
+    /// There are many passwords out there that will also pass the validity checks
+    /// we are able to perform. This is a weakness of the ZipCrypto algorithm,
+    /// due to its fairly primitive approach to cryptography.
     pub fn by_index_decrypt<'a>(
         &'a mut self,
         file_number: usize,
@@ -457,17 +561,18 @@ impl<R: Read + io::Seek> ZipArchive<R> {
     }
 
     /// Get a contained file by index
-    pub fn by_index<'a>(&'a mut self, file_number: usize) -> ZipResult<ZipFile<'a>> {
+    pub fn by_index(&mut self, file_number: usize) -> ZipResult<ZipFile<'_>> {
         Ok(self
             .by_index_with_optional_password(file_number, None)?
             .unwrap())
     }
 
     /// Get a contained file by index without decompressing it
-    pub fn by_index_raw<'a>(&'a mut self, file_number: usize) -> ZipResult<ZipFile<'a>> {
+    pub fn by_index_raw(&mut self, file_number: usize) -> ZipResult<ZipFile<'_>> {
         let reader = &mut self.reader;
-        self.files
-            .get_mut(file_number)
+        self.shared
+            .files
+            .get(file_number)
             .ok_or(ZipError::FileNotFound)
             .and_then(move |data| {
                 Ok(ZipFile {
@@ -483,10 +588,11 @@ impl<R: Read + io::Seek> ZipArchive<R> {
         file_number: usize,
         mut password: Option<&[u8]>,
     ) -> ZipResult<Result<ZipFile<'a>, InvalidPassword>> {
-        if file_number >= self.files.len() {
-            return Err(ZipError::FileNotFound);
-        }
-        let data = &mut self.files[file_number];
+        let data = self
+            .shared
+            .files
+            .get(file_number)
+            .ok_or(ZipError::FileNotFound)?;
 
         match (password, data.encrypted) {
             (None, true) => return Err(ZipError::UnsupportedArchive(ZipError::PASSWORD_REQUIRED)),
@@ -502,6 +608,9 @@ impl<R: Read + io::Seek> ZipArchive<R> {
             data.using_data_descriptor,
             limit_reader,
             password,
+            data.aes_mode,
+            #[cfg(feature = "aes-crypto")]
+            data.compressed_size,
         ) {
             Ok(Ok(crypto_reader)) => Ok(Ok(ZipFile {
                 crypto_reader: Some(crypto_reader),
@@ -582,6 +691,7 @@ pub(crate) fn central_header_to_zip_file<R: Read + io::Seek>(
             #[allow(deprecated)]
             CompressionMethod::from_u16(compression_method)
         },
+        compression_level: None,
         last_modified_time: DateTime::from_msdos(last_mod_date, last_mod_time),
         crc32,
         compressed_size: compressed_size as u64,
@@ -592,9 +702,10 @@ pub(crate) fn central_header_to_zip_file<R: Read + io::Seek>(
         file_comment,
         header_start: offset,
         central_header_start,
-        data_start: 0,
+        data_start: AtomicU64::new(0),
         external_attributes: external_file_attributes,
         large_file: false,
+        aes_mode: None,
     };
 
     match parse_extra_field(&mut result) {
@@ -602,8 +713,18 @@ pub(crate) fn central_header_to_zip_file<R: Read + io::Seek>(
         Err(e) => return Err(e),
     }
 
+    let aes_enabled = result.compression_method == CompressionMethod::AES;
+    if aes_enabled && result.aes_mode.is_none() {
+        return Err(ZipError::InvalidArchive(
+            "AES encryption without AES extra data field",
+        ));
+    }
+
     // Account for shifted zip offsets.
-    result.header_start += archive_offset;
+    result.header_start = result
+        .header_start
+        .checked_add(archive_offset)
+        .ok_or(ZipError::InvalidArchive("Archive header is too large"))?;
 
     Ok(result)
 }
@@ -615,24 +736,58 @@ fn parse_extra_field(file: &mut ZipFileData) -> ZipResult<()> {
         let kind = reader.read_u16::<LittleEndian>()?;
         let len = reader.read_u16::<LittleEndian>()?;
         let mut len_left = len as i64;
-        // Zip64 extended information extra field
-        if kind == 0x0001 {
-            if file.uncompressed_size == 0xFFFFFFFF {
-                file.large_file = true;
-                file.uncompressed_size = reader.read_u64::<LittleEndian>()?;
-                len_left -= 8;
+        match kind {
+            // Zip64 extended information extra field
+            0x0001 => {
+                if file.uncompressed_size == spec::ZIP64_BYTES_THR {
+                    file.large_file = true;
+                    file.uncompressed_size = reader.read_u64::<LittleEndian>()?;
+                    len_left -= 8;
+                }
+                if file.compressed_size == spec::ZIP64_BYTES_THR {
+                    file.large_file = true;
+                    file.compressed_size = reader.read_u64::<LittleEndian>()?;
+                    len_left -= 8;
+                }
+                if file.header_start == spec::ZIP64_BYTES_THR {
+                    file.header_start = reader.read_u64::<LittleEndian>()?;
+                    len_left -= 8;
+                }
             }
-            if file.compressed_size == 0xFFFFFFFF {
-                file.large_file = true;
-                file.compressed_size = reader.read_u64::<LittleEndian>()?;
-                len_left -= 8;
+            0x9901 => {
+                // AES
+                if len != 7 {
+                    return Err(ZipError::UnsupportedArchive(
+                        "AES extra data field has an unsupported length",
+                    ));
+                }
+                let vendor_version = reader.read_u16::<LittleEndian>()?;
+                let vendor_id = reader.read_u16::<LittleEndian>()?;
+                let aes_mode = reader.read_u8()?;
+                let compression_method = reader.read_u16::<LittleEndian>()?;
+
+                if vendor_id != 0x4541 {
+                    return Err(ZipError::InvalidArchive("Invalid AES vendor"));
+                }
+                let vendor_version = match vendor_version {
+                    0x0001 => AesVendorVersion::Ae1,
+                    0x0002 => AesVendorVersion::Ae2,
+                    _ => return Err(ZipError::InvalidArchive("Invalid AES vendor version")),
+                };
+                match aes_mode {
+                    0x01 => file.aes_mode = Some((AesMode::Aes128, vendor_version)),
+                    0x02 => file.aes_mode = Some((AesMode::Aes192, vendor_version)),
+                    0x03 => file.aes_mode = Some((AesMode::Aes256, vendor_version)),
+                    _ => return Err(ZipError::InvalidArchive("Invalid AES encryption strength")),
+                };
+                file.compression_method = {
+                    #[allow(deprecated)]
+                    CompressionMethod::from_u16(compression_method)
+                };
             }
-            if file.header_start == 0xFFFFFFFF {
-                file.header_start = reader.read_u64::<LittleEndian>()?;
-                len_left -= 8;
+            _ => {
+                // Other fields are ignored
             }
-            // Unparsed fields:
-            // u32: disk start number
         }
 
         // We could also check for < 0 to check for errors
@@ -822,7 +977,7 @@ impl<'a> ZipFile<'a> {
 
     /// Get the starting offset of the data of the compressed file
     pub fn data_start(&self) -> u64 {
-        self.data.data_start
+        self.data.data_start.load()
     }
 
     /// Get the starting offset of the zip header for this file
@@ -932,6 +1087,7 @@ pub fn read_zipfile_from_stream<'a, R: io::Read>(
         encrypted,
         using_data_descriptor,
         compression_method,
+        compression_level: None,
         last_modified_time: DateTime::from_msdos(last_mod_date, last_mod_time),
         crc32,
         compressed_size: compressed_size as u64,
@@ -943,13 +1099,14 @@ pub fn read_zipfile_from_stream<'a, R: io::Read>(
         // header_start and data start are not available, but also don't matter, since seeking is
         // not available.
         header_start: 0,
-        data_start: 0,
+        data_start: AtomicU64::new(0),
         central_header_start: 0,
         // The external_attributes field is only available in the central directory.
         // We set this to zero, which should be valid as the docs state 'If input came
         // from standard input, this field is set to zero.'
         external_attributes: 0,
         large_file: false,
+        aes_mode: None,
     };
 
     match parse_extra_field(&mut result) {
@@ -975,6 +1132,9 @@ pub fn read_zipfile_from_stream<'a, R: io::Read>(
         result.using_data_descriptor,
         limit_reader,
         None,
+        None,
+        #[cfg(feature = "aes-crypto")]
+        result.compressed_size,
     )?
     .unwrap();
 
@@ -1017,7 +1177,7 @@ mod test {
         let mut v = Vec::new();
         v.extend_from_slice(include_bytes!("../tests/data/zip64_demo.zip"));
         let reader = ZipArchive::new(io::Cursor::new(v)).unwrap();
-        assert!(reader.len() == 1);
+        assert_eq!(reader.len(), 1);
     }
 
     #[test]
@@ -1028,7 +1188,7 @@ mod test {
         let mut v = Vec::new();
         v.extend_from_slice(include_bytes!("../tests/data/mimetype.zip"));
         let mut reader = ZipArchive::new(io::Cursor::new(v)).unwrap();
-        assert!(reader.comment() == b"");
+        assert_eq!(reader.comment(), b"");
         assert_eq!(reader.by_index(0).unwrap().central_header_start(), 77);
     }
 
@@ -1041,9 +1201,8 @@ mod test {
         v.extend_from_slice(include_bytes!("../tests/data/mimetype.zip"));
         let mut reader = io::Cursor::new(v);
         loop {
-            match read_zipfile_from_stream(&mut reader).unwrap() {
-                None => break,
-                _ => (),
+            if read_zipfile_from_stream(&mut reader).unwrap().is_none() {
+                break;
             }
         }
     }
@@ -1079,14 +1238,14 @@ mod test {
         let mut buf3 = [0; 5];
         let mut buf4 = [0; 5];
 
-        file1.read(&mut buf1).unwrap();
-        file2.read(&mut buf2).unwrap();
-        file1.read(&mut buf3).unwrap();
-        file2.read(&mut buf4).unwrap();
+        file1.read_exact(&mut buf1).unwrap();
+        file2.read_exact(&mut buf2).unwrap();
+        file1.read_exact(&mut buf3).unwrap();
+        file2.read_exact(&mut buf4).unwrap();
 
         assert_eq!(buf1, buf2);
         assert_eq!(buf3, buf4);
-        assert!(buf1 != buf3);
+        assert_ne!(buf1, buf3);
     }
 
     #[test]

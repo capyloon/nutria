@@ -478,10 +478,21 @@ impl<Data> ConnectionCommon<Data> {
                 return Ok((rdlen, wrlen));
             }
 
-            if !eof && self.wants_read() {
-                match self.read_tls(io)? {
-                    0 => eof = true,
-                    n => rdlen += n,
+            while !eof && self.wants_read() {
+                let read_size = match self.read_tls(io) {
+                    Ok(0) => {
+                        eof = true;
+                        Some(0)
+                    }
+                    Ok(n) => {
+                        rdlen += n;
+                        Some(n)
+                    }
+                    Err(ref err) if err.kind() == io::ErrorKind::Interrupted => None, // nothing to do
+                    Err(err) => return Err(err),
+                };
+                if read_size.is_some() {
+                    break;
                 }
             }
 
@@ -1194,7 +1205,7 @@ impl CommonState {
                     self.quic.alert = Some(alert.description);
                 } else {
                     debug_assert!(
-                        matches!(m.payload, MessagePayload::Handshake(_)),
+                        matches!(m.payload, MessagePayload::Handshake { .. }),
                         "QUIC uses TLS for the cryptographic handshake only"
                     );
                     let mut bytes = Vec::new();

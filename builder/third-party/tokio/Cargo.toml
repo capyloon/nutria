@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.49"
 name = "tokio"
-version = "1.18.1"
+version = "1.18.2"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = """
 An event-driven, non-blocking I/O platform for writing asynchronous I/O
@@ -222,6 +222,14 @@ default-features = false
 
 [target."cfg(windows)".dependencies.winapi]
 version = "0.3.8"
+features = [
+    "std",
+    "winsock2",
+    "mswsock",
+    "handleapi",
+    "ws2ipdef",
+    "ws2tcpip",
+]
 optional = true
 default-features = false
 

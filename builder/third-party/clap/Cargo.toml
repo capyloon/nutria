@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "clap"
-version = "3.1.15"
+version = "3.1.18"
 include = [
     "build.rs",
     "src/**/*",
@@ -404,7 +404,7 @@ optional = true
 version = "1.2"
 
 [dependencies.clap_derive]
-version = "=3.1.7"
+version = "=3.1.18"
 optional = true
 
 [dependencies.clap_lex]
@@ -520,7 +520,7 @@ unstable-doc = [
 unstable-grouped = []
 unstable-multicall = []
 unstable-replace = []
-unstable-v4 = []
+unstable-v4 = ["clap_derive/unstable-v4"]
 wrap_help = [
     "terminal_size",
     "textwrap/terminal_size",

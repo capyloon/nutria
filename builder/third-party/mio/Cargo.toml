@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "mio"
-version = "0.8.2"
+version = "0.8.3"
 authors = [
     "Carl Lerche <me@carllerche.com>",
     "Thomas de Zeeuw <thomasdezeeuw@gmail.com>",
@@ -98,27 +98,28 @@ version = "0.8"
 [features]
 default = []
 net = []
-os-ext = ["os-poll"]
+os-ext = [
+    "os-poll",
+    "windows-sys/Win32_System_Pipes",
+    "windows-sys/Win32_Security",
+]
 os-poll = []
 
 [target."cfg(target_os = \"wasi\")".dependencies.libc]
-version = "0.2.86"
+version = "0.2.121"
 
 [target."cfg(target_os = \"wasi\")".dependencies.wasi]
 version = "0.11.0"
 
 [target."cfg(unix)".dependencies.libc]
-version = "0.2.86"
+version = "0.2.121"
 
-[target."cfg(windows)".dependencies.miow]
-version = "0.3.6"
-
-[target."cfg(windows)".dependencies.ntapi]
-version = "0.3"
-
-[target."cfg(windows)".dependencies.winapi]
-version = "0.3"
+[target."cfg(windows)".dependencies.windows-sys]
+version = "0.36"
 features = [
-    "winsock2",
-    "mswsock",
+    "Win32_Storage_FileSystem",
+    "Win32_Foundation",
+    "Win32_Networking_WinSock",
+    "Win32_System_IO",
+    "Win32_System_WindowsProgramming",
 ]

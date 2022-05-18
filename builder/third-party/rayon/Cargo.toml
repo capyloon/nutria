@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "rayon"
-version = "1.5.2"
+version = "1.5.3"
 authors = [
     "Niko Matsakis <niko@alum.mit.edu>",
     "Josh Stone <cuviper@gmail.com>",

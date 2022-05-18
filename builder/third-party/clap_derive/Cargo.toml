@@ -12,33 +12,49 @@
 [package]
 edition = "2018"
 name = "clap_derive"
-version = "3.1.7"
-include = ["src/**/*", "Cargo.toml", "LICENSE-*", "README.md"]
+version = "3.1.18"
+include = [
+    "src/**/*",
+    "Cargo.toml",
+    "LICENSE-*",
+    "README.md",
+]
 description = "Parse command line argument by defining a struct, derive crate."
 documentation = "https://docs.rs/clap_derive"
 readme = "README.md"
-keywords = ["clap", "cli", "parse", "derive", "proc_macro"]
-categories = ["command-line-interface", "development-tools::procedural-macro-helpers"]
+keywords = [
+    "clap",
+    "cli",
+    "parse",
+    "derive",
+    "proc_macro",
+]
+categories = [
+    "command-line-interface",
+    "development-tools::procedural-macro-helpers",
+]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/clap-rs/clap/tree/master/clap_derive"
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
 
 [package.metadata.release]
-dependent-version = "upgrade"
 shared-version = true
+dependent-version = "upgrade"
 tag-name = "v{{version}}"
 
 [[package.metadata.release.pre-release-replacements]]
-exactly = 2
 file = "README.md"
-prerelease = true
-replace = "github.com/clap-rs/clap/blob/{{tag_name}}/"
 search = "github.com/clap-rs/clap/blob/[^/]+/"
+replace = "github.com/clap-rs/clap/blob/{{tag_name}}/"
+exactly = 2
+prerelease = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
 
 [lib]
 bench = false
 proc-macro = true
+
 [dependencies.heck]
 version = "0.4.0"
 
@@ -58,3 +74,4 @@ features = ["full"]
 [features]
 debug = []
 default = []
+unstable-v4 = []

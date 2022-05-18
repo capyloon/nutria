@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::anchors::{OwnedTrustAnchor, RootCertStore};
 use crate::client::ServerName;
 use crate::error::Error;
@@ -179,7 +181,13 @@ pub trait ServerCertVerifier: Send + Sync {
     }
 }
 
-/// A type which encapsuates a string that is a syntactically valid DNS name.
+impl fmt::Debug for dyn ServerCertVerifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "dyn ServerCertVerifier")
+    }
+}
+
+/// A type which encapsulates a string that is a syntactically valid DNS name.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DnsName(pub(crate) webpki::DnsName);
 
@@ -285,6 +293,12 @@ pub trait ClientCertVerifier: Send + Sync {
     }
 }
 
+impl fmt::Debug for dyn ClientCertVerifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "dyn ClientCertVerifier")
+    }
+}
+
 impl ServerCertVerifier for WebPkiVerifier {
     /// Will verify the certificate is valid in the following ways:
     /// - Signed by a  trusted `RootCertStore` CA
@@ -302,7 +316,12 @@ impl ServerCertVerifier for WebPkiVerifier {
         let (cert, chain, trustroots) = prepare(end_entity, intermediates, &self.roots)?;
         let webpki_now = webpki::Time::try_from(now).map_err(|_| Error::FailedToGetCurrentTime)?;
 
-        let ServerName::DnsName(dns_name) = server_name;
+        let dns_name = match server_name {
+            ServerName::DnsName(dns_name) => dns_name,
+            ServerName::IpAddress(_) => {
+                return Err(Error::UnsupportedNameType);
+            }
+        };
 
         let cert = cert
             .verify_is_valid_tls_server_cert(

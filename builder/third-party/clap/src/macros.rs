@@ -71,6 +71,15 @@ macro_rules! values_t_or_exit {
     };
 }
 
+#[deprecated(since = "3.0.0", note = "Replaced with `ArgEnum`")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! _clap_count_exprs {
+    () => { 0 };
+    ($e:expr) => { 1 };
+    ($e:expr, $($es:expr),+) => { 1 + $crate::_clap_count_exprs!($($es),*) };
+}
+
 /// Deprecated, replaced with [`ArgEnum`][crate::ArgEnum]
 #[deprecated(since = "3.0.0", note = "Replaced with `ArgEnum`")]
 #[doc(hidden)]
@@ -515,7 +524,63 @@ macro_rules! arg_impl {
     (
         @arg
         ($arg:expr)
+        <$value_name:literal>
+        $($tail:tt)*
+    ) => {
+        $crate::arg_impl! {
+            @arg
+            ({
+                debug_assert!(!$arg.is_multiple_occurrences_set(), "Values should precede `...`");
+                debug_assert_eq!($arg.get_value_names(), None, "Multiple values not yet supported");
+
+                let mut arg = $arg;
+
+                arg = arg.required(true);
+                arg = arg.takes_value(true);
+
+                let value_name = $crate::arg_impl! { @string $value_name };
+                if arg.get_id().is_empty() {
+                    arg = arg.id(value_name);
+                }
+                arg.value_name(value_name)
+            })
+            $($tail)*
+        }
+    };
+    (
+        @arg
+        ($arg:expr)
         [$value_name:ident]
+        $($tail:tt)*
+    ) => {
+        $crate::arg_impl! {
+            @arg
+            ({
+                debug_assert!(!$arg.is_multiple_occurrences_set(), "Values should precede `...`");
+                debug_assert_eq!($arg.get_value_names(), None, "Multiple values not yet supported");
+
+                let mut arg = $arg;
+
+                if arg.get_long().is_none() && arg.get_short().is_none() {
+                    arg = arg.required(false);
+                } else {
+                    arg = arg.min_values(0).max_values(1);
+                }
+                arg = arg.takes_value(true);
+
+                let value_name = $crate::arg_impl! { @string $value_name };
+                if arg.get_id().is_empty() {
+                    arg = arg.id(value_name);
+                }
+                arg.value_name(value_name)
+            })
+            $($tail)*
+        }
+    };
+    (
+        @arg
+        ($arg:expr)
+        [$value_name:literal]
         $($tail:tt)*
     ) => {
         $crate::arg_impl! {

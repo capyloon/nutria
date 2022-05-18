@@ -77,6 +77,7 @@ pub struct App<'help> {
     name: String,
     long_flag: Option<&'help str>,
     short_flag: Option<char>,
+    display_name: Option<String>,
     bin_name: Option<String>,
     author: Option<&'help str>,
     version: Option<&'help str>,
@@ -851,8 +852,8 @@ impl<'help> App<'help> {
 impl<'help> App<'help> {
     /// Specifies that the parser should not assume the first argument passed is the binary name.
     ///
-    /// This is normally the case when using a "daemon" style mode, or an interactive CLI where
-    /// one would not normally type the binary or program name for each command.
+    /// This is normally the case when using a "daemon" style mode.  For shells / REPLs, see
+    /// [`Command::multicall`][App::multicall].
     ///
     /// # Examples
     ///
@@ -1380,6 +1381,22 @@ impl<'help> App<'help> {
         self
     }
 
+    /// Overrides the runtime-determined display name of the program for help and error messages.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use clap::Command;
+    /// Command::new("My Program")
+    ///      .display_name("my_program")
+    /// # ;
+    /// ```
+    #[must_use]
+    pub fn display_name<S: Into<String>>(mut self, name: S) -> Self {
+        self.display_name = Some(name.into());
+        self
+    }
+
     /// Sets the author(s) for the help message.
     ///
     /// **Pro-tip:** Use `clap`s convenience macro [`crate_authors!`] to
@@ -1651,6 +1668,7 @@ impl<'help> App<'help> {
     ///
     /// Valid tags are:
     ///
+    ///   * `{name}`                - Display name for the (sub-)command.
     ///   * `{bin}`                 - Binary name.
     ///   * `{version}`             - Version number.
     ///   * `{author}`              - Author information.
@@ -2245,7 +2263,14 @@ impl<'help> App<'help> {
     /// [`Arg::long`]: Arg::long()
     #[must_use]
     pub fn long_flag(mut self, long: &'help str) -> Self {
-        self.long_flag = Some(long.trim_start_matches(|c| c == '-'));
+        #[cfg(feature = "unstable-v4")]
+        {
+            self.long_flag = Some(long);
+        }
+        #[cfg(not(feature = "unstable-v4"))]
+        {
+            self.long_flag = Some(long.trim_start_matches(|c| c == '-'));
+        }
         self
     }
 
@@ -2684,10 +2709,15 @@ impl<'help> App<'help> {
 
     /// Assume unexpected positional arguments are a [`subcommand`].
     ///
+    /// Arguments will be stored in the `""` argument in the [`ArgMatches`]
+    ///
     /// **NOTE:** Use this setting with caution,
     /// as a truly unexpected argument (i.e. one that is *NOT* an external subcommand)
     /// will **not** cause an error and instead be treated as a potential subcommand.
     /// One should check for such cases manually and inform the user appropriately.
+    ///
+    /// **NOTE:** A built-in subcommand will be parsed as an external subcommand when escaped with
+    /// `--`.
     ///
     /// # Examples
     ///
@@ -2916,7 +2946,7 @@ impl<'help> App<'help> {
         }
     }
 
-    /// Strip directory path from argv\[0\] and use as an argument.
+    /// Multiple-personality program dispatched on the binary name (`argv[0]`)
     ///
     /// A "multicall" executable is a single executable
     /// that contains a variety of applets,
@@ -2924,13 +2954,39 @@ impl<'help> App<'help> {
     /// The executable can be called from different names by creating hard links
     /// or symbolic links to it.
     ///
-    /// This is desirable when it is convenient to store code
-    /// for many programs in the same file,
-    /// such as deduplicating code across multiple programs
-    /// without loading a shared library at runtime.
+    /// This is desirable for:
+    /// - Easy distribution, a single binary that can install hardlinks to access the different
+    ///   personalities.
+    /// - Minimal binary size by sharing common code (e.g. standard library, clap)
+    /// - Custom shells or REPLs where there isn't a single top-level command
     ///
-    /// Multicall can't be used with [`no_binary_name`] since they interpret
+    /// Setting `multicall` will cause
+    /// - `argv[0]` to be stripped to the base name and parsed as the first argument, as if
+    ///   [`Command::no_binary_name`][App::no_binary_name] was set.
+    /// - Help and errors to report subcommands as if they were the top-level command
+    ///
+    /// When the subcommand is not present, there are several strategies you may employ, depending
+    /// on your needs:
+    /// - Let the error percolate up normally
+    /// - Print a specialized error message using the
+    ///   [`Error::context`][crate::Error::context]
+    /// - Print the [help][App::write_help] but this might be ambiguous
+    /// - Disable `multicall` and re-parse it
+    /// - Disable `multicall` and re-parse it with a specific subcommand
+    ///
+    /// When detecting the error condition, the [`ErrorKind`] isn't sufficient as a sub-subcommand
+    /// might report the same error.  Enable
+    /// [`allow_external_subcommands`][App::allow_external_subcommands] if you want to specifically
+    /// get the unrecognized binary name.
+    ///
+    /// **NOTE:** Multicall can't be used with [`no_binary_name`] since they interpret
     /// the command name in incompatible ways.
+    ///
+    /// **NOTE:** The multicall command cannot have arguments.
+    ///
+    /// **NOTE:** Applets are slightly semantically different from subcommands,
+    /// so it's recommended to use [`Command::subcommand_help_heading`] and
+    /// [`Command::subcommand_value_name`] to change the descriptive text as above.
     ///
     /// # Examples
     ///
@@ -2939,8 +2995,8 @@ impl<'help> App<'help> {
     /// and which behaviour to use is based on the executable file name.
     ///
     /// This is desirable when the executable has a primary purpose
-    /// but there is other related functionality that would be convenient to provide
-    /// and it is convenient for the code to implement it to be in the same executable.
+    /// but there is related functionality that would be convenient to provide
+    /// and implement it to be in the same executable.
     ///
     /// The name of the cmd is essentially unused
     /// and may be the same as the name of a subcommand.
@@ -3001,10 +3057,6 @@ impl<'help> App<'help> {
     /// let m = cmd.get_matches_from(&["/usr/bin/true"]);
     /// assert_eq!(m.subcommand_name(), Some("true"));
     /// ```
-    ///
-    /// **NOTE:** Applets are slightly semantically different from subcommands,
-    /// so it's recommended to use [`Command::subcommand_help_heading`] and
-    /// [`Command::subcommand_value_name`] to change the descriptive text as above.
     ///
     /// [`no_binary_name`]: crate::Command::no_binary_name
     /// [`App::subcommand_value_name`]: crate::Command::subcommand_value_name
@@ -3163,6 +3215,12 @@ impl<'help> App<'help> {
     #[inline]
     pub(crate) fn get_usage_name(&self) -> Option<&str> {
         self.usage_name.as_deref()
+    }
+
+    /// Get the name of the binary.
+    #[inline]
+    pub fn get_display_name(&self) -> Option<&str> {
+        self.display_name.as_deref()
     }
 
     /// Get the name of the binary.
@@ -4101,6 +4159,7 @@ impl<'help> App<'help> {
                 mid_string.push(' ');
             }
         }
+        let is_multicall_set = cfg!(feature = "unstable-multicall") && self.is_multicall_set();
 
         let sc = self.subcommands.iter_mut().find(|s| s.name == name)?;
 
@@ -4129,12 +4188,40 @@ impl<'help> App<'help> {
 
         // bin_name should be parent's bin_name + [<reqs>] + the sc's name separated by
         // a space
-        sc.bin_name = Some(format!(
+        let bin_name = format!(
             "{}{}{}",
             self.bin_name.as_ref().unwrap_or(&String::new()),
             if self.bin_name.is_some() { " " } else { "" },
             &*sc.name
-        ));
+        );
+        debug!(
+            "Command::_build_subcommand Setting bin_name of {} to {:?}",
+            sc.name, bin_name
+        );
+        sc.bin_name = Some(bin_name);
+
+        if sc.display_name.is_none() {
+            let self_display_name = if is_multicall_set {
+                self.display_name.as_deref().unwrap_or("")
+            } else {
+                self.display_name.as_deref().unwrap_or(&self.name)
+            };
+            let display_name = format!(
+                "{}{}{}",
+                self_display_name,
+                if !self_display_name.is_empty() {
+                    "-"
+                } else {
+                    ""
+                },
+                &*sc.name
+            );
+            debug!(
+                "Command::_build_subcommand Setting display_name of {} to {:?}",
+                sc.name, display_name
+            );
+            sc.display_name = Some(display_name);
+        }
 
         // Ensure all args are built and ready to parse
         sc._build_self();
@@ -4155,14 +4242,14 @@ impl<'help> App<'help> {
                     mid_string.push(' ');
                 }
             }
+            let is_multicall_set = cfg!(feature = "unstable-multicall") && self.is_multicall_set();
 
-            let self_bin_name =
-                if cfg!(feature = "unstable-multicall") && self.is_multicall_set() {
-                    self.bin_name.as_deref().unwrap_or("")
-                } else {
-                    self.bin_name.as_deref().unwrap_or(&self.name)
-                }
-                .to_owned();
+            let self_bin_name = if is_multicall_set {
+                self.bin_name.as_deref().unwrap_or("")
+            } else {
+                self.bin_name.as_deref().unwrap_or(&self.name)
+            }
+            .to_owned();
 
             for mut sc in &mut self.subcommands {
                 debug!("Command::_build_bin_names:iter: bin_name set...");
@@ -4216,6 +4303,35 @@ impl<'help> App<'help> {
                         sc.name, sc.bin_name
                     );
                 }
+
+                if sc.display_name.is_none() {
+                    let self_display_name = if is_multicall_set {
+                        self.display_name.as_deref().unwrap_or("")
+                    } else {
+                        self.display_name.as_deref().unwrap_or(&self.name)
+                    };
+                    let display_name = format!(
+                        "{}{}{}",
+                        self_display_name,
+                        if !self_display_name.is_empty() {
+                            "-"
+                        } else {
+                            ""
+                        },
+                        &*sc.name
+                    );
+                    debug!(
+                        "Command::_build_bin_names:iter: Setting display_name of {} to {:?}",
+                        sc.name, display_name
+                    );
+                    sc.display_name = Some(display_name);
+                } else {
+                    debug!(
+                        "Command::_build_bin_names::iter: Using existing display_name of {} ({:?})",
+                        sc.name, sc.display_name
+                    );
+                }
+
                 sc._build_bin_names_internal();
             }
             self.set(AppSettings::BinNameBuilt);
@@ -4805,6 +4921,7 @@ impl<'help> Default for App<'help> {
             name: Default::default(),
             long_flag: Default::default(),
             short_flag: Default::default(),
+            display_name: Default::default(),
             bin_name: Default::default(),
             author: Default::default(),
             version: Default::default(),

@@ -1885,6 +1885,11 @@ impl ::Clone for dot3Vendors {
     }
 }
 
+// aio.h
+pub const LIO_VECTORED: ::c_int = 4;
+pub const LIO_WRITEV: ::c_int = 5;
+pub const LIO_READV: ::c_int = 6;
+
 // sys/devicestat.h
 pub const DEVSTAT_N_TRANS_FLAGS: ::c_int = 4;
 pub const DEVSTAT_NAME_LEN: ::c_int = 16;
@@ -3840,6 +3845,7 @@ extern "C" {
     pub fn aio_error(aiocbp: *const aiocb) -> ::c_int;
     pub fn aio_fsync(op: ::c_int, aiocbp: *mut aiocb) -> ::c_int;
     pub fn aio_read(aiocbp: *mut aiocb) -> ::c_int;
+    pub fn aio_readv(aiocbp: *mut ::aiocb) -> ::c_int;
     pub fn aio_return(aiocbp: *mut aiocb) -> ::ssize_t;
     pub fn aio_suspend(
         aiocb_list: *const *const aiocb,
@@ -3847,6 +3853,7 @@ extern "C" {
         timeout: *const ::timespec,
     ) -> ::c_int;
     pub fn aio_write(aiocbp: *mut aiocb) -> ::c_int;
+    pub fn aio_writev(aiocbp: *mut ::aiocb) -> ::c_int;
 
     pub fn devname_r(
         dev: ::dev_t,
