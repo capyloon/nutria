@@ -195,6 +195,11 @@ impl Task for DownloadTask {
             self.unpack(&cache_path, &unpack_path, package);
         } else {
             error!("Download failed: {}", status);
+            for (name, value) in response.headers() {
+                if name.to_string().starts_with("x-ipfs-") {
+                    error!("{}: {:?}", name, value);
+                }
+            }
         }
 
         Ok(())
