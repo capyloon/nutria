@@ -615,6 +615,7 @@ class PluginsManager extends ContentManager {
   constructor(updatedCallback = null) {
     super();
     this.container = null;
+    this.list = [];
     if (updatedCallback && typeof updatedCallback === "function") {
       this.onupdated = updatedCallback;
     }
@@ -639,7 +640,12 @@ class PluginsManager extends ContentManager {
 
   async onchange(change) {
     this.log(`plugin list modified: ${JSON.stringify(change)}`);
-    await this.update();
+    if (
+      change.kind == this.lib.ModificationKind.CHILD_CREATED ||
+      change.kind == this.lib.ModificationKind.CHILD_DELETED
+    ) {
+      await this.update();
+    }
   }
 
   async init() {
@@ -653,7 +659,7 @@ class PluginsManager extends ContentManager {
   async update() {
     let cursor = await this.svc.childrenOf(this.container);
 
-    this.list = [];
+    let list = [];
     let done = false;
     while (!done) {
       try {
@@ -661,7 +667,7 @@ class PluginsManager extends ContentManager {
         for (let child of children) {
           if (child.kind === this.lib.ResourceKind.LEAF) {
             let blob = await this.svc.getVariant(child.id, "default");
-            this.list.push(
+            list.push(
               new ContentResource(
                 this.svc,
                 this.http_key,
@@ -679,7 +685,8 @@ class PluginsManager extends ContentManager {
       }
     }
 
-    this.log(`list updated: ${this.list.length} items.`);
+    this.log(`list updated: ${list.length} items.`);
+    this.list = list;
     if (this.onupdated) {
       this.onupdated(this.list);
     }
@@ -732,6 +739,7 @@ class OpenSearchManager extends ContentManager {
   constructor(updatedCallback = null) {
     super();
     this.container = null;
+    this.list = [];
     if (updatedCallback && typeof updatedCallback === "function") {
       this.onupdated = updatedCallback;
     }
@@ -761,7 +769,12 @@ class OpenSearchManager extends ContentManager {
 
   async onchange(change) {
     this.log(`list modified: ${JSON.stringify(change)}`);
-    await this.update();
+    if (
+      change.kind == this.lib.ModificationKind.CHILD_CREATED ||
+      change.kind == this.lib.ModificationKind.CHILD_DELETED
+    ) {
+      await this.update();
+    }
   }
 
   async init() {
@@ -775,11 +788,28 @@ class OpenSearchManager extends ContentManager {
     return !!this.list.find((resource) => resource.meta.name == url);
   }
 
+  async hasEngineName(current) {
+    let name = current.OpenSearchDescription?.ShortName?._text;
+    if (!name) {
+      // No name found, not adding this engine!
+      return true;
+    }
+
+    for (let resource of this.list) {
+      let json = await resource.variant("default");
+      if (json.OpenSearchDescription?.ShortName?._text == name) {
+        this.error(`Found duplicate for '${name}'`);
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Refresh the list of search engines.
   async update() {
     let cursor = await this.svc.childrenOf(this.container);
 
-    this.list = [];
+    let list = [];
     let done = false;
     while (!done) {
       try {
@@ -787,7 +817,7 @@ class OpenSearchManager extends ContentManager {
         for (let child of children) {
           if (child.kind === this.lib.ResourceKind.LEAF) {
             let json = await this.svc.getVariantJson(child.id, "default");
-            this.list.push(
+            list.push(
               new ContentResource(
                 this.svc,
                 this.http_key,
@@ -805,7 +835,8 @@ class OpenSearchManager extends ContentManager {
       }
     }
 
-    this.log(`list updated: ${this.list.length} items.`);
+    this.log(`list updated: ${list.length} items.`);
+    this.list = list;
     if (this.onupdated) {
       this.onupdated(this.list);
     }
@@ -816,6 +847,11 @@ class OpenSearchManager extends ContentManager {
     this.log(`addFromJson ${url}, enabled=${enabled}`);
 
     await this.ready();
+
+    let dupe = await this.hasEngineName(json);
+    if (dupe) {
+      return;
+    }
 
     let tags = [];
     if (enabled) {
@@ -838,9 +874,28 @@ class OpenSearchManager extends ContentManager {
     let resource = new ContentResource(this.svc, this.http_key, meta);
 
     // Download the icon and store it as the 'icon' variant.
-    let iconUrl = json.OpenSearchDescription?.Image?._text.trim() || favicon;
-    if (iconUrl) {
-      await resource.updateVariantFromUrl(iconUrl, "icon");
+    // If there are several icons, select the largest one.
+    let icons = json.OpenSearchDescription?.Image;
+    if (icons && !Array.isArray(icons)) {
+      icons = [icons];
+    }
+    if (icons) {
+      let selected = null;
+      let maxSize = 0;
+      icons.forEach((icon) => {
+        let size = parseInt(icon._attributes.width, 10);
+        if (isNaN(size)) {
+          size = 0;
+        }
+        if (size > maxSize) {
+          maxSize = size;
+          selected = icon;
+        }
+      });
+      let iconUrl = selected ? selected._text.trim() : favicon;
+      if (iconUrl) {
+        await resource.updateVariantFromUrl(iconUrl, "icon");
+      }
     }
 
     await this.update();
