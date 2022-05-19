@@ -51,3 +51,13 @@ webext-title = Web Extensions
 webext-install = Install recommended extensions
 webext-details = You can install some extensions right away and manage them in the Settings app. You can also install extensions at any time from the Mozilla Addons web site.
 webext-error-no-network = Please configure networking to install extensions.
+
+# Identity panel
+identity-title = Identity
+identity-select = Manage your identities
+identity-details = You can define as many identities as you want to use in different contexts (eg. personal vs. professional).
+identity-add = Create New Identity
+identity-empty = No Identity Available
+identity-error-duplicate = Can't create several identities with the same name!
+identity-add-input =
+  .placeholder = New Identity Name

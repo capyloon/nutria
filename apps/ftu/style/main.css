@@ -153,7 +153,8 @@ sl-input::part(password-toggle-button) {
 }
 
 #search-panel .name,
-#webext-panel .name {
+#webext-panel .name,
+#identity-panel .name {
   font-weight: bolder;
   line-height: 1.5em;
   overflow: hidden;
@@ -162,7 +163,8 @@ sl-input::part(password-toggle-button) {
 }
 
 #search-panel .desc,
-#webext-panel .desc {
+#webext-panel .desc,
+#identity-panel .desc {
   font-size: smaller;
   line-height: 1.5em;
   color: var(--sl-color-neutral-500);
@@ -172,12 +174,14 @@ sl-input::part(password-toggle-button) {
 }
 
 #search-panel sl-menu-item:hover .desc,
-#webext-panel sl-menu-item:hover .desc {
+#webext-panel sl-menu-item:hover .desc,
+#identity-panel sl-menu-item:hover .desc {
   color: var(--sl-color-neutral-0);
 }
 
 #search-panel sl-menu-item::part(label),
-#webext-panel sl-menu-item::part(label) {
+#webext-panel sl-menu-item::part(label),
+#identity-panel sl-menu-item::part(label) {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -186,4 +190,14 @@ sl-input::part(password-toggle-button) {
 #webext-panel sl-alert {
   margin-top: 0.5em;
   margin-bottom: 0.5em;
+}
+
+#identity-panel sl-alert {
+  margin-top: 1em;
+}
+
+#identity-panel .identity-add {
+  margin-top: 1em;
+  display: flex;
+  gap: 0.5em;
 }

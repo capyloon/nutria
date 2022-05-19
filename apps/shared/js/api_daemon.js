@@ -59,6 +59,7 @@ export class ApiDaemon {
     this.registerService("contacts", "ContactsManager");
     this.registerService("contentmanager", "ContentManager");
     this.registerService("time", "TimeService");
+    this.registerService("dweb", "DwebService");
 
     this.sessionReady = new Promise((resolve) => {
       this._resolveSessionReady = resolve;
@@ -189,6 +190,10 @@ export class ApiDaemon {
 
   getTimeService() {
     return this._getService("TimeService");
+  }
+
+  getDwebService() {
+    return this._getService("DwebService");
   }
 
   getLibraryFor(serviceName) {

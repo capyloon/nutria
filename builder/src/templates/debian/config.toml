@@ -35,3 +35,6 @@ hints_path = "/tmp/prochints.dat"
 [content_manager]
 storage_path = "__HOME__/.b2gos/costaeres"
 metadata_cache_capacity = 250
+
+[dweb]
+storage_path = "__HOME__/.b2gos/costadweberes"

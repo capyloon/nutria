@@ -32,3 +32,6 @@ hints_path = "/tmp/prochints.dat"
 [content_manager]
 storage_path = "/home/xxx/costaeres"
 metadata_cache_capacity = 250
+
+[dweb]
+storage_path = "/home/xxx/dweb"

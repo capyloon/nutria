@@ -17,6 +17,7 @@
     },
     "permissions": {
       "content-manager": {},
+      "dweb": {},
       "settings": { "access": "readwrite" },
       "system-time": { "access": "readwrite" },
       "wifi-manage": {}

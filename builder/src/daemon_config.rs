@@ -22,6 +22,7 @@ pub struct DaemonConfig {
     pub apps_service: AppsServiceConfig,
     pub procmanager_service: ProcManagerServiceConfig,
     pub content_manager: ContentManagerConfig,
+    pub dweb: DwebConfig,
 }
 
 impl DaemonConfig {
@@ -55,6 +56,7 @@ impl DaemonConfig {
         self.apps_service.root_path =
             format!("{}", output.join("profile").join("webapps").display());
         self.content_manager.storage_path = format!("{}", output.join("costaeres").display());
+        self.dweb.storage_path = format!("{}", output.join("dweb").display());
     }
 }
 
@@ -102,4 +104,9 @@ pub struct ProcManagerServiceConfig {
 pub struct ContentManagerConfig {
     storage_path: String,
     metadata_cache_capacity: usize,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct DwebConfig {
+    storage_path: String,
 }
