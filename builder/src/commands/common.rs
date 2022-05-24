@@ -14,7 +14,7 @@ pub struct PushedApps {
 impl PushedApps {
     pub fn new(config: &BuildConfig, requested_apps: &Option<String>) -> Self {
         // Get the list of possible apps.
-        let task = GetAppList::new(&config);
+        let task = GetAppList::new(config);
         let app_list = task.run(()).unwrap_or_default();
 
         let mut source_apps = HashMap::new();

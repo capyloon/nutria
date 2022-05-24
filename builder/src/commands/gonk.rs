@@ -141,7 +141,7 @@ pub struct PushCommand {
 
 impl PushCommand {
     fn new(config: &BuildConfig, requested_apps: &Option<String>) -> Self {
-        let data = crate::commands::common::PushedApps::new(&config, requested_apps);
+        let data = crate::commands::common::PushedApps::new(config, requested_apps);
         Self {
             apps: data.apps,
             system_update: data.system_update,
@@ -187,7 +187,7 @@ impl PushCommand {
 
     pub fn start(config: &BuildConfig, requested_apps: &Option<String>) -> Result<(), AdbError> {
         let _ = detect_device()?;
-        let cmd = PushCommand::new(&config, requested_apps);
+        let cmd = PushCommand::new(config, requested_apps);
         cmd.push_apps()?;
         if cmd.system_update || cmd.homescreen_update {
             return cmd.init_adb(true);
@@ -343,9 +343,7 @@ impl AdbCommand for PushB2gCommand {
 // Returns a description of the first connected android device.
 pub fn detect_device() -> Result<String, AdbError> {
     let host = Host::default();
-    let devices = host
-        .devices::<Vec<_>>()
-        .map_err(|err| AdbError::Device(err))?;
+    let devices = host.devices::<Vec<_>>().map_err(AdbError::Device)?;
     if !devices.is_empty() {
         let device = &devices[0];
         let info = &device.info;

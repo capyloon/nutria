@@ -2,6 +2,11 @@
 
 None.
 
+# 0.4.5 (May 20, 2022)
+
+- Add `String` impl for `Body`.
+- Add `Limited` body implementation.
+
 # 0.4.4 (October 22, 2021)
 
 - Add `UnsyncBoxBody` and `Body::boxed_unsync`.

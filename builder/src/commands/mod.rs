@@ -30,22 +30,22 @@ where
     match (has_gonk, has_linux) {
         (Err(_), Err(_)) => {
             error!("No device detected!");
-            return Err(DeviceError::NoDeviceFound);
+            Err(DeviceError::NoDeviceFound)
         }
         (Ok(gonk_device), Ok(linux_device)) => {
             error!(
                 "Multiple devices detected:\n\tGonk: {}\n\tLinux: {}",
                 gonk_device, linux_device
             );
-            return Err(DeviceError::MultipleDeviceFound);
+            Err(DeviceError::MultipleDeviceFound)
         }
         (Ok(_), Err(_)) => {
             // Gonk device present.
-            return when_gonk();
+            when_gonk()
         }
         (Err(_), Ok(_)) => {
             // Linux device present.
-            return when_linux();
+            when_linux()
         }
     }
 }

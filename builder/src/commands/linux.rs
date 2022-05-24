@@ -117,7 +117,7 @@ struct Device {
 
 impl Device {
     fn connect() -> Result<Self, LinuxError> {
-        if let Ok(_) = env::var("NUTRIA_LINUX_DISABLED") {
+        if env::var("NUTRIA_LINUX_DISABLED").is_ok() {
             return Err(LinuxError::NoDeviceFound);
         }
 
@@ -134,9 +134,9 @@ impl Device {
         }
 
         Ok(Self {
-            user: user.into(),
-            host: host.into(),
-            description: description.into(),
+            user,
+            host,
+            description,
         })
     }
 
@@ -199,7 +199,7 @@ fn push_app(path: &Path, app_name: &str, device: &Device) -> Result<(), LinuxErr
 
 // Push command
 pub fn push_apps(config: &BuildConfig, requested_apps: &Option<String>) -> Result<(), LinuxError> {
-    let data = crate::commands::common::PushedApps::new(&config, requested_apps);
+    let data = crate::commands::common::PushedApps::new(config, requested_apps);
 
     let device = Device::connect()?;
     let mut failed = vec![];
@@ -230,16 +230,14 @@ pub fn push_apps(config: &BuildConfig, requested_apps: &Option<String>) -> Resul
         let _ = device.command("/opt/b2gos/b2ghald/b2ghalctl restart-service b2gos")?;
     } else if data.homescreen_update {
         let pids = device.command("pidof b2g")?;
-        let pids: Vec<&str> = pids.split(" ").collect();
+        let pids: Vec<&str> = pids.split(' ').collect();
         for pid in pids {
             let stat = device.command(&format!("cat /proc/{}/stat", pid))?;
-            let parts: Vec<&str> = stat.split(" ").collect();
-            if parts.len() > 1 {
-                if parts[1] == "(homescreen)" {
-                    info!("About to kill pid {} to restart homescreen...", pid);
-                    let _ = device.command(&format!("kill -9 {}", pid))?;
-                    break;
-                }
+            let parts: Vec<&str> = stat.split(' ').collect();
+            if parts.len() > 1 && parts[1] == "(homescreen)" {
+                info!("About to kill pid {} to restart homescreen...", pid);
+                let _ = device.command(&format!("kill -9 {}", pid))?;
+                break;
             }
         }
     }

@@ -42,7 +42,8 @@ struct DownloadWriter {
 impl DownloadWriter {
     fn new(package: &str, file: File, total_size: usize) -> Self {
         let pb = ProgressBar::new(total_size as _);
-        pb.set_style(ProgressStyle::default_bar().template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"));
+        pb.enable_steady_tick(std::time::Duration::from_secs(1));
+        pb.set_style(ProgressStyle::default_bar().template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})").unwrap());
 
         let timer = Timer::start_with_message(
             &format!("{} downloaded", package),

@@ -1,7 +1,18 @@
-use crate::progress_bar::ProgressBar;
+use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::io::{self, IoSliceMut};
 use std::iter::FusedIterator;
+#[cfg(feature = "tokio")]
+use std::pin::Pin;
+#[cfg(feature = "tokio")]
+use std::task::{Context, Poll};
+use std::time::Duration;
+
+#[cfg(feature = "tokio")]
+use tokio::io::{ReadBuf, SeekFrom};
+
+use crate::progress_bar::ProgressBar;
+use crate::style::ProgressStyle;
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
@@ -33,6 +44,16 @@ where
 
     /// Wrap an iterator with a custom progress bar.
     fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self>;
+
+    /// Wrap an iterator with a progress bar and style it.
+    fn progress_with_style(self, style: crate::ProgressStyle) -> ProgressBarIter<Self>
+    where
+        Self: ExactSizeIterator,
+    {
+        let len = u64::try_from(self.len()).unwrap();
+        let bar = ProgressBar::new(len).with_style(style);
+        self.progress_with(bar)
+    }
 }
 
 /// Wraps an iterator to display its progress.
@@ -40,6 +61,48 @@ where
 pub struct ProgressBarIter<T> {
     pub(crate) it: T,
     pub progress: ProgressBar,
+}
+
+impl<T> ProgressBarIter<T> {
+    /// Builder-like function for setting underlying progress bar's style.
+    ///
+    /// See [ProgressBar::with_style].
+    pub fn with_style(mut self, style: ProgressStyle) -> ProgressBarIter<T> {
+        self.progress = self.progress.with_style(style);
+        self
+    }
+
+    /// Builder-like function for setting underlying progress bar's prefix.
+    ///
+    /// See [ProgressBar::with_prefix].
+    pub fn with_prefix(mut self, prefix: impl Into<Cow<'static, str>>) -> ProgressBarIter<T> {
+        self.progress = self.progress.with_prefix(prefix);
+        self
+    }
+
+    /// Builder-like function for setting underlying progress bar's message.
+    ///
+    /// See [ProgressBar::with_message].
+    pub fn with_message(mut self, message: impl Into<Cow<'static, str>>) -> ProgressBarIter<T> {
+        self.progress = self.progress.with_message(message);
+        self
+    }
+
+    /// Builder-like function for setting underlying progress bar's position.
+    ///
+    /// See [ProgressBar::with_position].
+    pub fn with_position(mut self, position: u64) -> ProgressBarIter<T> {
+        self.progress = self.progress.with_position(position);
+        self
+    }
+
+    /// Builder-like function for setting underlying progress bar's elapsed time.
+    ///
+    /// See [ProgressBar::with_elapsed].
+    pub fn with_elapsed(mut self, elapsed: Duration) -> ProgressBarIter<T> {
+        self.progress = self.progress.with_elapsed(elapsed);
+        self
+    }
 }
 
 impl<S, T: Iterator<Item = S>> Iterator for ProgressBarIter<T> {
@@ -124,6 +187,85 @@ impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
             pos
         })
     }
+    // Pass this through to preserve optimizations that the inner I/O object may use here
+    // Also avoid sending a set_position update when the position hasn't changed
+    fn stream_position(&mut self) -> io::Result<u64> {
+        self.it.stream_position()
+    }
+}
+
+#[cfg(feature = "tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+impl<W: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for ProgressBarIter<W> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.it).poll_write(cx, buf).map(|poll| {
+            poll.map(|inc| {
+                self.progress.inc(inc as u64);
+                inc
+            })
+        })
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.it).poll_flush(cx)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.it).poll_shutdown(cx)
+    }
+}
+
+#[cfg(feature = "tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+impl<W: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for ProgressBarIter<W> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        let prev_len = buf.filled().len() as u64;
+        if let Poll::Ready(e) = Pin::new(&mut self.it).poll_read(cx, buf) {
+            self.progress.inc(buf.filled().len() as u64 - prev_len);
+            Poll::Ready(e)
+        } else {
+            Poll::Pending
+        }
+    }
+}
+
+#[cfg(feature = "tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+impl<W: tokio::io::AsyncSeek + Unpin> tokio::io::AsyncSeek for ProgressBarIter<W> {
+    fn start_seek(mut self: Pin<&mut Self>, position: SeekFrom) -> io::Result<()> {
+        Pin::new(&mut self.it).start_seek(position)
+    }
+
+    fn poll_complete(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<u64>> {
+        Pin::new(&mut self.it).poll_complete(cx)
+    }
+}
+
+#[cfg(feature = "tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+impl<W: tokio::io::AsyncBufRead + Unpin + tokio::io::AsyncRead> tokio::io::AsyncBufRead
+    for ProgressBarIter<W>
+{
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
+        let this = self.get_mut();
+        let result = Pin::new(&mut this.it).poll_fill_buf(cx);
+        if let Poll::Ready(Ok(buf)) = &result {
+            this.progress.inc(buf.len() as u64);
+        }
+        result
+    }
+
+    fn consume(mut self: Pin<&mut Self>, amt: usize) {
+        Pin::new(&mut self.it).consume(amt);
+    }
 }
 
 impl<W: io::Write> io::Write for ProgressBarIter<W> {
@@ -166,6 +308,7 @@ impl<S, T: Iterator<Item = S>> ProgressIterator for T {
 mod test {
     use crate::iter::{ProgressBarIter, ProgressIterator};
     use crate::progress_bar::ProgressBar;
+    use crate::ProgressStyle;
 
     #[test]
     fn it_can_wrap_an_iterator() {
@@ -179,6 +322,12 @@ mod test {
         wrap({
             let pb = ProgressBar::new(v.len() as u64);
             v.iter().progress_with(pb)
+        });
+        wrap({
+            let style = ProgressStyle::default_bar()
+                .template("{wide_bar:.red} {percent}/100%")
+                .unwrap();
+            v.iter().progress_with_style(style)
         });
     }
 }

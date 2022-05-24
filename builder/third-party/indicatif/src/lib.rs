@@ -23,6 +23,7 @@
 //!   * [`DecimalBytes`](struct.DecimalBytes.html) for formatting bytes using SI prefixes
 //!   * [`BinaryBytes`](struct.BinaryBytes.html) for formatting bytes using ISO/IEC prefixes
 //!   * [`HumanDuration`](struct.HumanDuration.html) for formatting durations
+//!   * [`HumanCount`](struct.HumanCount.html) for formatting large counts
 //!
 //! # Progress Bars and Spinners
 //!
@@ -36,7 +37,7 @@
 //!
 //! To whet your appetite, this is what this can look like:
 //!
-//! <img src="https://github.com/mitsuhiko/indicatif/raw/main/screenshots/yarn.gif?raw=true" width="60%">
+//! <img src="https://github.com/console-rs/indicatif/raw/main/screenshots/yarn.gif?raw=true" width="60%">
 //!
 //! Progress bars are manually advanced and by default draw to stderr.
 //! When you are done, the progress bar can be finished either visibly
@@ -107,13 +108,13 @@
 //!
 //! ```rust,ignore
 //! # extern crate rayon;
-//! use indicatif::{ProgressBar, ParallelProgressIterator};
+//! use indicatif::{ProgressBar, ParallelProgressIterator, ProgressStyle};
 //! use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
 //!
-//! // Use `ProgressBar::with_style` to change the view
-//! let pb = ProgressBar::new();
+//! // Alternatively, use `ProgressBar::new().with_style()`
+//! let style = ProgressStyle::default_bar();
 //! let v: Vec<_> = (0..100000).collect();
-//! let v2: Vec<_> = v.par_iter().progress_with(pb).map(|i| i + 1).collect();
+//! let v2: Vec<_> = v.par_iter().progress_with_style(style).map(|i| i + 1).collect();
 //! assert_eq!(v2[0], 1);
 //! ```
 //!
@@ -150,8 +151,8 @@
 //! ```rust
 //! # use indicatif::{ProgressBar, ProgressStyle};
 //! # let bar = ProgressBar::new(0);
-//! bar.set_style(ProgressStyle::default_bar()
-//!     .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+//! bar.set_style(ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+//!     .unwrap()
 //!     .progress_chars("##-"));
 //! ```
 //!
@@ -160,13 +161,19 @@
 //! * `bar`: renders a progress bar. By default 20 characters wide.  The
 //!   style string is used to color the elapsed part, the alternative
 //!   style is used for the bar that is yet to render.
-//! * `wide_bar`: like `bar` but always fills the remaining space.
+//! * `wide_bar`: like `bar` but always fills the remaining space. It should not be used with
+//! `wide_msg`.
 //! * `spinner`: renders the spinner (current tick string).
 //! * `prefix`: renders the prefix set on the progress bar.
 //! * `msg`: renders the currently set message on the progress bar.
-//! * `wide_msg`: like `msg` but always fills the remaining space and truncates.
+//! * `wide_msg`: like `msg` but always fills the remaining space and truncates. It should not be used
+//! with `wide_bar`.
 //! * `pos`: renders the current position of the bar as integer
-//! * `len`: renders the total length of the bar as integer
+//! * `human_pos`: renders the current position of the bar as an integer, with commas as the
+//! thousands separator.
+//! * `len`: renders the amount of work to be done as an integer
+//! * `human_len`: renders the total length of the bar as an integer, with commas as the thousands
+//! separator.
 //! * `bytes`: renders the current position of the bar as bytes.
 //! * `percent`: renders the current position of the bar as a percentage of the total length.
 //! * `total_bytes`: renders the total length of the bar as bytes.
@@ -193,10 +200,11 @@
 //!
 //! ```rust
 //! # use std::time::Duration;
-//! use indicatif::{HumanDuration, HumanBytes};
+//! use indicatif::{HumanBytes, HumanCount, HumanDuration};
 //!
-//! assert_eq!("3.00MiB", HumanBytes(3*1024*1024).to_string());
+//! assert_eq!("3.00 MiB", HumanBytes(3*1024*1024).to_string());
 //! assert_eq!("8 seconds", HumanDuration(Duration::from_secs(8)).to_string());
+//! assert_eq!("33,857,009", HumanCount(33857009).to_string());
 //! ```
 //!
 //! # Feature Flags
@@ -204,20 +212,33 @@
 //! * `rayon`: adds rayon support
 //! * `improved_unicode`: adds improved unicode support (graphemes, better width calculation)
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![warn(unreachable_pub)]
+
+mod draw_target;
 mod format;
+#[cfg(feature = "in_memory")]
+mod in_memory;
 mod iter;
+mod multi;
 mod progress_bar;
 #[cfg(feature = "rayon")]
 mod rayon;
 mod state;
 mod style;
-mod utils;
+mod term_like;
 
-pub use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
+pub use crate::draw_target::ProgressDrawTarget;
+pub use crate::format::{
+    BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
+};
+#[cfg(feature = "in_memory")]
+pub use crate::in_memory::InMemoryTerm;
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
-pub use crate::progress_bar::{MultiProgress, ProgressBar, WeakProgressBar};
-pub use crate::state::ProgressDrawTarget;
-pub use crate::style::{ProgressFinish, ProgressStyle};
-
+pub use crate::multi::{MultiProgress, MultiProgressAlignment};
+pub use crate::progress_bar::{ProgressBar, WeakProgressBar};
 #[cfg(feature = "rayon")]
 pub use crate::rayon::ParallelProgressIterator;
+pub use crate::state::{ProgressFinish, ProgressState};
+pub use crate::style::ProgressStyle;
+pub use crate::term_like::TermLike;

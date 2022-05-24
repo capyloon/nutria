@@ -1,14 +1,15 @@
-use crate::{ProgressBar, ProgressBarIter};
-use rayon::iter::{
-    plumbing::{Consumer, Folder, Producer, ProducerCallback, UnindexedConsumer},
-    IndexedParallelIterator, ParallelIterator,
-};
 use std::convert::TryFrom;
+
+use rayon::iter::plumbing::{Consumer, Folder, Producer, ProducerCallback, UnindexedConsumer};
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+
+use crate::{ProgressBar, ProgressBarIter};
 
 /// Wraps a Rayon parallel iterator.
 ///
 /// See [`ProgressIterator`](trait.ProgressIterator.html) for method
 /// documentation.
+#[cfg_attr(docsrs, doc(cfg(feature = "rayon")))]
 pub trait ParallelProgressIterator
 where
     Self: Sized + ParallelIterator,
@@ -27,6 +28,16 @@ where
     {
         let len = u64::try_from(self.len()).unwrap();
         self.progress_count(len)
+    }
+
+    /// Wrap an iterator with a progress bar and style it.
+    fn progress_with_style(self, style: crate::ProgressStyle) -> ProgressBarIter<Self>
+    where
+        Self: IndexedParallelIterator,
+    {
+        let len = u64::try_from(self.len()).unwrap();
+        let bar = ProgressBar::new(len).with_style(style);
+        self.progress_with(bar)
     }
 }
 
@@ -199,8 +210,9 @@ impl<S: Send, T: ParallelIterator<Item = S>> ParallelIterator for ProgressBarIte
 
 #[cfg(test)]
 mod test {
-    use crate::{ParallelProgressIterator, ProgressBar, ProgressBarIter};
     use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+    use crate::{ParallelProgressIterator, ProgressBar, ProgressBarIter, ProgressStyle};
 
     #[test]
     fn it_can_wrap_a_parallel_iterator() {
@@ -213,6 +225,13 @@ mod test {
         wrap({
             let pb = ProgressBar::new(v.len() as u64);
             v.par_iter().progress_with(pb)
+        });
+
+        wrap({
+            let style = ProgressStyle::default_bar()
+                .template("{wide_bar:.red} {percent}/100%")
+                .unwrap();
+            v.par_iter().progress_with_style(style)
         });
     }
 }
