@@ -33,9 +33,9 @@ class SearchSource {
 
     const isFileUrl = url.startsWith("file://");
 
-    // No "." in the url that is not a file:// one, return false since this
+    // No "." in the url that is not a file:// or ipfs:// one, return false since this
     // is likely a keyword search.
-    if (!url.includes(".") && !isFileUrl) {
+    if (!url.includes(".") && !isFileUrl && !url.startsWith("ipfs://")) {
       return false;
     }
 
