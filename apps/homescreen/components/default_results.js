@@ -50,7 +50,7 @@ class DefaultResults extends LitElement {
             node = new PlacesItem(result);
             break;
           default:
-            tag && console.error(`Unsupported result: ${tag}`);
+            tag && console.error(`Unsupported resource tag: ${tag}`);
             break;
         }
 

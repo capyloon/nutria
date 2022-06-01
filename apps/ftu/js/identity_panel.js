@@ -54,6 +54,8 @@ class IdentityPanel {
 
     this.menu.innerHTML = "";
 
+    list = list.filter((did) => did.name !== "superuser");
+
     if (list.length === 0) {
       this.menu.innerHTML = `<sl-menu-item data-l10n-id="identity-empty" disabled></sl-menu-item>`;
       return;
