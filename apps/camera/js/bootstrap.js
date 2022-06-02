@@ -26,6 +26,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   let graph = new ParallelGraphLoader(kDeps);
   await Promise.all([getSharedDeps("shared-all"), graph.waitForDeps("main")]);
 
+  await contentManager.as_superuser();
+
   let cameraModule;
 
   // Import the base class in scope.

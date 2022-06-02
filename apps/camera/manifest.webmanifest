@@ -16,7 +16,8 @@
     },
     "permissions": {
       "camera": {},
-      "content-manager": {}
+      "content-manager": {},
+      "dweb": {}
     }
   },
   "version": "1.0"

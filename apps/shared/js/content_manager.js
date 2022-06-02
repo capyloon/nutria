@@ -13,6 +13,15 @@ export class ContentManager {
     this.topLevel = new Map();
   }
 
+  // Configure the content manager to use a superuser UCAN. This requires the caller
+  // to have the 'dweb' permission in order for the `requestSuperuser()` call to succeed.
+  async as_superuser() {
+    this.dweb = this.dweb || (await apiDaemon.getDwebService());
+    let ucan = await this.dweb.requestSuperuser();
+    let svc = await this.service;
+    svc.withUcan(ucan);
+  }
+
   getPluginsManager(callback) {
     return new PluginsManager(callback);
   }

@@ -53,6 +53,8 @@ document.addEventListener(
       )
     );
 
+    await contentManager.as_superuser();
+
     log(`Starting at ${document.location}`);
 
     if (document.location.hash == "#root") {

@@ -18,6 +18,7 @@
     "permissions": {
       "content-manager": {},
       "datacall": {},
+      "dweb": {},
       "desktop-notification": {},
       "downloads": {},
       "flashlight": {},

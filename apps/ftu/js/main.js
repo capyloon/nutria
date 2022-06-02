@@ -1,3 +1,5 @@
+import { ContentManager } from "../../shared/js/content_manager";
+
 function elem(id) {
   return document.getElementById(id);
 }
@@ -64,6 +66,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let graph = new ParallelGraphLoader(addShoelaceDeps(kDeps));
   await Promise.all([getSharedDeps("shared-all"), graph.waitForDeps("intro")]);
+
+  await ContentManager.as_superuser();
 
   document.body.classList.add("ready");
 

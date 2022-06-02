@@ -16,6 +16,7 @@
     },
     "permissions": {
       "content-manager": {},
+      "dweb": {},
       "settings": { "access": "readwrite" },
       "web-view": {}
     },

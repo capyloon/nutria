@@ -184,6 +184,8 @@ class ActionsStore extends EventTarget {
   async init() {
     this.log(`init`);
 
+    await contentManager.as_superuser();
+
     this.svc = await contentManager.getService();
     this.http_key = await this.svc.httpKey();
 
