@@ -31,11 +31,17 @@ class SearchSource {
       return false;
     }
 
+    let isUrl = false;
+    try {
+      let a = new URL(url);
+      isUrl = true;
+    } catch (e) {}
+
     const isFileUrl = url.startsWith("file://");
 
     // No "." in the url that is not a file:// or ipfs:// one, return false since this
     // is likely a keyword search.
-    if (!url.includes(".") && !isFileUrl && !url.startsWith("ipfs://")) {
+    if (!url.includes(".") && !isUrl) {
       return false;
     }
 
