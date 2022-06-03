@@ -171,7 +171,7 @@ export class ContentManager {
         done = true;
       }
     }
-    cursor.release();
+    // cursor.release();
 
     if (id === null) {
       this.error(`No '${containerName}' container found, creating one.`);

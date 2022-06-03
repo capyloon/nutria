@@ -86,8 +86,9 @@ function windowModuleLoader(url, winProp, moduleProp) {
     try {
       let imported = await import(new URL(url, location));
       window[winProp] = new imported[moduleProp](window.config, window);
+      // console.log(`windowModuleLoader window.${winProp}=`, window[winProp]);
     } catch (e) {
-      console.log(`windowModuleLoader failure: ${e} for ${url}`);
+      console.error(`windowModuleLoader failed:`, url, winProp, moduleProp, e);
     }
   };
 }

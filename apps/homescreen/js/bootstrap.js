@@ -1,5 +1,7 @@
 // Starts and attach some event listeners to open and close the search panel.
 
+var graph;
+
 class AppsListHelper {
   constructor() {
     this.ready = false;
@@ -25,9 +27,6 @@ class AppsListHelper {
 }
 
 const appsList = new AppsListHelper();
-window.requestIdleCallback(() => {
-  appsList.ensureReady();
-});
 
 const kBindingsModifier = "Control";
 // Global key bindings for the homescreen.
@@ -67,8 +66,6 @@ function openSearchBox() {
     searchBox.focus();
   }
 }
-
-var graph;
 
 document.addEventListener("DOMContentLoaded", async () => {
   // navigator.serviceWorker.register("/sw.js").then(
@@ -167,6 +164,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   navigator.serviceWorker.onmessage = activityHandler;
 
   let keyBindings = new KeyBindings();
+
+  window.requestIdleCallback(() => {
+    appsList.ensureReady();
+  });
 });
 
 async function activityHandler(event) {
