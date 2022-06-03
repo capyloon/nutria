@@ -7,6 +7,7 @@ const kDeps = [
       "shoelace-drawer",
       "shoelace-light-theme",
       "shoelace-setup",
+      "content manager",
     ],
   },
   {
