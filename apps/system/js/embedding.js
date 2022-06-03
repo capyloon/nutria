@@ -261,5 +261,8 @@ const UAHelper = {
     Services.startup.quit(Services.startup.eForceQuit);
   };
 
+  Services.prefs.setBoolPref("devtools.custom-formatters", false);
+  Services.prefs.setBoolPref("devtools.custom-formatters.enabled", false);
+
   defferedDone();
 })(window);
