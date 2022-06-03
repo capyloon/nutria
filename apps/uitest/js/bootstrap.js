@@ -139,6 +139,11 @@ document.addEventListener(
     window["vibrate"].onclick = () => {
       navigator.vibrate(500);
     };
+
+    window.setTimeout(() => {
+      window["music"].setAttribute("controls", "true");
+      window["video"].setAttribute("controls", "true");
+    }, 3000);
   },
   { once: true }
 );
