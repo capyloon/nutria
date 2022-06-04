@@ -1,7 +1,8 @@
 // <window-manager> custom element: a simple window manager.
 
 // Manages key binding state for the window manager.
-const kCarouselModifier = embedder.sessionType == "session" ? "Alt" : "Control";
+const kCarouselModifier =
+  embedder.sessionType == "session" ? "Alt" : window.config.metaOrControl;
 
 class WindowManagerKeys {
   constructor(wm) {
@@ -56,7 +57,7 @@ class WindowManagerKeys {
       this.isAltDown = event.type === "keydown";
     }
 
-    if (event.key === "Control") {
+    if (event.key === window.config.metaOrControl) {
       this.isCtrlDown = event.type === "keydown";
     }
 

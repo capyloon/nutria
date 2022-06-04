@@ -12,6 +12,9 @@ XPCOMUtils.defineLazyModuleGetters(modules, {
 
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
+window.config.platform = AppConstants.platform;
+window.config.metaOrControl = AppConstants.platform == "macosx" ? "Meta" : "Control";
+
 const UAHelper = {
   default: () => {
     let version = Services.appinfo.platformVersion;
