@@ -155,6 +155,7 @@ const kDeps = [
       "text share comp",
       "confirm dialog comp",
       "publish dialog comp",
+      "ucan",
     ],
   },
   {
@@ -272,6 +273,19 @@ const kDeps = [
     kind: "module",
     param: ["./components/url_edit.js"],
     deps: ["content manager"],
+  },
+  {
+    name: "ucan",
+    kind: "module",
+    param: ["./components/ucan.js", ["Ucan"]],
+    deps: [
+      "api daemon core",
+      "shoelace-dialog",
+      "shoelace-button",
+      "shoelace-menu",
+      "shoelace-menu-item",
+      "shoelace-select",
+    ],
   },
   {
     name: "ipfs",

@@ -95,3 +95,22 @@ save-as-pdf-title = Saving as PDF
 save-as-pdf-processing = Processing '{$filename}'
 save-as-pdf-done = Successfully saved '{$filename}'
 save-as-pdf-error = Failed to save '{$filename}'
+
+# UCAN capabilites dialog
+ucan-dialog-title =
+    .label = Permissions
+ucan-select-url = Choose which permissions you want to grant to <span>{$url}</span>:
+ucan-select-did =
+    .label = Identity
+ucan-select-duration =
+    .label = Expires in
+ucan-duration-10min = 10 Minutes
+ucan-duration-1hour = 1 Hour
+ucan-duration-1day = 1 Day
+ucan-duration-1week = 1 Week
+ucan-duration-1month = 1 Month
+ucan-permission-vfs-read = Read content in the {$scope} folder and subfolders
+ucan-permission-vfs-write = Write content in the {$scope} folder and subfolders
+ucan-permission-vfs-visit = Update the visits of a resource
+ucan-permission-vfs-search = Run queries on the resources database
+ucan-button-grant = Grant

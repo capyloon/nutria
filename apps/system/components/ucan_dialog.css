@@ -1,0 +1,27 @@
+/* Style for <publish-dialog> */
+
+:host {
+  color: var(--sl-color-neutral-500);
+}
+
+:host sl-dialog div.container {
+  display: flex;
+  flex-direction: column;
+  align-items: left;
+  gap: 1em;
+}
+
+:host .buttons {
+  display: flex;
+  gap: 0.5em;
+  margin-top: 0.5em;
+  justify-content: end;
+}
+
+:host sl-menu sl-menu-item[checked]::part(label) {
+  color: var(--sl-color-success-500);
+}
+
+:host .description span {
+  color: var(--sl-color-success-500);
+}

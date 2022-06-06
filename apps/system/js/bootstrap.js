@@ -410,6 +410,8 @@ document.addEventListener(
 
     const torFilter = new TorProxyChannelFilter();
     setupWebExtensions();
+
+    let _ucan = new Ucan();
   },
   { once: true }
 );

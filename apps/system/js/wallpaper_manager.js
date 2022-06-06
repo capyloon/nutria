@@ -69,6 +69,7 @@ class WallpaperManager extends EventTarget {
   async ensureWallpaperContainer() {
     this.log(`ensureWallpaperContainer ${this.wallpaperContainer}`);
     if (!this.wallpaperContainer) {
+      await contentManager.as_superuser();
       this.wallpaperContainer = await contentManager.ensureTopLevelContainer(
         "wallpapers"
       );
@@ -127,10 +128,6 @@ class WallpaperManager extends EventTarget {
 
   async loadOrUseDefault(firstLaunch = true) {
     this.log(`loadOrUseDefault`);
-
-    if (firstLaunch) {
-      await contentManager.as_superuser();
-    }
 
     this.currentResource = await this.getCurrentWallpaper();
     if (!this.currentResource) {
