@@ -43,6 +43,7 @@ class IdentityPanel {
     try {
       let did = await this.dweb.createDid(name);
       // this.log(`DID created: ${JSON.stringify(did)}`);
+      input.value = "";
     } catch (e) {
       this.alert.show();
     }
