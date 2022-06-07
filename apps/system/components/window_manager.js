@@ -172,7 +172,7 @@ class WindowManagerKeys {
     // Reset zoom for the current tab with [Ctrl] + [0]
     if (this.isCtrlDown && event.type === "keydown" && !this.isCarouselOpen) {
       if (event.key === "r") {
-        this.wm.reloadCurrentFrame();
+        this.wm.reloadCurrentFrame(this.isShiftDown);
       } else if (event.key === "+") {
         this.wm.zoomInCurrentFrame();
       } else if (event.key === "=") {
@@ -313,8 +313,8 @@ class WindowManager extends HTMLElement {
     });
   }
 
-  reloadCurrentFrame() {
-    this.activeFrame && this.frames[this.activeFrame].reload();
+  reloadCurrentFrame(forced = false) {
+    this.activeFrame && this.frames[this.activeFrame].reload(forced);
   }
 
   zoomInCurrentFrame() {

@@ -205,7 +205,7 @@ class ContentWindow extends HTMLElement {
       case "change-ua":
         this.webView.linkedBrowser.browsingContext.customUserAgent =
           UAHelper.get(event.detail);
-        this.webView.reload();
+        this.reload();
         break;
     }
   }
@@ -657,8 +657,8 @@ class ContentWindow extends HTMLElement {
     this.webView.goForward();
   }
 
-  reload() {
-    this.webView.reload();
+  reload(forced = false) {
+    this.webView.reload(forced);
   }
 
   themeColorChanged(color) {
