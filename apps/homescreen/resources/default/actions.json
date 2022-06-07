@@ -33,7 +33,7 @@
     "url": "ipns://filecoin.io",
     "icon": "./resources/filecoin-logo.svg",
     "backgroundColor": "white",
-    "position": "3, 1"
+    "position": "2, 0"
   },
   {
     "id": "default-7",
@@ -52,6 +52,15 @@
     "icon": "./resources/capyloon-logo.webp",
     "backgroundColor": "wheat",
     "position": "3, 2"
+  },
+  {
+    "id": "default-9",
+    "kind": "bookmark",
+    "title": "Places",
+    "url": "https://capyloon.org/places/index.html",
+    "icon": "./resources/capyloon-logo.webp",
+    "backgroundColor": "wheat",
+    "position": "2, 2"
   },
   {
     "id": "default-4",
