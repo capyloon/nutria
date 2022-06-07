@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.49"
 name = "tokio"
-version = "1.18.2"
+version = "1.19.2"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = """
 An event-driven, non-blocking I/O platform for writing asynchronous I/O
@@ -97,7 +97,7 @@ version = "0.3.0"
 features = ["async-await"]
 
 [dev-dependencies.mockall]
-version = "0.10.2"
+version = "0.11.1"
 
 [dev-dependencies.tempfile]
 version = "3.1.0"
