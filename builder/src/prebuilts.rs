@@ -322,7 +322,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
                 #[cfg(target_os = "macos")]
                 let _ = writeln!(
                     env_file,
-                    "export NUTRIA_B2G_BINARY={}/B2G.app/Contents/MacOS/b2g",
+                    "export NUTRIA_B2G_BINARY={}/Capyloon.app/Contents/MacOS/b2g",
                     prebuilts.display()
                 );
                 #[cfg(not(target_os = "macos"))]
