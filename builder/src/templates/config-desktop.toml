@@ -13,7 +13,7 @@ root_path = "../prebuilts/http_root"
 
 [vhost]
 root_path = "../prebuilts/http_root/webapps/vroot"
-csp = "default-src * data: blob:; script-src 'self' http://127.0.0.1:8081 http://shared.localhost:8081; object-src 'none'; style-src 'self' http://shared.localhost:8081 http://branding.localhost:8081 http://theme.localhost:8081"
+csp = "default-src * data: blob:; script-src 'self' 'wasm-unsafe-eval' http://127.0.0.1:8081 http://shared.localhost:8081; object-src 'none'; style-src 'self' http://shared.localhost:8081 http://branding.localhost:8081 http://theme.localhost:8081"
 report_csp = true
 
 [apps_service]
