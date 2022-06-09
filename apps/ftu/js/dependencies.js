@@ -94,6 +94,7 @@ const kDeps = [
     name: "content manager",
     kind: "sharedWindowModule",
     param: ["js/content_manager.js", "contentManager", "ContentManager"],
+    deps: ["shared-api-daemon"],
   },
   {
     name: "privacy-panel",

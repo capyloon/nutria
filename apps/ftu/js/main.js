@@ -62,8 +62,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await depGraphLoaded;
 
-  let graph = new ParallelGraphLoader(addShoelaceDeps(kDeps));
-  await Promise.all([getSharedDeps("shared-all"), graph.waitForDeps("intro")]);
+  graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
+  await Promise.all(
+    ["shared-all", "intro"].map((dep) => graph.waitForDeps(dep))
+  );
 
   await contentManager.as_superuser();
 
