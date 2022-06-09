@@ -674,6 +674,15 @@ class ContentWindow extends HTMLElement {
     x.parentNode.removeChild(x);
   }
 
+  hideLoader() {
+    this.loader.classList.remove("running");
+    this.loader.classList.add("hidden");
+    if (this.config.isHomescreen) {
+      actionsDispatcher.dispatch("homescreen-ready");
+    }
+    this.updateScreenshot();
+  }
+
   async handleBrowserEvent(event) {
     let detail = event.detail;
     let uiUpdateNeeded = false;
@@ -683,12 +692,7 @@ class ContentWindow extends HTMLElement {
 
     switch (eventType) {
       case "documentfirstpaint":
-        this.loader.classList.remove("running");
-        this.loader.classList.add("hidden");
-        if (this.config.isHomescreen) {
-          actionsDispatcher.dispatch("homescreen-ready");
-        }
-        this.updateScreenshot();
+        this.hideLoader();
         break;
       case "titlechange":
         this.state.title = detail.title;
@@ -804,6 +808,14 @@ class ContentWindow extends HTMLElement {
               console.error(`getBackground failed: ${error}`);
               await this.updateUi(true);
             });
+        }
+        // Workaround the lack of documentfirstpaint event in some situations
+        // when loading moz-extension:// documents.
+        if (
+          !this.loader.classList.contains("hidden") &&
+          this.state.url.startsWith("moz-extension://")
+        ) {
+          this.hideLoader();
         }
         break;
       case "iconchange":

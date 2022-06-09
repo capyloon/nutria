@@ -398,6 +398,9 @@ class WindowManager extends HTMLElement {
       return null;
     }
 
+    // Close the webext action popup if it's open.
+    document.querySelector("webext-browser-action").hide();
+
     let startId = this.startedAt[url];
     if (startId && this.frames[startId]) {
       if (this.isCarouselOpen) {

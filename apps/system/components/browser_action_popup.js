@@ -11,7 +11,7 @@ class BrowserActionPopup extends HTMLElement {
     this.addEventListener("click", (event) => {
       //   console.log(`BrowserActionPopup click on ${event.target.localName}`);
       if (event.target.localName === "sl-icon") {
-        this.hide("webext-browser-action");
+        this.hide();
       }
     });
 
