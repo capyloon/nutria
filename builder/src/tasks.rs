@@ -55,7 +55,7 @@ impl Task for GetAppList {
 
         let mut res = vec![];
 
-        for entry in std::fs::read_dir(&self.root)? {
+        for entry in fs::read_dir(&self.root)? {
             let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
@@ -82,7 +82,7 @@ pub struct LinkApp {
 impl Task for LinkApp {
     type Input = (String, PathBuf); // app: (name, path)
     type Output = ();
-    type Error = ZipError;
+    type Error = std::io::Error;
 
     fn new(config: &BuildConfig) -> Self {
         Self {
@@ -98,7 +98,21 @@ impl Task for LinkApp {
         let dest_dir = self.output_path.join("profile").join("webapps");
         let _ = fs::create_dir_all(&dest_dir);
 
-        std::os::unix::fs::symlink(src_dir, dest_dir.join(input.0))?;
+        let dest = dest_dir.join(input.0);
+        if dest.exists() {
+            // symlink exists, check that it's from the correct path.
+            let meta = fs::symlink_metadata(&dest)?;
+            if meta.is_symlink() {
+                let source = fs::read_link(&dest)?;
+                if source == src_dir {
+                    return Ok(());
+                }
+            }
+            // Something is wront with the symlink, delete it to re-create it.
+            fs::remove_file(&dest)?;
+        }
+
+        std::os::unix::fs::symlink(src_dir, dest)?;
 
         Ok(())
     }
