@@ -156,6 +156,11 @@ class WindowManagerKeys {
       activity.start().then(() => console.log(`new-tab done`));
     }
 
+    // Do a WebRender Capture with [Ctrl] + [Shift] + [w]
+    if (this.isCtrlDown && this.isShiftDown && event.key === "w") {
+      embedder.wrCapture();
+    }
+
     // Close the current tab with [Ctrl] + [w]
     if (
       this.isCtrlDown &&

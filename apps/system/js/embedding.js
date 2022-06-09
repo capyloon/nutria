@@ -13,7 +13,8 @@ XPCOMUtils.defineLazyModuleGetters(modules, {
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 window.config.platform = AppConstants.platform;
-window.config.metaOrControl = AppConstants.platform == "macosx" ? "Meta" : "Control";
+window.config.metaOrControl =
+  AppConstants.platform == "macosx" ? "Meta" : "Control";
 
 const UAHelper = {
   default: () => {
@@ -223,6 +224,10 @@ const UAHelper = {
   });
 
   embedder.delayPreallocatedProcess = processSelector.delayPreallocatedProcess;
+  embedder.wrCapture = () => {
+    log(`wrCapture`);
+    window.windowUtils.wrCapture();
+  }
 
   exports.embedder = embedder;
 

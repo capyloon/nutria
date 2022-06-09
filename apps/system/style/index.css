@@ -153,3 +153,7 @@ so can't be part of component specific css file.
     max-width: calc(min(50%, 600px));
   }
 }
+
+sl-drawer::part(overlay) {
+  backdrop-filter: blur(10px);
+}
