@@ -1,0 +1,1 @@
+import{a as r,b as m}from"./chunk.OAQCUA7X.js";var s=new Map,i=new WeakMap;function a(n){return n!=null?n:{keyframes:[],options:{duration:0}}}function l(n,t){s.set(n,a(t))}function u(n,t,e){i.set(n,m(r({},i.get(n)),{[t]:a(e)}))}function f(n,t){let e=i.get(n);if(e!=null&&e[t])return e[t];let o=s.get(t);return o||{keyframes:[],options:{duration:0}}}export{l as a,u as b,f as c};

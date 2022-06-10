@@ -1,11 +1,1 @@
-import {
-  SlMenuLabel
-} from "../../chunks/chunk.OTJEEAQN.js";
-import "../../chunks/chunk.M72JNJAN.js";
-import "../../chunks/chunk.72DLNKYZ.js";
-import "../../chunks/chunk.KNVYX3FQ.js";
-import "../../chunks/chunk.PEQICPKO.js";
-import "../../chunks/chunk.ICGTMF5Z.js";
-export {
-  SlMenuLabel as default
-};
+import{a}from"../../chunks/chunk.SGG7LISQ.js";import"../../chunks/chunk.SP2OLGOT.js";import"../../chunks/chunk.GVR6SJVE.js";import"../../chunks/chunk.WZZJRKWJ.js";import"../../chunks/chunk.7EIHAL55.js";import"../../chunks/chunk.OAQCUA7X.js";export{a as default};

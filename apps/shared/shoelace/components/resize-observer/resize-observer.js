@@ -1,13 +1,1 @@
-import {
-  SlResizeObserver
-} from "../../chunks/chunk.RILASTL6.js";
-import "../../chunks/chunk.HBTPDJ7M.js";
-import "../../chunks/chunk.PQ5VRVXF.js";
-import "../../chunks/chunk.CDTZZV7W.js";
-import "../../chunks/chunk.72DLNKYZ.js";
-import "../../chunks/chunk.KNVYX3FQ.js";
-import "../../chunks/chunk.PEQICPKO.js";
-import "../../chunks/chunk.ICGTMF5Z.js";
-export {
-  SlResizeObserver as default
-};
+import{a}from"../../chunks/chunk.5EJIM5V2.js";import"../../chunks/chunk.LTYLEQUG.js";import"../../chunks/chunk.OSEV3RCT.js";import"../../chunks/chunk.V4OMSSO6.js";import"../../chunks/chunk.GVR6SJVE.js";import"../../chunks/chunk.WZZJRKWJ.js";import"../../chunks/chunk.7EIHAL55.js";import"../../chunks/chunk.OAQCUA7X.js";export{a as default};

@@ -1,9 +1,1 @@
-import {
-  tab_panel_styles_default
-} from "../../chunks/chunk.XGXDQT2J.js";
-import "../../chunks/chunk.KNVYX3FQ.js";
-import "../../chunks/chunk.PEQICPKO.js";
-import "../../chunks/chunk.ICGTMF5Z.js";
-export {
-  tab_panel_styles_default as default
-};
+import{a}from"../../chunks/chunk.7JG5Q52A.js";import"../../chunks/chunk.WZZJRKWJ.js";import"../../chunks/chunk.7EIHAL55.js";import"../../chunks/chunk.OAQCUA7X.js";export{a as default};
