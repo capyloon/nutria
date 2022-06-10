@@ -199,5 +199,6 @@ sl-input::part(password-toggle-button) {
 #identity-panel .identity-add {
   margin-top: 1em;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5em;
 }
