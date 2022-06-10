@@ -2,13 +2,7 @@ const kDeps = [
   {
     name: "intro",
     kind: "virtual",
-    deps: [
-      "shoelace-button",
-      "shoelace-drawer",
-      "shoelace-light-theme",
-      "shoelace-setup",
-      "content manager",
-    ],
+    deps: ["shoelace-button", "shoelace-light-theme", "shoelace-setup"],
   },
   {
     name: "language-panel",
@@ -123,4 +117,5 @@ const kDeps = [
     kind: "module",
     param: ["js/switch_setting.js", "SwitchAndSetting"],
   },
+  { name: "dummy", kind: "virtual", deps: ["shoelace-drawer"] },
 ];

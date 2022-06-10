@@ -31,9 +31,10 @@ class PanelWrapper {
         .querySelector("sl-button.panel-back")
         .addEventListener("click", () => history.back());
 
+      let next = this.panel.getAttribute("next");
       let btnOk = this.panel.querySelector("sl-button.panel-ok");
       btnOk?.addEventListener("click", () => {
-        window.location.hash = "#" + this.panel.getAttribute("next");
+        window.location.hash = `#${next}`;
       });
 
       let btnDone = this.panel.querySelector("sl-button.panel-done");
@@ -43,6 +44,13 @@ class PanelWrapper {
 
       this.loaded = true;
       this.panel.dispatchEvent(new CustomEvent("panel-ready"));
+
+      // Preload the next panel when idle.
+      if (next) {
+        window.requestIdleCallback(async () => {
+          await this.graph.waitForDeps(`${next}-panel`);
+        });
+      }
     }
 
     if (event.type === "sl-initial-focus") {
@@ -64,10 +72,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
   await Promise.all(
-    ["shared-all", "intro"].map((dep) => graph.waitForDeps(dep))
+    ["shared-api-daemon", "shared-fluent", "intro"].map((dep) =>
+      graph.waitForDeps(dep)
+    )
   );
-
-  await contentManager.as_superuser();
 
   document.body.classList.add("ready");
 
@@ -93,12 +101,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     wrappers.set(name, wrapper);
   });
 
+  let drawerLoaded = false;
+
+  window.requestIdleCallback(async () => {
+    if (!drawerLoaded) {
+      await graph.waitForDeps("shoelace-drawer");
+      drawerLoaded = true;
+    }
+  });
+
   // Will open only the panel for that #hash
   window.addEventListener(
     "hashchange",
-    () => {
+    async () => {
       let hash = window.location.hash;
       let name = hash === "" ? "" : hash.substring(1) + "-panel";
+
+      if (!drawerLoaded) {
+        await graph.waitForDeps("shoelace-drawer");
+        drawerLoaded = true;
+      }
 
       for (let wrapper of wrappers.values()) {
         if (wrapper.name === name) {
@@ -111,7 +133,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     false
   );
 
+  let startPanel = "language";
+
+  // Preload the first panel when idle.
+  window.requestIdleCallback(async () => {
+    await this.graph.waitForDeps(`${startPanel}-panel`);
+  });
+
   elem("btn-start").onclick = () => {
-    window.location.hash = "#language";
+    window.location.hash = `#${startPanel}`;
   };
 });

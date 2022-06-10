@@ -54,6 +54,8 @@ class SearchPanel {
 
     let rendered = false;
 
+    await contentManager.as_superuser();
+
     this.openSearch = contentManager.getOpenSearchManager((items) => {
       // TODO: smarter update of the engine list.
       if (rendered) {

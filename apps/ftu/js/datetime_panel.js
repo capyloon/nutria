@@ -135,19 +135,27 @@ class DatetimePanel {
       let list = document.createElement("sl-details");
       list.setAttribute("summary", region);
 
-      let menu = document.createElement("sl-menu");
-      menu.addEventListener("sl-select", this.selectTimezone.bind(this));
-      list.append(menu);
+      list.addEventListener(
+        "sl-after-show",
+        () => {
+          let menu = document.createElement("sl-menu");
+          menu.addEventListener("sl-select", this.selectTimezone.bind(this));
 
-      let cities = json[region];
-      cities.forEach((city) => {
-        let item = document.createElement("sl-menu-item");
-        let offset = city.offset.split(","); // [utcOffset, dstOffset]
-        item.textContent =
-          (city["name"] || city.city.replace(/_/g, " ")) + " " + offset[0];
-        item.timezone = city.id || `${region}/${city.city}`;
-        menu.append(item);
-      });
+          let cities = json[region];
+          let fragment = document.createDocumentFragment();
+          cities.forEach((city) => {
+            let item = document.createElement("sl-menu-item");
+            let offset = city.offset.split(","); // [utcOffset, dstOffset]
+            item.textContent =
+              (city["name"] || city.city.replace(/_/g, " ")) + " " + offset[0];
+            item.timezone = city.id || `${region}/${city.city}`;
+            fragment.append(item);
+          });
+          menu.append(fragment);
+          list.append(menu);
+        },
+        { once: true }
+      );
 
       container.append(list);
     }
