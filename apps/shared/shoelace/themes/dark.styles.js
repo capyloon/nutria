@@ -3,6 +3,8 @@ import { css } from "lit";
 export default css`
   :host,
   .sl-theme-dark {
+    color-scheme: dark;
+
     --sl-color-gray-50: hsl(240 5.1% 15%);
     --sl-color-gray-100: hsl(240 5.7% 18.2%);
     --sl-color-gray-200: hsl(240 4.6% 22%);
@@ -347,10 +349,12 @@ export default css`
     --sl-line-height-loose: 2.2;
     --sl-line-height-looser: 2.6;
 
-    --sl-focus-ring-alpha: 45%;
+    --sl-focus-ring-color: var(--sl-color-primary-700);
+    --sl-focus-ring-style: solid;
     --sl-focus-ring-width: 3px;
-    --sl-focus-ring: 0 0 0 var(--sl-focus-ring-width)
-      hsl(198.6 88.7% 48.4% / var(--sl-focus-ring-alpha));
+    --sl-focus-ring: var(--sl-focus-ring-style) var(--sl-focus-ring-width)
+      var(--sl-focus-ring-color);
+    --sl-focus-ring-offset: 1px;
 
     --sl-button-font-size-small: var(--sl-font-size-x-small);
     --sl-button-font-size-medium: var(--sl-font-size-small);
@@ -403,6 +407,9 @@ export default css`
     --sl-input-filled-color-focus: var(--sl-color-neutral-700);
     --sl-input-filled-color-disabled: var(--sl-color-neutral-800);
 
+    --sl-input-focus-ring-color: hsl(198.6 88.7% 48.4% / 40%);
+    --sl-input-focus-ring-offset: 0;
+
     --sl-input-label-font-size-small: var(--sl-font-size-small);
     --sl-input-label-font-size-medium: var(--sl-font-size-medium);
     --sl-input-label-font-size-large: var(--sl-font-size-large);
@@ -447,7 +454,7 @@ export default css`
   .sl-toast-stack {
     position: fixed;
     top: 0;
-    right: 0;
+    inset-inline-end: 0;
     z-index: var(--sl-z-index-toast);
     width: 28rem;
     max-width: 100%;

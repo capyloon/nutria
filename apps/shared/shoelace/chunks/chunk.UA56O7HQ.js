@@ -1,0 +1,1 @@
+var s="";function c(t){s=t}function r(){if(!s){let t=[...document.getElementsByTagName("script")],a=t.find(e=>e.hasAttribute("data-shoelace"));if(a)c(a.getAttribute("data-shoelace"));else{let e=t.find(n=>/shoelace(\.min)?\.js($|\?)/.test(n.src)),i="";e&&(i=e.getAttribute("src")),c(i.split("/").slice(0,-1).join("/"))}}return s.replace(/\/$/,"")}export{c as a,r as b};
