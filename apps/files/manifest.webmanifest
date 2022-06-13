@@ -4,7 +4,7 @@
   "start_url": "/index.html#root",
   "icons": [
     {
-      "src": "/icons/contentmgr.svg",
+      "src": "/icons/files.svg",
       "type": "image/svg",
       "sizes": "any"
     }

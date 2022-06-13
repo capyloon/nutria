@@ -158,11 +158,11 @@
      y2="100%">
     <stop
        offset="0%"
-       style="stop-color:#00a0e8;stop-opacity:1"
+       style="stop-color:#ff8000;stop-opacity:1"
        id="stop2" />
     <stop
        offset="100%"
-       style="stop-color:#0061e0;stop-opacity:1"
+       style="stop-color:#c06000;stop-opacity:1"
        id="stop4" />
   </linearGradient>
   <linearGradient
@@ -194,7 +194,7 @@
      class="ac-color"
      id="path19" />
   <path
-     d="M5 3 11 3Q13 3 13 5L13 9Q13 11 11 11L8 11Q6 13 5 13L5 11Q3 11 3 9L3 5Q3 3 5 3"
+     d="M4 3 7 3Q8 3 8 4 8 5 9 5L12 5Q13 5 13 6L13 11Q13 12 12 12L4 12Q3 12 3 11L3 4Q3 3 4 3"
      class="ac-color1"
      id="path21"
      style="filter:url(#filter37)" />
