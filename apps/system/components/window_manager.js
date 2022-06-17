@@ -217,10 +217,7 @@ class WindowManager extends HTMLElement {
     this.container.classList.add("main");
     this.container.innerHTML = `<link rel="stylesheet" href="components/window_manager.css">
     <div class="windows"></div>
-    <div class="carousel hidden">
-      <div class="empty"></div>
-      <div class="empty"></div>
-    </div>
+    <div class="carousel hidden"></div>
     `;
     this.appendChild(this.container);
 
@@ -684,9 +681,10 @@ class WindowManager extends HTMLElement {
     // Keep the 75% vs 50% in sync with this rule in window_manager.css :
     // window-manager .carousel > div:not(.empty-carousel)
     let screenshotSize = embedder.sessionType === "mobile" ? 75 : 50;
-    this.carousel.style.gridTemplateColumns = `25% repeat(${
+    let marginSize = (100 - screenshotSize) / 2;
+    this.carousel.style.gridTemplateColumns = `${marginSize}% repeat(${
       frameCount - 1
-    }, ${screenshotSize}%) 25%`;
+    }, ${screenshotSize}%) ${marginSize}%`;
     // Add the elements to the carousel.
     this.carousel.innerHTML = "";
 
@@ -818,9 +816,9 @@ class WindowManager extends HTMLElement {
             // Update the grid columns definitions.
             let frameCount = Object.keys(this.frames).length;
             if (frameCount > 1) {
-              this.carousel.style.gridTemplateColumns = `25% repeat(${
+              this.carousel.style.gridTemplateColumns = `${marginSize}% repeat(${
                 frameCount - 1
-              }, ${screenshotSize}%) 25%`;
+              }, ${screenshotSize}%) ${marginSize}%`;
             }
 
             // Exit the carousel when closing the last window.

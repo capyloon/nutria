@@ -59,6 +59,7 @@ window-manager .carousel {
 
 window-manager .carousel > div:not(.empty-carousel) {
   scroll-snap-align: center;
+  scroll-snap-stop: always;
   height: 75%;
   margin-top: auto;
   margin-bottom: auto;
