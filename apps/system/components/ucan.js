@@ -35,6 +35,20 @@ class UcanDialog extends LitElement {
     document.l10n.translateFragment(this.shadowRoot);
   }
 
+  // Updates the permission name to recognizes well-known scope + capabilities patterns.
+  mapPermission(scope, permission) {
+    // /places/ access is mapped to 'history' access.
+    if (scope === "/places/") {
+      if (permission === "vfs-read") {
+        permission = "history-read";
+      } else if (permission === "vfs-write") {
+        permission = "history-write";
+      }
+    }
+
+    return permission;
+  }
+
   render() {
     this.log(`render ${JSON.stringify(this.requested)}`);
 
@@ -42,7 +56,10 @@ class UcanDialog extends LitElement {
     if (this.requested?.capabilities) {
       this.requested.capabilities.forEach((cap, index) => {
         let args = JSON.stringify({ scope: cap.scope.pathname });
-        let permission = cap.action.toLowerCase().replace("/", "-");
+        let permission = this.mapPermission(
+          cap.scope.pathname,
+          cap.action.toLowerCase().replace("/", "-")
+        );
         items.push(
           html`<sl-menu-item
             class="capability"

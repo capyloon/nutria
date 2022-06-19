@@ -113,4 +113,6 @@ ucan-permission-vfs-read = Read content in the {$scope} folder and subfolders
 ucan-permission-vfs-write = Write content in the {$scope} folder and subfolders
 ucan-permission-vfs-visit = Update the visits of a resource
 ucan-permission-vfs-search = Run queries on the resources database
+ucan-permission-history-read = Access your navigation history
+ucan-permission-history-write = Modify your navigation history
 ucan-button-grant = Grant
