@@ -57,6 +57,10 @@ sl-icon {
   display: none;
 }
 
+.container.carousel {
+  backdrop-filter: blur(10px);
+}
+
 .center {
   display: flex;
   align-items: center;
