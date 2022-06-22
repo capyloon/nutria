@@ -412,6 +412,15 @@ document.addEventListener(
     setupWebExtensions();
 
     let _ucan = new Ucan();
+
+    embedder.addEventListener("geolocation-status", (event) => {
+      let status = document.getElementById("geolocation-status");
+      if (event.detail.active === true) {
+        status.classList.remove("hidden");
+      } else {
+        status.classList.add("hidden");
+      }
+    });
   },
   { once: true }
 );
