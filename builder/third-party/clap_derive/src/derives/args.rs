@@ -15,7 +15,7 @@
 use crate::{
     attrs::{Attrs, Kind, Name, ParserKind, DEFAULT_CASING, DEFAULT_ENV_CASING},
     dummies,
-    utils::{inner_type, sub_type, Sp, Ty},
+    utils::{inner_type, is_simple_ty, sub_type, Sp, Ty},
 };
 
 use proc_macro2::{Ident, Span, TokenStream};
@@ -113,6 +113,7 @@ pub fn gen_from_arg_matches_for_struct(
 
     let constructor = gen_constructor(fields, &attrs);
     let updater = gen_updater(fields, &attrs, true);
+    let raw_deprecated = raw_deprecated();
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -132,11 +133,21 @@ pub fn gen_from_arg_matches_for_struct(
         #[deny(clippy::correctness)]
         impl #impl_generics clap::FromArgMatches for #struct_name #ty_generics #where_clause {
             fn from_arg_matches(__clap_arg_matches: &clap::ArgMatches) -> ::std::result::Result<Self, clap::Error> {
+                Self::from_arg_matches_mut(&mut __clap_arg_matches.clone())
+            }
+
+            fn from_arg_matches_mut(__clap_arg_matches: &mut clap::ArgMatches) -> ::std::result::Result<Self, clap::Error> {
+                #raw_deprecated
                 let v = #struct_name #constructor;
                 ::std::result::Result::Ok(v)
             }
 
             fn update_from_arg_matches(&mut self, __clap_arg_matches: &clap::ArgMatches) -> ::std::result::Result<(), clap::Error> {
+                self.update_from_arg_matches_mut(&mut __clap_arg_matches.clone())
+            }
+
+            fn update_from_arg_matches_mut(&mut self, __clap_arg_matches: &mut clap::ArgMatches) -> ::std::result::Result<(), clap::Error> {
+                #raw_deprecated
                 #updater
                 ::std::result::Result::Ok(())
             }
@@ -233,16 +244,18 @@ pub fn gen_augment(
                 }
             }
             Kind::Arg(ty) => {
-                let convert_type = inner_type(**ty, &field.ty);
+                let convert_type = inner_type(&field.ty);
 
-                let occurrences = *attrs.parser().kind == ParserKind::FromOccurrences;
-                let flag = *attrs.parser().kind == ParserKind::FromFlag;
+                let parser = attrs.parser(&field.ty);
 
-                let parser = attrs.parser();
+                let value_parser = attrs.value_parser(&field.ty);
+                let action = attrs.action(&field.ty);
                 let func = &parser.func;
 
+                let mut occurrences = false;
+                let mut flag = false;
                 let validator = match *parser.kind {
-                    _ if attrs.is_enum() => quote!(),
+                    _ if attrs.ignore_parser() || attrs.is_enum() => quote!(),
                     ParserKind::TryFromStr => quote_spanned! { func.span()=>
                         .validator(|s| {
                             #func(s)
@@ -252,41 +265,72 @@ pub fn gen_augment(
                     ParserKind::TryFromOsStr => quote_spanned! { func.span()=>
                         .validator_os(|s| #func(s).map(|_: #convert_type| ()))
                     },
-                    ParserKind::FromStr
-                    | ParserKind::FromOsStr
-                    | ParserKind::FromFlag
-                    | ParserKind::FromOccurrences => quote!(),
-                };
-                let allow_invalid_utf8 = match *parser.kind {
-                    _ if attrs.is_enum() => quote!(),
-                    ParserKind::FromOsStr | ParserKind::TryFromOsStr => {
-                        quote_spanned! { func.span()=>
-                            .allow_invalid_utf8(true)
-                        }
+                    ParserKind::FromStr | ParserKind::FromOsStr => quote!(),
+                    ParserKind::FromFlag => {
+                        flag = true;
+                        quote!()
                     }
-                    ParserKind::FromStr
-                    | ParserKind::TryFromStr
-                    | ParserKind::FromFlag
-                    | ParserKind::FromOccurrences => quote!(),
+                    ParserKind::FromOccurrences => {
+                        occurrences = true;
+                        quote!()
+                    }
+                };
+                let parse_deprecation = match *parser.kind {
+                    _ if !attrs.explicit_parser() || cfg!(not(feature = "deprecated")) => quote!(),
+                    ParserKind::FromStr => quote_spanned! { func.span()=>
+                        #[deprecated(since = "3.2.0", note = "Replaced with `#[clap(value_parser = ...)]`")]
+                        fn parse_from_str() {
+                        }
+                        parse_from_str();
+                    },
+                    ParserKind::TryFromStr => quote_spanned! { func.span()=>
+                        #[deprecated(since = "3.2.0", note = "Replaced with `#[clap(value_parser = ...)]`")]
+                        fn parse_try_from_str() {
+                        }
+                        parse_try_from_str();
+                    },
+                    ParserKind::FromOsStr => quote_spanned! { func.span()=>
+                        #[deprecated(since = "3.2.0", note = "Replaced with `#[clap(value_parser)]` for `PathBuf` or `#[clap(value_parser = ...)]` with a custom `TypedValueParser`")]
+                        fn parse_from_os_str() {
+                        }
+                        parse_from_os_str();
+                    },
+                    ParserKind::TryFromOsStr => quote_spanned! { func.span()=>
+                        #[deprecated(since = "3.2.0", note = "Replaced with `#[clap(value_parser = ...)]` with a custom `TypedValueParser`")]
+                        fn parse_try_from_os_str() {
+                        }
+                        parse_try_from_os_str();
+                    },
+                    ParserKind::FromFlag => quote_spanned! { func.span()=>
+                        #[deprecated(since = "3.2.0", note = "Replaced with `#[clap(action = ArgAction::SetTrue)]`")]
+                        fn parse_from_flag() {
+                        }
+                        parse_from_flag();
+                    },
+                    ParserKind::FromOccurrences => quote_spanned! { func.span()=>
+                        #[deprecated(since = "3.2.0", note = "Replaced with `#[clap(action = ArgAction::Count)]` with a field type of `u8`")]
+                        fn parse_from_occurrences() {
+                        }
+                        parse_from_occurrences();
+                    },
                 };
 
                 let value_name = attrs.value_name();
-                let possible_values = if attrs.is_enum() {
-                    gen_arg_enum_possible_values(convert_type)
+                let possible_values = if attrs.is_enum() && !attrs.ignore_parser() {
+                    gen_value_enum_possible_values(convert_type)
                 } else {
                     quote!()
                 };
 
-                let modifier = match **ty {
-                    Ty::Bool => quote!(),
-
+                let implicit_methods = match **ty {
                     Ty::Option => {
                         quote_spanned! { ty.span()=>
                             .takes_value(true)
                             .value_name(#value_name)
                             #possible_values
                             #validator
-                            #allow_invalid_utf8
+                            #value_parser
+                            #action
                         }
                     }
 
@@ -298,26 +342,77 @@ pub fn gen_augment(
                         .multiple_values(false)
                         #possible_values
                         #validator
-                        #allow_invalid_utf8
+                        #value_parser
+                        #action
                     },
 
-                    Ty::OptionVec => quote_spanned! { ty.span()=>
-                        .takes_value(true)
-                        .value_name(#value_name)
-                        .multiple_occurrences(true)
-                        #possible_values
-                        #validator
-                        #allow_invalid_utf8
-                    },
+                    Ty::OptionVec => {
+                        if attrs.ignore_parser() {
+                            if attrs.is_positional() {
+                                quote_spanned! { ty.span()=>
+                                    .takes_value(true)
+                                    .value_name(#value_name)
+                                    .multiple_values(true)  // action won't be sufficient for getting multiple
+                                    #possible_values
+                                    #validator
+                                    #value_parser
+                                    #action
+                                }
+                            } else {
+                                quote_spanned! { ty.span()=>
+                                    .takes_value(true)
+                                    .value_name(#value_name)
+                                    #possible_values
+                                    #validator
+                                    #value_parser
+                                    #action
+                                }
+                            }
+                        } else {
+                            quote_spanned! { ty.span()=>
+                                .takes_value(true)
+                                .value_name(#value_name)
+                                .multiple_occurrences(true)
+                                #possible_values
+                                #validator
+                                #value_parser
+                                #action
+                            }
+                        }
+                    }
 
                     Ty::Vec => {
-                        quote_spanned! { ty.span()=>
-                            .takes_value(true)
-                            .value_name(#value_name)
-                            .multiple_occurrences(true)
-                            #possible_values
-                            #validator
-                            #allow_invalid_utf8
+                        if attrs.ignore_parser() {
+                            if attrs.is_positional() {
+                                quote_spanned! { ty.span()=>
+                                    .takes_value(true)
+                                    .value_name(#value_name)
+                                    .multiple_values(true)  // action won't be sufficient for getting multiple
+                                    #possible_values
+                                    #validator
+                                    #value_parser
+                                    #action
+                                }
+                            } else {
+                                quote_spanned! { ty.span()=>
+                                    .takes_value(true)
+                                    .value_name(#value_name)
+                                    #possible_values
+                                    #validator
+                                    #value_parser
+                                    #action
+                                }
+                            }
+                        } else {
+                            quote_spanned! { ty.span()=>
+                                .takes_value(true)
+                                .value_name(#value_name)
+                                .multiple_occurrences(true)
+                                #possible_values
+                                #validator
+                                #value_parser
+                                #action
+                            }
                         }
                     }
 
@@ -331,26 +426,37 @@ pub fn gen_augment(
 
                     Ty::Other => {
                         let required = attrs.find_default_method().is_none() && !override_required;
+                        // `ArgAction::takes_values` is assuming `ArgAction::default_value` will be
+                        // set though that won't always be true but this should be good enough,
+                        // otherwise we'll report an "arg required" error when unwrapping.
+                        let action_value = action.args();
                         quote_spanned! { ty.span()=>
                             .takes_value(true)
                             .value_name(#value_name)
-                            .required(#required)
+                            .required(#required && #action_value.takes_values())
                             #possible_values
                             #validator
-                            #allow_invalid_utf8
+                            #value_parser
+                            #action
                         }
                     }
                 };
 
                 let id = attrs.id();
-                let methods = attrs.field_methods(true);
+                let explicit_methods = attrs.field_methods(true);
 
                 Some(quote_spanned! { field.span()=>
-                    let #app_var = #app_var.arg(
-                        clap::Arg::new(#id)
-                            #modifier
-                            #methods
-                    );
+                    let #app_var = #app_var.arg({
+                        #parse_deprecation
+
+                        #[allow(deprecated)]
+                        let arg = clap::Arg::new(#id)
+                            #implicit_methods;
+
+                        let arg = arg
+                            #explicit_methods;
+                        arg
+                    });
                 })
             }
         }
@@ -366,9 +472,9 @@ pub fn gen_augment(
     }}
 }
 
-fn gen_arg_enum_possible_values(ty: &Type) -> TokenStream {
+fn gen_value_enum_possible_values(ty: &Type) -> TokenStream {
     quote_spanned! { ty.span()=>
-        .possible_values(<#ty as clap::ArgEnum>::value_variants().iter().filter_map(clap::ArgEnum::to_possible_value))
+        .possible_values(<#ty as clap::ValueEnum>::value_variants().iter().filter_map(clap::ValueEnum::to_possible_value))
     }
 }
 
@@ -398,7 +504,7 @@ pub fn gen_constructor(fields: &Punctuated<Field, Comma>, parent_attribute: &Att
                         quote_spanned! { kind.span()=>
                             #field_name: {
                                 if #arg_matches.subcommand_name().map(<#subcmd_type as clap::Subcommand>::has_subcommand).unwrap_or(false) {
-                                    Some(<#subcmd_type as clap::FromArgMatches>::from_arg_matches(#arg_matches)?)
+                                    Some(<#subcmd_type as clap::FromArgMatches>::from_arg_matches_mut(#arg_matches)?)
                                 } else {
                                     None
                                 }
@@ -408,7 +514,7 @@ pub fn gen_constructor(fields: &Punctuated<Field, Comma>, parent_attribute: &Att
                     _ => {
                         quote_spanned! { kind.span()=>
                             #field_name: {
-                                <#subcmd_type as clap::FromArgMatches>::from_arg_matches(#arg_matches)?
+                                <#subcmd_type as clap::FromArgMatches>::from_arg_matches_mut(#arg_matches)?
                             }
                         }
                     },
@@ -416,7 +522,7 @@ pub fn gen_constructor(fields: &Punctuated<Field, Comma>, parent_attribute: &Att
             }
 
             Kind::Flatten => quote_spanned! { kind.span()=>
-                #field_name: clap::FromArgMatches::from_arg_matches(#arg_matches)?
+                #field_name: clap::FromArgMatches::from_arg_matches_mut(#arg_matches)?
             },
 
             Kind::Skip(val) => match val {
@@ -472,7 +578,7 @@ pub fn gen_updater(
                 };
 
                 let updater = quote_spanned! { ty.span()=>
-                    <#subcmd_type as clap::FromArgMatches>::update_from_arg_matches(#field_name, #arg_matches)?;
+                    <#subcmd_type as clap::FromArgMatches>::update_from_arg_matches_mut(#field_name, #arg_matches)?;
                 };
 
                 let updater = match **ty {
@@ -480,7 +586,7 @@ pub fn gen_updater(
                         if let Some(#field_name) = #field_name.as_mut() {
                             #updater
                         } else {
-                            *#field_name = Some(<#subcmd_type as clap::FromArgMatches>::from_arg_matches(
+                            *#field_name = Some(<#subcmd_type as clap::FromArgMatches>::from_arg_matches_mut(
                                 #arg_matches
                             )?);
                         }
@@ -500,7 +606,7 @@ pub fn gen_updater(
 
             Kind::Flatten => quote_spanned! { kind.span()=> {
                     #access
-                    clap::FromArgMatches::update_from_arg_matches(#field_name, #arg_matches)?;
+                    clap::FromArgMatches::update_from_arg_matches_mut(#field_name, #arg_matches)?;
                 }
             },
 
@@ -524,87 +630,102 @@ fn gen_parsers(
 ) -> TokenStream {
     use self::ParserKind::*;
 
-    let parser = attrs.parser();
+    let parser = attrs.parser(&field.ty);
     let func = &parser.func;
     let span = parser.kind.span();
-    let convert_type = inner_type(**ty, &field.ty);
+    let convert_type = inner_type(&field.ty);
     let id = attrs.id();
-    let (value_of, values_of, mut parse) = match *parser.kind {
+    let mut flag = false;
+    let mut occurrences = false;
+    let (get_one, get_many, deref, mut parse) = match *parser.kind {
+        _ if attrs.ignore_parser() => (
+            quote_spanned!(span=> remove_one::<#convert_type>),
+            quote_spanned!(span=> remove_many::<#convert_type>),
+            quote!(|s| s),
+            quote_spanned!(func.span()=> |s| ::std::result::Result::Ok::<_, clap::Error>(s)),
+        ),
+        FromOccurrences => {
+            occurrences = true;
+            (
+                quote_spanned!(span=> occurrences_of),
+                quote!(),
+                quote!(|s| ::std::ops::Deref::deref(s)),
+                func.clone(),
+            )
+        }
+        FromFlag => {
+            flag = true;
+            (
+                quote!(),
+                quote!(),
+                quote!(|s| ::std::ops::Deref::deref(s)),
+                func.clone(),
+            )
+        }
         FromStr => (
-            quote_spanned!(span=> value_of),
-            quote_spanned!(span=> values_of),
+            quote_spanned!(span=> get_one::<String>),
+            quote_spanned!(span=> get_many::<String>),
+            quote!(|s| ::std::ops::Deref::deref(s)),
             quote_spanned!(func.span()=> |s| ::std::result::Result::Ok::<_, clap::Error>(#func(s))),
         ),
         TryFromStr => (
-            quote_spanned!(span=> value_of),
-            quote_spanned!(span=> values_of),
+            quote_spanned!(span=> get_one::<String>),
+            quote_spanned!(span=> get_many::<String>),
+            quote!(|s| ::std::ops::Deref::deref(s)),
             quote_spanned!(func.span()=> |s| #func(s).map_err(|err| clap::Error::raw(clap::ErrorKind::ValueValidation, format!("Invalid value for {}: {}", #id, err)))),
         ),
         FromOsStr => (
-            quote_spanned!(span=> value_of_os),
-            quote_spanned!(span=> values_of_os),
+            quote_spanned!(span=> get_one::<::std::ffi::OsString>),
+            quote_spanned!(span=> get_many::<::std::ffi::OsString>),
+            quote!(|s| ::std::ops::Deref::deref(s)),
             quote_spanned!(func.span()=> |s| ::std::result::Result::Ok::<_, clap::Error>(#func(s))),
         ),
         TryFromOsStr => (
-            quote_spanned!(span=> value_of_os),
-            quote_spanned!(span=> values_of_os),
+            quote_spanned!(span=> get_one::<::std::ffi::OsString>),
+            quote_spanned!(span=> get_many::<::std::ffi::OsString>),
+            quote!(|s| ::std::ops::Deref::deref(s)),
             quote_spanned!(func.span()=> |s| #func(s).map_err(|err| clap::Error::raw(clap::ErrorKind::ValueValidation, format!("Invalid value for {}: {}", #id, err)))),
         ),
-        FromOccurrences => (
-            quote_spanned!(span=> occurrences_of),
-            quote!(),
-            func.clone(),
-        ),
-        FromFlag => (quote!(), quote!(), func.clone()),
     };
-    if attrs.is_enum() {
+    if attrs.is_enum() && !attrs.ignore_parser() {
         let ci = attrs.ignore_case();
 
         parse = quote_spanned! { convert_type.span()=>
-            |s| <#convert_type as clap::ArgEnum>::from_str(s, #ci).map_err(|err| clap::Error::raw(clap::ErrorKind::ValueValidation, format!("Invalid value for {}: {}", #id, err)))
+            |s| <#convert_type as clap::ValueEnum>::from_str(s, #ci).map_err(|err| clap::Error::raw(clap::ErrorKind::ValueValidation, format!("Invalid value for {}: {}", #id, err)))
         }
     }
 
-    let flag = *attrs.parser().kind == ParserKind::FromFlag;
-    let occurrences = *attrs.parser().kind == ParserKind::FromOccurrences;
     // Give this identifier the same hygiene
     // as the `arg_matches` parameter definition. This
     // allows us to refer to `arg_matches` within a `quote_spanned` block
     let arg_matches = format_ident!("__clap_arg_matches");
 
     let field_value = match **ty {
-        Ty::Bool => {
-            if update.is_some() {
-                quote_spanned! { ty.span()=>
-                    *#field_name || #arg_matches.is_present(#id)
-                }
-            } else {
-                quote_spanned! { ty.span()=>
-                    #arg_matches.is_present(#id)
-                }
-            }
-        }
-
         Ty::Option => {
             quote_spanned! { ty.span()=>
-                #arg_matches.#value_of(#id)
+                #arg_matches.#get_one(#id)
+                    .map(#deref)
                     .map(#parse)
                     .transpose()?
             }
         }
 
         Ty::OptionOption => quote_spanned! { ty.span()=>
-            if #arg_matches.is_present(#id) {
-                Some(#arg_matches.#value_of(#id).map(#parse).transpose()?)
+            if #arg_matches.contains_id(#id) {
+                Some(
+                    #arg_matches.#get_one(#id)
+                        .map(#deref)
+                        .map(#parse).transpose()?
+                )
             } else {
                 None
             }
         },
 
         Ty::OptionVec => quote_spanned! { ty.span()=>
-            if #arg_matches.is_present(#id) {
-                Some(#arg_matches.#values_of(#id)
-                    .map(|v| v.map::<::std::result::Result<#convert_type, clap::Error>, _>(#parse).collect::<::std::result::Result<Vec<_>, clap::Error>>())
+            if #arg_matches.contains_id(#id) {
+                Some(#arg_matches.#get_many(#id)
+                    .map(|v| v.map(#deref).map::<::std::result::Result<#convert_type, clap::Error>, _>(#parse).collect::<::std::result::Result<Vec<_>, clap::Error>>())
                     .transpose()?
                     .unwrap_or_else(Vec::new))
             } else {
@@ -614,24 +735,35 @@ fn gen_parsers(
 
         Ty::Vec => {
             quote_spanned! { ty.span()=>
-                #arg_matches.#values_of(#id)
-                    .map(|v| v.map::<::std::result::Result<#convert_type, clap::Error>, _>(#parse).collect::<::std::result::Result<Vec<_>, clap::Error>>())
+                #arg_matches.#get_many(#id)
+                    .map(|v| v.map(#deref).map::<::std::result::Result<#convert_type, clap::Error>, _>(#parse).collect::<::std::result::Result<Vec<_>, clap::Error>>())
                     .transpose()?
                     .unwrap_or_else(Vec::new)
             }
         }
 
         Ty::Other if occurrences => quote_spanned! { ty.span()=>
-            #parse(#arg_matches.#value_of(#id))
+            #parse(
+                #arg_matches.#get_one(#id)
+            )
         },
 
-        Ty::Other if flag => quote_spanned! { ty.span()=>
-            #parse(#arg_matches.is_present(#id))
-        },
+        Ty::Other if flag => {
+            if update.is_some() && is_simple_ty(&field.ty, "bool") {
+                quote_spanned! { ty.span()=>
+                    *#field_name || #arg_matches.is_present(#id)
+                }
+            } else {
+                quote_spanned! { ty.span()=>
+                    #parse(#arg_matches.is_present(#id))
+                }
+            }
+        }
 
         Ty::Other => {
             quote_spanned! { ty.span()=>
-                #arg_matches.#value_of(#id)
+                #arg_matches.#get_one(#id)
+                    .map(#deref)
                     .ok_or_else(|| clap::Error::raw(clap::ErrorKind::MissingRequiredArgument, format!("The following required argument was not provided: {}", #id)))
                     .and_then(#parse)?
             }
@@ -640,12 +772,25 @@ fn gen_parsers(
 
     if let Some(access) = update {
         quote_spanned! { field.span()=>
-            if #arg_matches.is_present(#id) {
+            if #arg_matches.contains_id(#id) {
                 #access
                 *#field_name = #field_value
             }
         }
     } else {
         quote_spanned!(field.span()=> #field_name: #field_value )
+    }
+}
+
+#[cfg(feature = "raw-deprecated")]
+pub fn raw_deprecated() -> TokenStream {
+    quote! {}
+}
+
+#[cfg(not(feature = "raw-deprecated"))]
+pub fn raw_deprecated() -> TokenStream {
+    quote! {
+        #![allow(deprecated)]  // Assuming any deprecation in here will be related to a deprecation in `Args`
+
     }
 }

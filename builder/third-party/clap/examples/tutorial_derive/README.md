@@ -236,17 +236,11 @@ $ 03_01_flag_bool_derive --verbose
 verbose: true
 
 $ 03_01_flag_bool_derive --verbose --verbose
-? failed
-error: The argument '--verbose' was provided more than once, but cannot be used multiple times
-
-USAGE:
-    03_01_flag_bool_derive[EXE] [OPTIONS]
-
-For more information try --help
+verbose: true
 
 ```
 
-Or counted with `#[clap(parse(from_occurrences))]`:
+Or counted with `#[clap(action = clap::ArgAction::Count)]`:
 
 [Example:](03_01_flag_count.rs)
 ```console
@@ -384,7 +378,7 @@ name: "bob"
 ### Enumerated values
 
 If you have arguments of specific values you want to test for, you can derive
-`ArgEnum`.
+`ValueEnum`.
 
 This allows you specify the valid values for that argument. If the user does not use one of
 those specific values, they will receive a graceful exit with error message informing them
@@ -417,9 +411,6 @@ $ 04_01_enum_derive medium
 error: "medium" isn't a valid value for '<MODE>'
 	[possible values: fast, slow]
 
-USAGE:
-    04_01_enum_derive[EXE] <MODE>
-
 For more information try --help
 
 ```
@@ -450,6 +441,12 @@ PORT = 22
 $ 04_02_parse_derive foobar
 ? failed
 error: Invalid value "foobar" for '<PORT>': invalid digit found in string
+
+For more information try --help
+
+$ 04_02_parse_derive 0
+? failed
+error: Invalid value "0" for '<PORT>': 0 is not in 1..=65535
 
 For more information try --help
 

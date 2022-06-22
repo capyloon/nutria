@@ -12,10 +12,13 @@
 [package]
 edition = "2018"
 name = "wasm-bindgen-shared"
-version = "0.2.80"
+version = "0.2.81"
 authors = ["The wasm-bindgen Developers"]
 links = "wasm_bindgen"
-description = "Shared support between wasm-bindgen and wasm-bindgen cli, an internal\ndependency.\n"
+description = """
+Shared support between wasm-bindgen and wasm-bindgen cli, an internal
+dependency.
+"""
 homepage = "https://rustwasm.github.io/wasm-bindgen/"
 documentation = "https://docs.rs/wasm-bindgen-shared"
 license = "MIT/Apache-2.0"

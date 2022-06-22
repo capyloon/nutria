@@ -12,14 +12,17 @@
 [package]
 edition = "2018"
 name = "web-sys"
-version = "0.3.57"
+version = "0.3.58"
 authors = ["The wasm-bindgen Developers"]
-description = "Bindings for all Web APIs, a procedurally generated crate from WebIDL\n"
+description = """
+Bindings for all Web APIs, a procedurally generated crate from WebIDL
+"""
 homepage = "https://rustwasm.github.io/wasm-bindgen/web-sys/index.html"
 documentation = "https://rustwasm.github.io/wasm-bindgen/api/web_sys/"
 readme = "./README.md"
 license = "MIT/Apache-2.0"
 repository = "https://github.com/rustwasm/wasm-bindgen/tree/master/crates/web-sys"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg=web_sys_unstable_apis"]
@@ -27,11 +30,12 @@ rustdoc-args = ["--cfg=web_sys_unstable_apis"]
 [lib]
 test = false
 doctest = false
+
 [dependencies.js-sys]
-version = "0.3.57"
+version = "0.3.58"
 
 [dependencies.wasm-bindgen]
-version = "0.2.80"
+version = "0.2.81"
 
 [features]
 AbortController = []
@@ -48,7 +52,10 @@ AlignSetting = []
 AllowedBluetoothDevice = []
 AllowedUsbDevice = []
 AlphaOption = []
-AnalyserNode = ["AudioNode", "EventTarget"]
+AnalyserNode = [
+    "AudioNode",
+    "EventTarget",
+]
 AnalyserOptions = []
 AngleInstancedArrays = []
 Animation = ["EventTarget"]
@@ -63,14 +70,24 @@ AnimationPropertyValueDetails = []
 AnimationTimeline = []
 AssignedNodesOptions = []
 AttestationConveyancePreference = []
-Attr = ["EventTarget", "Node"]
+Attr = [
+    "EventTarget",
+    "Node",
+]
 AttributeNameValue = []
 AudioBuffer = []
 AudioBufferOptions = []
-AudioBufferSourceNode = ["AudioNode", "AudioScheduledSourceNode", "EventTarget"]
+AudioBufferSourceNode = [
+    "AudioNode",
+    "AudioScheduledSourceNode",
+    "EventTarget",
+]
 AudioBufferSourceOptions = []
 AudioConfiguration = []
-AudioContext = ["BaseAudioContext", "EventTarget"]
+AudioContext = [
+    "BaseAudioContext",
+    "EventTarget",
+]
 AudioContextOptions = []
 AudioContextState = []
 AudioData = []
@@ -80,7 +97,10 @@ AudioDecoder = []
 AudioDecoderConfig = []
 AudioDecoderInit = []
 AudioDecoderSupport = []
-AudioDestinationNode = ["AudioNode", "EventTarget"]
+AudioDestinationNode = [
+    "AudioNode",
+    "EventTarget",
+]
 AudioEncoder = []
 AudioEncoderConfig = []
 AudioEncoderInit = []
@@ -92,13 +112,22 @@ AudioParam = []
 AudioParamMap = []
 AudioProcessingEvent = ["Event"]
 AudioSampleFormat = []
-AudioScheduledSourceNode = ["AudioNode", "EventTarget"]
-AudioStreamTrack = ["EventTarget", "MediaStreamTrack"]
+AudioScheduledSourceNode = [
+    "AudioNode",
+    "EventTarget",
+]
+AudioStreamTrack = [
+    "EventTarget",
+    "MediaStreamTrack",
+]
 AudioTrack = []
 AudioTrackList = ["EventTarget"]
 AudioWorklet = ["Worklet"]
 AudioWorkletGlobalScope = ["WorkletGlobalScope"]
-AudioWorkletNode = ["AudioNode", "EventTarget"]
+AudioWorkletNode = [
+    "AudioNode",
+    "EventTarget",
+]
 AudioWorkletNodeOptions = []
 AudioWorkletProcessor = []
 AuthenticationExtensionsClientInputs = []
@@ -122,7 +151,10 @@ BasicCardType = []
 BatteryManager = ["EventTarget"]
 BeforeUnloadEvent = ["Event"]
 BinaryType = []
-BiquadFilterNode = ["AudioNode", "EventTarget"]
+BiquadFilterNode = [
+    "AudioNode",
+    "EventTarget",
+]
 BiquadFilterOptions = []
 BiquadFilterType = []
 Blob = []
@@ -139,7 +171,10 @@ BluetoothDevice = ["EventTarget"]
 BluetoothLeScanFilterInit = []
 BluetoothManufacturerDataMap = []
 BluetoothPermissionDescriptor = []
-BluetoothPermissionResult = ["EventTarget", "PermissionStatus"]
+BluetoothPermissionResult = [
+    "EventTarget",
+    "PermissionStatus",
+]
 BluetoothPermissionStorage = []
 BluetoothRemoteGattCharacteristic = ["EventTarget"]
 BluetoothRemoteGattDescriptor = []
@@ -159,7 +194,10 @@ CacheBatchOperation = []
 CacheQueryOptions = []
 CacheStorage = []
 CacheStorageNamespace = []
-CanvasCaptureMediaStream = ["EventTarget", "MediaStream"]
+CanvasCaptureMediaStream = [
+    "EventTarget",
+    "MediaStream",
+]
 CanvasGradient = []
 CanvasPattern = []
 CanvasRenderingContext2d = []
@@ -167,21 +205,38 @@ CanvasWindingRule = []
 CaretChangedReason = []
 CaretPosition = []
 CaretStateChangedEventInit = []
-CdataSection = ["CharacterData", "EventTarget", "Node", "Text"]
+CdataSection = [
+    "CharacterData",
+    "EventTarget",
+    "Node",
+    "Text",
+]
 ChannelCountMode = []
 ChannelInterpretation = []
-ChannelMergerNode = ["AudioNode", "EventTarget"]
+ChannelMergerNode = [
+    "AudioNode",
+    "EventTarget",
+]
 ChannelMergerOptions = []
 ChannelPixelLayout = []
 ChannelPixelLayoutDataType = []
-ChannelSplitterNode = ["AudioNode", "EventTarget"]
+ChannelSplitterNode = [
+    "AudioNode",
+    "EventTarget",
+]
 ChannelSplitterOptions = []
-CharacterData = ["EventTarget", "Node"]
+CharacterData = [
+    "EventTarget",
+    "Node",
+]
 CheckerboardReason = []
 CheckerboardReport = []
 CheckerboardReportService = []
 ChromeFilePropertyBag = []
-ChromeWorker = ["EventTarget", "Worker"]
+ChromeWorker = [
+    "EventTarget",
+    "Worker",
+]
 Client = []
 ClientQueryOptions = []
 ClientRectsAndTexts = []
@@ -197,9 +252,16 @@ CloseEvent = ["Event"]
 CloseEventInit = []
 CodecState = []
 CollectedClientData = []
-Comment = ["CharacterData", "EventTarget", "Node"]
+Comment = [
+    "CharacterData",
+    "EventTarget",
+    "Node",
+]
 CompositeOperation = []
-CompositionEvent = ["Event", "UiEvent"]
+CompositionEvent = [
+    "Event",
+    "UiEvent",
+]
 CompositionEventInit = []
 ComputedEffectTiming = []
 ConnStatusDict = []
@@ -216,7 +278,11 @@ ConsoleStackEntry = []
 ConsoleTimerError = []
 ConsoleTimerLogOrEnd = []
 ConsoleTimerStart = []
-ConstantSourceNode = ["AudioNode", "AudioScheduledSourceNode", "EventTarget"]
+ConstantSourceNode = [
+    "AudioNode",
+    "AudioScheduledSourceNode",
+    "EventTarget",
+]
 ConstantSourceOptions = []
 ConstrainBooleanParameters = []
 ConstrainDomStringParameters = []
@@ -224,7 +290,10 @@ ConstrainDoubleRange = []
 ConstrainLongRange = []
 ContextAttributes2d = []
 ConvertCoordinateOptions = []
-ConvolverNode = ["AudioNode", "EventTarget"]
+ConvolverNode = [
+    "AudioNode",
+    "EventTarget",
+]
 ConvolverOptions = []
 Coordinates = []
 Credential = []
@@ -238,9 +307,15 @@ Csp = []
 CspPolicies = []
 CspReport = []
 CspReportProperties = []
-CssAnimation = ["Animation", "EventTarget"]
+CssAnimation = [
+    "Animation",
+    "EventTarget",
+]
 CssBoxType = []
-CssConditionRule = ["CssGroupingRule", "CssRule"]
+CssConditionRule = [
+    "CssGroupingRule",
+    "CssRule",
+]
 CssCounterStyleRule = ["CssRule"]
 CssFontFaceRule = ["CssRule"]
 CssFontFeatureValuesRule = ["CssRule"]
@@ -248,7 +323,11 @@ CssGroupingRule = ["CssRule"]
 CssImportRule = ["CssRule"]
 CssKeyframeRule = ["CssRule"]
 CssKeyframesRule = ["CssRule"]
-CssMediaRule = ["CssConditionRule", "CssGroupingRule", "CssRule"]
+CssMediaRule = [
+    "CssConditionRule",
+    "CssGroupingRule",
+    "CssRule",
+]
 CssNamespaceRule = ["CssRule"]
 CssPageRule = ["CssRule"]
 CssPseudoElement = []
@@ -258,8 +337,15 @@ CssStyleDeclaration = []
 CssStyleRule = ["CssRule"]
 CssStyleSheet = ["StyleSheet"]
 CssStyleSheetParsingMode = []
-CssSupportsRule = ["CssConditionRule", "CssGroupingRule", "CssRule"]
-CssTransition = ["Animation", "EventTarget"]
+CssSupportsRule = [
+    "CssConditionRule",
+    "CssGroupingRule",
+    "CssRule",
+]
+CssTransition = [
+    "Animation",
+    "EventTarget",
+]
 CustomElementRegistry = []
 CustomEvent = ["Event"]
 CustomEventInit = []
@@ -269,8 +355,14 @@ DataTransferItemList = []
 DateTimeValue = []
 DecoderDoctorNotification = []
 DecoderDoctorNotificationType = []
-DedicatedWorkerGlobalScope = ["EventTarget", "WorkerGlobalScope"]
-DelayNode = ["AudioNode", "EventTarget"]
+DedicatedWorkerGlobalScope = [
+    "EventTarget",
+    "WorkerGlobalScope",
+]
+DelayNode = [
+    "AudioNode",
+    "EventTarget",
+]
 DelayOptions = []
 DeviceAcceleration = []
 DeviceAccelerationInit = []
@@ -294,11 +386,20 @@ DistanceModelType = []
 DnsCacheDict = []
 DnsCacheEntry = []
 DnsLookupDict = []
-Document = ["EventTarget", "Node"]
-DocumentFragment = ["EventTarget", "Node"]
+Document = [
+    "EventTarget",
+    "Node",
+]
+DocumentFragment = [
+    "EventTarget",
+    "Node",
+]
 DocumentTimeline = ["AnimationTimeline"]
 DocumentTimelineOptions = []
-DocumentType = ["EventTarget", "Node"]
+DocumentType = [
+    "EventTarget",
+    "Node",
+]
 DomError = []
 DomException = []
 DomImplementation = []
@@ -321,9 +422,16 @@ DomStringList = []
 DomStringMap = []
 DomTokenList = []
 DomWindowResizeEventDetail = []
-DragEvent = ["Event", "MouseEvent", "UiEvent"]
+DragEvent = [
+    "Event",
+    "MouseEvent",
+    "UiEvent",
+]
 DragEventInit = []
-DynamicsCompressorNode = ["AudioNode", "EventTarget"]
+DynamicsCompressorNode = [
+    "AudioNode",
+    "EventTarget",
+]
 DynamicsCompressorOptions = []
 EcKeyAlgorithm = []
 EcKeyGenParams = []
@@ -331,7 +439,10 @@ EcKeyImportParams = []
 EcdhKeyDeriveParams = []
 EcdsaParams = []
 EffectTiming = []
-Element = ["EventTarget", "Node"]
+Element = [
+    "EventTarget",
+    "Node",
+]
 ElementCreationOptions = []
 ElementDefinitionOptions = []
 EncodedAudioChunk = []
@@ -365,12 +476,18 @@ ExtShaderTextureLod = []
 ExtTextureFilterAnisotropic = []
 ExtendableEvent = ["Event"]
 ExtendableEventInit = []
-ExtendableMessageEvent = ["Event", "ExtendableEvent"]
+ExtendableMessageEvent = [
+    "Event",
+    "ExtendableEvent",
+]
 ExtendableMessageEventInit = []
 External = []
 FakePluginMimeEntry = []
 FakePluginTagInit = []
-FetchEvent = ["Event", "ExtendableEvent"]
+FetchEvent = [
+    "Event",
+    "ExtendableEvent",
+]
 FetchEventInit = []
 FetchObserver = ["EventTarget"]
 FetchReadableStreamReadDataArray = []
@@ -393,7 +510,10 @@ FileSystemFlags = []
 FillMode = []
 FlashClassification = []
 FlexLineGrowthState = []
-FocusEvent = ["Event", "UiEvent"]
+FocusEvent = [
+    "Event",
+    "UiEvent",
+]
 FocusEventInit = []
 FontFace = []
 FontFaceDescriptors = []
@@ -407,13 +527,22 @@ FontFaceSetLoadStatus = []
 FormData = []
 FrameType = []
 FuzzingFunctions = []
-GainNode = ["AudioNode", "EventTarget"]
+GainNode = [
+    "AudioNode",
+    "EventTarget",
+]
 GainOptions = []
 Gamepad = []
-GamepadAxisMoveEvent = ["Event", "GamepadEvent"]
+GamepadAxisMoveEvent = [
+    "Event",
+    "GamepadEvent",
+]
 GamepadAxisMoveEventInit = []
 GamepadButton = []
-GamepadButtonEvent = ["Event", "GamepadEvent"]
+GamepadButtonEvent = [
+    "Event",
+    "GamepadEvent",
+]
 GamepadButtonEventInit = []
 GamepadEvent = ["Event"]
 GamepadEventInit = []
@@ -430,6 +559,7 @@ GetUserMediaRequest = []
 Gpu = []
 GpuAdapter = []
 GpuAddressMode = []
+GpuAutoLayoutMode = []
 GpuBindGroup = []
 GpuBindGroupDescriptor = []
 GpuBindGroupEntry = []
@@ -445,13 +575,11 @@ GpuBufferBinding = []
 GpuBufferBindingLayout = []
 GpuBufferBindingType = []
 GpuBufferDescriptor = []
-GpuBufferUsage = []
 GpuCanvasCompositingAlphaMode = []
 GpuCanvasConfiguration = []
 GpuCanvasContext = []
 GpuColorDict = []
 GpuColorTargetState = []
-GpuColorWrite = []
 GpuCommandBuffer = []
 GpuCommandBufferDescriptor = []
 GpuCommandEncoder = []
@@ -462,6 +590,8 @@ GpuCompilationMessage = []
 GpuCompilationMessageType = []
 GpuComputePassDescriptor = []
 GpuComputePassEncoder = []
+GpuComputePassTimestampLocation = []
+GpuComputePassTimestampWrite = []
 GpuComputePipeline = []
 GpuComputePipelineDescriptor = []
 GpuCullMode = []
@@ -470,6 +600,7 @@ GpuDevice = ["EventTarget"]
 GpuDeviceDescriptor = []
 GpuDeviceLostInfo = []
 GpuDeviceLostReason = []
+GpuError = []
 GpuErrorFilter = []
 GpuExtent3dDict = []
 GpuExternalTexture = []
@@ -486,16 +617,15 @@ GpuImageCopyTextureTagged = []
 GpuImageDataLayout = []
 GpuIndexFormat = []
 GpuLoadOp = []
-GpuMapMode = []
+GpuMipmapFilterMode = []
 GpuMultisampleState = []
 GpuObjectDescriptorBase = []
 GpuOrigin2dDict = []
 GpuOrigin3dDict = []
-GpuOutOfMemoryError = []
+GpuOutOfMemoryError = ["GpuError"]
 GpuPipelineDescriptorBase = []
 GpuPipelineLayout = []
 GpuPipelineLayoutDescriptor = []
-GpuPipelineStatisticName = []
 GpuPowerPreference = []
 GpuPredefinedColorSpace = []
 GpuPrimitiveState = []
@@ -505,6 +635,7 @@ GpuQuerySet = []
 GpuQuerySetDescriptor = []
 GpuQueryType = []
 GpuQueue = []
+GpuQueueDescriptor = []
 GpuRenderBundle = []
 GpuRenderBundleDescriptor = []
 GpuRenderBundleEncoder = []
@@ -514,6 +645,8 @@ GpuRenderPassDepthStencilAttachment = []
 GpuRenderPassDescriptor = []
 GpuRenderPassEncoder = []
 GpuRenderPassLayout = []
+GpuRenderPassTimestampLocation = []
+GpuRenderPassTimestampWrite = []
 GpuRenderPipeline = []
 GpuRenderPipelineDescriptor = []
 GpuRequestAdapterOptions = []
@@ -522,8 +655,8 @@ GpuSamplerBindingLayout = []
 GpuSamplerBindingType = []
 GpuSamplerDescriptor = []
 GpuShaderModule = []
+GpuShaderModuleCompilationHint = []
 GpuShaderModuleDescriptor = []
-GpuShaderStage = []
 GpuStencilFaceState = []
 GpuStencilOperation = []
 GpuStorageTextureAccess = []
@@ -538,13 +671,12 @@ GpuTextureDescriptor = []
 GpuTextureDimension = []
 GpuTextureFormat = []
 GpuTextureSampleType = []
-GpuTextureUsage = []
 GpuTextureView = []
 GpuTextureViewDescriptor = []
 GpuTextureViewDimension = []
 GpuUncapturedErrorEvent = ["Event"]
 GpuUncapturedErrorEventInit = []
-GpuValidationError = []
+GpuValidationError = ["GpuError"]
 GpuVertexAttribute = []
 GpuVertexBufferLayout = []
 GpuVertexFormat = []
@@ -580,81 +712,441 @@ HmacImportParams = []
 HmacKeyAlgorithm = []
 HmacKeyGenParams = []
 HtmlAllCollection = []
-HtmlAnchorElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlAreaElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlAudioElement = ["Element", "EventTarget", "HtmlElement", "HtmlMediaElement", "Node"]
-HtmlBaseElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlBodyElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlBrElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlButtonElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlCanvasElement = ["Element", "EventTarget", "HtmlElement", "Node"]
+HtmlAnchorElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlAreaElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlAudioElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "HtmlMediaElement",
+    "Node",
+]
+HtmlBaseElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlBodyElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlBrElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlButtonElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlCanvasElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
 HtmlCollection = []
-HtmlDListElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlDataElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlDataListElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlDetailsElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlDialogElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlDirectoryElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlDivElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlDocument = ["Document", "EventTarget", "Node"]
-HtmlElement = ["Element", "EventTarget", "Node"]
-HtmlEmbedElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlFieldSetElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlFontElement = ["Element", "EventTarget", "HtmlElement", "Node"]
+HtmlDListElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlDataElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlDataListElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlDetailsElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlDialogElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlDirectoryElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlDivElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlDocument = [
+    "Document",
+    "EventTarget",
+    "Node",
+]
+HtmlElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+]
+HtmlEmbedElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlFieldSetElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlFontElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
 HtmlFormControlsCollection = ["HtmlCollection"]
-HtmlFormElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlFrameElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlFrameSetElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlHeadElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlHeadingElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlHrElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlHtmlElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlIFrameElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlImageElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlInputElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlLabelElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlLegendElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlLiElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlLinkElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlMapElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlMediaElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlMenuElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlMenuItemElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlMetaElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlMeterElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlModElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlOListElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlObjectElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlOptGroupElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlOptionElement = ["Element", "EventTarget", "HtmlElement", "Node"]
+HtmlFormElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlFrameElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlFrameSetElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlHeadElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlHeadingElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlHrElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlHtmlElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlIFrameElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlImageElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlInputElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlLabelElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlLegendElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlLiElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlLinkElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlMapElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlMediaElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlMenuElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlMenuItemElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlMetaElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlMeterElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlModElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlOListElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlObjectElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlOptGroupElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlOptionElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
 HtmlOptionsCollection = ["HtmlCollection"]
-HtmlOutputElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlParagraphElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlParamElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlPictureElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlPreElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlProgressElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlQuoteElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlScriptElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlSelectElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlSlotElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlSourceElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlSpanElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlStyleElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTableCaptionElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTableCellElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTableColElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTableElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTableRowElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTableSectionElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTemplateElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTextAreaElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTimeElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTitleElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlTrackElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlUListElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlUnknownElement = ["Element", "EventTarget", "HtmlElement", "Node"]
-HtmlVideoElement = ["Element", "EventTarget", "HtmlElement", "HtmlMediaElement", "Node"]
+HtmlOutputElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlParagraphElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlParamElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlPictureElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlPreElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlProgressElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlQuoteElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlScriptElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlSelectElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlSlotElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlSourceElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlSpanElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlStyleElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTableCaptionElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTableCellElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTableColElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTableElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTableRowElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTableSectionElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTemplateElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTextAreaElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTimeElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTitleElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlTrackElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlUListElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlUnknownElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "Node",
+]
+HtmlVideoElement = [
+    "Element",
+    "EventTarget",
+    "HtmlElement",
+    "HtmlMediaElement",
+    "Node",
+]
 HttpConnDict = []
 HttpConnInfo = []
 HttpConnectionElement = []
@@ -665,7 +1157,10 @@ IdbDatabase = ["EventTarget"]
 IdbFactory = []
 IdbFileHandle = ["EventTarget"]
 IdbFileMetadataParameters = []
-IdbFileRequest = ["DomRequest", "EventTarget"]
+IdbFileRequest = [
+    "DomRequest",
+    "EventTarget",
+]
 IdbIndex = []
 IdbIndexParameters = []
 IdbKeyRange = []
@@ -674,7 +1169,10 @@ IdbMutableFile = ["EventTarget"]
 IdbObjectStore = []
 IdbObjectStoreParameters = []
 IdbOpenDbOptions = []
-IdbOpenDbRequest = ["EventTarget", "IdbRequest"]
+IdbOpenDbRequest = [
+    "EventTarget",
+    "IdbRequest",
+]
 IdbRequest = ["EventTarget"]
 IdbRequestReadyState = []
 IdbTransaction = ["EventTarget"]
@@ -683,7 +1181,10 @@ IdbVersionChangeEvent = ["Event"]
 IdbVersionChangeEventInit = []
 IdleDeadline = []
 IdleRequestOptions = []
-IirFilterNode = ["AudioNode", "EventTarget"]
+IirFilterNode = [
+    "AudioNode",
+    "EventTarget",
+]
 IirFilterOptions = []
 ImageBitmap = []
 ImageBitmapFormat = []
@@ -699,7 +1200,10 @@ ImageDecoder = []
 ImageDecoderInit = []
 ImageTrack = ["EventTarget"]
 ImageTrackList = []
-InputEvent = ["Event", "UiEvent"]
+InputEvent = [
+    "Event",
+    "UiEvent",
+]
 InputEventInit = []
 InstallTriggerData = []
 IntersectionObserver = []
@@ -714,7 +1218,10 @@ JsonWebKey = []
 KeyAlgorithm = []
 KeyEvent = []
 KeyIdsInitData = []
-KeyboardEvent = ["Event", "UiEvent"]
+KeyboardEvent = [
+    "Event",
+    "UiEvent",
+]
 KeyboardEventInit = []
 KeyframeEffect = ["AnimationEffect"]
 KeyframeEffectOptions = []
@@ -724,7 +1231,10 @@ LatencyMode = []
 LifecycleCallbacks = []
 LineAlignSetting = []
 ListBoxObject = []
-LocalMediaStream = ["EventTarget", "MediaStream"]
+LocalMediaStream = [
+    "EventTarget",
+    "MediaStream",
+]
 LocaleInfo = []
 Location = []
 MediaCapabilities = []
@@ -735,12 +1245,16 @@ MediaDecodingType = []
 MediaDeviceInfo = []
 MediaDeviceKind = []
 MediaDevices = ["EventTarget"]
-MediaElementAudioSourceNode = ["AudioNode", "EventTarget"]
+MediaElementAudioSourceNode = [
+    "AudioNode",
+    "EventTarget",
+]
 MediaElementAudioSourceOptions = []
 MediaEncodingConfiguration = []
 MediaEncodingType = []
 MediaEncryptedEvent = ["Event"]
 MediaError = []
+MediaImage = []
 MediaKeyError = ["Event"]
 MediaKeyMessageEvent = ["Event"]
 MediaKeyMessageEventInit = []
@@ -758,6 +1272,9 @@ MediaKeys = []
 MediaKeysPolicy = []
 MediaKeysRequirement = []
 MediaList = []
+MediaMetadata = []
+MediaMetadataInit = []
+MediaPositionState = []
 MediaQueryList = ["EventTarget"]
 MediaQueryListEvent = ["Event"]
 MediaQueryListEventInit = []
@@ -765,13 +1282,23 @@ MediaRecorder = ["EventTarget"]
 MediaRecorderErrorEvent = ["Event"]
 MediaRecorderErrorEventInit = []
 MediaRecorderOptions = []
+MediaSession = []
+MediaSessionAction = []
+MediaSessionActionDetails = []
+MediaSessionPlaybackState = []
 MediaSource = ["EventTarget"]
 MediaSourceEndOfStreamError = []
 MediaSourceEnum = []
 MediaSourceReadyState = []
 MediaStream = ["EventTarget"]
-MediaStreamAudioDestinationNode = ["AudioNode", "EventTarget"]
-MediaStreamAudioSourceNode = ["AudioNode", "EventTarget"]
+MediaStreamAudioDestinationNode = [
+    "AudioNode",
+    "EventTarget",
+]
+MediaStreamAudioSourceNode = [
+    "AudioNode",
+    "EventTarget",
+]
 MediaStreamAudioSourceOptions = []
 MediaStreamConstraints = []
 MediaStreamError = []
@@ -780,6 +1307,13 @@ MediaStreamEventInit = []
 MediaStreamTrack = ["EventTarget"]
 MediaStreamTrackEvent = ["Event"]
 MediaStreamTrackEventInit = []
+MediaStreamTrackGenerator = [
+    "EventTarget",
+    "MediaStreamTrack",
+]
+MediaStreamTrackGeneratorInit = []
+MediaStreamTrackProcessor = []
+MediaStreamTrackProcessorInit = []
 MediaStreamTrackState = []
 MediaTrackConstraintSet = []
 MediaTrackConstraints = []
@@ -792,12 +1326,18 @@ MessagePort = ["EventTarget"]
 MidiAccess = ["EventTarget"]
 MidiConnectionEvent = ["Event"]
 MidiConnectionEventInit = []
-MidiInput = ["EventTarget", "MidiPort"]
+MidiInput = [
+    "EventTarget",
+    "MidiPort",
+]
 MidiInputMap = []
 MidiMessageEvent = ["Event"]
 MidiMessageEventInit = []
 MidiOptions = []
-MidiOutput = ["EventTarget", "MidiPort"]
+MidiOutput = [
+    "EventTarget",
+    "MidiPort",
+]
 MidiOutputMap = []
 MidiPort = ["EventTarget"]
 MidiPortConnectionState = []
@@ -805,9 +1345,16 @@ MidiPortDeviceState = []
 MidiPortType = []
 MimeType = []
 MimeTypeArray = []
-MouseEvent = ["Event", "UiEvent"]
+MouseEvent = [
+    "Event",
+    "UiEvent",
+]
 MouseEventInit = []
-MouseScrollEvent = ["Event", "MouseEvent", "UiEvent"]
+MouseScrollEvent = [
+    "Event",
+    "MouseEvent",
+    "UiEvent",
+]
 MozDebug = []
 MutationEvent = ["Event"]
 MutationObserver = []
@@ -830,7 +1377,10 @@ NodeList = []
 Notification = ["EventTarget"]
 NotificationBehavior = []
 NotificationDirection = []
-NotificationEvent = ["Event", "ExtendableEvent"]
+NotificationEvent = [
+    "Event",
+    "ExtendableEvent",
+]
 NotificationEventInit = []
 NotificationOptions = []
 NotificationPermission = []
@@ -844,7 +1394,10 @@ OesTextureHalfFloatLinear = []
 OesVertexArrayObject = []
 OfflineAudioCompletionEvent = ["Event"]
 OfflineAudioCompletionEventInit = []
-OfflineAudioContext = ["BaseAudioContext", "EventTarget"]
+OfflineAudioContext = [
+    "BaseAudioContext",
+    "EventTarget",
+]
 OfflineAudioContextOptions = []
 OfflineResourceList = ["EventTarget"]
 OffscreenCanvas = ["EventTarget"]
@@ -852,22 +1405,33 @@ OpenWindowEventDetail = []
 OptionalEffectTiming = []
 OrientationLockType = []
 OrientationType = []
-OscillatorNode = ["AudioNode", "AudioScheduledSourceNode", "EventTarget"]
+OscillatorNode = [
+    "AudioNode",
+    "AudioScheduledSourceNode",
+    "EventTarget",
+]
 OscillatorOptions = []
 OscillatorType = []
 OverSampleType = []
+OvrMultiview2 = []
 PageTransitionEvent = ["Event"]
 PageTransitionEventInit = []
 PaintRequest = []
 PaintRequestList = []
 PaintWorkletGlobalScope = ["WorkletGlobalScope"]
-PannerNode = ["AudioNode", "EventTarget"]
+PannerNode = [
+    "AudioNode",
+    "EventTarget",
+]
 PannerOptions = []
 PanningModelType = []
 Path2d = []
 PaymentAddress = []
 PaymentComplete = []
-PaymentMethodChangeEvent = ["Event", "PaymentRequestUpdateEvent"]
+PaymentMethodChangeEvent = [
+    "Event",
+    "PaymentRequestUpdateEvent",
+]
 PaymentMethodChangeEventInit = []
 PaymentRequestUpdateEvent = ["Event"]
 PaymentRequestUpdateEventInit = []
@@ -884,7 +1448,10 @@ PerformanceEntryFilterOptions = []
 PerformanceMark = ["PerformanceEntry"]
 PerformanceMeasure = ["PerformanceEntry"]
 PerformanceNavigation = []
-PerformanceNavigationTiming = ["PerformanceEntry", "PerformanceResourceTiming"]
+PerformanceNavigationTiming = [
+    "PerformanceEntry",
+    "PerformanceResourceTiming",
+]
 PerformanceObserver = []
 PerformanceObserverEntryList = []
 PerformanceObserverInit = []
@@ -904,7 +1471,11 @@ PlaybackDirection = []
 Plugin = []
 PluginArray = []
 PluginCrashedEventInit = []
-PointerEvent = ["Event", "MouseEvent", "UiEvent"]
+PointerEvent = [
+    "Event",
+    "MouseEvent",
+    "UiEvent",
+]
 PointerEventInit = []
 PopStateEvent = ["Event"]
 PopStateEventInit = []
@@ -928,7 +1499,11 @@ PresentationConnectionState = []
 PresentationReceiver = []
 PresentationRequest = ["EventTarget"]
 PresentationStyle = []
-ProcessingInstruction = ["CharacterData", "EventTarget", "Node"]
+ProcessingInstruction = [
+    "CharacterData",
+    "EventTarget",
+    "Node",
+]
 ProfileTimelineLayerRect = []
 ProfileTimelineMarker = []
 ProfileTimelineMessagePortOperationType = []
@@ -949,7 +1524,10 @@ PublicKeyCredentialRpEntity = []
 PublicKeyCredentialType = []
 PublicKeyCredentialUserEntity = []
 PushEncryptionKeyName = []
-PushEvent = ["Event", "ExtendableEvent"]
+PushEvent = [
+    "Event",
+    "ExtendableEvent",
+]
 PushEventInit = []
 PushManager = []
 PushMessageData = []
@@ -1080,8 +1658,14 @@ Screen = ["EventTarget"]
 ScreenColorGamut = []
 ScreenLuminance = []
 ScreenOrientation = ["EventTarget"]
-ScriptProcessorNode = ["AudioNode", "EventTarget"]
-ScrollAreaEvent = ["Event", "UiEvent"]
+ScriptProcessorNode = [
+    "AudioNode",
+    "EventTarget",
+]
+ScrollAreaEvent = [
+    "Event",
+    "UiEvent",
+]
 ScrollBehavior = []
 ScrollBoxObject = []
 ScrollIntoViewOptions = []
@@ -1099,16 +1683,26 @@ Selection = []
 ServerSocketOptions = []
 ServiceWorker = ["EventTarget"]
 ServiceWorkerContainer = ["EventTarget"]
-ServiceWorkerGlobalScope = ["EventTarget", "WorkerGlobalScope"]
+ServiceWorkerGlobalScope = [
+    "EventTarget",
+    "WorkerGlobalScope",
+]
 ServiceWorkerRegistration = ["EventTarget"]
 ServiceWorkerState = []
 ServiceWorkerUpdateViaCache = []
-ShadowRoot = ["DocumentFragment", "EventTarget", "Node"]
+ShadowRoot = [
+    "DocumentFragment",
+    "EventTarget",
+    "Node",
+]
 ShadowRootInit = []
 ShadowRootMode = []
 ShareData = []
 SharedWorker = ["EventTarget"]
-SharedWorkerGlobalScope = ["EventTarget", "WorkerGlobalScope"]
+SharedWorkerGlobalScope = [
+    "EventTarget",
+    "WorkerGlobalScope",
+]
 SignResponse = []
 SocketElement = []
 SocketOptions = []
@@ -1130,13 +1724,19 @@ SpeechRecognitionResult = []
 SpeechRecognitionResultList = []
 SpeechSynthesis = ["EventTarget"]
 SpeechSynthesisErrorCode = []
-SpeechSynthesisErrorEvent = ["Event", "SpeechSynthesisEvent"]
+SpeechSynthesisErrorEvent = [
+    "Event",
+    "SpeechSynthesisEvent",
+]
 SpeechSynthesisErrorEventInit = []
 SpeechSynthesisEvent = ["Event"]
 SpeechSynthesisEventInit = []
 SpeechSynthesisUtterance = ["EventTarget"]
 SpeechSynthesisVoice = []
-StereoPannerNode = ["AudioNode", "EventTarget"]
+StereoPannerNode = [
+    "AudioNode",
+    "EventTarget",
+]
 StereoPannerOptions = []
 Storage = []
 StorageEstimate = []
@@ -1154,9 +1754,27 @@ SubtleCrypto = []
 SupportedType = []
 SvcOutputMetadata = []
 SvgAngle = []
-SvgAnimateElement = ["Element", "EventTarget", "Node", "SvgAnimationElement", "SvgElement"]
-SvgAnimateMotionElement = ["Element", "EventTarget", "Node", "SvgAnimationElement", "SvgElement"]
-SvgAnimateTransformElement = ["Element", "EventTarget", "Node", "SvgAnimationElement", "SvgElement"]
+SvgAnimateElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgAnimationElement",
+    "SvgElement",
+]
+SvgAnimateMotionElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgAnimationElement",
+    "SvgElement",
+]
+SvgAnimateTransformElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgAnimationElement",
+    "SvgElement",
+]
 SvgAnimatedAngle = []
 SvgAnimatedBoolean = []
 SvgAnimatedEnumeration = []
@@ -1169,32 +1787,144 @@ SvgAnimatedPreserveAspectRatio = []
 SvgAnimatedRect = []
 SvgAnimatedString = []
 SvgAnimatedTransformList = []
-SvgAnimationElement = ["Element", "EventTarget", "Node", "SvgElement"]
+SvgAnimationElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
 SvgBoundingBoxOptions = []
-SvgCircleElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGeometryElement", "SvgGraphicsElement"]
-SvgClipPathElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgComponentTransferFunctionElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgDefsElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement"]
-SvgDescElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgElement = ["Element", "EventTarget", "Node"]
-SvgEllipseElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGeometryElement", "SvgGraphicsElement"]
-SvgFilterElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgForeignObjectElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement"]
-SvgGeometryElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement"]
-SvgGradientElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgGraphicsElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgImageElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement"]
+SvgCircleElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGeometryElement",
+    "SvgGraphicsElement",
+]
+SvgClipPathElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgComponentTransferFunctionElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgDefsElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+]
+SvgDescElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+]
+SvgEllipseElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGeometryElement",
+    "SvgGraphicsElement",
+]
+SvgFilterElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgForeignObjectElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+]
+SvgGeometryElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+]
+SvgGradientElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgGraphicsElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgImageElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+]
 SvgLength = []
 SvgLengthList = []
-SvgLineElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGeometryElement", "SvgGraphicsElement"]
-SvgLinearGradientElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGradientElement"]
-SvgMarkerElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgMaskElement = ["Element", "EventTarget", "Node", "SvgElement"]
+SvgLineElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGeometryElement",
+    "SvgGraphicsElement",
+]
+SvgLinearGradientElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGradientElement",
+]
+SvgMarkerElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgMaskElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
 SvgMatrix = []
-SvgMetadataElement = ["Element", "EventTarget", "Node", "SvgElement"]
+SvgMetadataElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
 SvgNumber = []
 SvgNumberList = []
-SvgPathElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGeometryElement", "SvgGraphicsElement"]
+SvgPathElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGeometryElement",
+    "SvgGraphicsElement",
+]
 SvgPathSeg = []
 SvgPathSegArcAbs = ["SvgPathSeg"]
 SvgPathSegArcRel = ["SvgPathSeg"]
@@ -1216,63 +1946,331 @@ SvgPathSegLinetoVerticalRel = ["SvgPathSeg"]
 SvgPathSegList = []
 SvgPathSegMovetoAbs = ["SvgPathSeg"]
 SvgPathSegMovetoRel = ["SvgPathSeg"]
-SvgPatternElement = ["Element", "EventTarget", "Node", "SvgElement"]
+SvgPatternElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
 SvgPoint = []
 SvgPointList = []
-SvgPolygonElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGeometryElement", "SvgGraphicsElement"]
-SvgPolylineElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGeometryElement", "SvgGraphicsElement"]
+SvgPolygonElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGeometryElement",
+    "SvgGraphicsElement",
+]
+SvgPolylineElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGeometryElement",
+    "SvgGraphicsElement",
+]
 SvgPreserveAspectRatio = []
-SvgRadialGradientElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGradientElement"]
+SvgRadialGradientElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGradientElement",
+]
 SvgRect = []
-SvgRectElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGeometryElement", "SvgGraphicsElement"]
-SvgScriptElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgSetElement = ["Element", "EventTarget", "Node", "SvgAnimationElement", "SvgElement"]
-SvgStopElement = ["Element", "EventTarget", "Node", "SvgElement"]
+SvgRectElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGeometryElement",
+    "SvgGraphicsElement",
+]
+SvgScriptElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgSetElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgAnimationElement",
+    "SvgElement",
+]
+SvgStopElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
 SvgStringList = []
-SvgStyleElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgSwitchElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement"]
-SvgSymbolElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgTextContentElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement"]
-SvgTextElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement", "SvgTextContentElement", "SvgTextPositioningElement"]
-SvgTextPathElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement", "SvgTextContentElement"]
-SvgTextPositioningElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement", "SvgTextContentElement"]
-SvgTitleElement = ["Element", "EventTarget", "Node", "SvgElement"]
+SvgStyleElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgSwitchElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+]
+SvgSymbolElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgTextContentElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+]
+SvgTextElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+    "SvgTextContentElement",
+    "SvgTextPositioningElement",
+]
+SvgTextPathElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+    "SvgTextContentElement",
+]
+SvgTextPositioningElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+    "SvgTextContentElement",
+]
+SvgTitleElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
 SvgTransform = []
 SvgTransformList = []
 SvgUnitTypes = []
-SvgUseElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement"]
-SvgViewElement = ["Element", "EventTarget", "Node", "SvgElement"]
+SvgUseElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+]
+SvgViewElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
 SvgZoomAndPan = []
-SvgaElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement"]
-SvgfeBlendElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeColorMatrixElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeComponentTransferElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeCompositeElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeConvolveMatrixElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeDiffuseLightingElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeDisplacementMapElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeDistantLightElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeDropShadowElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeFloodElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeFuncAElement = ["Element", "EventTarget", "Node", "SvgComponentTransferFunctionElement", "SvgElement"]
-SvgfeFuncBElement = ["Element", "EventTarget", "Node", "SvgComponentTransferFunctionElement", "SvgElement"]
-SvgfeFuncGElement = ["Element", "EventTarget", "Node", "SvgComponentTransferFunctionElement", "SvgElement"]
-SvgfeFuncRElement = ["Element", "EventTarget", "Node", "SvgComponentTransferFunctionElement", "SvgElement"]
-SvgfeGaussianBlurElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeImageElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeMergeElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeMergeNodeElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeMorphologyElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeOffsetElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfePointLightElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeSpecularLightingElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeSpotLightElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeTileElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgfeTurbulenceElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvggElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement"]
-SvgmPathElement = ["Element", "EventTarget", "Node", "SvgElement"]
-SvgsvgElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement"]
-SvgtSpanElement = ["Element", "EventTarget", "Node", "SvgElement", "SvgGraphicsElement", "SvgTextContentElement", "SvgTextPositioningElement"]
+SvgaElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+]
+SvgfeBlendElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeColorMatrixElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeComponentTransferElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeCompositeElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeConvolveMatrixElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeDiffuseLightingElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeDisplacementMapElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeDistantLightElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeDropShadowElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeFloodElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeFuncAElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgComponentTransferFunctionElement",
+    "SvgElement",
+]
+SvgfeFuncBElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgComponentTransferFunctionElement",
+    "SvgElement",
+]
+SvgfeFuncGElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgComponentTransferFunctionElement",
+    "SvgElement",
+]
+SvgfeFuncRElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgComponentTransferFunctionElement",
+    "SvgElement",
+]
+SvgfeGaussianBlurElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeImageElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeMergeElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeMergeNodeElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeMorphologyElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeOffsetElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfePointLightElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeSpecularLightingElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeSpotLightElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeTileElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgfeTurbulenceElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvggElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+]
+SvgmPathElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+]
+SvgsvgElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+]
+SvgtSpanElement = [
+    "Element",
+    "EventTarget",
+    "Node",
+    "SvgElement",
+    "SvgGraphicsElement",
+    "SvgTextContentElement",
+    "SvgTextPositioningElement",
+]
 TcpReadyState = []
 TcpServerSocket = ["EventTarget"]
 TcpServerSocketEvent = ["Event"]
@@ -1283,7 +2281,11 @@ TcpSocketErrorEvent = ["Event"]
 TcpSocketErrorEventInit = []
 TcpSocketEvent = ["Event"]
 TcpSocketEventInit = []
-Text = ["CharacterData", "EventTarget", "Node"]
+Text = [
+    "CharacterData",
+    "EventTarget",
+    "Node",
+]
 TextDecodeOptions = []
 TextDecoder = []
 TextDecoderOptions = []
@@ -1298,7 +2300,10 @@ TextTrackMode = []
 TimeEvent = ["Event"]
 TimeRanges = []
 Touch = []
-TouchEvent = ["Event", "UiEvent"]
+TouchEvent = [
+    "Event",
+    "UiEvent",
+]
 TouchEventInit = []
 TouchInit = []
 TouchList = []
@@ -1340,7 +2345,10 @@ UsbIsochronousOutTransferPacket = []
 UsbIsochronousOutTransferResult = []
 UsbOutTransferResult = []
 UsbPermissionDescriptor = []
-UsbPermissionResult = ["EventTarget", "PermissionStatus"]
+UsbPermissionResult = [
+    "EventTarget",
+    "PermissionStatus",
+]
 UsbPermissionStorage = []
 UsbRecipient = []
 UsbRequestType = []
@@ -1372,7 +2380,10 @@ VideoFrameInit = []
 VideoMatrixCoefficients = []
 VideoPixelFormat = []
 VideoPlaybackQuality = []
-VideoStreamTrack = ["EventTarget", "MediaStreamTrack"]
+VideoStreamTrack = [
+    "EventTarget",
+    "MediaStreamTrack",
+]
 VideoTrack = []
 VideoTrackList = ["EventTarget"]
 VideoTransferCharacteristics = []
@@ -1391,13 +2402,19 @@ VrPose = []
 VrServiceTest = []
 VrStageParameters = []
 VrSubmitFrameResult = []
-VttCue = ["EventTarget", "TextTrackCue"]
+VttCue = [
+    "EventTarget",
+    "TextTrackCue",
+]
 VttRegion = []
 WakeLock = []
 WakeLockSentinel = ["EventTarget"]
 WakeLockType = []
 WatchAdvertisementsOptions = []
-WaveShaperNode = ["AudioNode", "EventTarget"]
+WaveShaperNode = [
+    "AudioNode",
+    "EventTarget",
+]
 WaveShaperOptions = []
 WebGl2RenderingContext = []
 WebGlActiveInfo = []
@@ -1419,7 +2436,10 @@ WebGlTexture = []
 WebGlTransformFeedback = []
 WebGlUniformLocation = []
 WebGlVertexArrayObject = []
-WebKitCssMatrix = ["DomMatrix", "DomMatrixReadOnly"]
+WebKitCssMatrix = [
+    "DomMatrix",
+    "DomMatrixReadOnly",
+]
 WebSocket = ["EventTarget"]
 WebSocketDict = []
 WebSocketElement = []
@@ -1437,7 +2457,11 @@ WebglDepthTexture = []
 WebglDrawBuffers = []
 WebglLoseContext = []
 WebrtcGlobalStatisticsReport = []
-WheelEvent = ["Event", "MouseEvent", "UiEvent"]
+WheelEvent = [
+    "Event",
+    "MouseEvent",
+    "UiEvent",
+]
 WheelEventInit = []
 WidevineCdmManifest = []
 Window = ["EventTarget"]
@@ -1457,14 +2481,27 @@ WritableStreamDefaultWriter = []
 XPathExpression = []
 XPathNsResolver = []
 XPathResult = []
-XmlDocument = ["Document", "EventTarget", "Node"]
-XmlHttpRequest = ["EventTarget", "XmlHttpRequestEventTarget"]
+XmlDocument = [
+    "Document",
+    "EventTarget",
+    "Node",
+]
+XmlHttpRequest = [
+    "EventTarget",
+    "XmlHttpRequestEventTarget",
+]
 XmlHttpRequestEventTarget = ["EventTarget"]
 XmlHttpRequestResponseType = []
-XmlHttpRequestUpload = ["EventTarget", "XmlHttpRequestEventTarget"]
+XmlHttpRequestUpload = [
+    "EventTarget",
+    "XmlHttpRequestEventTarget",
+]
 XmlSerializer = []
-Xr = ["EventTarget"]
-XrBoundedReferenceSpace = ["EventTarget", "XrReferenceSpace", "XrSpace"]
+XrBoundedReferenceSpace = [
+    "EventTarget",
+    "XrReferenceSpace",
+    "XrSpace",
+]
 XrEye = []
 XrFrame = []
 XrHandedness = []
@@ -1474,8 +2511,17 @@ XrInputSourceEvent = ["Event"]
 XrInputSourceEventInit = []
 XrInputSourcesChangeEvent = ["Event"]
 XrInputSourcesChangeEventInit = []
+XrLayer = ["EventTarget"]
+XrPermissionDescriptor = []
+XrPermissionStatus = [
+    "EventTarget",
+    "PermissionStatus",
+]
 XrPose = []
-XrReferenceSpace = ["EventTarget", "XrSpace"]
+XrReferenceSpace = [
+    "EventTarget",
+    "XrSpace",
+]
 XrReferenceSpaceEvent = ["Event"]
 XrReferenceSpaceEventInit = []
 XrReferenceSpaceType = []
@@ -1487,19 +2533,30 @@ XrSessionEvent = ["Event"]
 XrSessionEventInit = []
 XrSessionInit = []
 XrSessionMode = []
+XrSessionSupportedPermissionDescriptor = []
 XrSpace = ["EventTarget"]
+XrSystem = ["EventTarget"]
 XrTargetRayMode = []
 XrView = []
 XrViewerPose = ["XrPose"]
 XrViewport = []
 XrVisibilityState = []
-XrWebGlLayer = []
+XrWebGlLayer = [
+    "EventTarget",
+    "XrLayer",
+]
 XrWebGlLayerInit = []
 XsltProcessor = []
 console = []
 css = []
+gpu_buffer_usage = []
+gpu_color_write = []
+gpu_map_mode = []
+gpu_shader_stage = []
+gpu_texture_usage = []
+
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-futures]
-version = "0.4.30"
+version = "0.4.31"
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-test]
-version = "0.3.30"
+version = "0.3.31"

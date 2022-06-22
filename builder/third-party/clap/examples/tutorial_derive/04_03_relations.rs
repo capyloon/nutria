@@ -9,30 +9,30 @@ use clap::{ArgGroup, Parser};
         ))]
 struct Cli {
     /// set version manually
-    #[clap(long, value_name = "VER")]
+    #[clap(long, value_name = "VER", value_parser)]
     set_ver: Option<String>,
 
     /// auto inc major
-    #[clap(long)]
+    #[clap(long, action)]
     major: bool,
 
     /// auto inc minor
-    #[clap(long)]
+    #[clap(long, action)]
     minor: bool,
 
     /// auto inc patch
-    #[clap(long)]
+    #[clap(long, action)]
     patch: bool,
 
     /// some regular input
-    #[clap(group = "input")]
+    #[clap(group = "input", value_parser)]
     input_file: Option<String>,
 
     /// some special input argument
-    #[clap(long, group = "input")]
+    #[clap(long, group = "input", value_parser)]
     spec_in: Option<String>,
 
-    #[clap(short, requires = "input")]
+    #[clap(short, requires = "input", value_parser)]
     config: Option<String>,
 }
 

@@ -3,12 +3,14 @@ use clap::{ArgMatches, Args as _, Command, FromArgMatches, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 struct AddArgs {
+    #[clap(value_parser)]
     name: Vec<String>,
 }
 #[derive(Parser, Debug)]
 struct RemoveArgs {
-    #[clap(short, long)]
+    #[clap(short, long, action)]
     force: bool,
+    #[clap(value_parser)]
     name: Vec<String>,
 }
 
@@ -67,7 +69,7 @@ impl Subcommand for CliSub {
 
 #[derive(Parser, Debug)]
 struct Cli {
-    #[clap(short, long)]
+    #[clap(short, long, action)]
     top_level: bool,
     #[clap(subcommand)]
     subcommand: CliSub,

@@ -17,7 +17,7 @@ fn main() {
     match matches.subcommand() {
         Some(("add", sub_matches)) => println!(
             "'myapp add' was used, name is: {:?}",
-            sub_matches.value_of("NAME")
+            sub_matches.get_one::<String>("NAME")
         ),
         _ => unreachable!("Exhausted list of subcommands and subcommand_required prevents `None`"),
     }

@@ -1,3 +1,13 @@
+## v0.11.11
+
+- Add HTTP/2 keep-alive configuration methods on `ClientBuilder`.
+- Add `ClientBuilder::http1_allow_obsolete_multiline_headers_in_responses()`.
+- Add `impl Service<Request>` for `Client` and `&'_ Client`.
+- (wasm) Add `RequestBuilder::basic_auth()`.
+- Fix `RequestBuilder::header` to not override `sensitive` if user explicitly set on a `HeaderValue`.
+- Fix rustls parsing of elliptic curve private keys.
+- Fix Proxy URL parsing of some invalid targets.
+
 ## v0.11.10
 
 - Add `Error::url()` to access the URL of an error.
@@ -579,7 +589,7 @@
 ### Breaking Changes
 
 - hyper has been upgraded to 0.11, so `header`, `StatusCode`, and `Method` have breaking changes.
-- `mime` has been ugpraded to 0.3, with a very different API.
+- `mime` has been upgraded to 0.3, with a very different API.
 - All configuration methods have been removed from the `Client`, and moved to the `ClientBuilder`.
 - The `HttpVersion` type was completely removed.
 - `Error::cause()` now returns `Error::get_ref().cause()`.

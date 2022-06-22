@@ -1,4 +1,4 @@
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 
 fn main() {
     let matches = Command::new("pacman")
@@ -56,6 +56,7 @@ fn main() {
                         .long("info")
                         .conflicts_with("search")
                         .short('i')
+                        .action(ArgAction::SetTrue)
                         .help("view package information"),
                 )
                 .arg(
@@ -70,28 +71,39 @@ fn main() {
 
     match matches.subcommand() {
         Some(("sync", sync_matches)) => {
-            if sync_matches.is_present("search") {
-                let packages: Vec<_> = sync_matches.values_of("search").unwrap().collect();
+            if sync_matches.contains_id("search") {
+                let packages: Vec<_> = sync_matches
+                    .get_many::<String>("search")
+                    .expect("contains_id")
+                    .map(|s| s.as_str())
+                    .collect();
                 let values = packages.join(", ");
                 println!("Searching for {}...", values);
                 return;
             }
 
-            let packages: Vec<_> = sync_matches.values_of("package").unwrap().collect();
+            let packages: Vec<_> = sync_matches
+                .get_many::<String>("package")
+                .expect("is present")
+                .map(|s| s.as_str())
+                .collect();
             let values = packages.join(", ");
 
-            if sync_matches.is_present("info") {
+            if *sync_matches
+                .get_one::<bool>("info")
+                .expect("defaulted by clap")
+            {
                 println!("Retrieving info for {}...", values);
             } else {
                 println!("Installing {}...", values);
             }
         }
         Some(("query", query_matches)) => {
-            if let Some(packages) = query_matches.values_of("info") {
-                let comma_sep = packages.collect::<Vec<_>>().join(", ");
+            if let Some(packages) = query_matches.get_many::<String>("info") {
+                let comma_sep = packages.map(|s| s.as_str()).collect::<Vec<_>>().join(", ");
                 println!("Retrieving info for {}...", comma_sep);
-            } else if let Some(queries) = query_matches.values_of("search") {
-                let comma_sep = queries.collect::<Vec<_>>().join(", ");
+            } else if let Some(queries) = query_matches.get_many::<String>("search") {
+                let comma_sep = queries.map(|s| s.as_str()).collect::<Vec<_>>().join(", ");
                 println!("Searching Locally for {}...", comma_sep);
             } else {
                 println!("Displaying all locally installed packages...");

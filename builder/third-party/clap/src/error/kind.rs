@@ -11,8 +11,7 @@ pub enum ErrorKind {
     /// # use clap::{Command, Arg, ErrorKind};
     /// let result = Command::new("prog")
     ///     .arg(Arg::new("speed")
-    ///         .possible_value("fast")
-    ///         .possible_value("slow"))
+    ///         .value_parser(["fast", "slow"]))
     ///     .try_get_matches_from(vec!["prog", "other"]);
     /// assert!(result.is_err());
     /// assert_eq!(result.unwrap_err().kind(), ErrorKind::InvalidValue);
@@ -408,7 +407,7 @@ impl ErrorKind {
             Self::UnrecognizedSubcommand => Some("A subcommand wasn't recognized"),
             Self::EmptyValue => Some("An argument requires a value but none was supplied"),
             Self::NoEquals => Some("Equal is needed when assigning values to one of the arguments"),
-            Self::ValueValidation => Some("Invalid for for one of the arguments"),
+            Self::ValueValidation => Some("Invalid value for one of the arguments"),
             Self::TooManyValues => Some("An argument received an unexpected value"),
             Self::TooFewValues => Some("An argument requires more values"),
             Self::TooManyOccurrences => Some("An argument occurred too many times"),

@@ -66,6 +66,26 @@ fn smoketest_iterate() {
 }
 
 #[test]
+fn test_sec1_vs_pkcs8() {
+    {
+        let data = include_bytes!("data/nistp256key.pem");
+        let mut reader = BufReader::new(&data[..]);
+
+        let items = rustls_pemfile::read_all(&mut reader).unwrap();
+        assert!(matches!(items[0], rustls_pemfile::Item::ECKey(_)));
+        println!("sec1 {:?}", items);
+    }
+    {
+        let data = include_bytes!("data/nistp256key.pkcs8.pem");
+        let mut reader = BufReader::new(&data[..]);
+
+        let items = rustls_pemfile::read_all(&mut reader).unwrap();
+        assert!(matches!(items[0], rustls_pemfile::Item::PKCS8Key(_)));
+        println!("p8 {:?}", items);
+    }
+}
+
+#[test]
 fn parse_in_order() {
     let data = include_bytes!("data/zen.pem");
     let mut reader = BufReader::new(&data[..]);

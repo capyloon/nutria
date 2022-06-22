@@ -132,8 +132,13 @@ fn recv_timeout() {
 
 #[test]
 fn try_send() {
+    #[cfg(miri)]
+    const COUNT: usize = 50;
+    #[cfg(not(miri))]
+    const COUNT: usize = 1000;
+
     let (s, r) = unbounded();
-    for i in 0..1000 {
+    for i in 0..COUNT {
         assert_eq!(s.try_send(i), Ok(()));
     }
 
@@ -143,8 +148,13 @@ fn try_send() {
 
 #[test]
 fn send() {
+    #[cfg(miri)]
+    const COUNT: usize = 50;
+    #[cfg(not(miri))]
+    const COUNT: usize = 1000;
+
     let (s, r) = unbounded();
-    for i in 0..1000 {
+    for i in 0..COUNT {
         assert_eq!(s.send(i), Ok(()));
     }
 
@@ -154,8 +164,13 @@ fn send() {
 
 #[test]
 fn send_timeout() {
+    #[cfg(miri)]
+    const COUNT: usize = 50;
+    #[cfg(not(miri))]
+    const COUNT: usize = 1000;
+
     let (s, r) = unbounded();
-    for i in 0..1000 {
+    for i in 0..COUNT {
         assert_eq!(s.send_timeout(i, ms(i as u64)), Ok(()));
     }
 
@@ -383,10 +398,16 @@ fn stress_timeout_two_threads() {
     .unwrap();
 }
 
-#[cfg_attr(miri, ignore)] // Miri is too slow
 #[test]
 fn drops() {
+    #[cfg(miri)]
+    const RUNS: usize = 20;
+    #[cfg(not(miri))]
     const RUNS: usize = 100;
+    #[cfg(miri)]
+    const STEPS: usize = 100;
+    #[cfg(not(miri))]
+    const STEPS: usize = 10_000;
 
     static DROPS: AtomicUsize = AtomicUsize::new(0);
 
@@ -402,8 +423,8 @@ fn drops() {
     let mut rng = thread_rng();
 
     for _ in 0..RUNS {
-        let steps = rng.gen_range(0..10_000);
-        let additional = rng.gen_range(0..1000);
+        let steps = rng.gen_range(0..STEPS);
+        let additional = rng.gen_range(0..STEPS / 10);
 
         DROPS.store(0, Ordering::SeqCst);
         let (s, r) = unbounded::<DropCounter>();
@@ -412,6 +433,8 @@ fn drops() {
             scope.spawn(|_| {
                 for _ in 0..steps {
                     r.recv().unwrap();
+                    #[cfg(miri)]
+                    std::thread::yield_now(); // https://github.com/rust-lang/miri/issues/1388
                 }
             });
 

@@ -20,7 +20,7 @@ See [demo.rs](../demo.rs) and [demo.md](../demo.md) for a brief example.
 
 Let's start by breaking down the anatomy of the derive attributes:
 ```rust
-use clap::{Parser, Args, Subcommand, ArgEnum};
+use clap::{Parser, Args, Subcommand, ValueEnum};
 
 /// Doc comment
 #[derive(Parser)]
@@ -30,7 +30,7 @@ struct Cli {
     #[clap(ARG ATTRIBUTE)]
     field: UserType,
 
-    #[clap(arg_enum, ARG ATTRIBUTE...)]
+    #[clap(value_enum, ARG ATTRIBUTE...)]
     field: EnumValues,
 
     #[clap(flatten)]
@@ -67,7 +67,7 @@ enum Command {
 }
 
 /// Doc comment
-#[derive(ArgEnum)]
+#[derive(ValueEnum)]
 #[clap(ARG ENUM ATTRIBUTE)]
 enum EnumValues {
     /// Doc comment
@@ -84,7 +84,7 @@ fn main() {
 - `Args` allows defining a set of re-usable arguments that get merged into their parent container.
 - `Subcommand` defines available subcommands.
   - Subcommand arguments can be defined in a struct-variant or automatically flattened with a tuple-variant.
-- `ArgEnum` allows parsing a value directly into an `enum`, erroring on unsupported values.
+- `ValueEnum` allows parsing a value directly into an `enum`, erroring on unsupported values.
   - The derive doesn't work on enums that contain non-unit variants, unless they are skipped
 
 See also the [tutorial](../tutorial_derive/README.md) and [examples](../README.md).
@@ -128,6 +128,9 @@ attributes.
 These correspond to a `clap::Command` which is used for both top-level parsers and
 when defining subcommands.
 
+**Raw attributes:**  Any [`Command` method](https://docs.rs/clap/latest/clap/type.Command.html) can also be used as an attribute, see [Terminology](#terminology) for syntax.
+- e.g. `#[clap(arg_required_else_help(true))]` would translate to `cmd.arg_required_else_help(true)`
+
 **Magic attributes:**
 - `name  = <expr>`: `clap::Command::name`
   - When not present: [crate `name`](https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field) (`Parser` container), variant name (`Subcommand` variant)
@@ -163,16 +166,23 @@ And for `Subcommand` variants:
 - `external_subcommand`: `clap::Command::allow_external_subcommand(true)`
   - Variant must be either `Variant(Vec<String>)` or `Variant(Vec<OsString>)`
 
-**Raw attributes:**  Any [`Command` method](https://docs.rs/clap/latest/clap/type.Command.html) can also be used as an attribute, see [Terminology](#terminology) for syntax.
-- e.g. `#[clap(arg_required_else_help(true))]` would translate to `cmd.arg_required_else_help(true)`
-
 ### Arg Attributes
 
 These correspond to a `clap::Arg`.
 
+**Raw attributes:**  Any [`Arg` method](https://docs.rs/clap/latest/clap/struct.Arg.html) can also be used as an attribute, see [Terminology](#terminology) for syntax.
+- e.g. `#[clap(max_values(3))]` would translate to `arg.max_values(3)`
+
 **Magic attributes**:
 - `name = <expr>`: `clap::Arg::new`
   - When not present: case-converted field name is used
+- `value_parser [= <expr>]`: `clap::Arg::value_parser`
+  - When not present: will auto-select an implementation based on the field type
+  - To register a custom type's `ValueParser`, implement `ValueParserFactory`
+  - When present, implies `#[clap(action)]`
+- `action [= <expr>]`: `clap::Arg::action`
+  - When not present: will auto-select an action based on the field type
+  - When present, implies `#[clap(value_parser)]`
 - `help = <expr>`: `clap::Arg::help`
   - When not present: [Doc comment summary](#doc-comments)
 - `long_help = <expr>`: `clap::Arg::long_help`
@@ -198,22 +208,23 @@ These correspond to a `clap::Arg`.
   - When `Option<T>`, the subcommand becomes optional
 - `from_global`: Read a `clap::Arg::global` argument (raw attribute), regardless of what subcommand you are in
 - `parse(<kind> [= <function>])`: `clap::Arg::validator` and `clap::ArgMatches::values_of_t`
+  - **Deprecated:**
+    - Use `value_parser(...)` for `from_str`, `try_from_str`, `from_os_str`, and `try_from_os_str`
+    - Use `action(ArgAction::Count` for `from_occurrences`
+    - Use `action(ArgAction::SetTrue` for `from_flag`
   - Default: `try_from_str`
   - Warning: for `Path` / `OsString`, be sure to use `try_from_os_str`
   - See [Arg Types](#arg-types) for more details
-- `arg_enum`: Parse the value using the `ArgEnum` trait
+- `value_enum`: Parse the value using the `ValueEnum` trait
 - `skip [= <expr>]`: Ignore this field, filling in with `<expr>`
   - Without `<expr>`: fills the field with `Default::default()`
 - `default_value = <str>`: `clap::Arg::default_value` and `clap::Arg::required(false)`
 - `default_value_t [= <expr>]`: `clap::Arg::default_value` and `clap::Arg::required(false)`
-  - Requires `std::fmt::Display` or `#[clap(arg_enum)]`
+  - Requires `std::fmt::Display` or `#[clap(value_enum)]`
   - Without `<expr>`, relies on `Default::default()`
 - `default_value_os_t [= <expr>]`: `clap::Arg::default_value_os` and `clap::Arg::required(false)`
-  - Requires `std::convert::Into<OsString>` or `#[clap(arg_enum)]`
+  - Requires `std::convert::Into<OsString>` or `#[clap(value_enum)]`
   - Without `<expr>`, relies on `Default::default()`
-
-**Raw attributes:**  Any [`Arg` method](https://docs.rs/clap/latest/clap/struct.Arg.html) can also be used as an attribute, see [Terminology](#terminology) for syntax.
-- e.g. `#[clap(max_values(3))]` would translate to `arg.max_values(3)`
 
 ### Arg Enum Attributes
 
@@ -225,14 +236,14 @@ These correspond to a `clap::Arg`.
 
 These correspond to a `clap::PossibleValue`.
 
+**Raw attributes:**  Any [`PossibleValue` method](https://docs.rs/clap/latest/clap/struct.PossibleValue.html) can also be used as an attribute, see [Terminology](#terminology) for syntax.
+- e.g. `#[clap(alias("foo"))]` would translate to `pv.alias("foo")`
+
 **Magic attributes**:
 - `name = <expr>`: `clap::PossibleValue::new`
   - When not present: case-converted field name is used
 - `help = <expr>`: `clap::PossibleValue::help`
   - When not present: [Doc comment summary](#doc-comments)
-
-**Raw attributes:**  Any [`PossibleValue` method](https://docs.rs/clap/latest/clap/struct.PossibleValue.html) can also be used as an attribute, see [Terminology](#terminology) for syntax.
-- e.g. `#[clap(alias("foo"))]` would translate to `pv.alias("foo")`
 
 ## Arg Types
 
@@ -260,7 +271,7 @@ You can then support your custom type with `#[clap(parse(<kind> [= <function>]))
 | `from_str`               | `fn(&str) -> T`                       | `::std::convert::From::from`    |
 | `try_from_str` (default) | `fn(&str) -> Result<T, E>`            | `::std::str::FromStr::from_str` |
 | `from_os_str`            | `fn(&OsStr) -> T`                     | `::std::convert::From::from`    |
-| `try_from_os_str`        | `fn(&OsStr) -> Result<T, OsString>`   | (no default function)           |
+| `try_from_os_str`        | `fn(&OsStr) -> Result<T, E>`          | (no default function)           |
 | `from_occurrences`       | `fn(u64) -> T`                        | `value as T`                    |
 | `from_flag`              | `fn(bool) -> T`                       | `::std::convert::From::from`    |
 
@@ -271,16 +282,16 @@ Notes:
   - Implies `arg.takes_value(true).allow_invalid_utf8(true)`
 - `from_occurrences`:
   - Implies `arg.takes_value(false).multiple_occurrences(true)`
-  - Reads from `clap::ArgMatches::occurrences_of` rather than a `value_of` function
+  - Reads from `clap::ArgMatches::occurrences_of` rather than a `get_one` function
     - Note: operations on values, like `default_value`, are unlikely to do what you want
 - `from_flag`
   - Implies `arg.takes_value(false)`
-  - Reads from `clap::ArgMatches::is_present` rather than a `value_of` function
+  - Reads from `clap::ArgMatches::is_present` rather than a `get_one` function
     - Note: operations on values, like `default_value`, are unlikely to do what you want
 
 **Warning:**
-- To support non-UTF8 paths, you must use `parse(from_os_str)`, otherwise
-  `clap` will use `clap::ArgMatches::value_of` with `PathBuf::FromStr`.
+- To support non-UTF8 paths, you should use `#[clap(value_parser)]` otherwise
+  `clap` will parse it as a `String` which will fail on some paths.
 
 ## Doc Comments
 
@@ -342,7 +353,7 @@ struct Robo {
     /// I am artificial superintelligence. I won't rest
     /// until I'll have destroyed humanity. Enjoy your
     /// pathetic existence, you mere mortals.
-    #[clap(long)]
+    #[clap(long, action)]
     kill_all_humans: bool,
 }
 ```

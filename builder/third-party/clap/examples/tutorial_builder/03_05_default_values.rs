@@ -10,7 +10,7 @@ fn main() {
     println!(
         "NAME: {:?}",
         matches
-            .value_of("NAME")
+            .get_one::<String>("NAME")
             .expect("default ensures there is always a value")
     );
 }

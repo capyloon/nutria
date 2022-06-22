@@ -14,7 +14,7 @@
 
 use crate::{
     parse::*,
-    utils::{process_doc_comment, Sp, Ty},
+    utils::{inner_type, is_simple_ty, process_doc_comment, Sp, Ty},
 };
 
 use std::env;
@@ -42,13 +42,15 @@ pub struct Attrs {
     ty: Option<Type>,
     doc_comment: Vec<Method>,
     methods: Vec<Method>,
-    parser: Sp<Parser>,
+    value_parser: Option<ValueParser>,
+    action: Option<Action>,
+    parser: Option<Sp<Parser>>,
     verbatim_doc_comment: Option<Ident>,
     next_display_order: Option<Method>,
     next_help_heading: Option<Method>,
     help_heading: Option<Method>,
     is_enum: bool,
-    has_custom_parser: bool,
+    is_positional: bool,
     kind: Sp<Kind>,
 }
 
@@ -64,11 +66,20 @@ impl Attrs {
         res.push_attrs(attrs);
         res.push_doc_comment(attrs, "about");
 
-        if res.has_custom_parser {
+        if let Some(value_parser) = res.value_parser.as_ref() {
             abort!(
-                res.parser.span(),
-                "`parse` attribute is only allowed on fields"
+                value_parser.span(),
+                "`value_parser` attribute is only allowed on fields"
             );
+        }
+        if let Some(action) = res.action.as_ref() {
+            abort!(
+                action.span(),
+                "`action` attribute is only allowed on fields"
+            );
+        }
+        if let Some(parser) = res.parser.as_ref() {
+            abort!(parser.span(), "`parse` attribute is only allowed on fields");
         }
         match &*res.kind {
             Kind::Subcommand(_) => abort!(res.kind.span(), "subcommand is only allowed on fields"),
@@ -101,9 +112,21 @@ impl Attrs {
 
         match &*res.kind {
             Kind::Flatten => {
-                if res.has_custom_parser {
+                if let Some(value_parser) = res.value_parser.as_ref() {
                     abort!(
-                        res.parser.span(),
+                        value_parser.span(),
+                        "`value_parser` attribute is not allowed for flattened entry"
+                    );
+                }
+                if let Some(action) = res.action.as_ref() {
+                    abort!(
+                        action.span(),
+                        "`action` attribute is not allowed for flattened entry"
+                    );
+                }
+                if let Some(parser) = res.parser.as_ref() {
+                    abort!(
+                        parser.span(),
                         "parse attribute is not allowed for flattened entry"
                     );
                 }
@@ -121,9 +144,21 @@ impl Attrs {
             Kind::ExternalSubcommand => (),
 
             Kind::Subcommand(_) => {
-                if res.has_custom_parser {
+                if let Some(value_parser) = res.value_parser.as_ref() {
                     abort!(
-                        res.parser.span(),
+                        value_parser.span(),
+                        "`value_parser` attribute is not allowed for subcommand"
+                    );
+                }
+                if let Some(action) = res.action.as_ref() {
+                    abort!(
+                        action.span(),
+                        "`action` attribute is not allowed for subcommand"
+                    );
+                }
+                if let Some(parser) = res.parser.as_ref() {
+                    abort!(
+                        parser.span(),
                         "parse attribute is not allowed for subcommand"
                     );
                 }
@@ -174,7 +209,7 @@ impl Attrs {
         res
     }
 
-    pub fn from_arg_enum_variant(
+    pub fn from_value_enum_variant(
         variant: &Variant,
         argument_casing: Sp<CasingStyle>,
         env_casing: Sp<CasingStyle>,
@@ -189,11 +224,20 @@ impl Attrs {
         res.push_attrs(&variant.attrs);
         res.push_doc_comment(&variant.attrs, "help");
 
-        if res.has_custom_parser {
+        if let Some(value_parser) = res.value_parser.as_ref() {
             abort!(
-                res.parser.span(),
-                "`parse` attribute is only allowed on fields"
+                value_parser.span(),
+                "`value_parser` attribute is only allowed on fields"
             );
+        }
+        if let Some(action) = res.action.as_ref() {
+            abort!(
+                action.span(),
+                "`action` attribute is only allowed on fields"
+            );
+        }
+        if let Some(parser) = res.parser.as_ref() {
+            abort!(parser.span(), "`parse` attribute is only allowed on fields");
         }
         match &*res.kind {
             Kind::Subcommand(_) => abort!(res.kind.span(), "subcommand is only allowed on fields"),
@@ -226,9 +270,21 @@ impl Attrs {
 
         match &*res.kind {
             Kind::Flatten => {
-                if res.has_custom_parser {
+                if let Some(value_parser) = res.value_parser.as_ref() {
                     abort!(
-                        res.parser.span(),
+                        value_parser.span(),
+                        "`value_parser` attribute is not allowed for flattened entry"
+                    );
+                }
+                if let Some(action) = res.action.as_ref() {
+                    abort!(
+                        action.span(),
+                        "`action` attribute is not allowed for flattened entry"
+                    );
+                }
+                if let Some(parser) = res.parser.as_ref() {
+                    abort!(
+                        parser.span(),
                         "parse attribute is not allowed for flattened entry"
                     );
                 }
@@ -250,9 +306,21 @@ impl Attrs {
             }
 
             Kind::Subcommand(_) => {
-                if res.has_custom_parser {
+                if let Some(value_parser) = res.value_parser.as_ref() {
                     abort!(
-                        res.parser.span(),
+                        value_parser.span(),
+                        "`value_parser` attribute is not allowed for subcommand"
+                    );
+                }
+                if let Some(action) = res.action.as_ref() {
+                    abort!(
+                        action.span(),
+                        "`action` attribute is not allowed for subcommand"
+                    );
+                }
+                if let Some(parser) = res.parser.as_ref() {
+                    abort!(
+                        parser.span(),
                         "parse attribute is not allowed for subcommand"
                     );
                 }
@@ -294,9 +362,21 @@ impl Attrs {
                 let ty = Ty::from_syn_ty(&field.ty);
                 res.kind = Sp::new(Kind::FromGlobal(ty), orig_ty.span());
             }
-            Kind::Arg(orig_ty) => {
+            Kind::Arg(_) => {
                 let mut ty = Ty::from_syn_ty(&field.ty);
-                if res.has_custom_parser {
+                if res.parser.is_some() {
+                    if let Some(value_parser) = res.value_parser.as_ref() {
+                        abort!(
+                            value_parser.span(),
+                            "`value_parser` attribute conflicts with `parse` attribute"
+                        );
+                    }
+                    if let Some(action) = res.action.as_ref() {
+                        abort!(
+                            action.span(),
+                            "`action` attribute conflicts with `parse` attribute"
+                        );
+                    }
                     match *ty {
                         Ty::Option | Ty::Vec | Ty::OptionVec => (),
                         _ => ty = Sp::new(Ty::Other, ty.span()),
@@ -304,26 +384,6 @@ impl Attrs {
                 }
 
                 match *ty {
-                    Ty::Bool => {
-                        if res.is_positional() && !res.has_custom_parser {
-                            abort!(field.ty,
-                                "`bool` cannot be used as positional parameter with default parser";
-                                help = "if you want to create a flag add `long` or `short`";
-                                help = "If you really want a boolean parameter \
-                                    add an explicit parser, for example `parse(try_from_str)`";
-                                note = "see also https://github.com/clap-rs/clap/blob/master/examples/derive_ref/custom-bool.md";
-                            )
-                        }
-                        if res.is_enum {
-                            abort!(field.ty, "`arg_enum` is meaningless for bool")
-                        }
-                        if let Some(m) = res.find_default_method() {
-                            abort!(m.name, "default_value is meaningless for bool")
-                        }
-                        if let Some(m) = res.find_method("required") {
-                            abort!(m.name, "required is meaningless for bool")
-                        }
-                    }
                     Ty::Option => {
                         if let Some(m) = res.find_default_method() {
                             abort!(m.name, "default_value is meaningless for Option")
@@ -348,7 +408,14 @@ impl Attrs {
 
                     _ => (),
                 }
-                res.kind = Sp::new(Kind::Arg(ty), orig_ty.span());
+                res.kind = Sp::new(
+                    Kind::Arg(ty),
+                    field
+                        .ident
+                        .as_ref()
+                        .map(|i| i.span())
+                        .unwrap_or_else(|| field.ty.span()),
+                );
             }
         }
 
@@ -369,13 +436,15 @@ impl Attrs {
             env_casing,
             doc_comment: vec![],
             methods: vec![],
-            parser: Parser::default_spanned(default_span),
+            value_parser: None,
+            action: None,
+            parser: None,
             verbatim_doc_comment: None,
             next_display_order: None,
             next_help_heading: None,
             help_heading: None,
             is_enum: false,
-            has_custom_parser: false,
+            is_positional: true,
             kind: Sp::new(Kind::Arg(Sp::new(Ty::Other, default_span)), default_span),
         }
     }
@@ -383,7 +452,14 @@ impl Attrs {
     fn push_method(&mut self, name: Ident, arg: impl ToTokens) {
         if name == "name" {
             self.name = Name::Assigned(quote!(#arg));
+        } else if name == "value_parser" {
+            self.value_parser = Some(ValueParser::Explicit(Method::new(name, quote!(#arg))));
+        } else if name == "action" {
+            self.action = Some(Action::Explicit(Method::new(name, quote!(#arg))));
         } else {
+            if name == "short" || name == "long" {
+                self.is_positional = false;
+            }
             self.methods.push(Method::new(name, quote!(#arg)));
         }
     }
@@ -403,11 +479,21 @@ impl Attrs {
                     self.push_method(ident, self.name.clone().translate(*self.casing));
                 }
 
+                ValueParser(ident) => {
+                    use crate::attrs::ValueParser;
+                    self.value_parser = Some(ValueParser::Implicit(ident));
+                }
+
+                Action(ident) => {
+                    use crate::attrs::Action;
+                    self.action = Some(Action::Implicit(ident));
+                }
+
                 Env(ident) => {
                     self.push_method(ident, self.name.clone().translate(*self.env_casing));
                 }
 
-                ArgEnum(_) => self.is_enum = true,
+                ValueEnum(_) => self.is_enum = true,
 
                 FromGlobal(ident) => {
                     let ty = Sp::call_site(Ty::Other);
@@ -457,23 +543,20 @@ impl Attrs {
                         quote!(<#ty as ::std::default::Default>::default())
                     };
 
-                    let val = if parsed.iter().any(|a| matches!(a, ArgEnum(_))) {
+                    let val = if parsed.iter().any(|a| matches!(a, ValueEnum(_))) {
                         quote_spanned!(ident.span()=> {
                             {
                                 let val: #ty = #val;
-                                clap::ArgEnum::to_possible_value(&val).unwrap().get_name()
+                                clap::ValueEnum::to_possible_value(&val).unwrap().get_name()
                             }
                         })
                     } else {
                         quote_spanned!(ident.span()=> {
-                            clap::lazy_static::lazy_static! {
-                                static ref DEFAULT_VALUE: &'static str = {
-                                    let val: #ty = #val;
-                                    let s = ::std::string::ToString::to_string(&val);
-                                    ::std::boxed::Box::leak(s.into_boxed_str())
-                                };
-                            }
-                            *DEFAULT_VALUE
+                            static DEFAULT_VALUE: clap::once_cell::sync::Lazy<String> = clap::once_cell::sync::Lazy::new(|| {
+                                let val: #ty = #val;
+                                ::std::string::ToString::to_string(&val)
+                            });
+                            &*DEFAULT_VALUE
                         })
                     };
 
@@ -500,23 +583,20 @@ impl Attrs {
                         quote!(<#ty as ::std::default::Default>::default())
                     };
 
-                    let val = if parsed.iter().any(|a| matches!(a, ArgEnum(_))) {
+                    let val = if parsed.iter().any(|a| matches!(a, ValueEnum(_))) {
                         quote_spanned!(ident.span()=> {
                             {
                                 let val: #ty = #val;
-                                clap::ArgEnum::to_possible_value(&val).unwrap().get_name()
+                                clap::ValueEnum::to_possible_value(&val).unwrap().get_name()
                             }
                         })
                     } else {
                         quote_spanned!(ident.span()=> {
-                            clap::lazy_static::lazy_static! {
-                                static ref DEFAULT_VALUE: &'static ::std::ffi::OsStr = {
-                                    let val: #ty = #val;
-                                    let s: ::std::ffi::OsString = val.into();
-                                    ::std::boxed::Box::leak(s.into_boxed_os_str())
-                                };
-                            }
-                            *DEFAULT_VALUE
+                            static DEFAULT_VALUE: clap::once_cell::sync::Lazy<::std::ffi::OsString> = clap::once_cell::sync::Lazy::new(|| {
+                                let val: #ty = #val;
+                                ::std::ffi::OsString::from(val)
+                            });
+                            &*DEFAULT_VALUE
                         })
                     };
 
@@ -572,8 +652,7 @@ impl Attrs {
                 }
 
                 Parse(ident, spec) => {
-                    self.has_custom_parser = true;
-                    self.parser = Parser::from_spec(ident, spec);
+                    self.parser = Some(Parser::from_spec(ident, spec));
                 }
             }
         }
@@ -689,8 +768,71 @@ impl Attrs {
         self.name.clone().translate(CasingStyle::ScreamingSnake)
     }
 
-    pub fn parser(&self) -> &Sp<Parser> {
-        &self.parser
+    pub fn value_parser(&self, field_type: &Type) -> Method {
+        self.value_parser
+            .clone()
+            .map(|p| {
+                let inner_type = inner_type(field_type);
+                p.resolve(inner_type)
+            })
+            .unwrap_or_else(|| {
+                if let Some(action) = self.action.as_ref() {
+                    let inner_type = inner_type(field_type);
+                    let span = action.span();
+                    default_value_parser(inner_type, span)
+                } else if !self.ignore_parser() || cfg!(not(feature = "unstable-v4")) {
+                    self.parser(field_type).value_parser()
+                } else {
+                    let inner_type = inner_type(field_type);
+                    let span = self
+                        .action
+                        .as_ref()
+                        .map(|a| a.span())
+                        .unwrap_or_else(|| self.kind.span());
+                    default_value_parser(inner_type, span)
+                }
+            })
+    }
+
+    pub fn action(&self, field_type: &Type) -> Method {
+        self.action
+            .clone()
+            .map(|p| p.resolve(field_type))
+            .unwrap_or_else(|| {
+                if let Some(value_parser) = self.value_parser.as_ref() {
+                    let span = value_parser.span();
+                    default_action(field_type, span)
+                } else if !self.ignore_parser() || cfg!(not(feature = "unstable-v4")) {
+                    self.parser(field_type).action()
+                } else {
+                    let span = self
+                        .value_parser
+                        .as_ref()
+                        .map(|a| a.span())
+                        .unwrap_or_else(|| self.kind.span());
+                    default_action(field_type, span)
+                }
+            })
+    }
+
+    #[cfg(feature = "unstable-v4")]
+    pub fn ignore_parser(&self) -> bool {
+        self.parser.is_none()
+    }
+
+    #[cfg(not(feature = "unstable-v4"))]
+    pub fn ignore_parser(&self) -> bool {
+        self.value_parser.is_some() || self.action.is_some()
+    }
+
+    pub fn explicit_parser(&self) -> bool {
+        self.parser.is_some()
+    }
+
+    pub fn parser(&self, field_type: &Type) -> Sp<Parser> {
+        self.parser
+            .clone()
+            .unwrap_or_else(|| Parser::from_type(field_type, self.kind.span()))
     }
 
     pub fn kind(&self) -> Sp<Kind> {
@@ -699,6 +841,10 @@ impl Attrs {
 
     pub fn is_enum(&self) -> bool {
         self.is_enum
+    }
+
+    pub fn is_positional(&self) -> bool {
+        self.is_positional
     }
 
     pub fn ignore_case(&self) -> TokenStream {
@@ -719,17 +865,95 @@ impl Attrs {
         self.env_casing.clone()
     }
 
-    pub fn is_positional(&self) -> bool {
-        self.methods
-            .iter()
-            .all(|m| m.name != "long" && m.name != "short")
-    }
-
     pub fn has_explicit_methods(&self) -> bool {
         self.methods
             .iter()
             .any(|m| m.name != "help" && m.name != "long_help")
     }
+}
+
+#[derive(Clone)]
+enum ValueParser {
+    Explicit(Method),
+    Implicit(Ident),
+}
+
+impl ValueParser {
+    fn resolve(self, inner_type: &Type) -> Method {
+        match self {
+            Self::Explicit(method) => method,
+            Self::Implicit(ident) => default_value_parser(inner_type, ident.span()),
+        }
+    }
+
+    fn span(&self) -> Span {
+        match self {
+            Self::Explicit(method) => method.name.span(),
+            Self::Implicit(ident) => ident.span(),
+        }
+    }
+}
+
+fn default_value_parser(inner_type: &Type, span: Span) -> Method {
+    let func = Ident::new("value_parser", span);
+    Method::new(
+        func,
+        quote_spanned! { span=>
+            clap::value_parser!(#inner_type)
+        },
+    )
+}
+
+#[derive(Clone)]
+pub enum Action {
+    Explicit(Method),
+    Implicit(Ident),
+}
+
+impl Action {
+    pub fn resolve(self, field_type: &Type) -> Method {
+        match self {
+            Self::Explicit(method) => method,
+            Self::Implicit(ident) => default_action(field_type, ident.span()),
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Explicit(method) => method.name.span(),
+            Self::Implicit(ident) => ident.span(),
+        }
+    }
+}
+
+fn default_action(field_type: &Type, span: Span) -> Method {
+    let ty = Ty::from_syn_ty(field_type);
+    let args = match *ty {
+        Ty::Vec | Ty::OptionVec => {
+            quote_spanned! { span=>
+                clap::ArgAction::Append
+            }
+        }
+        Ty::Option | Ty::OptionOption => {
+            quote_spanned! { span=>
+                clap::ArgAction::Set
+            }
+        }
+        _ => {
+            if is_simple_ty(field_type, "bool") {
+                quote_spanned! { span=>
+                    clap::ArgAction::SetTrue
+                }
+            } else {
+                quote_spanned! { span=>
+                    clap::ArgAction::Set
+                }
+            }
+        }
+    };
+
+    let func = Ident::new("action", span);
+    Method::new(func, args)
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -778,6 +1002,10 @@ impl Method {
 
         Some(Method::new(ident, quote!(#lit)))
     }
+
+    pub(crate) fn args(&self) -> &TokenStream {
+        &self.args
+    }
 }
 
 impl ToTokens for Method {
@@ -822,10 +1050,16 @@ pub struct Parser {
 }
 
 impl Parser {
-    fn default_spanned(span: Span) -> Sp<Self> {
-        let kind = Sp::new(ParserKind::TryFromStr, span);
-        let func = quote_spanned!(span=> ::std::str::FromStr::from_str);
-        Sp::new(Parser { kind, func }, span)
+    fn from_type(field_type: &Type, span: Span) -> Sp<Self> {
+        if is_simple_ty(field_type, "bool") {
+            let kind = Sp::new(ParserKind::FromFlag, span);
+            let func = quote_spanned!(span=> ::std::convert::From::from);
+            Sp::new(Parser { kind, func }, span)
+        } else {
+            let kind = Sp::new(ParserKind::TryFromStr, span);
+            let func = quote_spanned!(span=> ::std::str::FromStr::from_str);
+            Sp::new(Parser { kind, func }, span)
+        }
     }
 
     fn from_spec(parse_ident: Ident, spec: ParserSpec) -> Sp<Self> {
@@ -865,9 +1099,49 @@ impl Parser {
         let parser = Parser { kind, func };
         Sp::new(parser, parse_ident.span())
     }
+
+    fn value_parser(&self) -> Method {
+        let func = Ident::new("value_parser", self.kind.span());
+        match *self.kind {
+            ParserKind::FromStr | ParserKind::TryFromStr => Method::new(
+                func,
+                quote_spanned! { self.kind.span()=>
+                clap::builder::ValueParser::string()},
+            ),
+            ParserKind::FromOsStr | ParserKind::TryFromOsStr => Method::new(
+                func,
+                quote_spanned! { self.kind.span()=> clap::builder::ValueParser::os_string()},
+            ),
+            ParserKind::FromOccurrences => Method::new(
+                func,
+                quote_spanned! { self.kind.span()=> clap::value_parser!(u64)},
+            ),
+            ParserKind::FromFlag => Method::new(
+                func,
+                quote_spanned! { self.kind.span()=> clap::builder::ValueParser::bool()},
+            ),
+        }
+    }
+
+    fn action(&self) -> Method {
+        let func = Ident::new("action", self.kind.span());
+        match *self.kind {
+            ParserKind::FromStr
+            | ParserKind::TryFromStr
+            | ParserKind::FromOsStr
+            | ParserKind::TryFromOsStr => Method::new(
+                func,
+                quote_spanned! { self.kind.span()=> clap::ArgAction::StoreValue},
+            ),
+            ParserKind::FromOccurrences | ParserKind::FromFlag => Method::new(
+                func,
+                quote_spanned! { self.kind.span()=> clap::ArgAction::IncOccurrence},
+            ),
+        }
+    }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ParserKind {
     FromStr,
     TryFromStr,

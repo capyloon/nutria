@@ -11,11 +11,11 @@ USAGE:
     custom-bool[EXE] [OPTIONS] --foo <FOO> <BOOM>
 
 ARGS:
-    <BOOM>    
+    <BOOM>    [possible values: true, false]
 
 OPTIONS:
         --bar <BAR>    [default: false]
-        --foo <FOO>    
+        --foo <FOO>    [possible values: true, false]
     -h, --help         Print help information
     -V, --version      Print version information
 

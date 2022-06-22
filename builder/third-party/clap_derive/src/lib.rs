@@ -28,12 +28,20 @@ mod dummies;
 mod parse;
 mod utils;
 
-/// Generates the `ArgEnum` impl.
+/// Generates the `ValueEnum` impl.
+#[proc_macro_derive(ValueEnum, attributes(clap))]
+#[proc_macro_error]
+pub fn value_enum(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    derives::derive_value_enum(&input).into()
+}
+
+/// Generates the `ValueEnum` impl.
 #[proc_macro_derive(ArgEnum, attributes(clap))]
 #[proc_macro_error]
 pub fn arg_enum(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
-    derives::derive_arg_enum(&input).into()
+    derives::derive_value_enum(&input).into()
 }
 
 /// Generates the `Parser` implementation.

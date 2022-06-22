@@ -105,10 +105,14 @@ struct Config {
     http_version_pref: HttpVersionPref,
     http09_responses: bool,
     http1_title_case_headers: bool,
+    http1_allow_obsolete_multiline_headers_in_responses: bool,
     http2_initial_stream_window_size: Option<u32>,
     http2_initial_connection_window_size: Option<u32>,
     http2_adaptive_window: bool,
     http2_max_frame_size: Option<u32>,
+    http2_keep_alive_interval: Option<Duration>,
+    http2_keep_alive_timeout: Option<Duration>,
+    http2_keep_alive_while_idle: bool,
     local_address: Option<IpAddr>,
     nodelay: bool,
     #[cfg(feature = "cookies")]
@@ -169,10 +173,14 @@ impl ClientBuilder {
                 http_version_pref: HttpVersionPref::All,
                 http09_responses: false,
                 http1_title_case_headers: false,
+                http1_allow_obsolete_multiline_headers_in_responses: false,
                 http2_initial_stream_window_size: None,
                 http2_initial_connection_window_size: None,
                 http2_adaptive_window: false,
                 http2_max_frame_size: None,
+                http2_keep_alive_interval: None,
+                http2_keep_alive_timeout: None,
+                http2_keep_alive_while_idle: false,
                 local_address: None,
                 nodelay: true,
                 trust_dns: cfg!(feature = "trust-dns"),
@@ -474,6 +482,15 @@ impl ClientBuilder {
         if let Some(http2_max_frame_size) = config.http2_max_frame_size {
             builder.http2_max_frame_size(http2_max_frame_size);
         }
+        if let Some(http2_keep_alive_interval) = config.http2_keep_alive_interval {
+            builder.http2_keep_alive_interval(http2_keep_alive_interval);
+        }
+        if let Some(http2_keep_alive_timeout) = config.http2_keep_alive_timeout {
+            builder.http2_keep_alive_timeout(http2_keep_alive_timeout);
+        }
+        if config.http2_keep_alive_while_idle {
+            builder.http2_keep_alive_while_idle(true);
+        }
 
         builder.pool_idle_timeout(config.pool_idle_timeout);
         builder.pool_max_idle_per_host(config.pool_max_idle_per_host);
@@ -485,6 +502,10 @@ impl ClientBuilder {
 
         if config.http1_title_case_headers {
             builder.http1_title_case_headers(true);
+        }
+
+        if config.http1_allow_obsolete_multiline_headers_in_responses {
+            builder.http1_allow_obsolete_multiline_headers_in_responses(true);
         }
 
         let hyper_client = builder.build(connector);
@@ -861,6 +882,20 @@ impl ClientBuilder {
         self
     }
 
+    /// Set whether HTTP/1 connections will accept obsolete line folding for
+    /// header values.
+    ///
+    /// Newline codepoints (`\r` and `\n`) will be transformed to spaces when
+    /// parsing.
+    pub fn http1_allow_obsolete_multiline_headers_in_responses(
+        mut self,
+        value: bool,
+    ) -> ClientBuilder {
+        self.config
+            .http1_allow_obsolete_multiline_headers_in_responses = value;
+        self
+    }
+
     /// Only use HTTP/1.
     pub fn http1_only(mut self) -> ClientBuilder {
         self.config.http_version_pref = HttpVersionPref::Http1;
@@ -912,6 +947,39 @@ impl ClientBuilder {
     /// Default is currently 16,384 but may change internally to optimize for common uses.
     pub fn http2_max_frame_size(mut self, sz: impl Into<Option<u32>>) -> ClientBuilder {
         self.config.http2_max_frame_size = sz.into();
+        self
+    }
+
+    /// Sets an interval for HTTP2 Ping frames should be sent to keep a connection alive.
+    ///
+    /// Pass `None` to disable HTTP2 keep-alive.
+    /// Default is currently disabled.
+    pub fn http2_keep_alive_interval(
+        mut self,
+        interval: impl Into<Option<Duration>>,
+    ) -> ClientBuilder {
+        self.config.http2_keep_alive_interval = interval.into();
+        self
+    }
+
+    /// Sets a timeout for receiving an acknowledgement of the keep-alive ping.
+    ///
+    /// If the ping is not acknowledged within the timeout, the connection will be closed.
+    /// Does nothing if `http2_keep_alive_interval` is disabled.
+    /// Default is currently disabled.
+    pub fn http2_keep_alive_timeout(mut self, timeout: Duration) -> ClientBuilder {
+        self.config.http2_keep_alive_timeout = Some(timeout);
+        self
+    }
+
+    /// Sets whether HTTP2 keep-alive should apply while the connection is idle.
+    ///
+    /// If disabled, keep-alive pings are only sent while there are open request/responses streams.
+    /// If enabled, pings are also sent when no streams are active.
+    /// Does nothing if `http2_keep_alive_interval` is disabled.
+    /// Default is `false`.
+    pub fn http2_keep_alive_while_idle(mut self, enabled: bool) -> ClientBuilder {
+        self.config.http2_keep_alive_while_idle = enabled;
         self
     }
 
@@ -1495,6 +1563,34 @@ impl fmt::Debug for Client {
     }
 }
 
+impl tower_service::Service<Request> for Client {
+    type Response = Response;
+    type Error = crate::Error;
+    type Future = Pending;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: Request) -> Self::Future {
+        self.execute_request(req)
+    }
+}
+
+impl tower_service::Service<Request> for &'_ Client {
+    type Response = Response;
+    type Error = crate::Error;
+    type Future = Pending;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: Request) -> Self::Future {
+        self.execute_request(req)
+    }
+}
+
 impl fmt::Debug for ClientBuilder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut builder = f.debug_struct("ClientBuilder");
@@ -1533,6 +1629,10 @@ impl Config {
 
         if self.http1_title_case_headers {
             f.field("http1_title_case_headers", &true);
+        }
+
+        if self.http1_allow_obsolete_multiline_headers_in_responses {
+            f.field("http1_allow_obsolete_multiline_headers_in_responses", &true);
         }
 
         if matches!(self.http_version_pref, HttpVersionPref::Http1) {
@@ -1641,7 +1741,7 @@ impl ClientRef {
 }
 
 pin_project! {
-    pub(super) struct Pending {
+    pub struct Pending {
         #[pin]
         inner: PendingInner,
     }

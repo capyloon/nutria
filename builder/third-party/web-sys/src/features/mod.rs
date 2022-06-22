@@ -2374,6 +2374,12 @@ mod gen_GpuAddressMode;
 #[cfg(feature = "GpuAddressMode")]
 pub use gen_GpuAddressMode::*;
 
+#[cfg(feature = "GpuAutoLayoutMode")]
+#[allow(non_snake_case)]
+mod gen_GpuAutoLayoutMode;
+#[cfg(feature = "GpuAutoLayoutMode")]
+pub use gen_GpuAutoLayoutMode::*;
+
 #[cfg(feature = "GpuBindGroup")]
 #[allow(non_snake_case)]
 mod gen_GpuBindGroup;
@@ -2464,12 +2470,6 @@ mod gen_GpuBufferDescriptor;
 #[cfg(feature = "GpuBufferDescriptor")]
 pub use gen_GpuBufferDescriptor::*;
 
-#[cfg(feature = "GpuBufferUsage")]
-#[allow(non_snake_case)]
-mod gen_GpuBufferUsage;
-#[cfg(feature = "GpuBufferUsage")]
-pub use gen_GpuBufferUsage::*;
-
 #[cfg(feature = "GpuCanvasCompositingAlphaMode")]
 #[allow(non_snake_case)]
 mod gen_GpuCanvasCompositingAlphaMode;
@@ -2499,12 +2499,6 @@ pub use gen_GpuColorDict::*;
 mod gen_GpuColorTargetState;
 #[cfg(feature = "GpuColorTargetState")]
 pub use gen_GpuColorTargetState::*;
-
-#[cfg(feature = "GpuColorWrite")]
-#[allow(non_snake_case)]
-mod gen_GpuColorWrite;
-#[cfg(feature = "GpuColorWrite")]
-pub use gen_GpuColorWrite::*;
 
 #[cfg(feature = "GpuCommandBuffer")]
 #[allow(non_snake_case)]
@@ -2566,6 +2560,18 @@ mod gen_GpuComputePassEncoder;
 #[cfg(feature = "GpuComputePassEncoder")]
 pub use gen_GpuComputePassEncoder::*;
 
+#[cfg(feature = "GpuComputePassTimestampLocation")]
+#[allow(non_snake_case)]
+mod gen_GpuComputePassTimestampLocation;
+#[cfg(feature = "GpuComputePassTimestampLocation")]
+pub use gen_GpuComputePassTimestampLocation::*;
+
+#[cfg(feature = "GpuComputePassTimestampWrite")]
+#[allow(non_snake_case)]
+mod gen_GpuComputePassTimestampWrite;
+#[cfg(feature = "GpuComputePassTimestampWrite")]
+pub use gen_GpuComputePassTimestampWrite::*;
+
 #[cfg(feature = "GpuComputePipeline")]
 #[allow(non_snake_case)]
 mod gen_GpuComputePipeline;
@@ -2613,6 +2619,12 @@ pub use gen_GpuDeviceLostInfo::*;
 mod gen_GpuDeviceLostReason;
 #[cfg(feature = "GpuDeviceLostReason")]
 pub use gen_GpuDeviceLostReason::*;
+
+#[cfg(feature = "GpuError")]
+#[allow(non_snake_case)]
+mod gen_GpuError;
+#[cfg(feature = "GpuError")]
+pub use gen_GpuError::*;
 
 #[cfg(feature = "GpuErrorFilter")]
 #[allow(non_snake_case)]
@@ -2710,11 +2722,11 @@ mod gen_GpuLoadOp;
 #[cfg(feature = "GpuLoadOp")]
 pub use gen_GpuLoadOp::*;
 
-#[cfg(feature = "GpuMapMode")]
+#[cfg(feature = "GpuMipmapFilterMode")]
 #[allow(non_snake_case)]
-mod gen_GpuMapMode;
-#[cfg(feature = "GpuMapMode")]
-pub use gen_GpuMapMode::*;
+mod gen_GpuMipmapFilterMode;
+#[cfg(feature = "GpuMipmapFilterMode")]
+pub use gen_GpuMipmapFilterMode::*;
 
 #[cfg(feature = "GpuMultisampleState")]
 #[allow(non_snake_case)]
@@ -2763,12 +2775,6 @@ pub use gen_GpuPipelineLayout::*;
 mod gen_GpuPipelineLayoutDescriptor;
 #[cfg(feature = "GpuPipelineLayoutDescriptor")]
 pub use gen_GpuPipelineLayoutDescriptor::*;
-
-#[cfg(feature = "GpuPipelineStatisticName")]
-#[allow(non_snake_case)]
-mod gen_GpuPipelineStatisticName;
-#[cfg(feature = "GpuPipelineStatisticName")]
-pub use gen_GpuPipelineStatisticName::*;
 
 #[cfg(feature = "GpuPowerPreference")]
 #[allow(non_snake_case)]
@@ -2824,6 +2830,12 @@ mod gen_GpuQueue;
 #[cfg(feature = "GpuQueue")]
 pub use gen_GpuQueue::*;
 
+#[cfg(feature = "GpuQueueDescriptor")]
+#[allow(non_snake_case)]
+mod gen_GpuQueueDescriptor;
+#[cfg(feature = "GpuQueueDescriptor")]
+pub use gen_GpuQueueDescriptor::*;
+
 #[cfg(feature = "GpuRenderBundle")]
 #[allow(non_snake_case)]
 mod gen_GpuRenderBundle;
@@ -2878,6 +2890,18 @@ mod gen_GpuRenderPassLayout;
 #[cfg(feature = "GpuRenderPassLayout")]
 pub use gen_GpuRenderPassLayout::*;
 
+#[cfg(feature = "GpuRenderPassTimestampLocation")]
+#[allow(non_snake_case)]
+mod gen_GpuRenderPassTimestampLocation;
+#[cfg(feature = "GpuRenderPassTimestampLocation")]
+pub use gen_GpuRenderPassTimestampLocation::*;
+
+#[cfg(feature = "GpuRenderPassTimestampWrite")]
+#[allow(non_snake_case)]
+mod gen_GpuRenderPassTimestampWrite;
+#[cfg(feature = "GpuRenderPassTimestampWrite")]
+pub use gen_GpuRenderPassTimestampWrite::*;
+
 #[cfg(feature = "GpuRenderPipeline")]
 #[allow(non_snake_case)]
 mod gen_GpuRenderPipeline;
@@ -2926,17 +2950,17 @@ mod gen_GpuShaderModule;
 #[cfg(feature = "GpuShaderModule")]
 pub use gen_GpuShaderModule::*;
 
+#[cfg(feature = "GpuShaderModuleCompilationHint")]
+#[allow(non_snake_case)]
+mod gen_GpuShaderModuleCompilationHint;
+#[cfg(feature = "GpuShaderModuleCompilationHint")]
+pub use gen_GpuShaderModuleCompilationHint::*;
+
 #[cfg(feature = "GpuShaderModuleDescriptor")]
 #[allow(non_snake_case)]
 mod gen_GpuShaderModuleDescriptor;
 #[cfg(feature = "GpuShaderModuleDescriptor")]
 pub use gen_GpuShaderModuleDescriptor::*;
-
-#[cfg(feature = "GpuShaderStage")]
-#[allow(non_snake_case)]
-mod gen_GpuShaderStage;
-#[cfg(feature = "GpuShaderStage")]
-pub use gen_GpuShaderStage::*;
 
 #[cfg(feature = "GpuStencilFaceState")]
 #[allow(non_snake_case)]
@@ -3021,12 +3045,6 @@ pub use gen_GpuTextureFormat::*;
 mod gen_GpuTextureSampleType;
 #[cfg(feature = "GpuTextureSampleType")]
 pub use gen_GpuTextureSampleType::*;
-
-#[cfg(feature = "GpuTextureUsage")]
-#[allow(non_snake_case)]
-mod gen_GpuTextureUsage;
-#[cfg(feature = "GpuTextureUsage")]
-pub use gen_GpuTextureUsage::*;
 
 #[cfg(feature = "GpuTextureView")]
 #[allow(non_snake_case)]
@@ -4240,6 +4258,12 @@ mod gen_MediaError;
 #[cfg(feature = "MediaError")]
 pub use gen_MediaError::*;
 
+#[cfg(feature = "MediaImage")]
+#[allow(non_snake_case)]
+mod gen_MediaImage;
+#[cfg(feature = "MediaImage")]
+pub use gen_MediaImage::*;
+
 #[cfg(feature = "MediaKeyError")]
 #[allow(non_snake_case)]
 mod gen_MediaKeyError;
@@ -4342,6 +4366,24 @@ mod gen_MediaList;
 #[cfg(feature = "MediaList")]
 pub use gen_MediaList::*;
 
+#[cfg(feature = "MediaMetadata")]
+#[allow(non_snake_case)]
+mod gen_MediaMetadata;
+#[cfg(feature = "MediaMetadata")]
+pub use gen_MediaMetadata::*;
+
+#[cfg(feature = "MediaMetadataInit")]
+#[allow(non_snake_case)]
+mod gen_MediaMetadataInit;
+#[cfg(feature = "MediaMetadataInit")]
+pub use gen_MediaMetadataInit::*;
+
+#[cfg(feature = "MediaPositionState")]
+#[allow(non_snake_case)]
+mod gen_MediaPositionState;
+#[cfg(feature = "MediaPositionState")]
+pub use gen_MediaPositionState::*;
+
 #[cfg(feature = "MediaQueryList")]
 #[allow(non_snake_case)]
 mod gen_MediaQueryList;
@@ -4383,6 +4425,30 @@ pub use gen_MediaRecorderErrorEventInit::*;
 mod gen_MediaRecorderOptions;
 #[cfg(feature = "MediaRecorderOptions")]
 pub use gen_MediaRecorderOptions::*;
+
+#[cfg(feature = "MediaSession")]
+#[allow(non_snake_case)]
+mod gen_MediaSession;
+#[cfg(feature = "MediaSession")]
+pub use gen_MediaSession::*;
+
+#[cfg(feature = "MediaSessionAction")]
+#[allow(non_snake_case)]
+mod gen_MediaSessionAction;
+#[cfg(feature = "MediaSessionAction")]
+pub use gen_MediaSessionAction::*;
+
+#[cfg(feature = "MediaSessionActionDetails")]
+#[allow(non_snake_case)]
+mod gen_MediaSessionActionDetails;
+#[cfg(feature = "MediaSessionActionDetails")]
+pub use gen_MediaSessionActionDetails::*;
+
+#[cfg(feature = "MediaSessionPlaybackState")]
+#[allow(non_snake_case)]
+mod gen_MediaSessionPlaybackState;
+#[cfg(feature = "MediaSessionPlaybackState")]
+pub use gen_MediaSessionPlaybackState::*;
 
 #[cfg(feature = "MediaSource")]
 #[allow(non_snake_case)]
@@ -4473,6 +4539,30 @@ pub use gen_MediaStreamTrackEvent::*;
 mod gen_MediaStreamTrackEventInit;
 #[cfg(feature = "MediaStreamTrackEventInit")]
 pub use gen_MediaStreamTrackEventInit::*;
+
+#[cfg(feature = "MediaStreamTrackGenerator")]
+#[allow(non_snake_case)]
+mod gen_MediaStreamTrackGenerator;
+#[cfg(feature = "MediaStreamTrackGenerator")]
+pub use gen_MediaStreamTrackGenerator::*;
+
+#[cfg(feature = "MediaStreamTrackGeneratorInit")]
+#[allow(non_snake_case)]
+mod gen_MediaStreamTrackGeneratorInit;
+#[cfg(feature = "MediaStreamTrackGeneratorInit")]
+pub use gen_MediaStreamTrackGeneratorInit::*;
+
+#[cfg(feature = "MediaStreamTrackProcessor")]
+#[allow(non_snake_case)]
+mod gen_MediaStreamTrackProcessor;
+#[cfg(feature = "MediaStreamTrackProcessor")]
+pub use gen_MediaStreamTrackProcessor::*;
+
+#[cfg(feature = "MediaStreamTrackProcessorInit")]
+#[allow(non_snake_case)]
+mod gen_MediaStreamTrackProcessorInit;
+#[cfg(feature = "MediaStreamTrackProcessorInit")]
+pub use gen_MediaStreamTrackProcessorInit::*;
 
 #[cfg(feature = "MediaStreamTrackState")]
 #[allow(non_snake_case)]
@@ -4929,6 +5019,12 @@ pub use gen_OscillatorType::*;
 mod gen_OverSampleType;
 #[cfg(feature = "OverSampleType")]
 pub use gen_OverSampleType::*;
+
+#[cfg(feature = "OvrMultiview2")]
+#[allow(non_snake_case)]
+mod gen_OvrMultiview2;
+#[cfg(feature = "OvrMultiview2")]
+pub use gen_OvrMultiview2::*;
 
 #[cfg(feature = "PageTransitionEvent")]
 #[allow(non_snake_case)]
@@ -6693,6 +6789,18 @@ pub use gen_StyleSheetChangeEventInit::*;
 mod gen_StyleSheetList;
 #[cfg(feature = "StyleSheetList")]
 pub use gen_StyleSheetList::*;
+
+#[cfg(feature = "SubmitEvent")]
+#[allow(non_snake_case)]
+mod gen_SubmitEvent;
+#[cfg(feature = "SubmitEvent")]
+pub use gen_SubmitEvent::*;
+
+#[cfg(feature = "SubmitEventInit")]
+#[allow(non_snake_case)]
+mod gen_SubmitEventInit;
+#[cfg(feature = "SubmitEventInit")]
+pub use gen_SubmitEventInit::*;
 
 #[cfg(feature = "SubtleCrypto")]
 #[allow(non_snake_case)]
@@ -8632,6 +8740,24 @@ mod gen_XrInputSourcesChangeEventInit;
 #[cfg(feature = "XrInputSourcesChangeEventInit")]
 pub use gen_XrInputSourcesChangeEventInit::*;
 
+#[cfg(feature = "XrLayer")]
+#[allow(non_snake_case)]
+mod gen_XrLayer;
+#[cfg(feature = "XrLayer")]
+pub use gen_XrLayer::*;
+
+#[cfg(feature = "XrPermissionDescriptor")]
+#[allow(non_snake_case)]
+mod gen_XrPermissionDescriptor;
+#[cfg(feature = "XrPermissionDescriptor")]
+pub use gen_XrPermissionDescriptor::*;
+
+#[cfg(feature = "XrPermissionStatus")]
+#[allow(non_snake_case)]
+mod gen_XrPermissionStatus;
+#[cfg(feature = "XrPermissionStatus")]
+pub use gen_XrPermissionStatus::*;
+
 #[cfg(feature = "XrPose")]
 #[allow(non_snake_case)]
 mod gen_XrPose;
@@ -8710,6 +8836,12 @@ mod gen_XrSessionMode;
 #[cfg(feature = "XrSessionMode")]
 pub use gen_XrSessionMode::*;
 
+#[cfg(feature = "XrSessionSupportedPermissionDescriptor")]
+#[allow(non_snake_case)]
+mod gen_XrSessionSupportedPermissionDescriptor;
+#[cfg(feature = "XrSessionSupportedPermissionDescriptor")]
+pub use gen_XrSessionSupportedPermissionDescriptor::*;
+
 #[cfg(feature = "XrSpace")]
 #[allow(non_snake_case)]
 mod gen_XrSpace;
@@ -8781,3 +8913,33 @@ pub use gen_console::*;
 mod gen_css;
 #[cfg(feature = "css")]
 pub use gen_css::*;
+
+#[cfg(feature = "gpu_buffer_usage")]
+#[allow(non_snake_case)]
+mod gen_gpu_buffer_usage;
+#[cfg(feature = "gpu_buffer_usage")]
+pub use gen_gpu_buffer_usage::*;
+
+#[cfg(feature = "gpu_color_write")]
+#[allow(non_snake_case)]
+mod gen_gpu_color_write;
+#[cfg(feature = "gpu_color_write")]
+pub use gen_gpu_color_write::*;
+
+#[cfg(feature = "gpu_map_mode")]
+#[allow(non_snake_case)]
+mod gen_gpu_map_mode;
+#[cfg(feature = "gpu_map_mode")]
+pub use gen_gpu_map_mode::*;
+
+#[cfg(feature = "gpu_shader_stage")]
+#[allow(non_snake_case)]
+mod gen_gpu_shader_stage;
+#[cfg(feature = "gpu_shader_stage")]
+pub use gen_gpu_shader_stage::*;
+
+#[cfg(feature = "gpu_texture_usage")]
+#[allow(non_snake_case)]
+mod gen_gpu_texture_usage;
+#[cfg(feature = "gpu_texture_usage")]
+pub use gen_gpu_texture_usage::*;

@@ -10,18 +10,20 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
+edition = "2021"
+rust-version = "1.56.1"
 name = "clap_derive"
-version = "3.1.18"
+version = "3.2.6"
 include = [
+    "build.rs",
     "src/**/*",
     "Cargo.toml",
-    "LICENSE-*",
+    "LICENSE*",
     "README.md",
+    "benches/**/*",
+    "examples/**/*",
 ]
 description = "Parse command line argument by defining a struct, derive crate."
-documentation = "https://docs.rs/clap_derive"
-readme = "README.md"
 keywords = [
     "clap",
     "cli",
@@ -35,6 +37,10 @@ categories = [
 ]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/clap-rs/clap/tree/master/clap_derive"
+resolver = "2"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
 
 [package.metadata.release]
 shared-version = true
@@ -47,9 +53,6 @@ search = "github.com/clap-rs/clap/blob/[^/]+/"
 replace = "github.com/clap-rs/clap/blob/{{tag_name}}/"
 exactly = 2
 prerelease = true
-
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
 
 [lib]
 bench = false
@@ -74,4 +77,6 @@ features = ["full"]
 [features]
 debug = []
 default = []
-unstable-v4 = []
+deprecated = []
+raw-deprecated = ["deprecated"]
+unstable-v4 = ["deprecated"]
