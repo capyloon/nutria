@@ -10,17 +10,19 @@
   background-color: rgba(255, 255, 255, 0.25);
   border-radius: 0 0 40%;
   display: flex;
+  transition: all 0.5s linear;
 }
 
-:host *[hidden=true] {
-    display: none;
+:host *[hidden="true"] {
+  display: none;
 }
 
 :host img {
-    display: block;
-    width: 1em;
+  display: block;
+  width: 1em;
 }
 
 :host(.hidden) {
-  display: none;
+  transition: all 0.5s linear;
+  transform: translateX(-100%);
 }
