@@ -156,6 +156,7 @@ const kDeps = [
       "confirm dialog comp",
       "publish dialog comp",
       "ucan",
+      "status icons comp",
     ],
   },
   {
@@ -219,6 +220,7 @@ const kDeps = [
       "shoelace-icon",
       "shoelace-range",
       "shoelace-badge",
+      "status icons comp",
     ],
   },
   {
@@ -250,6 +252,12 @@ const kDeps = [
     kind: "module",
     param: ["./components/audio_volume_indicator.js"],
     deps: ["lit element"],
+  },
+  {
+    name: "status icons comp",
+    kind: "module",
+    param: ["./components/status_icons.js"],
+    deps: ["lit element", "shoelace-icon"],
   },
   {
     name: "site info comp",

@@ -126,6 +126,9 @@ class QuickSettings extends HTMLElement {
       }
     }
 
+    let statusIcons = document.getElementById("status-icons");
+    statusIcons.tor = false;
+
     let torEnabled = await settingOrDefault("tor.enabled", false);
     if (!torEnabled) {
       torIcon.classList.add("disabled");
@@ -139,6 +142,7 @@ class QuickSettings extends HTMLElement {
     const status = await settingOrDefault("tor.status", { ready: false });
     let torReady = status.ready;
     if (torReady) {
+      statusIcons.tor = true;
       torIcon.classList.remove("enabling");
       torIcon.variant = "primary";
       torIcon.pulse = false;
@@ -156,6 +160,7 @@ class QuickSettings extends HTMLElement {
         torIcon.classList.add("disabled");
         torIcon.variant = "neutral";
         torIcon.pulse = false;
+        statusIcons.tor = false;
       }
       let msg = await window.utils.l10n(
         torEnabled ? "tor-enabling" : "tor-disabled"
@@ -167,6 +172,7 @@ class QuickSettings extends HTMLElement {
       if (setting.value.ready != torReady) {
         torReady = setting.value.ready;
         console.log(`Tor: status is ${JSON.stringify(setting.value)}`);
+        statusIcons.tor = torReady;
         if (torReady) {
           torIcon.classList.remove("enabling");
           torIcon.variant = "primary";

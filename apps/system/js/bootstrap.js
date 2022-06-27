@@ -414,12 +414,8 @@ document.addEventListener(
     let _ucan = new Ucan();
 
     embedder.addEventListener("geolocation-status", (event) => {
-      let status = document.getElementById("geolocation-status");
-      if (event.detail.active === true) {
-        status.classList.remove("hidden");
-      } else {
-        status.classList.add("hidden");
-      }
+      let status = document.getElementById("status-icons");
+      status.geoloc = event.detail.active;
     });
   },
   { once: true }
