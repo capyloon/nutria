@@ -122,12 +122,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         drawerLoaded = true;
       }
 
+      let toShow, toHide;
+
       for (let wrapper of wrappers.values()) {
         if (wrapper.name === name) {
-          wrapper.panel.show();
-        } else {
-          wrapper.panel.hide();
+          console.log(`FTU: will show ${wrapper.name}`);
+          toShow = wrapper.panel;
+        } else if (wrapper.panel.open) {
+          console.log(`FTU: will hide ${wrapper.name}`);
+          toHide = wrapper.panel;
         }
+      }
+
+      // Start by showing the target panel, then hide the previous one.
+      if (toShow) {
+        toShow.addEventListener(
+          "sl-after-show",
+          () => {
+            toHide.hide();
+          },
+          { once: true }
+        );
+        toShow.show();
+      } else {
+        // Going back to the first screen, just hide the previous panel.
+        toHide.hide();
       }
     },
     false
