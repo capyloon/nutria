@@ -157,3 +157,7 @@ so can't be part of component specific css file.
 sl-drawer::part(overlay) {
   backdrop-filter: blur(10px);
 }
+
+#status-top.carousel {
+  backdrop-filter: blur(5px);
+}

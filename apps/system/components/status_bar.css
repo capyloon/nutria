@@ -58,7 +58,7 @@ sl-icon {
 }
 
 .container.carousel {
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(5px);
 }
 
 .center {
@@ -123,17 +123,17 @@ sl-badge::part(base) {
   font-size: 1em;
 }
 
-sl-badge[variant = neutral]::part(base) {
+sl-badge[variant="neutral"]::part(base) {
   background-color: transparent;
   border-color: transparent;
   color: var(--status-text-normal);
 }
 
-:host(.high-luminance) sl-badge[variant = neutral]::part(base) {
+:host(.high-luminance) sl-badge[variant="neutral"]::part(base) {
   color: var(--status-text-highlum);
 }
 
-:host(.transparent) sl-badge[variant = neutral]::part(base) {
+:host(.transparent) sl-badge[variant="neutral"]::part(base) {
   color: lightgray;
 }
 

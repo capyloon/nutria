@@ -270,6 +270,7 @@ class StatusBar extends HTMLElement {
     this.getElem(`sl-icon[name="home"]`).classList.add("carousel");
     this.getElem(`sl-icon[name="columns"]`).classList.add("hidden");
     this.updateBackgroundColor("transparent");
+    document.getElementById("status-top").classList.add("carousel");
   }
 
   closeCarousel() {
@@ -277,6 +278,7 @@ class StatusBar extends HTMLElement {
     this.getElem(".container").classList.remove("carousel");
     this.getElem(`sl-icon[name="home"]`).classList.remove("carousel");
     this.getElem(`sl-icon[name="columns"]`).classList.remove("hidden");
+    document.getElementById("status-top").classList.remove("carousel");
   }
 
   updateNotifications(_name, count) {
