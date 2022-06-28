@@ -126,15 +126,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       for (let wrapper of wrappers.values()) {
         if (wrapper.name === name) {
-          console.log(`FTU: will show ${wrapper.name}`);
           toShow = wrapper.panel;
         } else if (wrapper.panel.open) {
-          console.log(`FTU: will hide ${wrapper.name}`);
           toHide = wrapper.panel;
         }
       }
 
       // Start by showing the target panel, then hide the previous one.
+      // TODO: disable the "hide" animation when toShow is no null.
       if (toShow) {
         toShow.addEventListener(
           "sl-after-show",
