@@ -212,7 +212,7 @@ class PlacesItem extends HTMLElement {
       `;
 
     let icon = shadow.querySelector("img");
-    icon.src = this.variant("icon") || content.icon;
+    icon.src = content.icon || this.variant("icon");
 
     this.onclick = () => {
       this.dispatchEvent(
