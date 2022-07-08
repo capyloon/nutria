@@ -4,7 +4,7 @@
   display: flex;
   padding: 0.25em;
   align-items: center;
-  grid-gap: 0.5em;
+  gap: 0.5em;
   cursor: pointer;
   width: 100%;
   overflow-x: hidden;
@@ -12,12 +12,13 @@
 
 :host {
   padding: 0 0.3em 0.3em 0;
+  border-radius: 2px;
   display: flex;
 }
 
 :host(:hover),
 :host(.selected) {
-  background-color: rgba(255, 255, 255, 0.25);
+  background-color: var(--sl-overlay-background-color);
 }
 
 :host .title {

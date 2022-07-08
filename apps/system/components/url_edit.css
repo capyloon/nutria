@@ -5,17 +5,16 @@
   flex-direction: column;
   justify-content: center;
   position: absolute;
-  bottom: var(--statusbar-height);
+  bottom: calc(var(--statusbar-height));
   left: 0;
   width: calc(100% - 2em);
   max-height: 50vh;
   padding: 1em;
   border-radius: 5px;
+  border: var(--sl-panel-border-width) solid var(--sl-panel-border-color);
   font-size: smaller;
-  font-family: "Open Sans", arial, "sans serif";
-  background-color: var(--dialog-background);
-  backdrop-filter: blur(10px);
-  color: white;
+  background-color: var(--sl-panel-background-color);
+  color: var(--sl-color-neutral-700);
   margin: 1em 1em 0 1em;
   transition: transform 0.25s;
   display: flex;
@@ -37,15 +36,15 @@
 }
 
 :host(.keyboard-open) {
-  bottom: calc(var(--keyboard-height) + 2em);
+  bottom: calc(var(--keyboard-height) + var(--statusbar-height));
 }
 
 /* similar to the one in the homescreen */
 :host input {
   width: calc(100% - 1em);
   font-size: 1rem;
-  background-color: rgba(255, 255, 255, 0.25);
-  color: white;
+  background-color: var(--sl-overlay-background-color);
+  color: var(--sl-color-neutral-700);
   border-radius: 8px;
   border: none;
   outline: none;
