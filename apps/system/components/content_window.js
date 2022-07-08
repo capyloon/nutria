@@ -355,7 +355,8 @@ class ContentWindow extends HTMLElement {
       this.keyboardOpen = false;
     };
 
-    this.navigateTo = (_name, url) => {
+    this.navigateTo = (_name, { url, search }) => {
+      this.state.search = search;
       this.webView.src = url;
     };
 

@@ -51,40 +51,6 @@
 //   screenY: 461,
 // };
 
-// Triggers a search using a randomly selected search engine.
-// TODO: abstract that and share some with the site info panel.
-async function searchFor(text) {
-  let openSearch = contentManager.getOpenSearchManager((items) => {
-    // Remove items that are not enabled.
-    items = items.filter((item) => {
-      let meta = item.meta;
-      return meta.tags.includes("enabled");
-    });
-
-    // Pick one search engine.
-    let engine = items[Math.round(Math.random() * items.length)];
-    let desc = engine.variant("default").OpenSearchDescription;
-
-    // Replace the text in the searchTerms.
-    let urls = desc.Url;
-    if (!Array.isArray(urls)) {
-      urls = [urls];
-    }
-    let found = urls.find((item) => item._attributes.type == "text/html");
-    if (!found) {
-      return;
-    }
-    let template = found._attributes.template;
-    let encoded = encodeURIComponent(text).replace(/[!'()*]/g, function (c) {
-      return "%" + c.charCodeAt(0).toString(16);
-    });
-    let url = template.replace("{searchTerms}", encoded);
-
-    wm.openFrame(url, { activate: true, details: { search: text } });
-  });
-  await openSearch.init();
-}
-
 class ContextMenu extends HTMLElement {
   constructor() {
     super();
@@ -150,7 +116,12 @@ class ContextMenu extends HTMLElement {
       this.dialog.addEventListener(
         "sl-after-hide",
         () => {
-          searchFor(this.selectedText);
+          window.utils.randomSearchEngineUrl(this.selectedText).then((url) => {
+            wm.openFrame(url, {
+              activate: true,
+              details: { search: this.selectedText },
+            });
+          });
         },
         { once: true }
       );

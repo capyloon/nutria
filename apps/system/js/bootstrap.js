@@ -188,6 +188,45 @@ window.utils = {
     }
     return text;
   },
+
+  // Helper to pick a random search engine.
+  // Returns a Promise that resolves with the final url.
+  randomSearchEngineUrl(text) {
+    return new Promise(async (resolve) => {
+      let openSearch = contentManager.getOpenSearchManager((items) => {
+        // Remove items that are not enabled.
+        items = items.filter((item) => {
+          let meta = item.meta;
+          return meta.tags.includes("enabled");
+        });
+
+        // Pick one search engine.
+        let engine = items[Math.floor(Math.random() * items.length)];
+        let desc = engine.variant("default").OpenSearchDescription;
+
+        // Replace the text in the searchTerms.
+        let urls = desc.Url;
+        if (!Array.isArray(urls)) {
+          urls = [urls];
+        }
+        let found = urls.find((item) => item._attributes.type == "text/html");
+        if (!found) {
+          return;
+        }
+        let template = found._attributes.template;
+        let encoded = encodeURIComponent(text).replace(
+          /[!'()*]/g,
+          function (c) {
+            return "%" + c.charCodeAt(0).toString(16);
+          }
+        );
+        let url = template.replace("{searchTerms}", encoded);
+
+        resolve(url);
+      });
+      await openSearch.init();
+    });
+  },
 };
 
 function setupWebExtensions() {

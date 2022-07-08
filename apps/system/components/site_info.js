@@ -185,7 +185,10 @@ class SiteInfo extends HTMLElement {
         }
       );
       let url = template.replace("{searchTerms}", encoded);
-      actionsDispatcher.dispatch("navigate-to", url);
+      actionsDispatcher.dispatch("navigate-to", {
+        url,
+        search: this.state.search,
+      });
       contentManager.visitPlace(url, true);
       this.close();
     });

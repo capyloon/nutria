@@ -146,9 +146,28 @@ class UrlEdit extends LitElement {
     input.select();
   }
 
-  navigateTo(url) {
-    actionsDispatcher.dispatch("navigate-to", url);
-    contentManager.visitPlace(url, true);
+  navigateTo(input) {
+    input = input.trim();
+
+    if (input.includes("://")) {
+      // Fully formed URL.
+      actionsDispatcher.dispatch("navigate-to", { url: input });
+      contentManager.visitPlace(input, true);
+    } else if (
+      // host name without a scheme.
+      !input.includes("://") &&
+      input.includes(".") &&
+      !input.includes(" ")
+    ) {
+      let url = `https://${input}`;
+      actionsDispatcher.dispatch("navigate-to", { url });
+      contentManager.visitPlace(url, true);
+    } else {
+      window.utils.randomSearchEngineUrl(input).then((url) => {
+        actionsDispatcher.dispatch("navigate-to", { url, search: input });
+        contentManager.visitPlace(url, true);
+      });
+    }
     this.hide();
     this.shadowRoot.querySelector("input").blur();
   }
