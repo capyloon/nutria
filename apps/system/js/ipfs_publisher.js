@@ -222,6 +222,7 @@ class IpfsObserver {
   async ensureContainer() {
     this.log(`ensureContainer`);
     if (!this.container) {
+      await contentManager.as_superuser();
       this.container = await contentManager.ensureTopLevelContainer(
         "shared on ipfs"
       );
