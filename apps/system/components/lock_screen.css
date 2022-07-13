@@ -9,7 +9,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  color: rgb(200, 200, 200);
+  color: white;
   background-size: cover;
   background-repeat: no-repeat;
   background-position: 50% 50%;
@@ -57,11 +57,12 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  text-shadow: 0 3px 6px #333, 0 1px 0 #333;
 }
 
 .time {
-  font-weight: bold;
-  font-size: xx-large;
+  font-weight: normal;
+  font-size: 4.5em;
 }
 
 .slider {
@@ -85,6 +86,19 @@
   justify-content: end;
   align-items: center;
   padding-bottom: 0.5em;
+  animation: slideup-indicator 2s ease infinite 3s;
+}
+
+@keyframes slideup-indicator {
+  0% {
+    transform: translateY(0);
+  }
+  25% {
+    transform: translateY(-1em);
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 
 .lockpad {
