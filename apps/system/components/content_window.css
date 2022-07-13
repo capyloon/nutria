@@ -50,9 +50,9 @@ content-window .loader.running sl-icon {
 
 content-window .loader img {
   width: 4em;
-  border-radius: 40%;
-  box-shadow: 2px 2px 3px black;
-  animation: pulse 1s linear infinite;
+  border-radius: 25%;
+  filter: drop-shadow(2px 2px 3px black);
+  animation: pulse 1s ease infinite;
 }
 
 content-window .loader img.hidden {
@@ -66,8 +66,17 @@ content-window .loader .title {
 }
 
 @keyframes pulse {
+  0% {
+    transform: scale(1.0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.9);
+    opacity: 0.75;
+  }
   100% {
-    transform: scale(120%);
+    transform: scale(1.0);
+    opacity: 1;
   }
 }
 
@@ -140,4 +149,34 @@ content-window .overscroll sl-icon {
   padding: 0.25em;
   transform: none;
   transition: transform 1s, color 2s, background-color 2s;
+}
+
+content-window.not-homescreen.opening {
+  animation: opening 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
+}
+
+content-window.not-homescreen.closing {
+  animation: closing 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
+}
+
+@keyframes opening {
+  from {
+    transform: scale(0.75);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1.0);
+    opacity: 1;
+  }
+}
+
+@keyframes closing {
+  from {
+    transform: scale(1.0);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.75);
+    opacity: 0;
+  }
 }

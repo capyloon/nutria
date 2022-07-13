@@ -9,7 +9,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  color: rgb(200, 200, 200);
+  color: rgb(255, 255, 255);
   background-size: cover;
   background-repeat: no-repeat;
   background-position: 50% 50%;
@@ -61,7 +61,7 @@
 
 .time {
   font-weight: bold;
-  font-size: xx-large;
+  font-size: 4em;
 }
 
 .slider {
@@ -85,6 +85,22 @@
   justify-content: end;
   align-items: center;
   padding-bottom: 0.5em;
+  animation: slideup-indicator 2s ease infinite 3s;
+}
+
+@keyframes slideup-indicator {
+  0% {
+    transform: translateY(0);
+    text-shadow: 0 0 0;
+  }
+  25% {
+    transform: translateY(-1em);
+    text-shadow: 0 0.5em 0;
+  }
+  100% {
+    transform: translateY(0);
+    text-shadow: 0 0 0;
+  }
 }
 
 .lockpad {

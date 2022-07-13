@@ -1,7 +1,7 @@
 :host {
   display: flex;
   flex-direction: column;
-  border-radius: 0.5em;
+  border-radius: 1.5em;
   background-color: rgba(0, 0, 0, 0.5);
   height: 0;
   width: 90vw;

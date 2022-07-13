@@ -10,7 +10,7 @@
   width: calc(100% - 2em);
   max-height: 50vh;
   padding: 1em;
-  border-radius: 5px;
+  border-radius: 1.5em;
   font-size: smaller;
   font-family: "Open Sans", arial, "sans serif";
   background-color: var(--dialog-background);

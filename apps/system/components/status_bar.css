@@ -58,7 +58,7 @@ sl-icon {
 }
 
 .container.carousel {
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(32px);
 }
 
 .center {
@@ -152,7 +152,7 @@ sl-badge[variant="neutral"]::part(base) {
 
 .favicon {
   width: 1.5em;
-  border-radius: 40%;
+  border-radius: 25%;
   margin-left: 0.25em;
 }
 
@@ -179,7 +179,7 @@ sl-badge[variant="neutral"]::part(base) {
 }
 
 .frame-list img.active {
-  opacity: 0.1;
+  opacity: 0.4;
 }
 
 .container.homescreen .frame-list .favicon {

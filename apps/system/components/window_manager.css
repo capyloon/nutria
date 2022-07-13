@@ -1,3 +1,8 @@
+/* Overflow Fix */
+window-manager {
+  overflow: hidden;
+}
+
 /* <window-manager> styling */
 
 window-manager > div.main {
@@ -26,6 +31,11 @@ window-manager .windows {
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   scrollbar-width: none;
+
+  opacity: 1;
+  transform: scale(1.0);
+  visibility: visible;
+  transition: all 0.5s cubic-bezier(0.2, 0.9, 0.1, 1.0) 0.25s;
 }
 
 window-manager.lock-swipe .windows {
@@ -49,13 +59,18 @@ window-manager .carousel {
   grid-auto-flow: column;
   grid-template-rows: 1fr;
   grid-gap: 1em;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(32px);
 
   /* This element will overflow scroll and scroll-snap */
   overflow-x: scroll;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   scrollbar-width: none;
+
+  opacity: 1;
+  transform: scale(1.0);
+  visibility: visible;
+  transition: all 0.5s cubic-bezier(0.2, 0.9, 0.1, 1.0);
 }
 
 window-manager .carousel > div:not(.empty-carousel) {
@@ -92,19 +107,19 @@ window-manager .carousel > div.screenshot.show {
 window-manager .carousel > div.screenshot.middle {
   transform: scale(0.975);
   filter: brightness(90%);
-  transition: all 0.1s linear;
+  transition: all 0.2s linear;
 }
 
 window-manager .carousel > div.screenshot.sideline {
   transform: scale(0.95);
   filter: brightness(80%);
-  transition: all 0.1s linear;
+  transition: all 0.2s linear;
 }
 
 window-manager .carousel > div.screenshot.closing {
   transform: scale(0.75);
-  opacity: 0.5;
-  transition: all 0.1s linear;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
 }
 
 window-manager .carousel > div.empty-carousel {
@@ -139,9 +154,7 @@ window-manager .carousel > div .head .close-icon {
 window-manager .carousel > div .head .favicon {
   width: 3rem;
   height: 3rem;
-  border-radius: 40%;
-  box-shadow: 2px 2px 3px black;
-  backdrop-filter: blur(10px);
+  filter: drop-shadow(2px 2px 3px black);
   transform: translateY(-1em);
 }
 
@@ -165,5 +178,8 @@ window-manager .carousel .empty-carousel .learn-something {
 }
 
 window-manager .hidden {
-  display: none;
+  opacity: 0;
+  transform: scale(0.9);
+  visibility: hidden;
+  transition: all 0.5s cubic-bezier(0.2, 0.9, 0.1, 1.0);
 }

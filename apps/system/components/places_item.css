@@ -2,7 +2,7 @@
 
 :host .entry {
   display: flex;
-  padding: 0.25em;
+  padding: 0.5em;
   align-items: center;
   grid-gap: 0.5em;
   cursor: pointer;
@@ -11,8 +11,9 @@
 }
 
 :host {
-  padding: 0 0.3em 0.3em 0;
+  padding: 0.3em;
   display: flex;
+  border-radius: 0.75em;
 }
 
 :host(:hover),
@@ -29,5 +30,5 @@
 
 :host img {
   width: 1.5em;
-  border-radius: 40%;
+  border-radius: 25%;
 }

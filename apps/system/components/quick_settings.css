@@ -8,9 +8,10 @@
   background-color: var(--sl-panel-background-color);
   padding: 0.5em;
   margin: 0.5em;
-  border-radius: var(--sl-border-radius-medium);
+  border-radius: 1.75em;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 0.5em 1em rgba(0,0,0,0.2), 0 0.3em 0.6em rgba(0,0,0,0.3);
 }
 
 :host .flex-fill {
@@ -120,4 +121,5 @@
   font-size: 1em;
   padding: 0.5em;
   border-radius: 40%;
+  border: none;
 }
