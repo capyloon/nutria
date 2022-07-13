@@ -210,8 +210,10 @@ class StatusBar extends HTMLElement {
     });
 
     actionsDispatcher.addListener("lockscreen-unlocked", () => {
-      this.updateClock();
-      this.clockTimer.resume();
+      if (this.state.isHomescreen) {
+        this.updateClock();
+        this.clockTimer.resume();
+      }
     });
 
     if (embedder.sessionType !== "mobile") {
