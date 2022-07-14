@@ -40,6 +40,11 @@ function log(msg) {
   console.log(`ContentMgr: ${msg}`);
 }
 
+let ready;
+let _p = new Promise((resolve) => {
+  ready = resolve;
+});
+
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
@@ -53,37 +58,41 @@ document.addEventListener(
       )
     );
 
-    await contentManager.as_superuser();
-
     log(`Starting at ${document.location}`);
 
     if (document.location.hash == "#root") {
       document.querySelector("main-screen").openRoot();
     }
 
-    // Listen to messages from the service worker.
-    navigator.serviceWorker.onmessage = async (event) => {
-      let activity = event.data;
-      log(`Activity: ${activity.name}`);
-      for (let prop in activity.data) {
-        log(`   ${prop}: ${activity.data[prop]}`);
-      }
-
-      if (activity.name === "view-resource") {
-        document.querySelector("main-screen").switchTo(activity.data);
-      } else if (activity.name === "install-wasm-plugin") {
-        // TODO: run in the service worker instead.
-        try {
-          log(`Installing wasm plugin: ${JSON.stringify(activity.data)}`);
-
-          let pluginsManager = contentManager.getPluginsManager();
-          await pluginsManager.add(activity.data.json, activity.data.url);
-        } catch (e) {
-          console.error(`WASM plugin installation failed: ${e}`);
-        }
-        window.close();
-      }
-    };
+    ready();
   },
   { once: true }
 );
+
+// Listen to messages from the service worker.
+// This needs to be setup before the DOMContentLoaded event handler returns.
+navigator.serviceWorker.onmessage = async (event) => {
+  await ready;
+
+  let activity = event.data;
+  log(`Activity: ${activity.name}`);
+  for (let prop in activity.data) {
+    log(`   ${prop}: ${activity.data[prop]}`);
+  }
+
+  await contentManager.as_superuser();
+
+  if (activity.name === "view-resource") {
+    document.querySelector("main-screen").switchTo(activity.data);
+  } else if (activity.name === "install-wasm-plugin") {
+    // TODO: run in the service worker instead.
+    try {
+      log(`Installing wasm plugin: ${JSON.stringify(activity.data)}`);
+      let pluginsManager = contentManager.getPluginsManager();
+      await pluginsManager.add(activity.data.json, activity.data.url);
+    } catch (e) {
+      console.error(`WASM plugin installation failed: ${e}`);
+    }
+    window.close();
+  }
+};
