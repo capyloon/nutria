@@ -317,6 +317,11 @@ class LockScreen extends HTMLElement {
   }
 
   async lock() {
+    // Force closing the virtual keyboard if it was opened.
+    try {
+      inputMethod.close();
+    } catch(e) {}
+
     actionsDispatcher.dispatch("lockscreen-locked");
     this.reset();
 
