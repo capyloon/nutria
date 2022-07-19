@@ -138,14 +138,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         toShow.addEventListener(
           "sl-after-show",
           () => {
-            toHide.hide();
+            toHide?.hide();
           },
           { once: true }
         );
         toShow.show();
       } else {
         // Going back to the first screen, just hide the previous panel.
-        toHide.hide();
+        toHide?.hide();
       }
     },
     false
