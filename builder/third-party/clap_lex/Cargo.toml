@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.56.1"
 name = "clap_lex"
-version = "0.2.3"
+version = "0.2.4"
 include = [
     "build.rs",
     "src/**/*",

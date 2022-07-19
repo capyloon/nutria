@@ -4,6 +4,14 @@
 
 -
 
+## 1.13.0
+
+- Add `Lazy::get`, similar to `OnceCell::get`.
+
+## 1.12.1
+
+- Remove incorrect `debug_assert`.
+
 ## 1.12.0
 
 - Add `OnceCell::wait`, a blocking variant of `get`.
