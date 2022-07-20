@@ -424,7 +424,6 @@ class WindowManager extends HTMLElement {
     // contentWindow.addEventListener('transitionend', function() {
     //   contentWindow.classList.remove('opening');
     // });
-    this.contentWindow = contentWindow;
 
     config.startUrl = url;
 
@@ -624,21 +623,16 @@ class WindowManager extends HTMLElement {
 
   goHome() {
     if (this.homescreenId) {
-      this.contentWindow.classList.add('closing');
+      this.frames[this.activeFrame].classList.add('closing');
       setTimeout(() => {
-        this.contentWindow.classList.remove('closing');
+        this.frames[this.activeFrame].classList.remove('closing');
         this.switchToFrame(this.homescreenId);
       }, 300);
-      // this.contentWindow.addEventListener('transitionend', event => {
-      //   this.contentWindow.classList.remove('closing');
+      // this.frames[this.activeFrame].addEventListener('transitionend', event => {
+      //   this.frames[this.activeFrame].classList.remove('closing');
       //   this.switchToFrame(this.homescreenId);
       // });
     }
-
-    this.contentWindow.classList.add('closing');
-    setTimeout(() => {
-      this.contentWindow.classList.remove('closing');
-    }, 300);
   }
 
   openCaptivePortal() {
