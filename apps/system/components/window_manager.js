@@ -416,6 +416,16 @@ class WindowManager extends HTMLElement {
     let contentWindow = document.createElement("content-window");
     contentWindow.setAttribute("id", attrId);
 
+    contentWindow.classList.add('opening');
+    setTimeout(() => {
+      contentWindow.classList.remove('opening');
+    }, 300);
+    // This event dosen't work as intended.
+    // contentWindow.addEventListener('transitionend', function() {
+    //   contentWindow.classList.remove('opening');
+    // });
+    this.contentWindow = contentWindow;
+
     config.startUrl = url;
 
     if (config.isHomescreen) {
@@ -614,8 +624,21 @@ class WindowManager extends HTMLElement {
 
   goHome() {
     if (this.homescreenId) {
-      this.switchToFrame(this.homescreenId);
+      this.contentWindow.classList.add('closing');
+      setTimeout(() => {
+        this.contentWindow.classList.remove('closing');
+        this.switchToFrame(this.homescreenId);
+      }, 300);
+      // this.contentWindow.addEventListener('transitionend', event => {
+      //   this.contentWindow.classList.remove('closing');
+      //   this.switchToFrame(this.homescreenId);
+      // });
     }
+
+    this.contentWindow.classList.add('closing');
+    setTimeout(() => {
+      this.contentWindow.classList.remove('closing');
+    }, 300);
   }
 
   openCaptivePortal() {
