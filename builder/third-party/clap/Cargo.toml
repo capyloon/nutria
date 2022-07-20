@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.56.1"
 name = "clap"
-version = "3.2.6"
+version = "3.2.12"
 include = [
     "build.rs",
     "src/**/*",
@@ -24,6 +24,7 @@ include = [
     "examples/**/*",
 ]
 description = "A simple to use, efficient, and full-featured Command Line Argument Parser"
+readme = "README.md"
 keywords = [
     "argument",
     "cli",
@@ -94,13 +95,6 @@ file = "README.md"
 search = "github.com/clap-rs/clap/blob/[^/]+/"
 replace = "github.com/clap-rs/clap/blob/{{tag_name}}/"
 exactly = 13
-prerelease = true
-
-[[package.metadata.release.pre-release-replacements]]
-file = "README.md"
-search = 'version = "[a-z0-9\.-]+"'
-replace = "version = \"{{version}}\""
-exactly = 1
 prerelease = true
 
 [[package.metadata.release.pre-release-replacements]]
@@ -371,7 +365,7 @@ optional = true
 version = "1.2"
 
 [dependencies.clap_derive]
-version = "=3.2.6"
+version = "=3.2.7"
 optional = true
 
 [dependencies.clap_lex]
@@ -427,6 +421,9 @@ version = "1.1.0"
 
 [dev-dependencies.snapbox]
 version = "0.2.9"
+
+[dev-dependencies.static_assertions]
+version = "1.1.0"
 
 [dev-dependencies.trybuild]
 version = "1.0.18"

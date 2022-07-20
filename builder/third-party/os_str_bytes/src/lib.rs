@@ -73,7 +73,7 @@
 //!   For more information, see [`RawOsStr`][memchr complexity].
 //!
 //! - **raw\_os\_str** -
-//!   Enables use of [`RawOsStr`] and [`RawOsString`].
+//!   Provides [`RawOsStr`] and [`RawOsString`].
 //!
 //! ### Optional Features
 //!
@@ -107,12 +107,15 @@
 //! # Examples
 //!
 //! ```
+//! # use std::io;
+//! #
+//! # #[cfg(feature = "raw_os_str")]
+//! # {
 //! # #[cfg(any())]
 //! use std::env;
 //! use std::fs;
-//! # use std::io;
 //!
-//! use os_str_bytes::OsStrBytes;
+//! use os_str_bytes::RawOsStr;
 //!
 //! # mod env {
 //! #   use std::env;
@@ -126,12 +129,13 @@
 //! # }
 //! #
 //! for file in env::args_os().skip(1) {
-//!     if file.to_raw_bytes().first() != Some(&b'-') {
+//!     if !RawOsStr::new(&file).starts_with('-') {
 //!         let string = "Hello, world!";
 //!         fs::write(&file, string)?;
 //!         assert_eq!(string, fs::read_to_string(file)?);
 //!     }
 //! }
+//! # }
 //! #
 //! # Ok::<_, io::Error>(())
 //! ```
@@ -179,17 +183,33 @@ macro_rules! if_raw_str {
     };
 }
 
+if_raw_str! {
+    macro_rules! expect_encoded {
+        ( $result:expr ) => {
+            $result.expect("invalid raw bytes")
+        };
+    }
+}
+
 #[cfg_attr(
-    all(target_arch = "wasm32", target_os = "unknown"),
-    path = "wasm32/mod.rs"
+    all(target_family = "wasm", target_os = "unknown"),
+    path = "wasm/mod.rs"
 )]
 #[cfg_attr(windows, path = "windows/mod.rs")]
 #[cfg_attr(
-    not(any(all(target_arch = "wasm32", target_os = "unknown"), windows)),
+    not(any(all(target_family = "wasm", target_os = "unknown"), windows)),
     path = "common/mod.rs"
 )]
 mod imp;
 
+#[cfg(any(
+    all(
+        feature = "raw_os_str",
+        target_family = "wasm",
+        target_os = "unknown",
+    ),
+    windows,
+))]
 mod util;
 
 if_raw_str! {
@@ -224,8 +244,8 @@ pub struct EncodingError(imp::EncodingError);
 
 impl Display for EncodingError {
     #[inline]
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
@@ -272,7 +292,7 @@ pub trait OsStrBytes: private::Sealed + ToOwned {
 
     /// Converts a platform-native string into an equivalent byte slice.
     ///
-    /// The returned bytes string will use an [unspecified encoding].
+    /// The returned byte string will use an [unspecified encoding].
     ///
     /// # Examples
     ///

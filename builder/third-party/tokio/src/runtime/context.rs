@@ -4,7 +4,7 @@ use crate::runtime::{Handle, TryCurrentError};
 use std::cell::RefCell;
 
 thread_local! {
-    static CONTEXT: RefCell<Option<Handle>> = RefCell::new(None)
+    static CONTEXT: RefCell<Option<Handle>> = const { RefCell::new(None) }
 }
 
 pub(crate) fn try_current() -> Result<Handle, crate::runtime::TryCurrentError> {
@@ -15,6 +15,7 @@ pub(crate) fn try_current() -> Result<Handle, crate::runtime::TryCurrentError> {
     }
 }
 
+#[track_caller]
 pub(crate) fn current() -> Handle {
     match try_current() {
         Ok(handle) => handle,

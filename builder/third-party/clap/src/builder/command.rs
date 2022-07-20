@@ -274,6 +274,50 @@ impl<'help> App<'help> {
         self
     }
 
+    /// Allows one to mutate a [`Command`] after it's been added as a subcommand.
+    ///
+    /// This can be useful for modifying auto-generated arguments of nested subcommands with
+    /// [`Command::mut_arg`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use clap::Command;
+    ///
+    /// let mut cmd = Command::new("foo")
+    ///         .subcommand(Command::new("bar"))
+    ///         .mut_subcommand("bar", |subcmd| subcmd.disable_help_flag(true));
+    ///
+    /// let res = cmd.try_get_matches_from_mut(vec!["foo", "bar", "--help"]);
+    ///
+    /// // Since we disabled the help flag on the "bar" subcommand, this should err.
+    ///
+    /// assert!(res.is_err());
+    ///
+    /// let res = cmd.try_get_matches_from_mut(vec!["foo", "bar"]);
+    /// assert!(res.is_ok());
+    /// ```
+    #[must_use]
+    pub fn mut_subcommand<'a, T, F>(mut self, subcmd_id: T, f: F) -> Self
+    where
+        F: FnOnce(App<'help>) -> App<'help>,
+        T: Into<&'a str>,
+    {
+        let subcmd_id: &str = subcmd_id.into();
+        let id = Id::from(subcmd_id);
+
+        let pos = self.subcommands.iter().position(|s| s.id == id);
+
+        let subcmd = if let Some(idx) = pos {
+            self.subcommands.remove(idx)
+        } else {
+            App::new(subcmd_id)
+        };
+
+        self.subcommands.push(f(subcmd));
+        self
+    }
+
     /// Adds an [`ArgGroup`] to the application.
     ///
     /// [`ArgGroup`]s are a family of related arguments.
@@ -3512,15 +3556,21 @@ impl<'help> App<'help> {
         if arg.is_global_set() {
             self.get_global_arg_conflicts_with(arg)
         } else {
-            arg.blacklist
-                .iter()
-                .map(|id| {
-                    self.args.args().find(|arg| arg.id == *id).expect(
-                        "Command::get_arg_conflicts_with: \
-                    The passed arg conflicts with an arg unknown to the cmd",
-                    )
-                })
-                .collect()
+            let mut result = Vec::new();
+            for id in arg.blacklist.iter() {
+                if let Some(arg) = self.find(id) {
+                    result.push(arg);
+                } else if let Some(group) = self.find_group(id) {
+                    result.extend(
+                        self.unroll_args_in_group(&group.id)
+                            .iter()
+                            .map(|id| self.find(id).expect(INTERNAL_ERROR_MSG)),
+                    );
+                } else {
+                    panic!("Command::get_arg_conflicts_with: The passed arg conflicts with an arg unknown to the cmd");
+                }
+            }
+            result
         }
     }
 
@@ -5106,4 +5156,9 @@ where
         (Some(first), Some(second)) => Some((first, second)),
         _ => None,
     }
+}
+
+#[test]
+fn check_auto_traits() {
+    static_assertions::assert_impl_all!(Command: Send, Sync, Unpin);
 }

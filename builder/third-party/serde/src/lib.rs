@@ -84,7 +84,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Serde types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/serde/1.0.137")]
+#![doc(html_root_url = "https://docs.rs/serde/1.0.139")]
 // Support using Serde without the standard library!
 #![cfg_attr(not(feature = "std"), no_std)]
 // Unstable functionality only if the user asks for it. For tracking and
@@ -118,7 +118,9 @@
         use_self,
         zero_prefixed_literal,
         // correctly used
+        derive_partial_eq_without_eq,
         enum_glob_use,
+        explicit_auto_deref,
         let_underscore_drop,
         map_err_ignore,
         result_unit_err,

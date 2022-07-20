@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.49"
 name = "tokio"
-version = "1.19.2"
+version = "1.20.0"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = """
 An event-driven, non-blocking I/O platform for writing asynchronous I/O
@@ -108,6 +108,9 @@ version = "0.1"
 [dev-dependencies.tokio-test]
 version = "0.4.0"
 
+[build-dependencies.autocfg]
+version = "1.1"
+
 [features]
 default = []
 fs = []
@@ -137,7 +140,12 @@ net = [
     "mio/os-ext",
     "mio/net",
     "socket2",
+    "winapi/fileapi",
+    "winapi/handleapi",
     "winapi/namedpipeapi",
+    "winapi/winbase",
+    "winapi/winnt",
+    "winapi/minwindef",
 ]
 process = [
     "bytes",
@@ -147,7 +155,12 @@ process = [
     "mio/os-ext",
     "mio/net",
     "signal-hook-registry",
+    "winapi/handleapi",
+    "winapi/processthreadsapi",
     "winapi/threadpoollegacyapiset",
+    "winapi/winbase",
+    "winapi/winnt",
+    "winapi/minwindef",
 ]
 rt = ["once_cell"]
 rt-multi-thread = [
@@ -162,6 +175,8 @@ signal = [
     "mio/os-ext",
     "signal-hook-registry",
     "winapi/consoleapi",
+    "winapi/wincon",
+    "winapi/minwindef",
 ]
 stats = []
 sync = []
@@ -222,14 +237,7 @@ default-features = false
 
 [target."cfg(windows)".dependencies.winapi]
 version = "0.3.8"
-features = [
-    "std",
-    "winsock2",
-    "mswsock",
-    "handleapi",
-    "ws2ipdef",
-    "ws2tcpip",
-]
+features = ["std"]
 optional = true
 default-features = false
 

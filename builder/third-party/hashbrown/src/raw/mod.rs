@@ -1,5 +1,5 @@
 use crate::alloc::alloc::{handle_alloc_error, Layout};
-use crate::scopeguard::guard;
+use crate::scopeguard::{guard, ScopeGuard};
 use crate::TryReserveError;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
@@ -69,15 +69,9 @@ fn unlikely(b: bool) -> bool {
     b
 }
 
-#[cfg(feature = "nightly")]
 #[inline]
 unsafe fn offset_from<T>(to: *const T, from: *const T) -> usize {
     to.offset_from(from) as usize
-}
-#[cfg(not(feature = "nightly"))]
-#[inline]
-unsafe fn offset_from<T>(to: *const T, from: *const T) -> usize {
-    (to as usize - from as usize) / mem::size_of::<T>()
 }
 
 /// Whether memory allocation errors should return an error or abort.
@@ -1608,25 +1602,27 @@ impl<T: Clone, A: Allocator + Clone> Clone for RawTable<T, A> {
             Self::new_in(self.table.alloc.clone())
         } else {
             unsafe {
-                let mut new_table = ManuallyDrop::new(
-                    // Avoid `Result::ok_or_else` because it bloats LLVM IR.
-                    match Self::new_uninitialized(
-                        self.table.alloc.clone(),
-                        self.table.buckets(),
-                        Fallibility::Infallible,
-                    ) {
-                        Ok(table) => table,
-                        Err(_) => hint::unreachable_unchecked(),
-                    },
-                );
+                // Avoid `Result::ok_or_else` because it bloats LLVM IR.
+                let new_table = match Self::new_uninitialized(
+                    self.table.alloc.clone(),
+                    self.table.buckets(),
+                    Fallibility::Infallible,
+                ) {
+                    Ok(table) => table,
+                    Err(_) => hint::unreachable_unchecked(),
+                };
 
-                new_table.clone_from_spec(self, |new_table| {
-                    // We need to free the memory allocated for the new table.
+                // If cloning fails then we need to free the allocation for the
+                // new table. However we don't run its drop since its control
+                // bytes are not initialized yet.
+                let mut guard = guard(ManuallyDrop::new(new_table), |new_table| {
                     new_table.free_buckets();
                 });
 
-                // Return the newly created table.
-                ManuallyDrop::into_inner(new_table)
+                guard.clone_from_spec(self);
+
+                // Disarm the scope guard and return the newly created table.
+                ManuallyDrop::into_inner(ScopeGuard::into_inner(guard))
             }
         }
     }
@@ -1636,19 +1632,30 @@ impl<T: Clone, A: Allocator + Clone> Clone for RawTable<T, A> {
             *self = Self::new_in(self.table.alloc.clone());
         } else {
             unsafe {
-                // First, drop all our elements without clearing the control bytes.
-                self.drop_elements();
+                // Make sure that if any panics occurs, we clear the table and
+                // leave it in an empty state.
+                let mut self_ = guard(self, |self_| {
+                    self_.clear_no_drop();
+                });
+
+                // First, drop all our elements without clearing the control
+                // bytes. If this panics then the scope guard will clear the
+                // table, leaking any elements that were not dropped yet.
+                //
+                // This leak is unavoidable: we can't try dropping more elements
+                // since this could lead to another panic and abort the process.
+                self_.drop_elements();
 
                 // If necessary, resize our table to match the source.
-                if self.buckets() != source.buckets() {
+                if self_.buckets() != source.buckets() {
                     // Skip our drop by using ptr::write.
-                    if !self.table.is_empty_singleton() {
-                        self.free_buckets();
+                    if !self_.table.is_empty_singleton() {
+                        self_.free_buckets();
                     }
-                    (self as *mut Self).write(
+                    (&mut **self_ as *mut Self).write(
                         // Avoid `Result::unwrap_or_else` because it bloats LLVM IR.
                         match Self::new_uninitialized(
-                            self.table.alloc.clone(),
+                            self_.table.alloc.clone(),
                             source.buckets(),
                             Fallibility::Infallible,
                         ) {
@@ -1658,10 +1665,10 @@ impl<T: Clone, A: Allocator + Clone> Clone for RawTable<T, A> {
                     );
                 }
 
-                self.clone_from_spec(source, |self_| {
-                    // We need to leave the table in an empty state.
-                    self_.clear_no_drop();
-                });
+                self_.clone_from_spec(source);
+
+                // Disarm the scope guard if cloning was successful.
+                ScopeGuard::into_inner(self_);
             }
         }
     }
@@ -1669,20 +1676,20 @@ impl<T: Clone, A: Allocator + Clone> Clone for RawTable<T, A> {
 
 /// Specialization of `clone_from` for `Copy` types
 trait RawTableClone {
-    unsafe fn clone_from_spec(&mut self, source: &Self, on_panic: impl FnMut(&mut Self));
+    unsafe fn clone_from_spec(&mut self, source: &Self);
 }
 impl<T: Clone, A: Allocator + Clone> RawTableClone for RawTable<T, A> {
     default_fn! {
         #[cfg_attr(feature = "inline-more", inline)]
-        unsafe fn clone_from_spec(&mut self, source: &Self, on_panic: impl FnMut(&mut Self)) {
-            self.clone_from_impl(source, on_panic);
+        unsafe fn clone_from_spec(&mut self, source: &Self) {
+            self.clone_from_impl(source);
         }
     }
 }
 #[cfg(feature = "nightly")]
 impl<T: Copy, A: Allocator + Clone> RawTableClone for RawTable<T, A> {
     #[cfg_attr(feature = "inline-more", inline)]
-    unsafe fn clone_from_spec(&mut self, source: &Self, _on_panic: impl FnMut(&mut Self)) {
+    unsafe fn clone_from_spec(&mut self, source: &Self) {
         source
             .table
             .ctrl(0)
@@ -1697,9 +1704,12 @@ impl<T: Copy, A: Allocator + Clone> RawTableClone for RawTable<T, A> {
 }
 
 impl<T: Clone, A: Allocator + Clone> RawTable<T, A> {
-    /// Common code for clone and clone_from. Assumes `self.buckets() == source.buckets()`.
+    /// Common code for clone and clone_from. Assumes:
+    /// - `self.buckets() == source.buckets()`.
+    /// - Any existing elements have been dropped.
+    /// - The control bytes are not initialized yet.
     #[cfg_attr(feature = "inline-more", inline)]
-    unsafe fn clone_from_impl(&mut self, source: &Self, mut on_panic: impl FnMut(&mut Self)) {
+    unsafe fn clone_from_impl(&mut self, source: &Self) {
         // Copy the control bytes unchanged. We do this in a single pass
         source
             .table
@@ -1717,11 +1727,6 @@ impl<T: Clone, A: Allocator + Clone> RawTable<T, A> {
                     }
                 }
             }
-
-            // Depending on whether we were called from clone or clone_from, we
-            // either need to free the memory for the destination table or just
-            // clear the control bytes.
-            on_panic(self_);
         });
 
         for from in source.iter() {
@@ -1913,6 +1918,32 @@ impl<T> RawIterRange<T> {
             }
         }
     }
+
+    /// # Safety
+    /// If DO_CHECK_PTR_RANGE is false, caller must ensure that we never try to iterate
+    /// after yielding all elements.
+    #[cfg_attr(feature = "inline-more", inline)]
+    unsafe fn next_impl<const DO_CHECK_PTR_RANGE: bool>(&mut self) -> Option<Bucket<T>> {
+        loop {
+            if let Some(index) = self.current_group.lowest_set_bit() {
+                self.current_group = self.current_group.remove_lowest_bit();
+                return Some(self.data.next_n(index));
+            }
+
+            if DO_CHECK_PTR_RANGE && self.next_ctrl >= self.end {
+                return None;
+            }
+
+            // We might read past self.end up to the next group boundary,
+            // but this is fine because it only occurs on tables smaller
+            // than the group size where the trailing control bytes are all
+            // EMPTY. On larger tables self.end is guaranteed to be aligned
+            // to the group size (since tables are power-of-two sized).
+            self.current_group = Group::load_aligned(self.next_ctrl).match_full();
+            self.data = self.data.next_n(Group::WIDTH);
+            self.next_ctrl = self.next_ctrl.add(Group::WIDTH);
+        }
+    }
 }
 
 // We make raw iterators unconditionally Send and Sync, and let the PhantomData
@@ -1938,25 +1969,8 @@ impl<T> Iterator for RawIterRange<T> {
     #[cfg_attr(feature = "inline-more", inline)]
     fn next(&mut self) -> Option<Bucket<T>> {
         unsafe {
-            loop {
-                if let Some(index) = self.current_group.lowest_set_bit() {
-                    self.current_group = self.current_group.remove_lowest_bit();
-                    return Some(self.data.next_n(index));
-                }
-
-                if self.next_ctrl >= self.end {
-                    return None;
-                }
-
-                // We might read past self.end up to the next group boundary,
-                // but this is fine because it only occurs on tables smaller
-                // than the group size where the trailing control bytes are all
-                // EMPTY. On larger tables self.end is guaranteed to be aligned
-                // to the group size (since tables are power-of-two sized).
-                self.current_group = Group::load_aligned(self.next_ctrl).match_full();
-                self.data = self.data.next_n(Group::WIDTH);
-                self.next_ctrl = self.next_ctrl.add(Group::WIDTH);
-            }
+            // SAFETY: We set checker flag to true.
+            self.next_impl::<true>()
         }
     }
 
@@ -2134,16 +2148,22 @@ impl<T> Iterator for RawIter<T> {
 
     #[cfg_attr(feature = "inline-more", inline)]
     fn next(&mut self) -> Option<Bucket<T>> {
-        if let Some(b) = self.iter.next() {
-            self.items -= 1;
-            Some(b)
-        } else {
-            // We don't check against items == 0 here to allow the
-            // compiler to optimize away the item count entirely if the
-            // iterator length is never queried.
-            debug_assert_eq!(self.items, 0);
-            None
+        // Inner iterator iterates over buckets
+        // so it can do unnecessary work if we already yielded all items.
+        if self.items == 0 {
+            return None;
         }
+
+        let nxt = unsafe {
+            // SAFETY: We check number of items to yield using `items` field.
+            self.iter.next_impl::<false>()
+        };
+
+        if nxt.is_some() {
+            self.items -= 1;
+        }
+
+        nxt
     }
 
     #[inline]

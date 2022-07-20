@@ -17,7 +17,7 @@ impl EnterContext {
     }
 }
 
-thread_local!(static ENTERED: Cell<EnterContext> = Cell::new(EnterContext::NotEntered));
+thread_local!(static ENTERED: Cell<EnterContext> = const { Cell::new(EnterContext::NotEntered) });
 
 /// Represents an executor context.
 pub(crate) struct Enter {
@@ -31,6 +31,7 @@ cfg_rt! {
 
     /// Marks the current thread as being within the dynamic extent of an
     /// executor.
+    #[track_caller]
     pub(crate) fn enter(allow_blocking: bool) -> Enter {
         if let Some(enter) = try_enter(allow_blocking) {
             return enter;
