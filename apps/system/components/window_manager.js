@@ -416,6 +416,15 @@ class WindowManager extends HTMLElement {
     let contentWindow = document.createElement("content-window");
     contentWindow.setAttribute("id", attrId);
 
+    contentWindow.classList.add('opening');
+    setTimeout(() => {
+      contentWindow.classList.remove('opening');
+    }, 300);
+    // This event dosen't work as intended.
+    // contentWindow.addEventListener('transitionend', function() {
+    //   contentWindow.classList.remove('opening');
+    // });
+
     config.startUrl = url;
 
     if (config.isHomescreen) {
@@ -614,7 +623,15 @@ class WindowManager extends HTMLElement {
 
   goHome() {
     if (this.homescreenId) {
-      this.switchToFrame(this.homescreenId);
+      this.frames[this.activeFrame].classList.add('closing');
+      setTimeout(() => {
+        this.frames[this.activeFrame].classList.remove('closing');
+        this.switchToFrame(this.homescreenId);
+      }, 300);
+      // this.frames[this.activeFrame].addEventListener('transitionend', event => {
+      //   this.frames[this.activeFrame].classList.remove('closing');
+      //   this.switchToFrame(this.homescreenId);
+      // });
     }
   }
 
