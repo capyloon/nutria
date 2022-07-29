@@ -329,11 +329,15 @@ class ContentWindow extends HTMLElement {
       "processready",
       "promptpermission",
       "readermodestate",
+      "recordingstatus",
       "scroll",
       "securitychange",
       "titlechange",
       "visibilitychange",
     ];
+
+    this.recordAudio = false;
+    this.recordVideo = false;
 
     this.initWebView();
     embedder.delayPreallocatedProcess();
@@ -493,6 +497,16 @@ class ContentWindow extends HTMLElement {
 
   cleanup() {
     this.webView.cleanup();
+
+    // We won't get a recordingstatus change, so we need to update
+    // the status icon based on the current state.
+    let status = document.getElementById("status-icons");
+    if (this.recordAudio) {
+      status.stopAudio();
+    }
+    if (this.recordVideo) {
+      status.stopVideo();
+    }
   }
 
   disconnectedCallback() {
@@ -934,6 +948,28 @@ class ContentWindow extends HTMLElement {
         break;
       case "opensearch":
         this.maybeAddOpenSearch(detail.href);
+        break;
+      case "recordingstatus":
+        // detail is {"audio":<bool>, "video":<bool>}
+        let status = document.getElementById("status-icons");
+
+        if (detail.audio !== this.recordAudio) {
+          if (detail.audio) {
+            status.startAudio();
+          } else {
+            status.stopAudio();
+          }
+        }
+
+        if (detail.video !== this.recordVideo) {
+          if (detail.video) {
+            status.startVideo();
+          } else {
+            status.stopVideo();
+          }
+        }
+        this.recordAudio = detail.audio;
+        this.recordVideo = detail.video;
         break;
       default:
         console.error(
