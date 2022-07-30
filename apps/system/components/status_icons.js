@@ -36,8 +36,8 @@ class StatusIcons extends LitElement {
       <link rel="stylesheet" href="components/status_icons.css" />
       <sl-icon name="map-pin" hidden="${!this.geoloc}"></sl-icon>
       <img src="./resources/tor.ico" hidden="${!this.tor}" />
-      <sl-icon name="mic" hidden="${this.record_audio == 0}"></sl-icon>
-      <sl-icon name="video" hidden="${this.record_video == 0}"></sl-icon>
+      <sl-icon name="mic" class="danger" hidden="${this.record_audio == 0}"></sl-icon>
+      <sl-icon name="video" class="danger" hidden="${this.record_video == 0}"></sl-icon>
     `;
   }
 
