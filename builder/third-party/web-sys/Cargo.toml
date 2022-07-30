@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "web-sys"
-version = "0.3.58"
+version = "0.3.59"
 authors = ["The wasm-bindgen Developers"]
 description = """
 Bindings for all Web APIs, a procedurally generated crate from WebIDL
@@ -32,10 +32,10 @@ test = false
 doctest = false
 
 [dependencies.js-sys]
-version = "0.3.58"
+version = "0.3.59"
 
 [dependencies.wasm-bindgen]
-version = "0.2.81"
+version = "0.2.82"
 
 [features]
 AbortController = []
@@ -558,6 +558,7 @@ GetRootNodeOptions = []
 GetUserMediaRequest = []
 Gpu = []
 GpuAdapter = []
+GpuAdapterInfo = []
 GpuAddressMode = []
 GpuAutoLayoutMode = []
 GpuBindGroup = []
@@ -575,7 +576,7 @@ GpuBufferBinding = []
 GpuBufferBindingLayout = []
 GpuBufferBindingType = []
 GpuBufferDescriptor = []
-GpuCanvasCompositingAlphaMode = []
+GpuCanvasAlphaMode = []
 GpuCanvasConfiguration = []
 GpuCanvasContext = []
 GpuColorDict = []
@@ -627,7 +628,6 @@ GpuPipelineDescriptorBase = []
 GpuPipelineLayout = []
 GpuPipelineLayoutDescriptor = []
 GpuPowerPreference = []
-GpuPredefinedColorSpace = []
 GpuPrimitiveState = []
 GpuPrimitiveTopology = []
 GpuProgrammableStage = []
@@ -1750,6 +1750,8 @@ StyleSheet = []
 StyleSheetApplicableStateChangeEventInit = []
 StyleSheetChangeEventInit = []
 StyleSheetList = []
+SubmitEvent = ["Event"]
+SubmitEventInit = []
 SubtleCrypto = []
 SupportedType = []
 SvcOutputMetadata = []
@@ -2456,6 +2458,7 @@ WebglDebugShaders = []
 WebglDepthTexture = []
 WebglDrawBuffers = []
 WebglLoseContext = []
+WebglMultiDraw = []
 WebrtcGlobalStatisticsReport = []
 WheelEvent = [
     "Event",
@@ -2556,7 +2559,7 @@ gpu_shader_stage = []
 gpu_texture_usage = []
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-futures]
-version = "0.4.31"
+version = "0.4.32"
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-test]
-version = "0.3.31"
+version = "0.3.32"

@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "indicatif"
-version = "0.17.0-rc.11"
+version = "0.17.0"
 exclude = ["screenshots/*"]
 description = "A progress bar and cli reporting library for Rust"
 documentation = "https://docs.rs/indicatif"

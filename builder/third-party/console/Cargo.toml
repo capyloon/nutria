@@ -12,17 +12,24 @@
 [package]
 edition = "2018"
 name = "console"
-version = "0.15.0"
+version = "0.15.1"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 description = "A terminal and console abstraction for Rust"
 homepage = "https://github.com/mitsuhiko/console"
 documentation = "https://docs.rs/console"
 readme = "README.md"
-keywords = ["cli", "terminal", "colors", "console", "ansi"]
+keywords = [
+    "cli",
+    "terminal",
+    "colors",
+    "console",
+    "ansi",
+]
 license = "MIT"
 repository = "https://github.com/mitsuhiko/console"
+
 [dependencies.libc]
-version = "0.2"
+version = "0.2.30"
 
 [dependencies.once_cell]
 version = "1"
@@ -40,16 +47,36 @@ version = "0.1.14"
 version = "0.1"
 optional = true
 
+[dev-dependencies.proptest]
+version = "1.0.0"
+
+[dev-dependencies.regex]
+version = "1.4.2"
+
 [features]
-ansi-parsing = ["regex"]
-default = ["unicode-width", "ansi-parsing"]
-windows-console-colors = ["ansi-parsing", "winapi-util"]
+ansi-parsing = []
+default = [
+    "unicode-width",
+    "ansi-parsing",
+]
+windows-console-colors = [
+    "ansi-parsing",
+    "regex",
+    "winapi-util",
+]
+
 [target."cfg(windows)".dependencies.encode_unicode]
 version = "0.3"
 
 [target."cfg(windows)".dependencies.winapi]
 version = "0.3"
-features = ["winbase", "winuser", "consoleapi", "processenv", "wincon"]
+features = [
+    "winbase",
+    "winuser",
+    "consoleapi",
+    "processenv",
+    "wincon",
+]
 
 [target."cfg(windows)".dependencies.winapi-util]
 version = "0.1.3"

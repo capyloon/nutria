@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "wasm-bindgen-backend"
-version = "0.2.81"
+version = "0.2.82"
 authors = ["The wasm-bindgen Developers"]
 description = """
 Backend code generation of the wasm-bindgen tool
@@ -25,11 +25,11 @@ repository = "https://github.com/rustwasm/wasm-bindgen/tree/master/crates/backen
 [dependencies.bumpalo]
 version = "3.0.0"
 
-[dependencies.lazy_static]
-version = "1.0.2"
-
 [dependencies.log]
 version = "0.4"
+
+[dependencies.once_cell]
+version = "1.12"
 
 [dependencies.proc-macro2]
 version = "1.0"
@@ -42,7 +42,7 @@ version = "1.0"
 features = ["full"]
 
 [dependencies.wasm-bindgen-shared]
-version = "=0.2.81"
+version = "=0.2.82"
 
 [features]
 extra-traits = ["syn/extra-traits"]

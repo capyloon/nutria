@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.56.1"
 name = "clap_derive"
-version = "3.2.7"
+version = "3.2.15"
 include = [
     "build.rs",
     "src/**/*",
@@ -24,6 +24,7 @@ include = [
     "examples/**/*",
 ]
 description = "Parse command line argument by defining a struct, derive crate."
+readme = "README.md"
 keywords = [
     "clap",
     "cli",

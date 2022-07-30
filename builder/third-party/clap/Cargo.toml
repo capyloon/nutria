@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.56.1"
 name = "clap"
-version = "3.2.12"
+version = "3.2.16"
 include = [
     "build.rs",
     "src/**/*",
@@ -89,20 +89,6 @@ replace = """
 <!-- next-url -->
 [Unreleased]: https://github.com/clap-rs/clap/compare/{{tag_name}}...HEAD"""
 exactly = 1
-
-[[package.metadata.release.pre-release-replacements]]
-file = "README.md"
-search = "github.com/clap-rs/clap/blob/[^/]+/"
-replace = "github.com/clap-rs/clap/blob/{{tag_name}}/"
-exactly = 13
-prerelease = true
-
-[[package.metadata.release.pre-release-replacements]]
-file = "src/derive.rs"
-search = "github.com/clap-rs/clap/blob/[^/]+/"
-replace = "github.com/clap-rs/clap/blob/{{tag_name}}/"
-exactly = 4
-prerelease = true
 
 [profile.bench]
 lto = true
@@ -365,7 +351,7 @@ optional = true
 version = "1.2"
 
 [dependencies.clap_derive]
-version = "=3.2.7"
+version = "=3.2.15"
 optional = true
 
 [dependencies.clap_lex]

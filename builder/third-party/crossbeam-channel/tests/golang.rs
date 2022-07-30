@@ -959,7 +959,7 @@ mod chan_test {
     #[test]
     fn test_chan() {
         #[cfg(miri)]
-        const N: i32 = 20;
+        const N: i32 = 12;
         #[cfg(not(miri))]
         const N: i32 = 200;
 
@@ -1489,7 +1489,7 @@ mod chan_test {
     fn test_multi_consumer() {
         const NWORK: usize = 23;
         #[cfg(miri)]
-        const NITER: usize = 100;
+        const NITER: usize = 50;
         #[cfg(not(miri))]
         const NITER: usize = 271828;
 
@@ -1580,9 +1580,7 @@ mod race_chan_test {
 }
 
 // https://github.com/golang/go/blob/master/test/ken/chan.go
-#[cfg(not(miri))] // Miri is too slow
 mod chan {
-
     use super::*;
 
     const MESSAGES_PER_CHANEL: u32 = 76;
@@ -2052,6 +2050,7 @@ mod chan {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri is too slow
     fn main() {
         let mut ctx = Context {
             nproc: Arc::new(Mutex::new(0)),

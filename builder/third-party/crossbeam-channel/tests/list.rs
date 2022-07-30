@@ -67,6 +67,7 @@ fn len_empty_full() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)] // this test makes timing assumptions, but Miri is so slow it violates them
 fn try_recv() {
     let (s, r) = unbounded();
 
@@ -433,8 +434,6 @@ fn drops() {
             scope.spawn(|_| {
                 for _ in 0..steps {
                     r.recv().unwrap();
-                    #[cfg(miri)]
-                    std::thread::yield_now(); // https://github.com/rust-lang/miri/issues/1388
                 }
             });
 

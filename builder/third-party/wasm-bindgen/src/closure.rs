@@ -65,7 +65,7 @@ use crate::UnwrapThrowExt;
 ///
 /// #[wasm_bindgen]
 /// pub fn run() -> IntervalHandle {
-///     // First up we use `Closure::wrap` to wrap up a Rust closure and create
+///     // First up we use `Closure::new` to wrap up a Rust closure and create
 ///     // a JS closure.
 ///     let cb = Closure::new(|| {
 ///         log("interval elapsed!");
@@ -426,7 +426,6 @@ impl Closure<dyn FnOnce()> {
     /// and everything it closes over will leak.
     ///
     /// ```rust,ignore
-    /// use js_sys;
     /// use wasm_bindgen::{prelude::*, JsCast};
     ///
     /// let f = Closure::once_into_js(move || {
