@@ -160,8 +160,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }, 0);
   });
 
-  // Listen to messages from the service worker.
-  navigator.serviceWorker.onmessage = activityHandler;
+  // Configure activity handlers.
+  let activities = new ActivityManager({
+    "new-tab": openSearchBox,
+    "toggle-app-list": () => {
+      appsList.toggle();
+    },
+    "add-to-home": addToHome,
+  });
 
   let keyBindings = new KeyBindings();
 
@@ -170,36 +176,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 });
 
-async function activityHandler(event) {
-  let activity = event.data;
-  console.log(`Homescreen activity from ${event.origin}: ${activity.name}`);
-  if (activity.name === "new-tab") {
-    openSearchBox();
-  } else if (activity.name === "toggle-app-list") {
-    appsList.toggle();
-  } else if (activity.name === "add-to-home") {
-    let actionsWall = document.querySelector("actions-wall");
-    let data = activity.data;
-
-    if (data.siteInfo) {
-      let siteInfo = data.siteInfo;
-      for (let prop in siteInfo) {
-        console.log(`  ${prop}: ${siteInfo[prop]}`);
-      }
-      actionsWall.addNewAction({
-        kind: "bookmark",
-        title: siteInfo.title,
-        url: siteInfo.url,
-        icon:
-          siteInfo.icon ||
-          `http://branding.localhost:${location.port}/resources/logo.webp`,
-        backgroundColor: siteInfo.backgroundColor,
-        color: siteInfo.color,
-      });
-    } else if (data.app) {
-      // We got an app object, for instance for an already installed app that is not pinned to the
-      // homescreen.
-      actionsWall.addAppAction(data.app);
+async function addToHome(data) {
+  console.log(`HHH add-to-home data: ${JSON.stringify(data)}`);
+  let actionsWall = document.querySelector("actions-wall");
+  if (data.siteInfo) {
+    let siteInfo = data.siteInfo;
+    for (let prop in siteInfo) {
+      console.log(`  ${prop}: ${siteInfo[prop]}`);
     }
+    actionsWall.addNewAction({
+      kind: "bookmark",
+      title: siteInfo.title,
+      url: siteInfo.url,
+      icon:
+        siteInfo.icon ||
+        `http://branding.localhost:${location.port}/resources/logo.webp`,
+      backgroundColor: siteInfo.backgroundColor,
+      color: siteInfo.color,
+    });
+  } else if (data.app) {
+    // We got an app object, for instance for an already installed app that is not pinned to the
+    // homescreen.
+    actionsWall.addAppAction(data.app);
   }
+
+  return true;
 }

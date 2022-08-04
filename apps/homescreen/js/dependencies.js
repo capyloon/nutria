@@ -1,5 +1,5 @@
 const kDeps = [
-  { name: "main", kind: "virtual", deps: ["action wall"] },
+  { name: "main", kind: "virtual", deps: ["action wall", "activity manager"] },
   {
     name: "action wall",
     kind: "script",
@@ -176,6 +176,11 @@ const kDeps = [
     name: "lit element",
     kind: "sharedModule",
     param: ["components/lit.js", ["LitElement", "html", "css"]],
+  },
+  {
+    name: "activity manager",
+    kind: "sharedModule",
+    param: ["js/activity_manager.js", ["ActivityManager"]],
   },
   {
     name: "default results comp",
