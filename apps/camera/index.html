@@ -22,15 +22,15 @@
   <body>
     <video id="preview" class="center" controls autoplay></video>
     <div id="controls">
-      <div class="left">
-        <lucide-icon id="front-back" kind="switch-camera"></lucide-icon>
+      <div class="left ">
+        <sl-icon id="front-back" name="switch-camera"></sl-icon>
       </div>
       <div class="center">
-        <lucide-icon id="shutter" kind="aperture"></lucide-icon>
+        <sl-icon class="hide-qr-scan" id="shutter" name="aperture"></sl-icon>
       </div>
       <div class="right">
-        <div id="last-container">
-          <img id="last-image" /><lucide-icon kind="upload"></lucide-icon>
+        <div id="last-container" class="hide-qr-scan" >
+          <img id="last-image" /><sl-icon name="upload"></sl-icon>
         </div>
       </div>
     </div>

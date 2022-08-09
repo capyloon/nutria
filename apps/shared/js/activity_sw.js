@@ -18,23 +18,32 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("systemmessage", async (event) => {
   log(`system message: ${event.name}`);
+
+  let resolver;
+  let promise = new Promise((resolve) => {
+    resolver = resolve;
+  });
+  event.waitUntil(promise);
+
   if (event.name === "activity") {
-    handleActivity(event.data.webActivityRequestHandler());
+    await handleActivity(event.data.webActivityRequestHandler());
   } else {
     error(`Unexpected system message: ${event.name}`);
   }
+
+  resolver();
 });
 
 async function getClient() {
   const allClients = await clients.matchAll({
     includeUncontrolled: true,
   });
-  log(`Found ${allClients.length} clients.`);
-  if (allClients.length == 0) {
-    error(`No Homescreen!!`);
-    return null;
+  if (allClients.length > 0) {
+    return allClients[0];
+  } else {
+    let win = await clients.openWindow("/index.html");
+    return win;
   }
-  return allClients[0];
 }
 
 async function handleActivity(handler) {
@@ -99,13 +108,13 @@ const ActivityRequests = {
   addHandler(handler) {
     const activityId = `${+new Date()}`;
     this.map.set(activityId, handler);
-    log("ActivityRequests::addHandler: ", this.map);
+    log(`ActivityRequests::addHandler: ${this.map}`);
     return activityId;
   },
 
   removeHandler(id) {
     this.map.delete(id);
-    log("ActivityRequests::removeHandler: ", this.map);
+    log(`ActivityRequests::removeHandler: ${this.map}`);
   },
 
   getHandler(id) {

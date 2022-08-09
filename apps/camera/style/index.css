@@ -33,6 +33,10 @@ body {
   padding: 0.5em;
 }
 
+#controls.hide-qr-scan *.hide-qr-scan {
+  display: none;
+}
+
 #controls > * {
   flex: 1;
 }

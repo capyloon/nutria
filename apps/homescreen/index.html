@@ -27,6 +27,7 @@
     <section id="search-panel">
       <div class="input no-blur">
         <input data-l10n-id="search-box-placeholder" id="search-box" />
+        <lucide-icon id="qr-code" kind="qr-code"></lucide-icon>
         <lucide-icon
           id="clear-search"
           kind="x-circle"
@@ -34,7 +35,10 @@
         ></lucide-icon>
       </div>
       <div id="search-results" class="hidden">
-        <default-results id="default-search-results" class="no-blur hidden"></default-results>
+        <default-results
+          id="default-search-results"
+          class="no-blur hidden"
+        ></default-results>
       </div>
     </section>
     <apps-list id="apps-list"></apps-list>

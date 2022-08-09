@@ -18,6 +18,14 @@
       "camera": {},
       "content-manager": {},
       "dweb": {}
+    },
+    "serviceworker": {
+      "script_url": "sw.js"
+    },
+    "activities": {
+      "scan-qr-code": {
+        "returnValue": true
+      }
     }
   },
   "version": "1.0"

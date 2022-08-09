@@ -68,19 +68,6 @@ function openSearchBox() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // navigator.serviceWorker.register("/sw.js").then(
-  //   function (registration) {
-  //     // Registration was successful
-  //     console.log(
-  //       "ServiceWorker registration successful with scope: ",
-  //       registration.scope
-  //     );
-  //   },
-  //   function (err) {
-  //     // registration failed :(
-  //     console.log("ServiceWorker registration failed: ", err);
-  //   }
-  // );
   await depGraphLoaded;
 
   graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
@@ -93,15 +80,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let panelManager = null;
 
-  async function openSearchPanel() {
+  async function ensurePanelManager() {
     // Lazy loading of dependencies for the search panel.
-    if (!panelManager) {
-      let result = await graph.waitForDeps("search");
-      let module = result.get("search panel");
-      panelManager = new module.SearchPanel();
-      panelManager.init();
+    if (panelManager) {
+      return;
     }
+    let result = await graph.waitForDeps("search");
+    let module = result.get("search panel");
+    panelManager = new module.SearchPanel();
+    panelManager.init();
+  }
 
+  async function openSearchPanel() {
+    await ensurePanelManager();
     panelManager.onOpen();
     actionsPanel.classList.add("hide");
   }
@@ -171,13 +162,32 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let keyBindings = new KeyBindings();
 
+  document.getElementById("qr-code").onclick = () => {
+    let activity = new WebActivity("scan-qr-code");
+    activity.start().then(
+      async (result) => {
+        await ensurePanelManager();
+        // check that this is a proper url.
+        try {
+          let url = new URL(result);
+          panelManager.openURL(url.href);
+        } catch (e) {
+          console.log(`SCAN-QR-CODE: result is not a URL: ${e}`);
+        }
+      },
+      (error) => {
+        console.error(`SCAN-QR-CODE: failure: ${error}`);
+      }
+    );
+  };
+
   window.requestIdleCallback(() => {
     appsList.ensureReady();
   });
 });
 
 async function addToHome(data) {
-  console.log(`HHH add-to-home data: ${JSON.stringify(data)}`);
+  console.log(`add-to-home data: ${JSON.stringify(data)}`);
   let actionsWall = document.querySelector("actions-wall");
   if (data.siteInfo) {
     let siteInfo = data.siteInfo;
