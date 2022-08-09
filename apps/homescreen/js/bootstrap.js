@@ -168,11 +168,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       async (result) => {
         await ensurePanelManager();
         // check that this is a proper url.
+        console.log(`SCAN-QR-CODE: result is ${result}`);
         try {
           let url = new URL(result);
           panelManager.openURL(url.href);
         } catch (e) {
-          console.log(`SCAN-QR-CODE: result is not a URL: ${e}`);
+          console.error(`SCAN-QR-CODE: result is not a URL: ${e}`);
+          displayQRCodeResult(result);
         }
       },
       (error) => {
@@ -185,6 +187,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     appsList.ensureReady();
   });
 });
+
+window.utils = {
+  // Helper to localize a single string.
+  l10n: async (id, args) => {
+    return await document.l10n.formatValue(id, args);
+  },
+}
+
+async function displayQRCodeResult(text) {
+  await graph.waitForDeps("qr dialog comp");
+  document.getElementById("qr-dialog").open(text);
+}
 
 async function addToHome(data) {
   console.log(`add-to-home data: ${JSON.stringify(data)}`);

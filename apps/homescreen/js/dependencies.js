@@ -1,5 +1,14 @@
 const kDeps = [
-  { name: "main", kind: "virtual", deps: ["action wall", "activity manager"] },
+  {
+    name: "main",
+    kind: "virtual",
+    deps: [
+      "action wall",
+      "activity manager",
+      "shoelace-light-theme",
+      "shoelace-setup",
+    ],
+  },
   {
     name: "action wall",
     kind: "script",
@@ -193,5 +202,16 @@ const kDeps = [
     kind: "module",
     param: ["./components/apps_list.js"],
     deps: ["lit element", "action bookmark", "apps manager"],
+  },
+  {
+    name: "qr dialog comp",
+    kind: "module",
+    param: ["./components/qr_dialog.js"],
+    deps: [
+      "lit element",
+      "shoelace-dialog",
+      "shoelace-button",
+      "shoelace-icon-button",
+    ],
   },
 ];

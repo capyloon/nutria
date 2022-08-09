@@ -16,3 +16,13 @@ media-title = Media
 # Apps List Context Menu
 apps-list-add-home = Add To Home
 apps-list-uninstall = Uninstall
+
+# QR Code result dialog
+qr-dialog-title =
+    .label = QR Code Content
+qr-dialog-close = Close
+qr-dialog-copy =
+    .label = Copy To Clipboard
+qr-dialog-share =
+    .label = Share…
+qr-dialog-copied = Text Successfully copied to Clipboard
