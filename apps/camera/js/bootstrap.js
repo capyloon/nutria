@@ -3,8 +3,11 @@ const kDeps = [
     name: "main",
     kind: "virtual",
     deps: [
+      "shared-fluent",
       "content manager",
+      "shoelace-light-theme",
       "shoelace-setup",
+      "shoelace-tag",
       "shoelace-icon",
     ],
   },
@@ -85,6 +88,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function captureQRCode() {
+  window["qr-overlay"].classList.remove("hidden");
+
   return new Promise(async (resolve, reject) => {
     const { QrCodeScanner } = await import(`./qr_code.js`);
     let scanner = new QrCodeScanner(cameraManager);
