@@ -7,6 +7,7 @@ const kDeps = [
       "activity manager",
       "shoelace-light-theme",
       "shoelace-setup",
+      "shoelace-icon",
     ],
   },
   {

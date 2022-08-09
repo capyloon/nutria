@@ -18,7 +18,7 @@ class ActionBox extends HTMLElement {
       <slot></slot>
       <div class="ghost hidden"></div>
       <div class="menu hidden">
-        <lucide-icon kind="trash-2" width="1.25em" height="1.25em"></lucide-icon>
+        <sl-icon name="trash-2" width="1.25em" height="1.25em"></sl-icon>
       </div>
     `;
 

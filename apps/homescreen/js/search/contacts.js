@@ -78,25 +78,25 @@ class ContactsSource extends SearchSource {
     node.appendChild(doc);
 
     if (result.tel) {
-      // <a href="tel:${tel}"><lucide-icon kind="phone"></lucide-icon></a>
+      // <a href="tel:${tel}"><sl-icon name="phone"></sl-icon></a>
       let anchor = document.createElement("a");
       anchor.setAttribute("href", `tel:${result.tel}`);
       anchor.setAttribute("target", "_blanck");
       anchor.classList.add("contact-link");
-      let icon = document.createElement("lucide-icon");
-      icon.setAttribute("kind", "phone");
+      let icon = document.createElement("sl-icon");
+      icon.setAttribute("name", "phone");
       anchor.appendChild(icon);
       node.appendChild(anchor);
     }
 
     if (result.email) {
-      // <a href="mailto:${email}"><lucide-icon kind="mail"></lucide-icon></a>
+      // <a href="mailto:${email}"><sl-icon name="mail"></sl-icon></a>
       let anchor = document.createElement("a");
       anchor.setAttribute("href", `mailto:${result.email}`);
       anchor.setAttribute("target", "_blanck");
       anchor.classList.add("contact-link");
-      let icon = document.createElement("lucide-icon");
-      icon.setAttribute("kind", "mail");
+      let icon = document.createElement("sl-icon");
+      icon.setAttribute("name", "mail");
       anchor.appendChild(icon);
       node.appendChild(anchor);
     }
@@ -107,11 +107,11 @@ class ContactsSource extends SearchSource {
   
     let icons = document.createElement("div");
     icons.classList.add("icons");
-    let plus = document.createElement("lucide-icon");
-    plus.setAttribute("kind", "plus");
+    let plus = document.createElement("sl-icon");
+    plus.setAttribute("name", "plus");
     icons.appendChild(plus);
-    let addHome = document.createElement("lucide-icon");
-    addHome.setAttribute("kind", "home");
+    let addHome = document.createElement("sl-icon");
+    addHome.setAttribute("name", "home");
     icons.appendChild(addHome);
     node.appendChild(icons);
 

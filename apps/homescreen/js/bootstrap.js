@@ -72,7 +72,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
   await Promise.all(
-    ["shared-all", "main"].map((dep) => graph.waitForDeps(dep))
+    ["shared-fluent", "main"].map((dep) => graph.waitForDeps(dep))
   );
 
   let actionsPanel = document.getElementById("actions-panel");
@@ -193,7 +193,7 @@ window.utils = {
   l10n: async (id, args) => {
     return await document.l10n.formatValue(id, args);
   },
-}
+};
 
 async function displayQRCodeResult(text) {
   await graph.waitForDeps("qr dialog comp");

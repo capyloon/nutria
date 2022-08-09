@@ -65,16 +65,16 @@ class DefaultResults extends LitElement {
       <div class="results" @click="${this.resultClick}">${itemTemplates}</div>
       <div class="icons">
         <div class="${isFrecency ? "active" : ""}" @click="${this.switchMode}">
-          <lucide-icon kind="activity"></lucide-icon>
+          <sl-icon name="activity"></sl-icon>
         </div>
         <div class="${isHistory ? "active" : ""}" @click="${this.switchMode}">
-          <lucide-icon kind="history"></lucide-icon>
+          <sl-icon name="history"></sl-icon>
         </div>
         <div class="${isFolder ? "active" : ""}" @click="${this.switchMode}">
-          <lucide-icon kind="folder"></lucide-icon>
+          <sl-icon name="folder"></sl-icon>
         </div>
         <div class="go-home" @click="${this.goHome}">
-          <lucide-icon kind="home"></lucide-icon>
+          <sl-icon name="home"></sl-icon>
         </div>
       </div>`;
   }
@@ -92,11 +92,11 @@ class DefaultResults extends LitElement {
   }
 
   switchMode(event) {
-    // Poor man way to get the kind either from the div or the lucide-icon
+    // Poor man way to get the mode either from the div or the sl-icon
     // since we can't easily use event capturing.
     let newMode =
-      event.target.getAttribute("kind") ||
-      event.target.firstElementChild.getAttribute("kind");
+      event.target.getAttribute("name") ||
+      event.target.firstElementChild.getAttribute("name");
     if (this.mode !== newMode) {
       this.mode = newMode;
       this.refresh();
@@ -308,7 +308,7 @@ class ContentManagerResource extends LitElement {
     }
 
     return html`<link rel="stylesheet" href="components/resource_item.css" />
-      <lucide-icon kind="${kind}"></lucide-icon>
+      <sl-icon name="${kind}"></sl-icon>
       <span class="name">${this.item.name}</span>`;
   }
 }

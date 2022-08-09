@@ -240,11 +240,11 @@ class SkillsSource extends SearchSource {
     if (result.matches) {
       let icons = document.createElement("div");
       icons.classList.add("icons");
-      let plus = document.createElement("lucide-icon");
-      plus.setAttribute("kind", "plus");
+      let plus = document.createElement("sl-icon");
+      plus.setAttribute("name", "plus");
       icons.appendChild(plus);
-      let addHome = document.createElement("lucide-icon");
-      addHome.setAttribute("kind", "home");
+      let addHome = document.createElement("sl-icon");
+      addHome.setAttribute("name", "home");
       icons.appendChild(addHome);
       node.appendChild(icons);
 

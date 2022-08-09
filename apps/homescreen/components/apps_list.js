@@ -179,11 +179,11 @@ class AppsList extends LitElement {
         <h4>My app</h4>
         <ul>
           <li @click="${this.addToHome}" id="add-to-home-option">
-            <lucide-icon kind="home"></lucide-icon>
+            <sl-icon name="home"></sl-icon>
             <span data-l10n-id="apps-list-add-home"></span>
           </li>
           <li @click="${this.uninstall}" id="uninstall-option">
-            <lucide-icon kind="trash-2"></lucide-icon>
+            <sl-icon name="trash-2"></sl-icon>
             <span data-l10n-id="apps-list-uninstall"></span>
           </li>
         </ul>

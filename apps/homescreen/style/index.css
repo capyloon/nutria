@@ -78,7 +78,7 @@ body {
   background-color: rgba(0, 0, 0, 0.5);
 }
 
-#search-panel .input lucide-icon {
+#search-panel .input sl-icon {
   font-size: 1.5rem;
   cursor: pointer;
   padding-right: 0.25em;

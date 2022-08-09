@@ -47,8 +47,8 @@ class FendConverterSource extends SearchSource {
 
     let icons = document.createElement("div");
     icons.classList.add("icons");
-    let clipboard = document.createElement("lucide-icon");
-    clipboard.setAttribute("kind", "clipboard");
+    let clipboard = document.createElement("sl-icon");
+    clipboard.setAttribute("name", "clipboard");
     icons.appendChild(clipboard);
     node.appendChild(icons);
 
