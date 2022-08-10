@@ -18,11 +18,11 @@ export class Camera extends CameraBase {
   }
 
   log(msg) {
-    console.log(`CameraFallback: ${msg}`);
+    console.log(`CameraWebrtc: ${msg}`);
   }
 
   error(msg) {
-    console.error(`CameraFallback: ${msg}`);
+    console.error(`CameraWebrtc: ${msg}`);
   }
 
   async getCameraCount() {

@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (navigator.b2g.cameras && location.hash !== "#activity-scan-qr-code") {
     cameraModule = await import("./camera_gonk.js");
   } else {
-    cameraModule = await import("./camera_fallback.js");
+    cameraModule = await import("./camera_webrtc.js");
   }
 
   let cameraManager = new cameraModule.Camera(window["preview"]);
