@@ -16,15 +16,17 @@ class ConsoleImpl {
 }
 
 export class QrCodeScanner extends EventTarget {
-  constructor(cameraManager) {
+  constructor(cameraReady) {
     super();
-    this.cameraManager = cameraManager;
+    cameraReady.then((cameraManager) => {
+      this.cameraManager = cameraManager;
+      this.start();
+    });
     this.ready = false;
     this.wasmModule = null;
   }
 
   async start() {
-    log(`QR-CODE start`);
     // hide all the controls since we will be in "automatic" mode.
     window["controls"].classList.add("hide-qr-scan");
 
@@ -101,10 +103,12 @@ export class QrCodeScanner extends EventTarget {
       if (!result) {
         this.scheduleFrame();
       } else {
+        navigator.vibrate(200);
         this.dispatchEvent(new CustomEvent("found", { detail: result }));
       }
     } catch (e) {
       // Just in case...
+      log(`QR decoding error: ${e}`);
       this.scheduleFrame();
     }
   }

@@ -34,27 +34,28 @@ self.addEventListener("systemmessage", async (event) => {
   resolver();
 });
 
-async function getClient() {
+async function getClient(activityName) {
   const allClients = await clients.matchAll({
     includeUncontrolled: true,
   });
   if (allClients.length > 0) {
     return allClients[0];
   } else {
-    let win = await clients.openWindow("/index.html");
+    let win = await clients.openWindow(`/index.html#activity-${activityName}`);
     return win;
   }
 }
 
 async function handleActivity(handler) {
   let source = handler.source;
+  let activityName = source.name;
 
   // Get a handle to the app window.
-  let win = await getClient();
+  let win = await getClient(activityName);
 
-  if (HAS_RETURN_VALUE_ACTIVITIES.includes(source.name)) {
+  if (HAS_RETURN_VALUE_ACTIVITIES.includes(activityName)) {
     let activityId = ActivityRequests.addHandler(handler);
-    log(`Sending message for ${source.name} with return value`);
+    log(`Sending message for ${activityName} with return value`);
 
     win.postMessage({
       topic: "activity",
@@ -68,7 +69,7 @@ async function handleActivity(handler) {
       });
     }
   } else {
-    log(`Sending message for ${source.name} with no return value`);
+    log(`Sending message for ${activityName} with no return value`);
     win.postMessage({
       topic: "activity",
       data: { source },
@@ -90,7 +91,7 @@ self.addEventListener("message", async (event) => {
       ActivityRequests.removeHandler(data.activityId);
       // Stop the 'keepalive message interval' if there is no pending activity.
       if (ActivityRequests.size === 0) {
-        let win = await getClient();
+        let win = await getClient("");
         win.postMessage({
           topic: "system",
           data: "stop_activity_keepalive",

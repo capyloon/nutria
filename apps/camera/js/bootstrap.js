@@ -33,12 +33,18 @@ function log(msg) {
   console.log(`CameraApp: ${msg}`);
 }
 
-var cameraManager;
+// A promise that resolves with the cameraManager when it's ready.
+var cameraReady;
 
 document.addEventListener("DOMContentLoaded", async () => {
   console.log(`DOMContentLoaded`);
   await depGraphLoaded;
   graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
+
+  var onCameraReady;
+  cameraReady = new Promise((resolve) => {
+    onCameraReady = resolve;
+  });
 
   await graph.waitForDeps("activity manager");
   // Configure activity handlers.
@@ -57,13 +63,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.CameraBase = baseModule.CameraBase;
 
   // Load the platform specific module.
-  if (navigator.b2g.cameras) {
+  // When scanning a QR Code always use the webrtc fallback because it
+  // reliably provides the "loadeddata" event.
+  if (navigator.b2g.cameras && location.hash !== "#activity-scan-qr-code") {
     cameraModule = await import("./camera_gonk.js");
   } else {
     cameraModule = await import("./camera_fallback.js");
   }
 
-  cameraManager = new cameraModule.Camera(window["preview"]);
+  let cameraManager = new cameraModule.Camera(window["preview"]);
 
   let count = await cameraManager.getCameraCount();
   log(`Found ${count} cameras.`);
@@ -85,6 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Kick-off preview with the first/default camera.
   await cameraManager.nextCamera();
+  onCameraReady(cameraManager);
 });
 
 async function captureQRCode() {
@@ -92,12 +101,11 @@ async function captureQRCode() {
 
   return new Promise(async (resolve, reject) => {
     const { QrCodeScanner } = await import(`./qr_code.js`);
-    let scanner = new QrCodeScanner(cameraManager);
+    let scanner = new QrCodeScanner(cameraReady);
     scanner.addEventListener("found", (event) => {
       // log(`QR result: ${event.detail}`);
       resolve(event.detail);
       window.close();
     });
-    await scanner.start();
   });
 }
