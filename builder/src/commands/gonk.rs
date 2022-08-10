@@ -57,7 +57,7 @@ pub struct ResetDataCommand;
 impl ResetDataCommand {
     pub fn start() -> Result<(), AdbError> {
         let _ = detect_device()?;
-        let cmd = ResetDataCommand;
+        let cmd = Self;
         cmd.init_adb(true)
     }
 }
@@ -91,6 +91,42 @@ impl AdbCommand for ResetDataCommand {
     }
 }
 
+// Command that clears the cache on device.
+pub struct ClearCacheCommand;
+
+impl ClearCacheCommand {
+    pub fn start() -> Result<(), AdbError> {
+        let _ = detect_device()?;
+        let cmd = Self;
+        cmd.init_adb(true)
+    }
+}
+
+impl AdbCommand for ClearCacheCommand {
+    fn run_on_device(&self, device: &Device) -> Result<(), AdbError> {
+        info!("Using adb connected device: {}", device.serial);
+
+        let commands = [
+            "stop b2g",
+            "rm -r /cache/cache2",
+            "stop api-daemon",
+            "start api-daemon",
+            "start b2g",
+        ];
+        for command in commands {
+            match device.execute_host_shell_command(command) {
+                Ok(res) => info!("{}: [Success] {}", command, res.trim()),
+                Err(err) => {
+                    error!("Failed to run '{}' : {}", command, err);
+                    return Err(AdbError::Device(err));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+
 // Command that resets time on device.
 // Equivalent to the command: "adb shell date @`date +%s`"
 pub struct ResetTimeCommand;
@@ -98,7 +134,7 @@ pub struct ResetTimeCommand;
 impl ResetTimeCommand {
     pub fn start() -> Result<(), AdbError> {
         let _ = detect_device()?;
-        let cmd = ResetTimeCommand;
+        let cmd = Self;
         cmd.init_adb(true)
     }
 }
@@ -236,7 +272,7 @@ pub struct RestartCommand;
 impl RestartCommand {
     pub fn start() -> Result<(), AdbError> {
         let _ = detect_device()?;
-        let cmd = RestartCommand;
+        let cmd = Self;
         cmd.init_adb(true)
     }
 }

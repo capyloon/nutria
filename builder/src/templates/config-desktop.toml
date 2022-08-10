@@ -2,7 +2,7 @@
 [general]
 host = "0.0.0.0"
 port = 8081
-message_max_time = 5 # In ms.
+message_max_time = 0 # In ms.
 verbose_log = true
 log_path = "/tmp"
 remote_services_config = "./remote/config.toml"

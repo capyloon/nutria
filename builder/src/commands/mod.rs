@@ -90,6 +90,19 @@ pub fn reset_data() -> Result<(), DeviceError> {
     )
 }
 
+pub fn clear_cache() -> Result<(), DeviceError> {
+    gonk_or_linux(
+        || {
+            let _ = gonk::ClearCacheCommand::start()?;
+            Ok(())
+        },
+        || {
+            error!("Clearing cache is not implemented on Linux devices yet.");
+            Ok(())
+        },
+    )
+}
+
 pub fn reset_time() -> Result<(), DeviceError> {
     gonk_or_linux(
         || {

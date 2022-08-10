@@ -66,6 +66,8 @@ enum Commands {
     },
     /// Gonk/Linux: reset the user data on the device.
     ResetData {},
+    /// Gonk/Linux: clears the cache on the device.
+    ClearCache {},
     /// Gonk/Linux: reset the time on device.
     ResetTime {},
     /// Gonk/Linux: force a restart of the api-daemon and b2g.
@@ -191,6 +193,7 @@ fn main() {
             }
         }
         Commands::ResetData {} => commands::reset_data().map_err(|e| e.into()),
+        Commands::ClearCache {} => commands::clear_cache().map_err(|e| e.into()),
         Commands::ResetTime {} => commands::reset_time().map_err(|e| e.into()),
         Commands::Push { apps } => commands::push(config, apps).map_err(|e| e.into()),
         Commands::PushB2g { path } => PushB2gCommand::start(path).map_err(|e| e.into()),
