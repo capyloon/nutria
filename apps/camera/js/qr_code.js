@@ -99,7 +99,10 @@ export class QrCodeScanner extends EventTarget {
       let ctxt = canvas.getContext("2d");
       ctxt.drawImage(bitmap, 0, 0, width, height);
       let imageData = ctxt.getImageData(0, 0, width, height);
+      // let start = Date.now();
       let result = this.module.decodeQr(imageData.data, width, height);
+      // let elapsed = Date.now() - start;
+      // console.log(`QR: decoding took ${elapsed}ms`);
       if (!result) {
         this.scheduleFrame();
       } else {
