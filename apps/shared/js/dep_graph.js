@@ -449,12 +449,6 @@ function addShoelaceDeps(currentDeps) {
     name: "shoelace-setup",
     kind: "sharedModule",
     param: "js/shoelace_setup.js",
-    deps: ["shoelace-api-daemon"],
-  });
-  currentDeps.push({
-    name: "shoelace-api-daemon",
-    kind: "sharedWindowModule",
-    param: ["js/api_daemon.js", "apiDaemon", "ApiDaemon"],
   });
 
   return currentDeps;

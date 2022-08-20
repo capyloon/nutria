@@ -2,22 +2,15 @@
 // - register the Lucide icon as the default in the icon registry.
 // - add the dark theme if needed.
 
-function getShoelaceThemeGraph() {
-  let deps = [
-    {
-      name: "shoelace-dark-theme",
-      kind: "sharedStyle",
-      param: "shoelace/themes/dark.css",
-    },
-  ];
+const graph = new ParallelGraphLoader([
+  {
+    name: "shoelace-dark-theme",
+    kind: "sharedStyle",
+    param: "shoelace/themes/dark.css",
+  },
+]);
 
-  return new ParallelGraphLoader(deps);
-}
-
-const graph = getShoelaceThemeGraph();
-
-async function updateDocumentTheme(value) {
-  let isDarkMode = value === "dark";
+async function updateDocumentTheme(isDarkMode) {
   if (isDarkMode) {
     await graph.waitForDeps("shoelace-dark-theme");
     document.documentElement.classList.add("sl-theme-dark");
@@ -38,15 +31,12 @@ async function initShoelace() {
   });
 
   // Set initial theme.
-  let settings = await apiDaemon.getSettings();
-  try {
-    let result = await settings.get("ui.prefers.color-scheme");
-    updateDocumentTheme(result.value);
-  } catch (e) {}
+  const matchDarkTheme = window.matchMedia("(prefers-color-scheme: dark)");
+  updateDocumentTheme(matchDarkTheme.matches);
 
   // Observe theme changes.
-  settings.addObserver("ui.prefers.color-scheme", (setting) => {
-    updateDocumentTheme(setting.value);
+  matchDarkTheme.addEventListener("change", () => {
+    updateDocumentTheme(matchDarkTheme.matches);
   });
 }
 
