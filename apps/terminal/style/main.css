@@ -27,6 +27,7 @@ body {
 
 pre {
   font-size: large;
+  margin-left: auto;
 }
 
 #welcome.hidden,
