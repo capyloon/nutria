@@ -337,7 +337,7 @@ const kSharedDeps = [
     kind: "sharedWindowModule",
     param: ["js/api_daemon.js", "apiDaemon", "ApiDaemon"],
   },
-  { name: "shared-fluent", kind: "sharedScript", param: "js/fluent-web.js" },
+  { name: "shared-fluent", kind: "sharedScript", param: "js/fluent_web.js" },
   {
     name: "shared-icons",
     kind: "sharedModule",
