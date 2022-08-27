@@ -53,10 +53,6 @@ export class QrCodeScanner extends EventTarget {
 
     this.module = new QrdecoderModule();
 
-    // TODO: figure out if we can remove these wasm_bindgen imports properly
-    // instead of using wasm-opt --remove-imports
-    // __wbindgen_placeholder__
-    // __wbindgen_describe_*
     let imports = {};
 
     addConsoleToImports(imports, new ConsoleImpl("QrdecoderModule"), (what) => {
