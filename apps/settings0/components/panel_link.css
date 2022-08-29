@@ -1,0 +1,28 @@
+:host {
+  padding-top: 0.75em;
+  padding-bottom: 0.75em;
+  border-bottom: 2px solid lightgray;
+
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+:host(.disabled) {
+  pointer-events: none;
+  color: lightgray;
+  cursor: default;
+}
+
+:host:active {
+  background-color: lightgray;
+}
+
+:host span {
+  padding-left: 1em;
+  flex: 1;
+}
+
+lucide-icon {
+  font-size: 1.25em;
+}

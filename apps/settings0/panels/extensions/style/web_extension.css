@@ -1,0 +1,15 @@
+:host {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 1em;
+  margin: 0.5em;
+}
+
+:host .name {
+  flex: 1;
+}
+
+:host img {
+    width: 24px;
+}
