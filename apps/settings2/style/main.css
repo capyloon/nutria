@@ -1,0 +1,190 @@
+html,
+body {
+  font-family: "Open Sans", arial, "sans serif";
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 1em;
+}
+
+body {
+  opacity: 0;
+}
+
+body.ready {
+  opacity: 1;
+  transition: 0.25s opacity;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+}
+
+sl-drawer {
+  --size: 100vw;
+}
+
+sl-drawer header {
+  font-size: 1.2rem;
+}
+
+.drawer-content {
+  margin: 1em;
+}
+
+#language-panel sl-menu {
+  max-height: 50vh;
+  overflow-y: scroll;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1em;
+}
+
+header span {
+  flex: 1;
+}
+
+.hidden {
+  display: none;
+}
+
+#wifi-panel sl-menu {
+  margin-bottom: 1em;
+  max-height: 50vh; /* TODO: use a proper scrollable */
+  overflow: auto;
+}
+
+#wifi-panel .network-name {
+  display: flex;
+  align-items: baseline;
+}
+
+#wifi-panel .secondary {
+  margin-left: 0.5em;
+  font-size: 0.75rem;
+  color: var(--sl-color-neutral-500);
+}
+
+#wifi-panel sl-dialog {
+  color: var(--sl-color-neutral-500);
+}
+
+/* TODO: figure out why this doesn't work */
+sl-input::part(password-toggle-button) {
+  -moz-user-focus: ignore;
+}
+
+#datetime-panel section {
+  margin-bottom: 1em;
+}
+
+#datetime-clock-current {
+  font-weight: bold;
+  margin: 1em;
+}
+
+#datetime-clock-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  align-items: start;
+}
+
+#datetime-clock-details.hidden {
+  display: none;
+}
+
+#datetime-timezone-details sl-details {
+  max-height: 40vh;
+  overflow: auto;
+  margin-top: 0.25em;
+}
+
+#datetime-timezone-details sl-details::part(header) {
+  padding: 0.5em;
+}
+
+#datetime-timezone-details sl-details::part(content) {
+  padding: 0em;
+}
+
+#datetime-timezone-details sl-menu::part(base) {
+  border: none;
+  padding: 0;
+}
+
+#privacy-tor-icon {
+  width: 1.2rem;
+}
+
+#privacy-tor-icon.disabled {
+  filter: grayscale(100%);
+}
+
+#search-panel img,
+#webext-panel img {
+  width: 24px;
+}
+
+#search-panel sl-alert {
+  margin-top: 0.5em;
+}
+
+#search-panel .name,
+#webext-panel .name,
+#identity-panel .name {
+  font-weight: bolder;
+  line-height: 1.5em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#search-panel .desc,
+#webext-panel .desc,
+#identity-panel .desc {
+  font-size: smaller;
+  line-height: 1.5em;
+  color: var(--sl-color-neutral-500);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#search-panel sl-menu-item:hover .desc,
+#webext-panel sl-menu-item:hover .desc,
+#identity-panel sl-menu-item:hover .desc {
+  color: var(--sl-color-neutral-0);
+}
+
+#search-panel sl-menu-item::part(label),
+#webext-panel sl-menu-item::part(label),
+#identity-panel sl-menu-item::part(label) {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#webext-panel sl-alert {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+#identity-panel sl-alert {
+  margin-top: 1em;
+}
+
+#identity-panel .identity-add {
+  margin-top: 1em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
