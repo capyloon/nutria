@@ -1,20 +1,20 @@
 {
-  "x86_64-apple-darwin": {
-    "b2g": "htt://cloudflare-ipfs.com/ipfs/bafybeicqakr5hbzqkjk7obt4hpcuc3rgcvtnyfyck6mbsgge6inye4ki7q",
-    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeifebpzgofnnitln5uqmpqjjiqcexmshunpx4xtbe2fvudejub4km4"
-  },
-  "aarch64-unknown-linux-gnu": {
-    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeiebpc4v2ucwur4smja7epw6rjkwheippmbhgkm6eqgvhwhsl5lyl4",
-    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeiezjqjcyfnncufhg5qyvzhsaowkkoao2y2olseb24cyew4t3iah3i",
-    "b2ghald": "https://cloudflare-ipfs.com/ipfs/bafkreifvmpc76tlxuoznmlcdivccp53ne67utjs6lgqqdezlxblwiodpv4"
-  },
   "x86_64-unknown-linux-gnu": {
-    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeidgradv75wwn2ec6xqh73b7hvxx473dbz33a4u2xonwmswkogiwau",
-    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeigqjuf5pnsmnmo4g44a6pbdk4v7pkpgy62ozslba6u4dafcdbc2wq",
-    "b2ghald": "https://cloudflare-ipfs.com/ipfs/bafkreigfben2qae7ihrfl3rbanfytzymmojrus2amgrfbql5mf4l6rz5vq"
+    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeiduwinb5rr7n2agv6wm66xgot4kz6vjb3ehcako4au4k37fzfw7yq",
+    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeieos5fr6oio6wirifgj5tpknowlmhrbgjyjzh45yb62wexovwdzaa",
+    "b2ghald": "https://cloudflare-ipfs.com/ipfs/bafkreigpc7o5dnotspz6tni6iirboqilizusrmyzncczct4sahef7kzcnu"
   },
   "aarch64-apple-darwin": {
-    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeiedojgakzlu26hbnwe2ihg2usp6dxtckea6etatxbsszkwba6r7zi",
-    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeicsjqrwztwj5gsivxlzejkxi5xnpfhm4rl7wexex55hvr3um2fmcy"
+    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeickw6lpl4umxmg5wzzd4t35y4rbllovdktx3j424mqh6b55dse23u",
+    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeibgqxiyv6k7adhss3jkfanhwups2tgqbdxbeh5fsuhubpjwgkimsq"
+  },
+  "x86_64-apple-darwin": {
+    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeiddtcda4i6i5mpqqvpiuslpop3i5435mdh2ihj74mbn3h43mpmzye",
+    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeihu4y3rsagbbkzjimmmub5cxw4wziowlarannxkn4arawvem6ww6u"
+  },
+  "aarch64-unknown-linux-gnu": {
+    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeiewvxz57a2hh76eryiuvw6mvo5aprnygb33mdtksmmlsavwdvn3uu",
+    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeig2emnpnqyogwgfilhe2swbzqyckenr36uqoib7kwcdhwvv7xccmu",
+    "b2ghald": "https://cloudflare-ipfs.com/ipfs/bafkreihzvwhb7r7qnao25774ls4lh4l4jxep22xxviffqvvqpt2ahfrbue"
   }
 }
