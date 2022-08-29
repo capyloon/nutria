@@ -1,2 +1,2 @@
-- port telephony lockscreen, system info from old settings.
+- port telephony and lockscreen from old settings.
 - add a "dweb" panel: estuary key config, ipfsd setup etc.

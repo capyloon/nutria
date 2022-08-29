@@ -95,6 +95,14 @@ const kDeps = [
     ],
   },
   {
+    name: "systeminfo-panel",
+    kind: "virtual",
+    deps: [
+      "systeminfo-module",
+      "shoelace-divider",
+    ],
+  },
+  {
     name: "content manager",
     kind: "sharedWindowModule",
     param: ["js/content_manager.js", "contentManager", "ContentManager"],
@@ -122,6 +130,7 @@ const kDeps = [
   { name: "search-module", kind: "module", param: "js/search_panel.js" },
   { name: "webext-module", kind: "module", param: "js/webext_panel.js" },
   { name: "identity-module", kind: "module", param: "js/identity_panel.js" },
+  { name: "systeminfo-module", kind: "module", param: "js/systeminfo_panel.js" },
   {
     name: "switch-setting",
     kind: "module",

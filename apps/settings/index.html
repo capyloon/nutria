@@ -242,5 +242,25 @@
         </div>
       </div>
     </template>
+
+    <!-- The system info panel -->
+    <template id="systeminfo-panel-tmpl">
+      <div class="drawer-content">
+        <header>
+          <img id="systeminfo-logo"/>
+          <h1 data-l10n-id="systeminfo-title"></h1>
+        </header>
+        <sl-divider></sl-divider>
+        <section>
+          <h2 data-l10n-id="systeminfo-system-section"></h2>
+          <table id="systeminfo-system-table"></table>
+        </section>
+        <sl-divider></sl-divider>
+        <section>
+          <h2 data-l10n-id="systeminfo-telephony-section"></h2>
+          <table id="systeminfo-telephony-table"></table>
+        </section>
+      </div>
+    </template>
   </body>
 </html>

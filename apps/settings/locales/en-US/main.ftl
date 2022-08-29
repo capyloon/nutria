@@ -68,4 +68,14 @@ identity-add-input =
   .placeholder = New Identity Name
 
 # System Information panel
-system-info-title = System Information
+systeminfo-title = Device Information
+systeminfo-system-section = System
+systeminfo-telephony-section = Telephony
+systeminfo-deviceinfo-build_number = Build Number
+systeminfo-deviceinfo-software = OS Version
+systeminfo-deviceinfo-platform_version = Plaform Version
+systeminfo-deviceinfo-platform_build_id = Platform Build
+systeminfo-deviceinfo-hardware = Hardware
+systeminfo-deviceinfo-product_manufacturer = Manufacturer
+systeminfo-deviceinfo-product_model = Model
+systeminfo-user-agent = User Agent

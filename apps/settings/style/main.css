@@ -197,6 +197,15 @@ sl-input::part(password-toggle-button) {
   color: var(--sl-color-neutral-0);
 }
 
+#systeminfo-panel img {
+  width: 3em;
+  margin-right: 1em;
+}
+
+#systeminfo-panel table tr:nth-child(odd) {
+  background-color: var(--sl-color-neutral-500);
+}
+
 /*
 Generic style to create containers with the Shoelace style
 TODO: consider moving to shared/
