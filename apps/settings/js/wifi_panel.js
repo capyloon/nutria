@@ -1,5 +1,10 @@
 // Wifi panel management module.
 
+const PanelModes = {
+  LIVE_NETWORKS: "live-mode",
+  SAVED_NETWORKS: "saved-mode",
+};
+
 // Builds a <sl-menu-item> to display a network.
 function buildNetworkItem(network) {
   let freq = network.frequency > 5000 ? "5GHz" : "2.4GHz";
@@ -107,6 +112,8 @@ class WifiPanel {
     this.panel = document.getElementById("wifi-panel");
     this.ready = false;
     this.panel.addEventListener("panel-ready", this);
+
+    this.panelMode = PanelModes.LIVE_NETWORKS;
   }
 
   log(msg) {
@@ -124,6 +131,11 @@ class WifiPanel {
   }
 
   clearNetworkList() {
+    let list = this.panel.querySelector("sl-menu");
+    list
+      .querySelector("sl-menu-item[data-l10n-id = wifi-no-network]")
+      .classList.remove("hidden");
+
     let items = this.panel.querySelectorAll("sl-menu sl-menu-item");
     items.forEach((item) => {
       if (!item.disabled) {
@@ -238,13 +250,33 @@ class WifiPanel {
       manager.setWifiEnabled(onOffSwitch.checked);
     });
 
-    this.forceScanButton = this.panel.querySelector("sl-button");
+    this.forceScanButton = this.panel.querySelector("#wifi-rescan");
     if (!manager.enabled) {
       this.forceScanButton.disabled = true;
     }
 
     this.forceScanButton.onclick = () => {
       this.forceScan();
+    };
+
+    this.savedNetworksButton = this.panel.querySelector("#wifi-saved-networks");
+    this.savedNetworksButton.onclick = async () => {
+      this.panelMode =
+        this.panelMode == PanelModes.SAVED_NETWORKS
+          ? PanelModes.LIVE_NETWORKS
+          : PanelModes.SAVED_NETWORKS;
+
+      this.clearNetworkList();
+
+      if (this.panelMode == PanelModes.SAVED_NETWORKS) {
+        this.forceScanButton.classList.add("hidden");
+        this.savedNetworksButton.dataset.l10nId = "wifi-saved-networks-back";
+        this.updateNetworkList(await manager.getKnownNetworks());
+      } else {
+        this.forceScanButton.classList.remove("hidden");
+        this.savedNetworksButton.dataset.l10nId = "wifi-saved-networks";
+        this.forceScan();
+      }
     };
 
     let statusText = document.getElementById("wifi-status-text");
@@ -262,7 +294,15 @@ class WifiPanel {
 
     let list = this.panel.querySelector("sl-menu");
     list.addEventListener("sl-select", async (event) => {
-      await this.associateNetwork(event.detail.item.network);
+      let network = event.detail.item.network;
+      if (this.panelMode === PanelModes.LIVE_NETWORKS) {
+        await this.associateNetwork(network);
+      } else {
+        // TODO: confirmation prompt
+        await this.manager.forget(network);
+        event.detail.item.remove();
+        this.updateNetworkList(await manager.getKnownNetworks());
+      }
     });
 
     manager.onenabled = () => {
@@ -282,7 +322,9 @@ class WifiPanel {
     };
 
     manager.onscanresult = (event) => {
-      this.updateNetworkList(event.scanResult);
+      if (this.panelMode === PanelModes.LIVE_NETWORKS) {
+        this.updateNetworkList(manager, event.scanResult);
+      }
     };
 
     if (manager.enabled) {
