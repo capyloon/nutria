@@ -73,7 +73,8 @@ const kDeps = [
     name: "webext-panel",
     kind: "virtual",
     deps: [
-      "shoelace-alert",
+      "shoelace-switch",
+      "shoelace-button",
       "shoelace-icon",
       "shoelace-menu",
       "shoelace-menu-item",

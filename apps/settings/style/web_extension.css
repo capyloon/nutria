@@ -1,0 +1,33 @@
+:host {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 1em;
+  margin: 0.5em;
+  padding-right: 0.5em;
+}
+
+:host .namedesc {
+  flex: 1;
+  line-height: 1.5em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:host .name {
+  font-weight: bolder;
+}
+
+:host .desc {
+  font-size: smaller;
+  color: var(--sl-color-neutral-500);
+}
+
+:host(:hover) .desc {
+  color: var(--sl-color-neutral-0);
+}
+
+:host img {
+  width: 24px;
+}

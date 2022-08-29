@@ -6,7 +6,7 @@ window.config = {
   port: isDevice ? 80 : 8081,
 };
 
-function addLink(url) {
+function addStylesheet(url) {
   let link = document.createElement("link");
   link.setAttribute("rel", "stylesheet");
   link.setAttribute("href", url);
@@ -14,30 +14,37 @@ function addLink(url) {
   return link;
 }
 
-function loadScript(url, defer = false) {
+function loadScript(url, { defer, module } = { defer: false, module: false }) {
   let script = document.createElement("script");
   script.setAttribute("src", url);
   if (defer) {
     script.setAttribute("defer", "true");
   }
+  if (module) {
+    script.setAttribute("type", "module");
+  }
   document.head.appendChild(script);
   return script;
 }
 
-function loadSharedScript(url) {
-  return loadScript(`http://shared.localhost:${location.port}/${url}`);
+function loadSharedScript(url, params) {
+  return loadScript(`http://shared.localhost:${location.port}/${url}`, params);
 }
 
-// Load <link rel="stylesheet" href="style/{device|desktop}.css" />
-addLink(`/style/${isDevice ? "device" : "desktop"}.css`);
-
-// Load <link rel="stylesheet" href="http://shared.localhost/style/elements.css" />
-addLink(`http://shared.localhost:${location.port}/style/elements.css`);
-
-// Load the shared style.
-addLink(
-  `http://shared.localhost:${window.config.port}/style/themes/default/theme.css`
+// Add the branding localization
+let link = document.createElement("link");
+link.setAttribute("rel", "localization");
+link.setAttribute(
+  "href",
+  `http://branding.localhost:${location.port}/locales/{locale}/branding.ftl`
 );
+document.head.appendChild(link);
+
+// Add the branding style
+// addStylesheet(`http://branding.localhost:${location.port}/style/branding.css`);
+
+// Load <link rel="stylesheet" href="style/{device|desktop}.css" />
+addStylesheet(`/style/${isDevice ? "device" : "desktop"}.css`);
 
 let depGraphLoaded = new Promise((resolve) => {
   loadSharedScript("js/dep_graph.js").onload = resolve;

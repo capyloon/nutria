@@ -1,5 +1,5 @@
 {
-  "name": "Settings",
+  "name": "settings",
   "description": "Configure all the things",
   "start_url": "/index.html",
   "icons": [
@@ -9,18 +9,22 @@
       "sizes": "any"
     }
   ],
+  "background_color": "#ffffff",
   "b2g_features": {
     "core": true,
     "developer": {
-      "name": "The b2gOS team"
+      "name": "The Capyloon team"
     },
     "permissions": {
+      "content-manager": {},
+      "dweb": {},
+      "settings": { "access": "readwrite" },
+      "system-time": { "access": "readwrite" },
+      "wifi-manage": {},
       "mobileconnection": {},
       "mobilenetwork": {},
-      "settings": { "access": "readwrite" },
       "sms": {},
-      "telephony": {},
-      "wifi-manage": {}
+      "telephony": {}
     }
   },
   "version": "1.0"

@@ -129,8 +129,7 @@ sl-input::part(password-toggle-button) {
   filter: grayscale(100%);
 }
 
-#search-panel img,
-#webext-panel img {
+#search-panel img {
   width: 24px;
 }
 
@@ -139,7 +138,6 @@ sl-input::part(password-toggle-button) {
 }
 
 #search-panel .name,
-#webext-panel .name,
 #identity-panel .name {
   font-weight: bolder;
   line-height: 1.5em;
@@ -149,7 +147,6 @@ sl-input::part(password-toggle-button) {
 }
 
 #search-panel .desc,
-#webext-panel .desc,
 #identity-panel .desc {
   font-size: smaller;
   line-height: 1.5em;
@@ -160,22 +157,15 @@ sl-input::part(password-toggle-button) {
 }
 
 #search-panel sl-menu-item:hover .desc,
-#webext-panel sl-menu-item:hover .desc,
 #identity-panel sl-menu-item:hover .desc {
   color: var(--sl-color-neutral-0);
 }
 
 #search-panel sl-menu-item::part(label),
-#webext-panel sl-menu-item::part(label),
 #identity-panel sl-menu-item::part(label) {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-#webext-panel sl-alert {
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
 }
 
 #identity-panel sl-alert {
@@ -187,4 +177,33 @@ sl-input::part(password-toggle-button) {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5em;
+}
+
+#webext-panel ul {
+  list-style: none;
+}
+
+#webext-panel ul li {
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+#webext-panel ul li:hover:not([aria-disabled="true"]),
+#webext-panel
+  ul
+  li:focus-visible:not(.sl-focus-invisible):not([aria-disabled="true"]) {
+  outline: none;
+  background-color: var(--sl-color-primary-600);
+  color: var(--sl-color-neutral-0);
+}
+
+/*
+Generic style to create containers with the Shoelace style
+TODO: consider moving to shared/
+*/
+.sl-box {
+  border: solid var(--sl-panel-border-width) var(--sl-panel-border-color);
+  border-radius: var(--sl-border-radius-medium);
+  background: var(--sl-panel-background-color);
+  padding: var(--sl-spacing-x-small) 0;
 }
