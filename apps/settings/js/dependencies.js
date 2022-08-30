@@ -97,10 +97,7 @@ const kDeps = [
   {
     name: "systeminfo-panel",
     kind: "virtual",
-    deps: [
-      "systeminfo-module",
-      "shoelace-divider",
-    ],
+    deps: ["systeminfo-module", "shoelace-divider"],
   },
   {
     name: "lockscreen-panel",
@@ -112,6 +109,11 @@ const kDeps = [
       "shoelace-icon",
       "shoelace-switch",
     ],
+  },
+  {
+    name: "dweb-panel",
+    kind: "virtual",
+    deps: ["dweb-module", "shoelace-input", "shoelace-divider"],
   },
   {
     name: "content manager",
@@ -141,8 +143,21 @@ const kDeps = [
   { name: "search-module", kind: "module", param: "js/search_panel.js" },
   { name: "webext-module", kind: "module", param: "js/webext_panel.js" },
   { name: "identity-module", kind: "module", param: "js/identity_panel.js" },
-  { name: "systeminfo-module", kind: "module", param: "js/systeminfo_panel.js" },
-  { name: "lockscreen-module", kind: "module", param: "js/lockscreen_panel.js" },
+  {
+    name: "systeminfo-module",
+    kind: "module",
+    param: "js/systeminfo_panel.js",
+  },
+  {
+    name: "lockscreen-module",
+    kind: "module",
+    param: "js/lockscreen_panel.js",
+  },
+  {
+    name: "dweb-module",
+    kind: "module",
+    param: "js/dweb_panel.js",
+  },
   {
     name: "switch-setting",
     kind: "module",

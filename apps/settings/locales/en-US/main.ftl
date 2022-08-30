@@ -22,9 +22,6 @@ wifi-password-desc =
 # Telephony setup panel
 telephony-title = Telephony
 
-# Lockscreen panel
-lockscreen-title = Lockscreen
-
 # Date & time panel
 datetime-title = Date & Time
 datetime-clock-automatic-update = Update Clock Automatically
@@ -81,6 +78,7 @@ systeminfo-deviceinfo-product_model = Model
 systeminfo-user-agent = User Agent
 
 # Lockscreen panel
+lockscreen-title = Lockscreen
 lockscreen-enabled = Enabled
 lockscreen-edit-code-1 =
   .label = Enter Lock Code
@@ -89,3 +87,8 @@ lockscreen-edit-code-2 =
 lockscreen-button-ok = Set Lock Code
 code-check-success = Matching Lock Codes
 code-check-error = Unmatched Lock Codes
+
+# Decentralized web panel
+dweb-title = Decentralized Web
+dweb-estuary-section = Estuary API key
+dweb-ipfsd-section = IPFS light node

@@ -67,6 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     { name: "webext", icon: "layout-dashboard" },
     { name: "display", icon: "image" },
     { name: "identity", icon: "users" },
+    { name: "dweb", icon: "cloud-off" },
     { name: "systeminfo", icon: "info" },
   ].forEach((panel) => {
     let item = document.createElement("sl-menu-item");
