@@ -206,6 +206,18 @@ sl-input::part(password-toggle-button) {
   background-color: var(--sl-color-neutral-500);
 }
 
+#lockscreen-panel .sl-box * {
+  padding: 1em;
+}
+
+#lockscreen-code-check.success {
+  color: var(--sl-color-success-500);
+}
+
+#lockscreen-code-check.error {
+  color: var(--sl-color-danger-500);
+}
+
 /*
 Generic style to create containers with the Shoelace style
 TODO: consider moving to shared/

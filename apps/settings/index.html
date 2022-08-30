@@ -19,8 +19,7 @@
   <body>
     <div class="intro">
       <h1 data-l10n-id="title"></h1>
-      <sl-menu id="panel-menu">
-      </sl-menu>
+      <sl-menu id="panel-menu"> </sl-menu>
     </div>
 
     <!-- The language selection panel -->
@@ -50,8 +49,11 @@
           <sl-menu-item disabled data-l10n-id="wifi-no-network"></sl-menu-item>
           <sl-divider id="wifi-divider" class="hidden"></sl-divider>
         </sl-menu>
-        <sl-button id="wifi-rescan" data-l10n-id="wifi-rescan">s</sl-button>
-        <sl-button id="wifi-saved-networks" data-l10n-id="wifi-saved-networks"></sl-button>
+        <sl-button id="wifi-rescan" data-l10n-id="wifi-rescan"></sl-button>
+        <sl-button
+          id="wifi-saved-networks"
+          data-l10n-id="wifi-saved-networks"
+        ></sl-button>
       </div>
 
       <sl-dialog id="wifi-password-dialog">
@@ -198,10 +200,14 @@
         <h1 data-l10n-id="webext-title"></h1>
         <header>
           <sl-icon name="layout-dashboard"></sl-icon>&nbsp;
-          <a href="https://addons.mozilla.org" target="_blank" data-l10n-id="webext-get-more"></a>
+          <a
+            href="https://addons.mozilla.org"
+            target="_blank"
+            data-l10n-id="webext-get-more"
+          ></a>
         </header>
 
-        <ul class="initial-focus sl-box"> </ul>
+        <ul class="initial-focus sl-box"></ul>
       </div>
     </template>
 
@@ -247,7 +253,7 @@
     <template id="systeminfo-panel-tmpl">
       <div class="drawer-content">
         <header>
-          <img id="systeminfo-logo"/>
+          <img id="systeminfo-logo" />
           <h1 data-l10n-id="systeminfo-title"></h1>
         </header>
         <sl-divider></sl-divider>
@@ -260,6 +266,52 @@
           <h2 data-l10n-id="systeminfo-telephony-section"></h2>
           <table id="systeminfo-telephony-table"></table>
         </section>
+      </div>
+    </template>
+
+    <!-- The lockscreen panel -->
+    <template id="lockscreen-panel-tmpl">
+      <div class="drawer-content">
+        <h1 data-l10n-id="lockscreen-title"></h1>
+        <header>
+          <sl-icon name="lock"></sl-icon>&nbsp;
+          <span data-l10n-id="lockscreen-enabled"></span>
+          <sl-switch id="lockscreen-enable-switch"></sl-switch>
+        </header>
+        <div id="pin-edit-container" class="sl-box">
+          <sl-input
+            data-l10n-id="lockscreen-edit-code-1"
+            data-l10n-attrs="label"
+            id="edit-code-1"
+            type="password"
+            inputmode="numeric"
+            minlength="4"
+            maxlength="8"
+            pattern="[0-9]*"
+            required
+            toggle-password
+          ></sl-input>
+
+          <sl-input
+            data-l10n-id="lockscreen-edit-code-2"
+            data-l10n-attrs="label"
+            id="edit-code-2"
+            type="password"
+            inputmode="numeric"
+            minlength="4"
+            maxlength="8"
+            pattern="[0-9]*"
+            required
+            toggle-password
+          ></sl-input>
+          <div id="lockscreen-code-check" class="hidden"></div>
+          <sl-button
+            data-l10n-id="lockscreen-button-ok"
+            id="lockscreen-button-ok"
+            disabled
+            variant="primary"
+          ></sl-button>
+        </div>
       </div>
     </template>
   </body>

@@ -103,6 +103,17 @@ const kDeps = [
     ],
   },
   {
+    name: "lockscreen-panel",
+    kind: "virtual",
+    deps: [
+      "lockscreen-module",
+      "shoelace-button",
+      "shoelace-input",
+      "shoelace-icon",
+      "shoelace-switch",
+    ],
+  },
+  {
     name: "content manager",
     kind: "sharedWindowModule",
     param: ["js/content_manager.js", "contentManager", "ContentManager"],
@@ -131,6 +142,7 @@ const kDeps = [
   { name: "webext-module", kind: "module", param: "js/webext_panel.js" },
   { name: "identity-module", kind: "module", param: "js/identity_panel.js" },
   { name: "systeminfo-module", kind: "module", param: "js/systeminfo_panel.js" },
+  { name: "lockscreen-module", kind: "module", param: "js/lockscreen_panel.js" },
   {
     name: "switch-setting",
     kind: "module",

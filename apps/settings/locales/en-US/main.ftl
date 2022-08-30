@@ -79,3 +79,13 @@ systeminfo-deviceinfo-hardware = Hardware
 systeminfo-deviceinfo-product_manufacturer = Manufacturer
 systeminfo-deviceinfo-product_model = Model
 systeminfo-user-agent = User Agent
+
+# Lockscreen panel
+lockscreen-enabled = Enabled
+lockscreen-edit-code-1 =
+  .label = Enter Lock Code
+lockscreen-edit-code-2 =
+  .label = Confirm Lock Code
+lockscreen-button-ok = Set Lock Code
+code-check-success = Matching Lock Codes
+code-check-error = Unmatched Lock Codes
