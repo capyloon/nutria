@@ -1,2 +1,1 @@
 - port telephony from old settings.
-- add a "dweb" panel: estuary key config, ipfsd setup etc.
