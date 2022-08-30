@@ -1,1 +1,1 @@
-import{b as a,c as b,d as c,e as d,f as e,g as f,h as g}from"../chunks/chunk.RLLTRZYL.js";import"../chunks/chunk.OAQCUA7X.js";export{g as LocalizeController,c as date,d as number,a as registerTranslation,e as relativeTime,b as term,f as update};
+import{a,c as b}from"../chunks/chunk.ISLNSUAB.js";import"../chunks/chunk.OAQCUA7X.js";export{b as LocalizeController,a as registerTranslation};
