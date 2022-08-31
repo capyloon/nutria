@@ -193,7 +193,9 @@ class WifiPanel {
       // Make sure the connected network will be the first of the list.
       if (network.connected) {
         list.prepend(item);
-        document.getElementById("wifi-divider").classList.remove("hidden");
+        if (this.panelMode === PanelModes.LIVE_NETWORKS) {
+          document.getElementById("wifi-divider").classList.remove("hidden");
+        }
       } else {
         list.appendChild(item);
       }
@@ -323,7 +325,7 @@ class WifiPanel {
 
     manager.onscanresult = (event) => {
       if (this.panelMode === PanelModes.LIVE_NETWORKS) {
-        this.updateNetworkList(manager, event.scanResult);
+        this.updateNetworkList(event.scanResult);
       }
     };
 
