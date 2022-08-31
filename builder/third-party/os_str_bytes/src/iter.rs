@@ -29,6 +29,7 @@ impl<'a, P> Split<'a, P>
 where
     P: Pattern,
 {
+    #[track_caller]
     pub(super) fn new(string: &'a RawOsStr, pat: P) -> Self {
         let pat = pat.__encode();
         assert!(

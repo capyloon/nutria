@@ -7,6 +7,11 @@ use super::wtf8;
 pub(crate) use super::wtf8::ends_with;
 pub(crate) use super::wtf8::starts_with;
 use super::wtf8::CodePoints;
+use super::Result;
+
+pub(crate) fn validate_bytes(string: &[u8]) -> Result<()> {
+    wtf8::encode_wide(string).try_for_each(|x| x.map(drop))
+}
 
 pub(crate) fn encode_wide_unchecked(
     string: &[u8],

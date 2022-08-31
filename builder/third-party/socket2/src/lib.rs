@@ -1,8 +1,8 @@
 // Copyright 2015 The Rust Project Developers.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
@@ -50,7 +50,7 @@
 //! This crate has a single feature `all`, which enables all functions even ones
 //! that are not available on all OSs.
 
-#![doc(html_root_url = "https://docs.rs/socket2/0.3")]
+#![doc(html_root_url = "https://docs.rs/socket2/0.4")]
 #![deny(missing_docs, missing_debug_implementations, rust_2018_idioms)]
 // Show required OS/features on docs.rs.
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -374,9 +374,11 @@ impl TcpKeepalive {
     #[cfg(all(
         feature = "all",
         any(
+            target_os = "android",
             target_os = "dragonfly",
             target_os = "freebsd",
             target_os = "fuchsia",
+            target_os = "illumos",
             target_os = "linux",
             target_os = "netbsd",
             target_vendor = "apple",
@@ -388,8 +390,11 @@ impl TcpKeepalive {
         doc(cfg(all(
             feature = "all",
             any(
+                target_os = "android",
+                target_os = "dragonfly",
                 target_os = "freebsd",
                 target_os = "fuchsia",
+                target_os = "illumos",
                 target_os = "linux",
                 target_os = "netbsd",
                 target_vendor = "apple",
@@ -412,9 +417,11 @@ impl TcpKeepalive {
         feature = "all",
         any(
             doc,
+            target_os = "android",
             target_os = "dragonfly",
             target_os = "freebsd",
             target_os = "fuchsia",
+            target_os = "illumos",
             target_os = "linux",
             target_os = "netbsd",
             target_vendor = "apple",
@@ -425,8 +432,11 @@ impl TcpKeepalive {
         doc(cfg(all(
             feature = "all",
             any(
+                target_os = "android",
+                target_os = "dragonfly",
                 target_os = "freebsd",
                 target_os = "fuchsia",
+                target_os = "illumos",
                 target_os = "linux",
                 target_os = "netbsd",
                 target_vendor = "apple",

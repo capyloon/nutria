@@ -7,9 +7,7 @@ fn test_rsa_private_keys() {
     let mut reader = BufReader::new(&data[..]);
 
     assert_eq!(
-        rustls_pemfile::rsa_private_keys(&mut reader)
-            .unwrap()
-            .len(),
+        rustls_pemfile::rsa_private_keys(&mut reader).unwrap().len(),
         2
     );
 }
@@ -19,12 +17,14 @@ fn test_certs() {
     let data = include_bytes!("data/certificate.chain.pem");
     let mut reader = BufReader::new(&data[..]);
 
-    assert_eq!(
-        rustls_pemfile::certs(&mut reader)
-            .unwrap()
-            .len(),
-        3
-    );
+    assert_eq!(rustls_pemfile::certs(&mut reader).unwrap().len(), 3);
+}
+
+#[test]
+fn test_certs_with_binary() {
+    let data = include_bytes!("data/gunk.pem");
+    let mut reader = BufReader::new(&data[..]);
+    assert_eq!(rustls_pemfile::certs(&mut reader).unwrap().len(), 2);
 }
 
 #[test]
