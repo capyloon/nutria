@@ -18,7 +18,6 @@ pub struct WakerRef<'a> {
 
 impl<'a> WakerRef<'a> {
     /// Create a new [`WakerRef`] from a [`Waker`] reference.
-    #[inline]
     pub fn new(waker: &'a Waker) -> Self {
         // copy the underlying (raw) waker without calling a clone,
         // as we won't call Waker::drop either.
@@ -32,7 +31,6 @@ impl<'a> WakerRef<'a> {
     /// an unsafe way (that will be valid only for a lifetime to be determined
     /// by the caller), and the [`Waker`] doesn't need to or must not be
     /// destroyed.
-    #[inline]
     pub fn new_unowned(waker: ManuallyDrop<Waker>) -> Self {
         Self { waker, _marker: PhantomData }
     }
@@ -41,7 +39,6 @@ impl<'a> WakerRef<'a> {
 impl Deref for WakerRef<'_> {
     type Target = Waker;
 
-    #[inline]
     fn deref(&self) -> &Waker {
         &self.waker
     }

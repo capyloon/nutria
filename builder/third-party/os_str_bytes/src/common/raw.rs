@@ -1,16 +1,9 @@
 use std::fmt;
 use std::fmt::Formatter;
 
-use super::Result;
-
 #[inline(always)]
 pub(crate) const fn is_continuation(_: u8) -> bool {
     false
-}
-
-#[inline(always)]
-pub(crate) fn validate_bytes(_: &[u8]) -> Result<()> {
-    Ok(())
 }
 
 #[inline(always)]

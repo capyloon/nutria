@@ -5,7 +5,7 @@
 //!     1. [Terminology](#terminology)
 //!     2. [Command Attributes](#command-attributes)
 //!     3. [Arg Attributes](#arg-attributes)
-//!     4. [ValueEnum Attributes](#valueenum-attributes)
+//!     4. [Arg Enum Attributes](#arg-enum-attributes)
 //!     5. [Possible Value Attributes](#possible-value-attributes)
 //! 3. [Arg Types](#arg-types)
 //! 4. [Doc Comments](#doc-comments)
@@ -181,24 +181,16 @@
 //! - e.g. `#[clap(max_values(3))]` would translate to `arg.max_values(3)`
 //!
 //! **Magic attributes**:
-//! - `id = <expr>`: [`Arg::id`][crate::Arg::id]
-//!   - When not present: case-converted field name is used
 //! - `name = <expr>`: [`Arg::id`][crate::Arg::id]
-//!   - **Deprecated:** use `id`
+//!   - When not present: case-converted field name is used
 //! - `value_parser [= <expr>]`: [`Arg::value_parser`][crate::Arg::value_parser]
 //!   - When not present: will auto-select an implementation based on the field type using
 //!     [`value_parser!][crate::value_parser!]
-//!   - When present but defaulted: opt-in to clap v4 semantics
-//!     - Env parsing is now dependent on inferred parser
-//!     - `PathBuf` will implicitly skip UTF-8 validation (before it required specifying
-//!       `try_from_os_str`)
-//!   - When present, implies `#[clap(action)]`
 //!   - To register a custom type's [`ValueParser`][crate::builder::ValueParser], implement [`ValueParserFactory`][crate::builder::ValueParserFactory]
+//!   - When present, implies `#[clap(action)]`
 //! - `action [= <expr>]`: [`Arg::action`][crate::Arg::action]
 //!   - When not present: will auto-select an action based on the field type
-//!   - When present but defaulted: opt-in to clap v4 semantics
 //!   - When present, implies `#[clap(value_parser)]`
-//!     - `args_override_self` is forced on for single flags
 //! - `help = <expr>`: [`Arg::help`][crate::Arg::help]
 //!   - When not present: [Doc comment summary](#doc-comments)
 //! - `long_help = <expr>`: [`Arg::long_help`][crate::Arg::long_help]
@@ -249,7 +241,7 @@
 //!   - Requires field arg to be of type `Vec<T>` and `T` to implement `std::convert::Into<OsString>` or `#[clap(value_enum)]`
 //!   - `<expr>` must implement `IntoIterator<T>`
 //!
-//! ### ValueEnum Attributes
+//! ### Value Enum Attributes
 //!
 //! - `rename_all = <string_literal>`: Override default field / variant name case conversion for [`PossibleValue::new`][crate::PossibleValue]
 //!   - When not present: `"kebab-case"`

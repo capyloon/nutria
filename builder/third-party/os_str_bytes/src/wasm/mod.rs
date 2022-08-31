@@ -35,12 +35,10 @@ macro_rules! expect_utf8 {
     };
 }
 
-fn from_bytes(string: &[u8]) -> Result<&str> {
-    str::from_utf8(string).map_err(EncodingError)
-}
-
 pub(super) fn os_str_from_bytes(string: &[u8]) -> Result<Cow<'_, OsStr>> {
-    from_bytes(string).map(|x| Cow::Borrowed(OsStr::new(x)))
+    str::from_utf8(string)
+        .map(|x| Cow::Borrowed(OsStr::new(x)))
+        .map_err(EncodingError)
 }
 
 pub(super) fn os_str_to_bytes(os_string: &OsStr) -> Cow<'_, [u8]> {

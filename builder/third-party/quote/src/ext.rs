@@ -1,5 +1,7 @@
 use super::ToTokens;
-use core::iter;
+
+use std::iter;
+
 use proc_macro2::{TokenStream, TokenTree};
 
 /// TokenStream extension trait with methods for appending tokens.

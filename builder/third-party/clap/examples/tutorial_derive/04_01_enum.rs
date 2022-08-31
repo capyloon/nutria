@@ -1,4 +1,4 @@
-use clap::{Parser, ValueEnum};
+use clap::{ArgEnum, Parser};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -8,7 +8,7 @@ struct Cli {
     mode: Mode,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 enum Mode {
     Fast,
     Slow,

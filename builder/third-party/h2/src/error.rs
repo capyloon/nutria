@@ -59,7 +59,10 @@ impl Error {
 
     /// Returns true if the error is an io::Error
     pub fn is_io(&self) -> bool {
-        matches!(self.kind, Kind::Io(..))
+        match self.kind {
+            Kind::Io(_) => true,
+            _ => false,
+        }
     }
 
     /// Returns the error if the error is an io::Error
@@ -87,11 +90,6 @@ impl Error {
     /// Returns true if the error is from a `GOAWAY`.
     pub fn is_go_away(&self) -> bool {
         matches!(self.kind, Kind::GoAway(..))
-    }
-
-    /// Returns true if the error is from a `RST_STREAM`.
-    pub fn is_reset(&self) -> bool {
-        matches!(self.kind, Kind::Reset(..))
     }
 
     /// Returns true if the error was received in a frame from the remote.

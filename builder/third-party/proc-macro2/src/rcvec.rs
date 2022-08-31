@@ -1,6 +1,6 @@
-use core::mem;
-use core::slice;
+use std::mem;
 use std::rc::Rc;
+use std::slice;
 use std::vec;
 
 pub(crate) struct RcVec<T> {

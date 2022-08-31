@@ -1,3 +1,4 @@
+extern crate httparse;
 
 use httparse::{Error, Request, Status, EMPTY_HEADER};
 
@@ -16,7 +17,7 @@ macro_rules! req {
         assert_eq!(status, $len);
         closure(req);
 
-        fn closure($arg: Request<'_, '_>) {
+        fn closure($arg: Request) {
             $body
         }
     }

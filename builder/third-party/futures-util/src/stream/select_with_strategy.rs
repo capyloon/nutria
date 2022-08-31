@@ -1,4 +1,5 @@
 use super::assert_stream;
+use crate::stream::{Fuse, StreamExt};
 use core::{fmt, pin::Pin};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
@@ -17,15 +18,13 @@ impl PollNext {
     /// Toggle the value and return the old one.
     pub fn toggle(&mut self) -> Self {
         let old = *self;
-        *self = self.other();
-        old
-    }
 
-    fn other(&self) -> PollNext {
         match self {
-            PollNext::Left => PollNext::Right,
-            PollNext::Right => PollNext::Left,
+            PollNext::Left => *self = PollNext::Right,
+            PollNext::Right => *self = PollNext::Left,
         }
+
+        old
     }
 }
 
@@ -35,41 +34,14 @@ impl Default for PollNext {
     }
 }
 
-enum InternalState {
-    Start,
-    LeftFinished,
-    RightFinished,
-    BothFinished,
-}
-
-impl InternalState {
-    fn finish(&mut self, ps: PollNext) {
-        match (&self, ps) {
-            (InternalState::Start, PollNext::Left) => {
-                *self = InternalState::LeftFinished;
-            }
-            (InternalState::Start, PollNext::Right) => {
-                *self = InternalState::RightFinished;
-            }
-            (InternalState::LeftFinished, PollNext::Right)
-            | (InternalState::RightFinished, PollNext::Left) => {
-                *self = InternalState::BothFinished;
-            }
-            _ => {}
-        }
-    }
-}
-
 pin_project! {
     /// Stream for the [`select_with_strategy()`] function. See function docs for details.
     #[must_use = "streams do nothing unless polled"]
-    #[project = SelectWithStrategyProj]
     pub struct SelectWithStrategy<St1, St2, Clos, State> {
         #[pin]
-        stream1: St1,
+        stream1: Fuse<St1>,
         #[pin]
-        stream2: St2,
-        internal_state: InternalState,
+        stream2: Fuse<St2>,
         state: State,
         clos: Clos,
     }
@@ -148,10 +120,9 @@ where
     State: Default,
 {
     assert_stream::<St1::Item, _>(SelectWithStrategy {
-        stream1,
-        stream2,
+        stream1: stream1.fuse(),
+        stream2: stream2.fuse(),
         state: Default::default(),
-        internal_state: InternalState::Start,
         clos: which,
     })
 }
@@ -160,7 +131,7 @@ impl<St1, St2, Clos, State> SelectWithStrategy<St1, St2, Clos, State> {
     /// Acquires a reference to the underlying streams that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> (&St1, &St2) {
-        (&self.stream1, &self.stream2)
+        (self.stream1.get_ref(), self.stream2.get_ref())
     }
 
     /// Acquires a mutable reference to the underlying streams that this
@@ -169,7 +140,7 @@ impl<St1, St2, Clos, State> SelectWithStrategy<St1, St2, Clos, State> {
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
     pub fn get_mut(&mut self) -> (&mut St1, &mut St2) {
-        (&mut self.stream1, &mut self.stream2)
+        (self.stream1.get_mut(), self.stream2.get_mut())
     }
 
     /// Acquires a pinned mutable reference to the underlying streams that this
@@ -179,7 +150,7 @@ impl<St1, St2, Clos, State> SelectWithStrategy<St1, St2, Clos, State> {
     /// stream which may otherwise confuse this combinator.
     pub fn get_pin_mut(self: Pin<&mut Self>) -> (Pin<&mut St1>, Pin<&mut St2>) {
         let this = self.project();
-        (this.stream1, this.stream2)
+        (this.stream1.get_pin_mut(), this.stream2.get_pin_mut())
     }
 
     /// Consumes this combinator, returning the underlying streams.
@@ -187,7 +158,7 @@ impl<St1, St2, Clos, State> SelectWithStrategy<St1, St2, Clos, State> {
     /// Note that this may discard intermediate state of this combinator, so
     /// care should be taken to avoid losing resources when this is called.
     pub fn into_inner(self) -> (St1, St2) {
-        (self.stream1, self.stream2)
+        (self.stream1.into_inner(), self.stream2.into_inner())
     }
 }
 
@@ -198,58 +169,7 @@ where
     Clos: FnMut(&mut State) -> PollNext,
 {
     fn is_terminated(&self) -> bool {
-        match self.internal_state {
-            InternalState::BothFinished => true,
-            _ => false,
-        }
-    }
-}
-
-#[inline]
-fn poll_side<St1, St2, Clos, State>(
-    select: &mut SelectWithStrategyProj<'_, St1, St2, Clos, State>,
-    side: PollNext,
-    cx: &mut Context<'_>,
-) -> Poll<Option<St1::Item>>
-where
-    St1: Stream,
-    St2: Stream<Item = St1::Item>,
-{
-    match side {
-        PollNext::Left => select.stream1.as_mut().poll_next(cx),
-        PollNext::Right => select.stream2.as_mut().poll_next(cx),
-    }
-}
-
-#[inline]
-fn poll_inner<St1, St2, Clos, State>(
-    select: &mut SelectWithStrategyProj<'_, St1, St2, Clos, State>,
-    side: PollNext,
-    cx: &mut Context<'_>,
-) -> Poll<Option<St1::Item>>
-where
-    St1: Stream,
-    St2: Stream<Item = St1::Item>,
-{
-    let first_done = match poll_side(select, side, cx) {
-        Poll::Ready(Some(item)) => return Poll::Ready(Some(item)),
-        Poll::Ready(None) => {
-            select.internal_state.finish(side);
-            true
-        }
-        Poll::Pending => false,
-    };
-    let other = side.other();
-    match poll_side(select, other, cx) {
-        Poll::Ready(None) => {
-            select.internal_state.finish(other);
-            if first_done {
-                Poll::Ready(None)
-            } else {
-                Poll::Pending
-            }
-        }
-        a => a,
+        self.stream1.is_terminated() && self.stream2.is_terminated()
     }
 }
 
@@ -262,29 +182,34 @@ where
     type Item = St1::Item;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St1::Item>> {
-        let mut this = self.project();
+        let this = self.project();
 
-        match this.internal_state {
-            InternalState::Start => {
-                let next_side = (this.clos)(this.state);
-                poll_inner(&mut this, next_side, cx)
-            }
-            InternalState::LeftFinished => match this.stream2.poll_next(cx) {
-                Poll::Ready(None) => {
-                    *this.internal_state = InternalState::BothFinished;
-                    Poll::Ready(None)
-                }
-                a => a,
-            },
-            InternalState::RightFinished => match this.stream1.poll_next(cx) {
-                Poll::Ready(None) => {
-                    *this.internal_state = InternalState::BothFinished;
-                    Poll::Ready(None)
-                }
-                a => a,
-            },
-            InternalState::BothFinished => Poll::Ready(None),
+        match (this.clos)(this.state) {
+            PollNext::Left => poll_inner(this.stream1, this.stream2, cx),
+            PollNext::Right => poll_inner(this.stream2, this.stream1, cx),
         }
+    }
+}
+
+fn poll_inner<St1, St2>(
+    a: Pin<&mut St1>,
+    b: Pin<&mut St2>,
+    cx: &mut Context<'_>,
+) -> Poll<Option<St1::Item>>
+where
+    St1: Stream,
+    St2: Stream<Item = St1::Item>,
+{
+    let a_done = match a.poll_next(cx) {
+        Poll::Ready(Some(item)) => return Poll::Ready(Some(item)),
+        Poll::Ready(None) => true,
+        Poll::Pending => false,
+    };
+
+    match b.poll_next(cx) {
+        Poll::Ready(Some(item)) => Poll::Ready(Some(item)),
+        Poll::Ready(None) if a_done => Poll::Ready(None),
+        Poll::Ready(None) | Poll::Pending => Poll::Pending,
     }
 }
 

@@ -1,5 +1,3 @@
-#![allow(clippy::assertions_on_result_states)]
-
 use serde::de::{
     Deserialize, Deserializer, EnumAccess, IgnoredAny, MapAccess, VariantAccess, Visitor,
 };

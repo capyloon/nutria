@@ -35,7 +35,7 @@ impl<S: Stream> Stream for SplitStream<S> {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(bad_style)]
 fn SplitSink<S: Sink<Item>, Item>(lock: BiLock<S>) -> SplitSink<S, Item> {
     SplitSink { lock, slot: None }
 }

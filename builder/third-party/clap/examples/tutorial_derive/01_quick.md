@@ -1,13 +1,13 @@
 ```console
-$ 01_quick_derive --help
+$ 01_quick --help
 clap [..]
 A simple to use, efficient, and full-featured Command Line Argument Parser
 
 USAGE:
-    01_quick_derive[EXE] [OPTIONS] [NAME] [SUBCOMMAND]
+    01_quick[EXE] [OPTIONS] [name] [SUBCOMMAND]
 
 ARGS:
-    <NAME>    Optional name to operate on
+    <name>    Optional name to operate on
 
 OPTIONS:
     -c, --config <FILE>    Sets a custom config file
@@ -23,14 +23,14 @@ SUBCOMMANDS:
 
 By default, the program does nothing:
 ```console
-$ 01_quick_derive
+$ 01_quick
 Debug mode is off
 
 ```
 
 But you can mix and match the various features
 ```console
-$ 01_quick_derive -dd test
+$ 01_quick -dd test
 Debug mode is on
 Not printing testing lists...
 

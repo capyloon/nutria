@@ -23,7 +23,7 @@
 //! - The encoding will be compatible with UTF-8. In particular, splitting an
 //!   encoded byte sequence by a UTF-8–encoded character always produces other
 //!   valid byte sequences. They can be re-encoded without error using
-//!   [`RawOsString::into_os_string`] and similar methods.
+//!   [`OsStrBytes::from_raw_bytes`] and similar methods.
 //!
 //! - All characters valid in platform strings are representable. [`OsStr`] and
 //!   [`OsString`] can always be losslessly reconstructed from extracted bytes.
@@ -73,26 +73,9 @@
 //!   For more information, see [`RawOsStr`][memchr complexity].
 //!
 //! - **raw\_os\_str** -
-//!   Provides:
-//!   - [`iter`]
-//!   - [`Pattern`]
-//!   - [`RawOsStr`]
-//!   - [`RawOsStrCow`]
-//!   - [`RawOsString`]
+//!   Provides [`RawOsStr`] and [`RawOsString`].
 //!
 //! ### Optional Features
-//!
-//! - **checked\_conversions** -
-//!   Provides:
-//!   - [`EncodingError`]
-//!   - [`OsStrBytes::from_raw_bytes`]
-//!   - [`OsStringBytes::from_raw_vec`]
-//!   - [`RawOsStr::from_raw_bytes`]
-//!   - [`RawOsString::from_raw_vec`]
-//!
-//!   Because this feature should not be used in libraries, the
-//!   "OS_STR_BYTES_CHECKED_CONVERSIONS" environment variable must be defined
-//!   during compilation.
 //!
 //! - **print\_bytes** -
 //!   Provides implementations of [`print_bytes::ToBytes`] for [`RawOsStr`] and
@@ -115,10 +98,11 @@
 //!
 //! # Complexity
 //!
-//! Conversion method complexities will vary based on what functionality is
-//! available for the platform. At worst, they will all be linear, but some can
-//! take constant time. For example, [`RawOsString::into_os_string`] might be
-//! able to reuse its allocation.
+//! The time complexities of trait methods will vary based on what
+//! functionality is available for the platform. At worst, they will all be
+//! linear, but some can take constant time. For example,
+//! [`OsStringBytes::from_raw_vec`] might be able to reuse the allocation for
+//! its argument.
 //!
 //! # Examples
 //!
@@ -166,7 +150,6 @@
 //! [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#c-sealed
 //! [print\_bytes]: https://crates.io/crates/print_bytes
 
-#![cfg_attr(not(feature = "checked_conversions"), allow(deprecated))]
 // Only require a nightly compiler when building documentation for docs.rs.
 // This is a private option that should not be used.
 // https://github.com/rust-lang/docs.rs/issues/147#issuecomment-389544407
@@ -191,41 +174,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::result;
 
-macro_rules! if_checked_conversions {
-    ( $($item:item)+ ) => {
-        $(
-            #[cfg(feature = "checked_conversions")]
-            $item
-        )+
-    };
-}
-
-#[cfg(not(os_str_bytes_docs_rs))]
-if_checked_conversions! {
-    const _: &str = env!(
-        "OS_STR_BYTES_CHECKED_CONVERSIONS",
-        "The 'OS_STR_BYTES_CHECKED_CONVERSIONS' environment variable must be \
-         defined to use the 'checked_conversions' feature.",
-    );
-}
-
-#[rustfmt::skip]
-macro_rules! deprecated_checked_conversion {
-    ( $message:expr , $item:item ) => {
-        #[cfg_attr(
-            not(feature = "checked_conversions"),
-            deprecated = $message
-        )]
-        $item
-    };
-}
-
-macro_rules! expect_encoded {
-    ( $result:expr ) => {
-        $result.expect("invalid raw bytes")
-    };
-}
-
 macro_rules! if_raw_str {
     ( $($item:item)+ ) => {
         $(
@@ -233,6 +181,14 @@ macro_rules! if_raw_str {
             $item
         )+
     };
+}
+
+if_raw_str! {
+    macro_rules! expect_encoded {
+        ( $result:expr ) => {
+            $result.expect("invalid raw bytes")
+        };
+    }
 }
 
 #[cfg_attr(
@@ -264,38 +220,27 @@ if_raw_str! {
 
     mod raw_str;
     pub use raw_str::RawOsStr;
-    pub use raw_str::RawOsStrCow;
     pub use raw_str::RawOsString;
 }
 
-deprecated_checked_conversion! {
-    "use `OsStrBytes::assert_from_raw_bytes` or \
-     `OsStringBytes::assert_from_raw_vec` instead, or enable the \
-     'checked_conversions' feature",
-    /// The error that occurs when a byte sequence is not representable in the
-    /// platform encoding.
-    ///
-    /// [`Result::unwrap`] should almost always be called on results containing
-    /// this error. It should be known whether or not byte sequences are
-    /// properly encoded for the platform, since [the module-level
-    /// documentation][encoding] discourages using encoded bytes in
-    /// interchange. Results are returned primarily to make panicking behavior
-    /// explicit.
-    ///
-    /// On Unix, this error is never returned, but [`OsStrExt`] or
-    /// [`OsStringExt`] should be used instead if that needs to be guaranteed.
-    ///
-    /// [encoding]: self#encoding
-    /// [`OsStrExt`]: ::std::os::unix::ffi::OsStrExt
-    /// [`OsStringExt`]: ::std::os::unix::ffi::OsStringExt
-    /// [`Result::unwrap`]: ::std::result::Result::unwrap
-    #[derive(Debug, Eq, PartialEq)]
-    #[cfg_attr(
-        os_str_bytes_docs_rs,
-        doc(cfg(feature = "checked_conversions"))
-    )]
-    pub struct EncodingError(imp::EncodingError);
-}
+/// The error that occurs when a byte sequence is not representable in the
+/// platform encoding.
+///
+/// [`Result::unwrap`] should almost always be called on results containing
+/// this error. It should be known whether or not byte sequences are properly
+/// encoded for the platform, since [the module-level documentation][encoding]
+/// discourages using encoded bytes in interchange. Results are returned
+/// primarily to make panicking behavior explicit.
+///
+/// On Unix, this error is never returned, but [`OsStrExt`] or [`OsStringExt`]
+/// should be used instead if that needs to be guaranteed.
+///
+/// [encoding]: self#encoding
+/// [`OsStrExt`]: ::std::os::unix::ffi::OsStrExt
+/// [`OsStringExt`]: ::std::os::unix::ffi::OsStringExt
+/// [`Result::unwrap`]: ::std::result::Result::unwrap
+#[derive(Debug, Eq, PartialEq)]
+pub struct EncodingError(imp::EncodingError);
 
 impl Display for EncodingError {
     #[inline]
@@ -308,25 +253,6 @@ impl Error for EncodingError {}
 
 type Result<T> = result::Result<T, EncodingError>;
 
-fn from_raw_bytes<'a, S>(
-    string: S,
-) -> result::Result<Cow<'a, OsStr>, imp::EncodingError>
-where
-    S: Into<Cow<'a, [u8]>>,
-{
-    match string.into() {
-        Cow::Borrowed(string) => imp::os_str_from_bytes(string),
-        Cow::Owned(string) => imp::os_string_from_vec(string).map(Cow::Owned),
-    }
-}
-
-fn cow_os_str_into_path(string: Cow<'_, OsStr>) -> Cow<'_, Path> {
-    match string {
-        Cow::Borrowed(string) => Cow::Borrowed(Path::new(string)),
-        Cow::Owned(string) => Cow::Owned(string.into()),
-    }
-}
-
 /// A platform agnostic variant of [`OsStrExt`].
 ///
 /// For more information, see [the module-level documentation][module].
@@ -334,12 +260,14 @@ fn cow_os_str_into_path(string: Cow<'_, OsStr>) -> Cow<'_, Path> {
 /// [module]: self
 /// [`OsStrExt`]: ::std::os::unix::ffi::OsStrExt
 pub trait OsStrBytes: private::Sealed + ToOwned {
-    /// Converts a byte string into an equivalent platform-native string.
+    /// Converts a byte slice into an equivalent platform-native string.
     ///
-    /// # Panics
+    /// Provided byte strings should always be valid for the [unspecified
+    /// encoding] used by this crate.
     ///
-    /// Panics if the string is not valid for the [unspecified encoding] used
-    /// by this crate.
+    /// # Errors
+    ///
+    /// See documentation for [`EncodingError`].
     ///
     /// # Examples
     ///
@@ -352,70 +280,32 @@ pub trait OsStrBytes: private::Sealed + ToOwned {
     ///
     /// let os_string = env::current_exe()?;
     /// let os_bytes = os_string.to_raw_bytes();
-    /// assert_eq!(os_string, OsStr::assert_from_raw_bytes(os_bytes));
+    /// assert_eq!(os_string, OsStr::from_raw_bytes(os_bytes).unwrap());
     /// #
     /// # Ok::<_, io::Error>(())
     /// ```
     ///
     /// [unspecified encoding]: self#encoding
-    #[must_use = "method should not be used for validation"]
-    #[track_caller]
-    fn assert_from_raw_bytes<'a, S>(string: S) -> Cow<'a, Self>
+    fn from_raw_bytes<'a, S>(string: S) -> Result<Cow<'a, Self>>
     where
         S: Into<Cow<'a, [u8]>>;
 
-    deprecated_checked_conversion! {
-        "use `assert_from_raw_bytes` instead, or enable the \
-         'checked_conversions' feature",
-        /// Converts a byte string into an equivalent platform-native string.
-        ///
-        /// [`assert_from_raw_bytes`] should almost always be used instead. For
-        /// more information, see [`EncodingError`].
-        ///
-        /// # Errors
-        ///
-        /// See documentation for [`EncodingError`].
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// use std::env;
-        /// use std::ffi::OsStr;
-        /// # use std::io;
-        ///
-        /// use os_str_bytes::OsStrBytes;
-        ///
-        /// let os_string = env::current_exe()?;
-        /// let os_bytes = os_string.to_raw_bytes();
-        /// assert_eq!(os_string, OsStr::from_raw_bytes(os_bytes).unwrap());
-        /// #
-        /// # Ok::<_, io::Error>(())
-        /// ```
-        ///
-        /// [`assert_from_raw_bytes`]: Self::assert_from_raw_bytes
-        #[cfg_attr(
-            os_str_bytes_docs_rs,
-            doc(cfg(feature = "checked_conversions"))
-        )]
-        fn from_raw_bytes<'a, S>(string: S) -> Result<Cow<'a, Self>>
-        where
-            S: Into<Cow<'a, [u8]>>;
-    }
-
-    /// Converts a platform-native string into an equivalent byte string.
+    /// Converts a platform-native string into an equivalent byte slice.
     ///
-    /// The returned string will use an [unspecified encoding].
+    /// The returned byte string will use an [unspecified encoding].
     ///
     /// # Examples
     ///
     /// ```
-    /// use std::ffi::OsStr;
+    /// use std::env;
+    /// # use std::io;
     ///
     /// use os_str_bytes::OsStrBytes;
     ///
-    /// let string = "foobar";
-    /// let os_string = OsStr::new(string);
-    /// assert_eq!(string.as_bytes(), &*os_string.to_raw_bytes());
+    /// let os_string = env::current_exe()?;
+    /// println!("{:?}", os_string.to_raw_bytes());
+    /// #
+    /// # Ok::<_, io::Error>(())
     /// ```
     ///
     /// [unspecified encoding]: self#encoding
@@ -425,19 +315,18 @@ pub trait OsStrBytes: private::Sealed + ToOwned {
 
 impl OsStrBytes for OsStr {
     #[inline]
-    fn assert_from_raw_bytes<'a, S>(string: S) -> Cow<'a, Self>
-    where
-        S: Into<Cow<'a, [u8]>>,
-    {
-        expect_encoded!(from_raw_bytes(string))
-    }
-
-    #[inline]
     fn from_raw_bytes<'a, S>(string: S) -> Result<Cow<'a, Self>>
     where
         S: Into<Cow<'a, [u8]>>,
     {
-        from_raw_bytes(string).map_err(EncodingError)
+        match string.into() {
+            Cow::Borrowed(string) => {
+                imp::os_str_from_bytes(string).map_err(EncodingError)
+            }
+            Cow::Owned(string) => {
+                OsStringBytes::from_raw_vec(string).map(Cow::Owned)
+            }
+        }
     }
 
     #[inline]
@@ -448,19 +337,14 @@ impl OsStrBytes for OsStr {
 
 impl OsStrBytes for Path {
     #[inline]
-    fn assert_from_raw_bytes<'a, S>(string: S) -> Cow<'a, Self>
-    where
-        S: Into<Cow<'a, [u8]>>,
-    {
-        cow_os_str_into_path(OsStr::assert_from_raw_bytes(string))
-    }
-
-    #[inline]
     fn from_raw_bytes<'a, S>(string: S) -> Result<Cow<'a, Self>>
     where
         S: Into<Cow<'a, [u8]>>,
     {
-        OsStr::from_raw_bytes(string).map(cow_os_str_into_path)
+        OsStr::from_raw_bytes(string).map(|os_string| match os_string {
+            Cow::Borrowed(os_string) => Cow::Borrowed(Self::new(os_string)),
+            Cow::Owned(os_string) => Cow::Owned(os_string.into()),
+        })
     }
 
     #[inline]
@@ -476,12 +360,14 @@ impl OsStrBytes for Path {
 /// [module]: self
 /// [`OsStringExt`]: ::std::os::unix::ffi::OsStringExt
 pub trait OsStringBytes: private::Sealed + Sized {
-    /// Converts a byte string into an equivalent platform-native string.
+    /// Converts a byte vector into an equivalent platform-native string.
     ///
-    /// # Panics
+    /// Provided byte strings should always be valid for the [unspecified
+    /// encoding] used by this crate.
     ///
-    /// Panics if the string is not valid for the [unspecified encoding] used
-    /// by this crate.
+    /// # Errors
+    ///
+    /// See documentation for [`EncodingError`].
     ///
     /// # Examples
     ///
@@ -494,66 +380,30 @@ pub trait OsStringBytes: private::Sealed + Sized {
     ///
     /// let os_string = env::current_exe()?;
     /// let os_bytes = os_string.clone().into_raw_vec();
-    /// assert_eq!(os_string, OsString::assert_from_raw_vec(os_bytes));
+    /// assert_eq!(os_string, OsString::from_raw_vec(os_bytes).unwrap());
     /// #
     /// # Ok::<_, io::Error>(())
     /// ```
     ///
     /// [unspecified encoding]: self#encoding
-    #[must_use = "method should not be used for validation"]
-    #[track_caller]
-    fn assert_from_raw_vec(string: Vec<u8>) -> Self;
+    fn from_raw_vec(string: Vec<u8>) -> Result<Self>;
 
-    deprecated_checked_conversion! {
-        "use `assert_from_raw_vec` instead, or enable the \
-         'checked_conversions' feature",
-        /// Converts a byte string into an equivalent platform-native string.
-        ///
-        /// [`assert_from_raw_vec`] should almost always be used instead. For
-        /// more information, see [`EncodingError`].
-        ///
-        /// # Errors
-        ///
-        /// See documentation for [`EncodingError`].
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// use std::env;
-        /// use std::ffi::OsString;
-        /// # use std::io;
-        ///
-        /// use os_str_bytes::OsStringBytes;
-        ///
-        /// let os_string = env::current_exe()?;
-        /// let os_bytes = os_string.clone().into_raw_vec();
-        /// assert_eq!(os_string, OsString::from_raw_vec(os_bytes).unwrap());
-        /// #
-        /// # Ok::<_, io::Error>(())
-        /// ```
-        ///
-        /// [`assert_from_raw_vec`]: Self::assert_from_raw_vec
-        #[cfg_attr(
-            os_str_bytes_docs_rs,
-            doc(cfg(feature = "checked_conversions"))
-        )]
-        fn from_raw_vec(string: Vec<u8>) -> Result<Self>;
-    }
-
-    /// Converts a platform-native string into an equivalent byte string.
+    /// Converts a platform-native string into an equivalent byte vector.
     ///
-    /// The returned string will use an [unspecified encoding].
+    /// The returned byte string will use an [unspecified encoding].
     ///
     /// # Examples
     ///
     /// ```
-    /// use std::ffi::OsString;
+    /// use std::env;
+    /// # use std::io;
     ///
     /// use os_str_bytes::OsStringBytes;
     ///
-    /// let string = "foobar".to_owned();
-    /// let os_string: OsString = string.clone().into();
-    /// assert_eq!(string.into_bytes(), os_string.into_raw_vec());
+    /// let os_string = env::current_exe()?;
+    /// println!("{:?}", os_string.into_raw_vec());
+    /// #
+    /// # Ok::<_, io::Error>(())
     /// ```
     ///
     /// [unspecified encoding]: self#encoding
@@ -562,11 +412,6 @@ pub trait OsStringBytes: private::Sealed + Sized {
 }
 
 impl OsStringBytes for OsString {
-    #[inline]
-    fn assert_from_raw_vec(string: Vec<u8>) -> Self {
-        expect_encoded!(imp::os_string_from_vec(string))
-    }
-
     #[inline]
     fn from_raw_vec(string: Vec<u8>) -> Result<Self> {
         imp::os_string_from_vec(string).map_err(EncodingError)
@@ -579,11 +424,6 @@ impl OsStringBytes for OsString {
 }
 
 impl OsStringBytes for PathBuf {
-    #[inline]
-    fn assert_from_raw_vec(string: Vec<u8>) -> Self {
-        OsString::assert_from_raw_vec(string).into()
-    }
-
     #[inline]
     fn from_raw_vec(string: Vec<u8>) -> Result<Self> {
         OsString::from_raw_vec(string).map(Into::into)
@@ -601,14 +441,7 @@ mod private {
     use std::path::Path;
     use std::path::PathBuf;
 
-    if_raw_str! {
-        use std::borrow::Cow;
-
-        use super::RawOsStr;
-    }
-
     pub trait Sealed {}
-
     impl Sealed for char {}
     impl Sealed for OsStr {}
     impl Sealed for OsString {}
@@ -616,8 +449,4 @@ mod private {
     impl Sealed for PathBuf {}
     impl Sealed for &str {}
     impl Sealed for &String {}
-
-    if_raw_str! {
-        impl Sealed for Cow<'_, RawOsStr> {}
-    }
 }

@@ -13,12 +13,11 @@
 edition = "2018"
 rust-version = "1.45"
 name = "futures-channel"
-version = "0.3.24"
+version = "0.3.21"
 description = """
 Channels for asynchronous communication using futures-rs.
 """
 homepage = "https://rust-lang.github.io/futures-rs"
-readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/futures-rs"
 
@@ -30,11 +29,11 @@ rustdoc-args = [
 ]
 
 [dependencies.futures-core]
-version = "0.3.24"
+version = "0.3.21"
 default-features = false
 
 [dependencies.futures-sink]
-version = "0.3.24"
+version = "0.3.21"
 optional = true
 default-features = false
 

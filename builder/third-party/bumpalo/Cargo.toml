@@ -10,9 +10,9 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2021"
+edition = "2018"
 name = "bumpalo"
-version = "3.11.0"
+version = "3.10.0"
 authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
 exclude = [
     "/.github/*",
@@ -31,7 +31,6 @@ categories = [
 ]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/fitzgen/bumpalo"
-resolver = "2"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -52,13 +51,13 @@ harness = false
 required-features = ["collections"]
 
 [dev-dependencies.criterion]
-version = "0.3.6"
+version = "0.3.0"
 
 [dev-dependencies.quickcheck]
-version = "1.0.3"
+version = "0.9.0"
 
 [dev-dependencies.rand]
-version = "0.8.5"
+version = "0.7"
 
 [features]
 allocator_api = []
