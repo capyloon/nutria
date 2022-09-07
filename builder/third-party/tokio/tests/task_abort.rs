@@ -1,5 +1,5 @@
 #![warn(rust_2018_idioms)]
-#![cfg(feature = "full")]
+#![cfg(all(feature = "full", not(tokio_wasi)))] // Wasi doesn't support panic recovery
 
 use std::sync::Arc;
 use std::thread::sleep;
@@ -89,7 +89,7 @@ fn test_abort_without_panic_3662() {
         // Note: We do the following to trigger a deferred task cleanup.
         //
         // The relevant piece of code you want to look at is in:
-        // `Inner::block_on` of `basic_scheduler.rs`.
+        // `Inner::block_on` of `scheduler/current_thread.rs`.
         //
         // We cause the cleanup to happen by having a poll return Pending once
         // so that the scheduler can go into the "auxiliary tasks" mode, at

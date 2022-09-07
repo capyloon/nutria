@@ -3,8 +3,8 @@
 use crate::build_config::BuildConfig;
 use crate::daemon_config::DaemonConfigKind;
 use crate::tasks::{
-    B2gRunner, B2gRunnerInput, DaemonRunner, GetAppList, PrepareDaemon, Task, Webapp, WebappsJson,
-    WebappsParam,
+    B2gRunner, B2gRunnerInput, DaemonRunner, GetAppList, IrohRunner, PrepareDaemon, Task, Webapp,
+    WebappsJson, WebappsParam,
 };
 use crate::timer::Timer;
 use log::{error, info};
@@ -71,6 +71,11 @@ pub trait DesktopCommand {
             let daemon_prep = PrepareDaemon::new(config);
             daemon_prep.run(DaemonConfigKind::Desktop(config.output_path.clone()))?;
 
+            // Run iroh-one.
+            let iroh_runner = IrohRunner::new(config);
+            let mut iroh_process = iroh_runner.run(())?;
+            info!("Starting iroh-one, pid={}", iroh_process.id());
+
             // Run the daemon.
             let daemon_runner = DaemonRunner::new(config);
             let mut daemon_process = daemon_runner.run(())?;
@@ -85,12 +90,12 @@ pub trait DesktopCommand {
             })?;
             info!("Starting b2g, pid={}", b2g_process.id());
 
-            // Wait for both processes to exit.
+            // Wait for all processes to exit.
             loop {
                 std::thread::sleep(std::time::Duration::from_secs(1));
 
                 if term.load(Ordering::Relaxed) {
-                    // Kill both processes.
+                    // Kill all processes.
                     if let Err(err) = b2g_process.kill() {
                         error!("Failed to kill b2g: {}", err);
                     }
@@ -100,12 +105,20 @@ pub trait DesktopCommand {
                         error!("Failed to kill api-daemon: {}", err);
                     }
                     info!("api-daemon killed");
+
+                    if let Err(err) = iroh_process.kill() {
+                        error!("Failed to kill iroh-one: {}", err);
+                    }
+                    info!("iroh-one killed");
                     break;
                 }
 
-                if let (Ok(Some(status1)), Ok(Some(status2))) =
-                    (daemon_process.try_wait(), b2g_process.try_wait())
-                {
+                if let (Ok(Some(status1)), Ok(Some(status2)), Ok(Some(status3))) = (
+                    daemon_process.try_wait(),
+                    b2g_process.try_wait(),
+                    iroh_process.try_wait(),
+                ) {
+                    info!("iroh-one exited with: {}", status3);
                     info!("api-daemon exited with: {}", status1);
                     info!("b2g exited with: {}", status2);
                     break;

@@ -1,0 +1,48 @@
+# iroh-one desktop configuration
+
+gateway_uds_path = '/tmp/ipfsd.http'
+resolver_gateway = 'dweb.link'
+
+[gateway]
+cache = false
+denylist = false
+fetch = false
+port = 0
+writeable = false
+
+[gateway.headers]
+accept-ranges = 'none'
+access-control-allow-headers = 'content-type, content-disposition, last-modified, cache-control, accept-ranges, etag, service-worker, x-ipfs-gateway-prefix, x-trace-id, x-content-type-options, x-ipfs-path, x-ipfs-roots'
+access-control-allow-methods = 'GET, PUT, POST, DELETE, HEAD, OPTIONS'
+access-control-allow-origin = '*'
+cache-control = 'no-cache, no-transform'
+
+[store]
+path = 'builder/out/iroh-store-db'
+
+[p2p.libp2p]
+autonat = true
+bootstrap_peers = [
+  '/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN',
+  '/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa',
+  '/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb',
+  '/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt',
+  '/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ',
+]
+connection_event_buffer_size = 256
+dial_concurrency_factor = 16
+gossipsub = true
+kademlia = true
+listening_multiaddr = '/ip4/0.0.0.0/tcp/4444'
+max_conns_in = 256
+max_conns_out = 256
+max_conns_pending_in = 256
+max_conns_pending_out = 256
+max_conns_per_peer = 8
+mdns = true
+notify_handler_buffer_size = 256
+relay_client = true
+relay_server = true
+
+[rpc_client]
+gateway_addr = "grpc:///tmp/iroh-one-rpc"

@@ -442,6 +442,44 @@ impl Task for DaemonRunner {
     }
 }
 
+/// This task runs the iroh daemon.
+pub struct IrohRunner {
+    iroh_binary: PathBuf,
+    current_dir: PathBuf,
+    settings_path: PathBuf,
+}
+
+impl Task for IrohRunner {
+    type Input = ();
+    type Output = std::process::Child;
+    type Error = io::Error;
+
+    fn new(config: &BuildConfig) -> Self {
+        Self {
+            iroh_binary: config.iroh_binary(),
+            current_dir: config.output_path.to_path_buf(),
+            settings_path: config.iroh_config(),
+        }
+    }
+
+    fn run(&self, _: ()) -> Result<Self::Output, Self::Error> {
+        info!(
+            "Running the iroh-one binary {} in {} with --cfg {}",
+            self.iroh_binary.display(),
+            self.current_dir.display(),
+            self.settings_path.display(),
+        );
+
+        // Spawns the daemon in the proper current directory.
+        Command::new(&self.iroh_binary)
+            .current_dir(&self.current_dir)
+            .args(["--cfg", &format!("{}", self.settings_path.display())])
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()
+    }
+}
+
 /// This task runs the b2g binary.
 pub struct B2gRunner {
     b2g_binary: PathBuf,

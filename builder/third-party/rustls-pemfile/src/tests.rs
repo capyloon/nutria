@@ -34,6 +34,21 @@ mod unit {
     }
 
     #[test]
+    fn skips_non_utf8_junk() {
+        assert_eq!(
+            check(
+                b"\x00\x00\n\
+                    -----BEGIN RSA PRIVATE KEY-----\n\
+                    qw\n\
+                    -----END RSA PRIVATE KEY-----\n
+                    \x00\x00"
+            )
+            .unwrap(),
+            vec![crate::Item::RSAKey(vec![0xab])]
+        );
+    }
+
+    #[test]
     fn rejects_invalid_base64() {
         assert_eq!(
             format!(

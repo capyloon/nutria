@@ -155,11 +155,11 @@ cfg_rt_multi_thread! {
     pub(super) use self::inject::Inject;
 }
 
-#[cfg(all(feature = "rt", any(tokio_unstable, test)))]
+#[cfg(feature = "rt")]
 mod abort;
 mod join;
 
-#[cfg(all(feature = "rt", any(tokio_unstable, test)))]
+#[cfg(feature = "rt")]
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::abort::AbortHandle;
 
@@ -334,6 +334,10 @@ impl<S: 'static> Task<S> {
     fn header(&self) -> &Header {
         self.raw.header()
     }
+
+    fn header_ptr(&self) -> NonNull<Header> {
+        self.raw.header_ptr()
+    }
 }
 
 impl<S: 'static> Notified<S> {
@@ -365,7 +369,7 @@ cfg_rt_multi_thread! {
 }
 
 impl<S: Schedule> Task<S> {
-    /// Pre-emptively cancels the task as part of the shutdown process.
+    /// Preemptively cancels the task as part of the shutdown process.
     pub(crate) fn shutdown(self) {
         let raw = self.raw;
         mem::forget(self);
@@ -385,7 +389,7 @@ impl<S: Schedule> LocalNotified<S> {
 impl<S: Schedule> UnownedTask<S> {
     // Used in test of the inject queue.
     #[cfg(test)]
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    #[cfg_attr(tokio_wasm, allow(dead_code))]
     pub(super) fn into_notified(self) -> Notified<S> {
         Notified(self.into_task())
     }
@@ -473,8 +477,7 @@ unsafe impl<S> linked_list::Link for Task<S> {
     }
 
     unsafe fn pointers(target: NonNull<Header>) -> NonNull<linked_list::Pointers<Header>> {
-        // Not super great as it avoids some of looms checking...
-        NonNull::from(target.as_ref().owned.with_mut(|ptr| &mut *ptr))
+        self::core::Trailer::addr_of_owned(Header::get_trailer(target))
     }
 }
 

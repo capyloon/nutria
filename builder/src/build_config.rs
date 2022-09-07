@@ -116,20 +116,11 @@ impl BuildConfig {
         match env::var("NUTRIA_API_DAEMON_BINARY") {
             Ok(path) => PathBuf::from_str(&path)
                 .unwrap_or_else(|_| panic!("Invalid NUTRIA_API_DAEMON_BINARY path: {}", path)),
-            Err(_) => {
-                // Build a rustup target identifier.
-                let target = format!(
-                    "{}-{}-{}-{}",
-                    target::arch(),
-                    target::vendor(),
-                    target::os(),
-                    target::env()
-                );
-                self.daemon_path
-                    .join("prebuilts")
-                    .join(target)
-                    .join("api-daemon")
-            }
+            Err(_) => self
+                .daemon_path
+                .join("prebuilts")
+                .join(host_target())
+                .join("api-daemon"),
         }
     }
 
@@ -142,6 +133,29 @@ impl BuildConfig {
                 .join("prebuilts")
                 .join(host_target())
                 .join("appscmd"),
+        }
+    }
+
+    pub fn iroh_binary(&self) -> PathBuf {
+        match env::var("NUTRIA_IROH_BINARY") {
+            Ok(path) => PathBuf::from_str(&path)
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_IROH_BINARY path: {}", path)),
+            Err(_) => self
+                .daemon_path
+                .join("prebuilts")
+                .join(host_target())
+                .join("iroh-one"),
+        }
+    }
+
+    pub fn iroh_config(&self) -> PathBuf {
+        match env::var("NUTRIA_IROH_CONFIG") {
+            Ok(path) => PathBuf::from_str(&path)
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_IROH_CONFIG path: {}", path)),
+            Err(_) => {
+                let cwd = env::current_dir().unwrap_or_else(|_| env::temp_dir());
+                cwd.parent().unwrap().join("defaults").join("iroh-one.toml")
+            }
         }
     }
 

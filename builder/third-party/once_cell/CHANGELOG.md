@@ -4,6 +4,18 @@
 
 -
 
+## 1.14.0
+
+- Add extension to `unsync` and `sync` `Lazy` mut API:
+  - `force_mut`
+  - `get_mut`
+
+
+## 1.13.1
+
+- Make implementation compliant with [strict provenance](https://github.com/rust-lang/rust/issues/95228).
+- Upgrade `atomic-polyfill` to `1.0`
+
 ## 1.13.0
 
 - Add `Lazy::get`, similar to `OnceCell::get`.

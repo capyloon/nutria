@@ -63,9 +63,9 @@ use crate::loom::sync::{Arc, Mutex};
 use crate::park::{Park, Unpark};
 use crate::runtime;
 use crate::runtime::enter::EnterContext;
+use crate::runtime::scheduler::multi_thread::{queue, Idle, Parker, Unparker};
 use crate::runtime::task::{Inject, JoinHandle, OwnedTasks};
-use crate::runtime::thread_pool::{queue, Idle, Parker, Unparker};
-use crate::runtime::{task, Callback, HandleInner, MetricsBatch, SchedulerMetrics, WorkerMetrics};
+use crate::runtime::{task, Config, HandleInner, MetricsBatch, SchedulerMetrics, WorkerMetrics};
 use crate::util::atomic_cell::AtomicCell;
 use crate::util::FastRand;
 
@@ -117,12 +117,6 @@ struct Core {
 
     /// Fast random number generator.
     rand: FastRand,
-
-    /// How many ticks before pulling a task from the global/remote queue?
-    global_queue_interval: u32,
-
-    /// How many ticks before yielding to the driver for timer and I/O events?
-    event_interval: u32,
 }
 
 /// State shared across all workers
@@ -152,10 +146,8 @@ pub(super) struct Shared {
     #[allow(clippy::vec_box)] // we're moving an already-boxed value
     shutdown_cores: Mutex<Vec<Box<Core>>>,
 
-    /// Callback for a worker parking itself
-    before_park: Option<Callback>,
-    /// Callback for a worker unparking itself
-    after_unpark: Option<Callback>,
+    /// Scheduler configuration options
+    config: Config,
 
     /// Collects metrics from the runtime.
     pub(super) scheduler_metrics: SchedulerMetrics,
@@ -202,10 +194,7 @@ pub(super) fn create(
     size: usize,
     park: Parker,
     handle_inner: HandleInner,
-    before_park: Option<Callback>,
-    after_unpark: Option<Callback>,
-    global_queue_interval: u32,
-    event_interval: u32,
+    config: Config,
 ) -> (Arc<Shared>, Launch) {
     let mut cores = Vec::with_capacity(size);
     let mut remotes = Vec::with_capacity(size);
@@ -227,8 +216,6 @@ pub(super) fn create(
             park: Some(park),
             metrics: MetricsBatch::new(),
             rand: FastRand::new(seed()),
-            global_queue_interval,
-            event_interval,
         }));
 
         remotes.push(Remote { steal, unpark });
@@ -242,8 +229,7 @@ pub(super) fn create(
         idle: Idle::new(size),
         owned: OwnedTasks::new(),
         shutdown_cores: Mutex::new(vec![]),
-        before_park,
-        after_unpark,
+        config,
         scheduler_metrics: SchedulerMetrics::new(),
         worker_metrics: worker_metrics.into_boxed_slice(),
     });
@@ -302,7 +288,7 @@ where
                     had_entered = true;
                     return;
                 } else {
-                    // This probably means we are on the basic_scheduler or in a
+                    // This probably means we are on the current_thread runtime or in a
                     // LocalSet, where it is _not_ okay to block.
                     panic!("can call blocking only when running on the multi-threaded runtime");
                 }
@@ -468,7 +454,7 @@ impl Context {
     }
 
     fn maintenance(&self, mut core: Box<Core>) -> Box<Core> {
-        if core.tick % core.event_interval == 0 {
+        if core.tick % self.worker.shared.config.event_interval == 0 {
             // Call `park` with a 0 timeout. This enables the I/O driver, timer, ...
             // to run without actually putting the thread to sleep.
             core = self.park_timeout(core, Some(Duration::from_millis(0)));
@@ -492,7 +478,7 @@ impl Context {
     /// Also, we rely on the workstealing algorithm to spread the tasks amongst workers
     /// after all the IOs get dispatched
     fn park(&self, mut core: Box<Core>) -> Box<Core> {
-        if let Some(f) = &self.worker.shared.before_park {
+        if let Some(f) = &self.worker.shared.config.before_park {
             f();
         }
 
@@ -511,7 +497,7 @@ impl Context {
             }
         }
 
-        if let Some(f) = &self.worker.shared.after_unpark {
+        if let Some(f) = &self.worker.shared.config.after_unpark {
             f();
         }
         core
@@ -555,7 +541,7 @@ impl Core {
 
     /// Return the next notified task available to this worker.
     fn next_task(&mut self, worker: &Worker) -> Option<Notified> {
-        if self.tick % self.global_queue_interval == 0 {
+        if self.tick % worker.shared.config.global_queue_interval == 0 {
             worker.inject().pop().or_else(|| self.next_local_task())
         } else {
             self.next_local_task().or_else(|| worker.inject().pop())
@@ -772,7 +758,7 @@ impl Shared {
         // task must always be pushed to the back of the queue, enabling other
         // tasks to be executed. If **not** a yield, then there is more
         // flexibility and the task may go to the front of the queue.
-        let should_notify = if is_yield {
+        let should_notify = if is_yield || self.config.disable_lifo_slot {
             core.run_queue
                 .push_back(task, &self.inject, &mut core.metrics);
             true
@@ -871,11 +857,11 @@ impl Shared {
 
 impl crate::runtime::ToHandle for Arc<Shared> {
     fn to_handle(&self) -> crate::runtime::Handle {
-        use crate::runtime::thread_pool::Spawner;
+        use crate::runtime::scheduler::multi_thread::Spawner;
         use crate::runtime::{self, Handle};
 
         Handle {
-            spawner: runtime::Spawner::ThreadPool(Spawner {
+            spawner: runtime::Spawner::MultiThread(Spawner {
                 shared: self.clone(),
             }),
         }

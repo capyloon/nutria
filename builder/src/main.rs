@@ -148,6 +148,8 @@ fn main() {
             "NUTRIA_B2GHALD_BINARY",
             "NUTRIA_B2G_BINARY",
             "NUTRIA_B2G_PACKAGE",
+            "NUTRIA_IROH_BINARY",
+            "NUTRIA_IROH_CONFIG",
         ]
         .iter()
         .for_each(|name| {

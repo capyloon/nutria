@@ -1,4 +1,6 @@
-use super::{Interest, Ready, ReadyEvent, Tick};
+use super::{ReadyEvent, Tick};
+use crate::io::interest::Interest;
+use crate::io::ready::Ready;
 use crate::loom::sync::atomic::AtomicUsize;
 use crate::loom::sync::Mutex;
 use crate::util::bit;
@@ -64,6 +66,14 @@ cfg_io_readiness! {
 
         /// Should never be `!Unpin`.
         _p: PhantomPinned,
+    }
+
+    generate_addr_of_methods! {
+        impl<> Waiter {
+            unsafe fn addr_of_pointers(self: NonNull<Self>) -> NonNull<linked_list::Pointers<Waiter>> {
+                &self.pointers
+            }
+        }
     }
 
     /// Future returned by `readiness()`.
@@ -399,8 +409,8 @@ cfg_io_readiness! {
             ptr
         }
 
-        unsafe fn pointers(mut target: NonNull<Waiter>) -> NonNull<linked_list::Pointers<Waiter>> {
-            NonNull::from(&mut target.as_mut().pointers)
+        unsafe fn pointers(target: NonNull<Waiter>) -> NonNull<linked_list::Pointers<Waiter>> {
+            Waiter::addr_of_pointers(target)
         }
     }
 

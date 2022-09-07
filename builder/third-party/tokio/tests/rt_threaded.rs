@@ -1,9 +1,9 @@
 #![warn(rust_2018_idioms)]
-#![cfg(feature = "full")]
+#![cfg(all(feature = "full", not(tokio_wasi)))]
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::runtime::{self, Runtime};
+use tokio::runtime;
 use tokio::sync::oneshot;
 use tokio_test::{assert_err, assert_ok};
 
@@ -539,6 +539,30 @@ async fn test_block_in_place4() {
     tokio::task::block_in_place(|| {});
 }
 
-fn rt() -> Runtime {
-    Runtime::new().unwrap()
+fn rt() -> runtime::Runtime {
+    runtime::Runtime::new().unwrap()
+}
+
+#[cfg(tokio_unstable)]
+mod unstable {
+    use super::*;
+
+    #[test]
+    fn test_disable_lifo_slot() {
+        let rt = runtime::Builder::new_multi_thread()
+            .disable_lifo_slot()
+            .worker_threads(2)
+            .build()
+            .unwrap();
+
+        rt.block_on(async {
+            tokio::spawn(async {
+                // Spawn another task and block the thread until completion. If the LIFO slot
+                // is used then the test doesn't complete.
+                futures::executor::block_on(tokio::spawn(async {})).unwrap();
+            })
+            .await
+            .unwrap();
+        })
+    }
 }

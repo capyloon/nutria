@@ -744,7 +744,7 @@ impl<'help> App<'help> {
     /// [`io::stdout()`]: std::io::stdout()
     pub fn print_help(&mut self) -> io::Result<()> {
         self._build_self();
-        let color = self.get_color();
+        let color = self.color_help();
 
         let mut c = Colorizer::new(Stream::Stdout, color);
         let usage = Usage::new(self);
@@ -769,7 +769,7 @@ impl<'help> App<'help> {
     /// [`--help` (long)]: Arg::long_help()
     pub fn print_long_help(&mut self) -> io::Result<()> {
         self._build_self();
-        let color = self.get_color();
+        let color = self.color_help();
 
         let mut c = Colorizer::new(Stream::Stdout, color);
         let usage = Usage::new(self);
@@ -1648,6 +1648,14 @@ impl<'help> App<'help> {
     /// strings. After this setting is set, this will be *the only* usage string
     /// displayed to the user!
     ///
+    /// **NOTE:** Multiple usage lines may be present in the usage argument, but
+    /// some rules need to be followed to ensure the usage lines are formatted
+    /// correctly by the default help formatter:
+    ///
+    /// - Do not indent the first usage line.
+    /// - Indent all subsequent usage lines with four spaces.
+    /// - The last line must not end with a newline.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -1656,6 +1664,20 @@ impl<'help> App<'help> {
     ///     .override_usage("myapp [-clDas] <some_file>")
     /// # ;
     /// ```
+    ///
+    /// Or for multiple usage lines:
+    ///
+    /// ```no_run
+    /// # use clap::{Command, Arg};
+    /// Command::new("myprog")
+    ///     .override_usage(
+    ///         "myapp -X [-a] [-b] <file>\n    \
+    ///          myapp -Y [-c] <file1> <file2>\n    \
+    ///          myapp -Z [-d|-e]"
+    ///     )
+    /// # ;
+    /// ```
+    ///
     /// [`ArgMatches::usage`]: ArgMatches::usage()
     #[must_use]
     pub fn override_usage<S: Into<&'help str>>(mut self, usage: S) -> Self {
@@ -4314,7 +4336,8 @@ impl<'help> App<'help> {
         use std::fmt::Write;
 
         let mut mid_string = String::from(" ");
-        if !self.is_subcommand_negates_reqs_set() {
+        if !self.is_subcommand_negates_reqs_set() && !self.is_args_conflicts_with_subcommands_set()
+        {
             let reqs = Usage::new(self).get_required_usage_from(&[], None, true); // maybe Some(m)
 
             for s in &reqs {
@@ -4397,7 +4420,9 @@ impl<'help> App<'help> {
 
         if !self.is_set(AppSettings::BinNameBuilt) {
             let mut mid_string = String::from(" ");
-            if !self.is_subcommand_negates_reqs_set() {
+            if !self.is_subcommand_negates_reqs_set()
+                && !self.is_args_conflicts_with_subcommands_set()
+            {
                 let reqs = Usage::new(self).get_required_usage_from(&[], None, true); // maybe Some(m)
 
                 for s in &reqs {

@@ -403,8 +403,12 @@ impl NamedPipeServer {
     /// # Return
     ///
     /// If data is successfully read, `Ok(n)` is returned, where `n` is the
-    /// number of bytes read. `Ok(0)` indicates the pipe's read half is closed
-    /// and will no longer yield data. If the pipe is not ready to read data
+    /// number of bytes read. If `n` is `0`, then it can indicate one of two scenarios:
+    ///
+    /// 1. The pipe's read half is closed and will no longer yield data.
+    /// 2. The specified buffer was 0 bytes in length.
+    ///
+    /// If the pipe is not ready to read data,
     /// `Err(io::ErrorKind::WouldBlock)` is returned.
     ///
     /// # Examples
@@ -1143,8 +1147,12 @@ impl NamedPipeClient {
     /// # Return
     ///
     /// If data is successfully read, `Ok(n)` is returned, where `n` is the
-    /// number of bytes read. `Ok(0)` indicates the pipe's read half is closed
-    /// and will no longer yield data. If the pipe is not ready to read data
+    /// number of bytes read. If `n` is `0`, then it can indicate one of two scenarios:
+    ///
+    /// 1. The pipe's read half is closed and will no longer yield data.
+    /// 2. The specified buffer was 0 bytes in length.
+    ///
+    /// If the pipe is not ready to read data,
     /// `Err(io::ErrorKind::WouldBlock)` is returned.
     ///
     /// # Examples
@@ -1955,6 +1963,106 @@ impl ServerOptions {
         self
     }
 
+    /// Requests permission to modify the pipe's discretionary access control list.
+    ///
+    /// This corresponds to setting [`WRITE_DAC`] in dwOpenMode.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::{io, os::windows::prelude::AsRawHandle, ptr};
+    //
+    /// use tokio::net::windows::named_pipe::ServerOptions;
+    /// use winapi::{
+    ///     shared::winerror::ERROR_SUCCESS,
+    ///     um::{accctrl::SE_KERNEL_OBJECT, aclapi::SetSecurityInfo, winnt::DACL_SECURITY_INFORMATION},
+    /// };
+    ///
+    /// const PIPE_NAME: &str = r"\\.\pipe\write_dac_pipe";
+    ///
+    /// # #[tokio::main] async fn main() -> io::Result<()> {
+    /// let mut pipe_template = ServerOptions::new();
+    /// pipe_template.write_dac(true);
+    /// let pipe = pipe_template.create(PIPE_NAME)?;
+    ///
+    /// unsafe {
+    ///     assert_eq!(
+    ///         ERROR_SUCCESS,
+    ///         SetSecurityInfo(
+    ///             pipe.as_raw_handle(),
+    ///             SE_KERNEL_OBJECT,
+    ///             DACL_SECURITY_INFORMATION,
+    ///             ptr::null_mut(),
+    ///             ptr::null_mut(),
+    ///             ptr::null_mut(),
+    ///             ptr::null_mut(),
+    ///         )
+    ///     );
+    /// }
+    ///
+    /// # Ok(()) }
+    /// ```
+    ///
+    /// ```
+    /// use std::{io, os::windows::prelude::AsRawHandle, ptr};
+    //
+    /// use tokio::net::windows::named_pipe::ServerOptions;
+    /// use winapi::{
+    ///     shared::winerror::ERROR_ACCESS_DENIED,
+    ///     um::{accctrl::SE_KERNEL_OBJECT, aclapi::SetSecurityInfo, winnt::DACL_SECURITY_INFORMATION},
+    /// };
+    ///
+    /// const PIPE_NAME: &str = r"\\.\pipe\write_dac_pipe_fail";
+    ///
+    /// # #[tokio::main] async fn main() -> io::Result<()> {
+    /// let mut pipe_template = ServerOptions::new();
+    /// pipe_template.write_dac(false);
+    /// let pipe = pipe_template.create(PIPE_NAME)?;
+    ///
+    /// unsafe {
+    ///     assert_eq!(
+    ///         ERROR_ACCESS_DENIED,
+    ///         SetSecurityInfo(
+    ///             pipe.as_raw_handle(),
+    ///             SE_KERNEL_OBJECT,
+    ///             DACL_SECURITY_INFORMATION,
+    ///             ptr::null_mut(),
+    ///             ptr::null_mut(),
+    ///             ptr::null_mut(),
+    ///             ptr::null_mut(),
+    ///         )
+    ///     );
+    /// }
+    ///
+    /// # Ok(()) }
+    /// ```
+    ///
+    /// [`WRITE_DAC`]: https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createnamedpipea
+    pub fn write_dac(&mut self, requested: bool) -> &mut Self {
+        bool_flag!(self.open_mode, requested, winnt::WRITE_DAC);
+        self
+    }
+
+    /// Requests permission to modify the pipe's owner.
+    ///
+    /// This corresponds to setting [`WRITE_OWNER`] in dwOpenMode.
+    ///
+    /// [`WRITE_OWNER`]: https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createnamedpipea
+    pub fn write_owner(&mut self, requested: bool) -> &mut Self {
+        bool_flag!(self.open_mode, requested, winnt::WRITE_OWNER);
+        self
+    }
+
+    /// Requests permission to modify the pipe's system access control list.
+    ///
+    /// This corresponds to setting [`ACCESS_SYSTEM_SECURITY`] in dwOpenMode.
+    ///
+    /// [`ACCESS_SYSTEM_SECURITY`]: https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createnamedpipea
+    pub fn access_system_security(&mut self, requested: bool) -> &mut Self {
+        bool_flag!(self.open_mode, requested, winnt::ACCESS_SYSTEM_SECURITY);
+        self
+    }
+
     /// Indicates whether this server can accept remote clients or not. Remote
     /// clients are disabled by default.
     ///
@@ -2020,6 +2128,7 @@ impl ServerOptions {
     /// let builder = ServerOptions::new().max_instances(255);
     /// # Ok(()) }
     /// ```
+    #[track_caller]
     pub fn max_instances(&mut self, instances: usize) -> &mut Self {
         assert!(instances < 255, "cannot specify more than 254 instances");
         self.max_instances = instances as DWORD;
