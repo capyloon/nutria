@@ -1,20 +1,23 @@
 {
   "x86_64-unknown-linux-gnu": {
-    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeiduwinb5rr7n2agv6wm66xgot4kz6vjb3ehcako4au4k37fzfw7yq",
-    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeieos5fr6oio6wirifgj5tpknowlmhrbgjyjzh45yb62wexovwdzaa",
-    "b2ghald": "https://cloudflare-ipfs.com/ipfs/bafkreigpc7o5dnotspz6tni6iirboqilizusrmyzncczct4sahef7kzcnu"
+    "b2g": "https://w3s.link/ipfs/bafybeihclcnk3niymgruwwmvjifgb46qirqny6lvu72q3l76jfeiz4km74",
+    "api-daemon": "https://w3s.link/ipfs/bafybeib755phxuxnddaak565g5zhse5b3e7mti4eilbe3wk2rop3aongv4",
+    "b2ghald": "https://w3s.link/ipfs/bafkreibs3h3xqe66f4j7e3b4tvpnqbuat4qnko6jyi7soc2x6lfmtq2sp4",
+    "ipfsd": "https://w3s.link/ipfs/bafybeid3pa6mtr6kui5yjfhu4rzvouqzecqiobpedzdsal7ey7rxc5hlm4"
   },
   "aarch64-apple-darwin": {
-    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeickw6lpl4umxmg5wzzd4t35y4rbllovdktx3j424mqh6b55dse23u",
-    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeibgqxiyv6k7adhss3jkfanhwups2tgqbdxbeh5fsuhubpjwgkimsq"
-  },
-  "x86_64-apple-darwin": {
-    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeiddtcda4i6i5mpqqvpiuslpop3i5435mdh2ihj74mbn3h43mpmzye",
-    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeihu4y3rsagbbkzjimmmub5cxw4wziowlarannxkn4arawvem6ww6u"
+    "b2g": "https://w3s.link/ipfs/bafybeifpwradzo5ygvbvyk6nwiiyuoh2jcdy5lpb5ufszzrablkj35bmrm",
+    "api-daemon": "https://w3s.link/ipfs/bafybeigzhcj4dpq6gxiunokelb5ck5c7pcnuziopw7x7ldovqmswmv4msq",
+    "ipfsd": "https://w3s.link/ipfs/bafybeih4pzocsxr6p4uw757z4xmxtushwtbhlimd7fy6t5wqocsipdp5di"
   },
   "aarch64-unknown-linux-gnu": {
-    "b2g": "https://cloudflare-ipfs.com/ipfs/bafybeiewvxz57a2hh76eryiuvw6mvo5aprnygb33mdtksmmlsavwdvn3uu",
-    "api-daemon": "https://cloudflare-ipfs.com/ipfs/bafybeig2emnpnqyogwgfilhe2swbzqyckenr36uqoib7kwcdhwvv7xccmu",
-    "b2ghald": "https://cloudflare-ipfs.com/ipfs/bafkreihzvwhb7r7qnao25774ls4lh4l4jxep22xxviffqvvqpt2ahfrbue"
+    "b2g": "https://w3s.link/ipfs/bafybeibzk4wudt3szhfesmdy7qlnsxmjlbzbwzv7zmk6u7irojkc2hxomy",
+    "api-daemon": "https://w3s.link/ipfs/bafybeifvblgxrsrqy5wb3kaifjagfux7hy2jip6g34yv37yf22rvt5u77u",
+    "b2ghald": "https://w3s.link/ipfs/bafkreih2r3qdmmuvxsfzj7llvt25due4zojlrvpi52swd32xmkl4o6pcfq"
+  },
+  "x86_64-apple-darwin": {
+    "b2g": "https://w3s.link/ipfs/bafybeiek2az3lbnn2gntmw2tezep736oh2obfnzutz46fbwudcbysnzpha",
+    "api-daemon": "https://w3s.link/ipfs/bafybeiaeviv5niwtfrmh7ksvpwb33rmqnsxr5qdvzckizuz57zzax6b64a",
+    "ipfsd": "https://w3s.link/ipfs/bafybeieiyvim343y2uhvphiy5xds3frvutqetraggyzevn2qbyk7r4rigu"
   }
 }

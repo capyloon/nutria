@@ -214,6 +214,7 @@ struct PrebuiltsList {
     b2ghald: Option<String>,
     b2g: Option<String>,
     weston: Option<String>,
+    ipfsd: Option<String>,
 }
 
 fn maybe_add_package(env_file: &mut File, topdir: &Path, url: &Url, var_name: &str) {
@@ -333,6 +334,20 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
                 );
 
                 maybe_add_package(&mut env_file, &topdir, &url, "NUTRIA_B2G_PACKAGE");
+            }
+        }
+
+        if let Some(url) = &item.ipfsd {
+            let url = Url::parse(url)?;
+            if let Err(err) = task.run((url, ".".into())) {
+                error!("Failed to download & unpack: {}", err);
+            } else {
+                let _ = writeln!(
+                    env_file,
+                    "export NUTRIA_IPFSD_BINARY={}/{}/ipfsd",
+                    prebuilts.display(),
+                    target
+                );
             }
         }
 

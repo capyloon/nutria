@@ -15,7 +15,6 @@ accept-ranges = 'none'
 access-control-allow-headers = 'content-type, content-disposition, last-modified, cache-control, accept-ranges, etag, service-worker, x-ipfs-gateway-prefix, x-trace-id, x-content-type-options, x-ipfs-path, x-ipfs-roots'
 access-control-allow-methods = 'GET, PUT, POST, DELETE, HEAD, OPTIONS'
 access-control-allow-origin = '*'
-cache-control = 'no-cache, no-transform'
 
 [store]
 path = 'builder/out/iroh-store-db'

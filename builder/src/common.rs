@@ -71,10 +71,10 @@ pub trait DesktopCommand {
             let daemon_prep = PrepareDaemon::new(config);
             daemon_prep.run(DaemonConfigKind::Desktop(config.output_path.clone()))?;
 
-            // Run iroh-one.
+            // Run ipfsd.
             let iroh_runner = IrohRunner::new(config);
-            let mut iroh_process = iroh_runner.run(())?;
-            info!("Starting iroh-one, pid={}", iroh_process.id());
+            let mut ipfsd_process = iroh_runner.run(())?;
+            info!("Starting ipfsd, pid={}", ipfsd_process.id());
 
             // Run the daemon.
             let daemon_runner = DaemonRunner::new(config);
@@ -106,19 +106,19 @@ pub trait DesktopCommand {
                     }
                     info!("api-daemon killed");
 
-                    if let Err(err) = iroh_process.kill() {
-                        error!("Failed to kill iroh-one: {}", err);
+                    if let Err(err) = ipfsd_process.kill() {
+                        error!("Failed to kill ipfsd: {}", err);
                     }
-                    info!("iroh-one killed");
+                    info!("ipfsd killed");
                     break;
                 }
 
                 if let (Ok(Some(status1)), Ok(Some(status2)), Ok(Some(status3))) = (
                     daemon_process.try_wait(),
                     b2g_process.try_wait(),
-                    iroh_process.try_wait(),
+                    ipfsd_process.try_wait(),
                 ) {
-                    info!("iroh-one exited with: {}", status3);
+                    info!("ipfsd exited with: {}", status3);
                     info!("api-daemon exited with: {}", status1);
                     info!("b2g exited with: {}", status2);
                     break;

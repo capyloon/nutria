@@ -456,7 +456,7 @@ impl Task for IrohRunner {
 
     fn new(config: &BuildConfig) -> Self {
         Self {
-            iroh_binary: config.iroh_binary(),
+            iroh_binary: config.ipfsd_binary(),
             current_dir: config.output_path.to_path_buf(),
             settings_path: config.iroh_config(),
         }

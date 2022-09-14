@@ -136,22 +136,22 @@ impl BuildConfig {
         }
     }
 
-    pub fn iroh_binary(&self) -> PathBuf {
-        match env::var("NUTRIA_IROH_BINARY") {
+    pub fn ipfsd_binary(&self) -> PathBuf {
+        match env::var("NUTRIA_IPFSD_BINARY") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid NUTRIA_IROH_BINARY path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_IPFSD_BINARY path: {}", path)),
             Err(_) => self
                 .daemon_path
                 .join("prebuilts")
                 .join(host_target())
-                .join("iroh-one"),
+                .join("ipfsd"),
         }
     }
 
     pub fn iroh_config(&self) -> PathBuf {
-        match env::var("NUTRIA_IROH_CONFIG") {
+        match env::var("NUTRIA_IPFSD_CONFIG") {
             Ok(path) => PathBuf::from_str(&path)
-                .unwrap_or_else(|_| panic!("Invalid NUTRIA_IROH_CONFIG path: {}", path)),
+                .unwrap_or_else(|_| panic!("Invalid NUTRIA_IPFSD_CONFIG path: {}", path)),
             Err(_) => {
                 let cwd = env::current_dir().unwrap_or_else(|_| env::temp_dir());
                 cwd.parent().unwrap().join("defaults").join("iroh-one.toml")
