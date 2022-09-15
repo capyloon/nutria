@@ -126,7 +126,7 @@ class StateManager {
     }
   }
 
-  updateUI() {
+  async updateUI() {
     this.enableCheckbox.checked = this.enabled;
 
     let codeCheck = window["lockscreen-code-check"];
@@ -134,6 +134,11 @@ class StateManager {
 
     // The HTML input is not valid yet: prevent button click and
     // hide value comparison status since it doesn't make sense.
+  
+    // See https://github.com/shoelace-style/shoelace/issues/888#issuecomment-1243750572
+    await this.edit1.updateComplete;
+    await this.edit2.updateComplete;
+
     if (this.edit1.invalid || this.edit2.invalid) {
       button.setAttribute("disabled", "true");
       codeCheck.classList.add("hidden");
