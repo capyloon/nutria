@@ -68,14 +68,14 @@ class SystemInfoPanel {
       console.error("b2g.iccManager is not available!");
     }
 
-    let table = document.getElementById("systeminfo-telephony-table")
+    let table = document.getElementById("systeminfo-telephony-table");
 
     let conns = navigator.b2g.mobileConnections;
-    
-    for (conn of conns) {
+
+    for (let conn of conns) {
       try {
         let row = document.createElement("tr");
-        let head = document.createElement("th");
+        let head = document.createElement("td");
         let identity = conn.getDeviceIdentities();
         head.textContent = `SIM Card ${identity.imei} ${conn.radioState}`;
         row.appendChild(head);
