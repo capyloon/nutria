@@ -126,6 +126,11 @@ const kDeps = [
     kind: "virtual",
     deps: ["shoelace-icon", "shoelace-switch", "privacy-module"],
   },
+  {
+    name: "telephony-panel",
+    kind: "virtual",
+    deps: ["shoelace-switch", "telephony-module"],
+  },
   { name: "display-module", kind: "module", param: "js/display_panel.js" },
   { name: "wifi-module", kind: "module", param: "js/wifi_panel.js" },
   {
@@ -157,6 +162,12 @@ const kDeps = [
     name: "dweb-module",
     kind: "module",
     param: "js/dweb_panel.js",
+  },
+  {
+    name: "telephony-module",
+    kind: "module",
+    param: "js/telephony_panel.js",
+    deps: ["switch-setting", "shared-api-daemon"],
   },
   {
     name: "switch-setting",

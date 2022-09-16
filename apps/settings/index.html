@@ -256,15 +256,14 @@
           <img id="systeminfo-logo" />
           <h1 data-l10n-id="systeminfo-title"></h1>
         </header>
-        <sl-divider></sl-divider>
         <section>
           <h2 data-l10n-id="systeminfo-system-section"></h2>
-          <table id="systeminfo-system-table"></table>
+          <table class="sl-box" id="systeminfo-system-table"></table>
         </section>
         <sl-divider></sl-divider>
         <section>
           <h2 data-l10n-id="systeminfo-telephony-section"></h2>
-          <table id="systeminfo-telephony-table"></table>
+          <table class="sl-box" id="systeminfo-telephony-table"></table>
         </section>
       </div>
     </template>
@@ -329,6 +328,33 @@
         <sl-divider></sl-divider>
         <section>
           <h2 data-l10n-id="dweb-ipfsd-section"></h2>
+        </section>
+      </div>
+    </template>
+
+    <!-- The telephony panel -->
+    <template id="telephony-panel-tmpl">
+      <div class="drawer-content">
+        <h1 data-l10n-id="telephony-title"></h1>
+        <header>
+          <span id="telephony-onoff-label"></span>
+          <sl-switch id="telephony-onoff-switch"></sl-switch>
+        </header>
+        <header>
+          <span data-l10n-id="telephony-data-enabled"></span>
+          <sl-switch id="telephony-data-switch"></sl-switch>
+        </header>
+        <section>
+          <h2 data-l10n-id="telephony-summary"></h2>
+          <table class="sl-box" id="telephony-summary"></table>
+        </section>
+        <section>
+          <h2 data-l10n-id="telephony-voice"></h2>
+          <table class="sl-box" id="telephony-voice"></table>
+        </section>
+        <section>
+          <h2 data-l10n-id="telephony-data"></h2>
+          <table class="sl-box" id="telephony-data"></table>
         </section>
       </div>
     </template>

@@ -202,8 +202,9 @@ sl-input::part(password-toggle-button) {
   margin-right: 1em;
 }
 
-#systeminfo-panel table tr:nth-child(odd) {
-  background-color: var(--sl-color-neutral-500);
+#systeminfo-panel table tr:nth-child(odd),
+#telephony-panel table tr:nth-child(odd) {
+  background-color: var(--sl-color-neutral-400);
 }
 
 #lockscreen-panel .sl-box * {

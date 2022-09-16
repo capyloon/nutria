@@ -92,3 +92,12 @@ code-check-error = Unmatched Lock Codes
 dweb-title = Decentralized Web
 dweb-estuary-section = Estuary API key
 dweb-ipfsd-section = IPFS light node
+
+# Telephony panel
+telephony-title = Telephony
+telephony-status-enabled = Enabled
+telephony-status-disabled = Disabled
+telephony-data-enabled = Enable Mobile Data
+telephony-summary = Summary
+telephony-voice = Voice
+telephony-data = Data
