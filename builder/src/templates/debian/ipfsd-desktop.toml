@@ -1,4 +1,4 @@
-# iroh-one desktop configuration
+# ipfsd desktop configuration
 
 gateway_uds_path = '/tmp/ipfsd.http'
 resolver_gateway = 'dweb.link'
@@ -17,7 +17,7 @@ access-control-allow-methods = 'GET, PUT, POST, DELETE, HEAD, OPTIONS'
 access-control-allow-origin = '*'
 
 [store]
-path = './iroh-store'
+path = '__HOME__/.b2gos/ipfsd/store'
 
 [p2p.libp2p]
 autonat = true

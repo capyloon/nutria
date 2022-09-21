@@ -40,8 +40,6 @@ pref("browser.contentblocking.features.strict", "tp,tpPrivate,cookieBehavior5,co
 pref("privacy.trackingprotection.lower_network_priority", true);
 pref("privacy.trackingprotection.enabled", true);
 
-pref("security.sandbox.content.level", 0);
-
 pref("extensions.webextensions.remote", true);
 
 // IPFS gateway. Check list at https://ipfs.github.io/public-gateway-checker/

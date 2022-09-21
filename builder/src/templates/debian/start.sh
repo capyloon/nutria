@@ -23,7 +23,7 @@ trap cleanup EXIT
 
 else
     # Start Weston in kiosk mode
-    /opt/bin/weston --shell=kiosk-shell.so &
+    weston --shell=kiosk-shell.so &
 
     sleep 2
 fi
@@ -37,14 +37,29 @@ cp /opt/b2gos/b2g/defaults/pref/user.js ${HOME}/.b2gos/profile/
 # Copy the daemon config file and substitute the ${HOME} value.
 sed -e s#__HOME__#${HOME}#g /opt/b2gos/api-daemon/config.toml > ${HOME}/.b2gos/api-daemon-config.toml
 
+# Copy the ipfsd config file and substitute the ${HOME} value.
+sed -e s#__HOME__#${HOME}#g /opt/b2gos/ipfsd/config.toml > ${HOME}/.b2gos/ipfsd-config.toml
+
 export RUST_LOG=warn
 
 # Start the api-daemon
 export DEFAULT_SETTINGS=/opt/b2gos/api-daemon/default-settings.json
+rm -f /tmp/api-daemon-socket
 mkdir -p ${HOME}/.b2gos/api-daemon
 pushd ${HOME}/.b2gos/api-daemon > /dev/null
-/opt/b2gos/api-daemon/api-daemon ${HOME}/.b2gos/api-daemon-config.toml 2>&1 | tee /tmp/b2g_api-daemon.log &
+/opt/b2gos/api-daemon/api-daemon ${HOME}/.b2gos/api-daemon-config.toml 2>&1 | tee /tmp/b2gos_api-daemon.log &
 popd > /dev/null
 
+# Start ipfsd
+mkdir -p ${HOME}/.b2gos/ipfsd
+/opt/b2gos/ipfsd/ipfsd --cfg ${HOME}/.b2gos/ipfsd-config.toml 2>&1 | tee /tmp/b2gos_ipfsd.log &
+
+# Wait for /tmp/api-daemon-socket to be ready.
+while [ ! -S "/tmp/api-daemon-socket" ] 
+do
+    echo "Waiting for /tmp/api-daemon-socket"
+    sleep 1
+done
+
 # Start b2g
-/opt/b2gos/b2g/b2g $@ -profile ${HOME}/.b2gos/profile/ 2>&1 | tee /tmp/b2g_gecko.log
+/opt/b2gos/b2g/b2g $@ -profile ${HOME}/.b2gos/profile/ 2>&1 | tee /tmp/b2gos_gecko.log
