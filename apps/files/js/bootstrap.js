@@ -37,7 +37,7 @@ const kDeps = [
 ];
 
 function log(msg) {
-  console.log(`ContentMgr: ${msg}`);
+  console.log(`Files: ${msg}`);
 }
 
 let ready;
@@ -57,6 +57,8 @@ document.addEventListener(
         graph.waitForDeps(dep)
       )
     );
+
+    await contentManager.as_superuser();
 
     log(`Starting at ${document.location}`);
 
