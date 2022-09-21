@@ -57,7 +57,7 @@ user_pref("apz.second_tap_tolerance", "0.3");
 user_pref("apz.touch_move_tolerance", "0.03");
 user_pref("apz.touch_start_tolerance", "0.06");
 
-user_pref("security.sandbox.content.level", 4);
+user_pref("security.sandbox.content.level", 3);
 
 // Adjust the port number for desktop builds.
 user_pref(
