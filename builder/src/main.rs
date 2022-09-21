@@ -210,7 +210,7 @@ fn main() {
             }
         }
         Commands::Deb { device } => {
-            let output_path = config.output_path.join("debian").join("opt").join("b2gos");
+            let output_path = config.output_path.join("debian").join("opt").join("capyloon");
             if config.set_output_path(&output_path).is_ok() {
                 config.daemon_port = 8081;
                 DebianCommand::start(config, &device.clone().unwrap_or_default())

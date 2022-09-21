@@ -1,22 +1,5 @@
 #!/bin/sh
 
-# Add icons from the system icons
-for icon in default128.png default16.png default256.png default32.png default48.png default64.png ; do
-  size="$(echo ${icon} | sed 's/[^0-9]//g')"
-
-  mkdir -p "/usr/share/icons/hicolor/${size}x${size}/apps"
-  cp "/opt/b2gos/b2g/chrome/icons/default/${icon}" "/usr/share/icons/hicolor/${size}x${size}/apps/b2g-os.png"
-    
-done
-
-UPDATE_MENUS="`which update-menus 2> /dev/null || true`"
-if [ -x "$UPDATE_MENUS" ]; then
-  update-menus
-fi
-
-# Update cache of .desktop file MIME types. Non-fatal since it's just a cache.
-update-desktop-database /usr/share/applications || true
-
 systemctl daemon-reload || true
 systemctl enable b2ghald || true
 systemctl start b2ghald || true

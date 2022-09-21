@@ -5,7 +5,7 @@
   "b2g_features": {
     "core": true,
     "developer": {
-      "name": "The b2gOS team"
+      "name": "The Capyloon team"
     },
     "permissions": {
       "audio-channel-normal": {

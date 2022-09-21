@@ -1,6 +1,6 @@
 # Template used to create the api-daemon configuration file.
 # Substitution supported:
-# /opt/b2gos_  -> Path of the root installation directory.
+# /opt/capyloon_  -> Path of the root installation directory.
 # __HOME__         -> ${HOME}
 [general]
 host = "127.0.0.1"
@@ -8,20 +8,20 @@ port = 8081
 message_max_time = 5 # In ms.
 verbose_log = true
 log_path = "/tmp"
-remote_services_config = "__HOME__/.b2gos/api-daemon/remote/config.toml"
-remote_services_path = "__HOME__/.b2gos/api-daemon/remote"
+remote_services_config = "__HOME__/.capyloon/api-daemon/remote/config.toml"
+remote_services_path = "__HOME__/.capyloon/api-daemon/remote"
 
 [http]
-root_path = "/opt/b2gos/api-daemon/http_root"
+root_path = "/opt/capyloon/api-daemon/http_root"
 
 [vhost]
-root_path = "__HOME__/.b2gos/profile/webapps/vroot"
+root_path = "__HOME__/.capyloon/profile/webapps/vroot"
 csp = "default-src * data: blob:; script-src 'self' 'wasm-unsafe-eval' http://127.0.0.1:8081 http://shared.localhost:8081; object-src 'none'; style-src 'self' http://shared.localhost:8081 http://branding.localhost:8081 http://theme.localhost:8081"
 report_csp = true
 
 [apps_service]
-root_path = "/opt/b2gos/webapps"
-data_path = "__HOME__/.b2gos/profile/webapps"
+root_path = "/opt/capyloon/webapps"
+data_path = "__HOME__/.capyloon/profile/webapps"
 uds_path = "/tmp/apps_service_uds.sock"
 cert_type = "production"
 updater_socket = "/dev/socket/updater_socket"
@@ -33,8 +33,8 @@ socket_path = "/tmp/b2gkiller_hints"
 hints_path = "/tmp/prochints.dat"
 
 [content_manager]
-storage_path = "__HOME__/.b2gos/costaeres"
+storage_path = "__HOME__/.capyloon/costaeres"
 metadata_cache_capacity = 250
 
 [dweb]
-storage_path = "__HOME__/.b2gos/costadweberes"
+storage_path = "__HOME__/.capyloon/costadweberes"

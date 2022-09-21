@@ -1,4 +1,4 @@
 #!/bin/sh
 
-systemctl stop b2gos > /dev/null 2>&1 || true
+systemctl stop capyloon > /dev/null 2>&1 || true
 systemctl stop b2ghald > /dev/null 2>&1 || true

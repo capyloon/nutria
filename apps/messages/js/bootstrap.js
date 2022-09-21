@@ -172,7 +172,7 @@ class UiManager {
 function createDummyMessageList(list) {
   let messages = [
     {
-      body: "Hello, this is b2gOS!",
+      body: "Hello, this is Capyloon!",
       delivery: "sent",
       timestamp: Date.now(),
     },

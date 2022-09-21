@@ -1,13 +1,13 @@
 {
   "name": "Homescreen",
-  "description": "b2gOS Homescreen",
+  "description": "Capyloon Homescreen",
   "orientation": "default",
   "start_url": "/index.html",
   "b2g_features": {
     "core": true,
     "role": "homescreen",
     "developer": {
-      "name": "The b2gOS Team"
+      "name": "The Capyloon Team"
     },
     "permissions": {
       "contacts": { "access": "readwrite" },

@@ -188,7 +188,7 @@ fn push_app(path: &Path, app_name: &str, device: &Device) -> Result<(), LinuxErr
 
     // Run appscmd to install the app.
     let _ = device.command(&format!(
-        "/opt/b2gos/api-daemon/appscmd --socket=/tmp/apps_service_uds.sock install /tmp/b2g_app/{}",
+        "/opt/capyloon/api-daemon/appscmd --socket=/tmp/apps_service_uds.sock install /tmp/b2g_app/{}",
         app_name
     ))?;
 
@@ -227,7 +227,7 @@ pub fn push_apps(config: &BuildConfig, requested_apps: &Option<String>) -> Resul
 
     if data.system_update {
         info!("Restarting system app");
-        let _ = device.command("/opt/b2gos/b2ghald/b2ghalctl restart-service b2gos")?;
+        let _ = device.command("/opt/capyloon/b2ghald/b2ghalctl restart-service capyloon")?;
     } else if data.homescreen_update {
         let pids = device.command("pidof b2g")?;
         let pids: Vec<&str> = pids.split(' ').collect();
@@ -245,19 +245,19 @@ pub fn push_apps(config: &BuildConfig, requested_apps: &Option<String>) -> Resul
     Ok(())
 }
 
-/// Restarts the b2gos service.
+/// Restarts the capyloon service.
 pub fn restart() -> Result<(), LinuxError> {
     let device = Device::connect()?;
-    let _ = device.command("/opt/b2gos/b2ghald/b2ghalctl restart-service b2gos")?;
+    let _ = device.command("/opt/capyloon/b2ghald/b2ghalctl restart-service capyloon")?;
     Ok(())
 }
 
 /// Clears up all data (b2g profile including cache, costaeres) and restarts.
 pub fn reset_data() -> Result<(), LinuxError> {
     let device = Device::connect()?;
-    let _ = device.command("/opt/b2gos/b2ghald/b2ghalctl stop-service b2gos")?;
-    let _ = device.command("rm -rf /home/*/.b2gos")?;
-    let _ = device.command("/opt/b2gos/b2ghald/b2ghalctl start-service b2gos")?;
+    let _ = device.command("/opt/capyloon/b2ghald/b2ghalctl stop-service capyloon")?;
+    let _ = device.command("rm -rf /home/*/.capyloon")?;
+    let _ = device.command("/opt/capyloon/b2ghald/b2ghalctl start-service capyloon")?;
 
     Ok(())
 }
@@ -268,7 +268,7 @@ pub fn reset_time() -> Result<(), LinuxError> {
         Ok(duration) => {
             let device = Device::connect()?;
             let _ = device.command(&format!(
-                "/opt/b2gos/b2ghald/b2ghalctl set-time {}",
+                "/opt/capyloon/b2ghald/b2ghalctl set-time {}",
                 duration.as_millis()
             ));
             Ok(())

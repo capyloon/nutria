@@ -1,7 +1,7 @@
 //! Debian specific support.
 //!
 //! Create a debian package with the following structure:
-//!   /opt/b2gos
+//!   /opt/capyloon
 //!     |- start.sh
 //!     |- env.d
 //!     |       +- <device specific files>
@@ -26,13 +26,14 @@
 //!     |              +- application.zip
 //!     |- b2g
 //!     |    +- [all of gecko]
-//!     |    +- defaults/pref/user.js and device specific prets.
-//!  /usr/share/xsessions/b2gos-session.desktop
+//!     |    +- defaults/pref/user.js and device specific prefs.
+//!  /usr/share/xsessions/capyloon-session.desktop
 //!  /usr/share/applications/
-//!                  +- b2gos-mobile.desktop
-//!                  +- b2gos-desktop.desktop
+//!                  +- capyloon-mobile.desktop
+//!                  +- capyloon-desktop.desktop
+//!  /usr/share/icons/hicolor/<size>/apps/capyloon.png where size=16x16 32x32 48x48 64x64 128x128 256x256
 //!  /usr/lib/systemd/system/b2ghald.service
-//!  /usr/lib/systemd/system/b2gos.service
+//!  /usr/lib/systemd/system/capyloon.service
 
 use crate::build_config::BuildConfig;
 use crate::common::{DesktopCommand, DesktopParams};
@@ -48,16 +49,16 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use thiserror::Error;
 
-static DESKTOP_DESKTOP: &str = include_str!("templates/debian/b2gos-desktop.desktop");
-static MOBILE_DESKTOP: &str = include_str!("templates/debian/b2gos-mobile.desktop");
-static SESSION_DESKTOP: &str = include_str!("templates/debian/b2gos-session.desktop");
+static DESKTOP_DESKTOP: &str = include_str!("templates/debian/capyloon-desktop.desktop");
+static MOBILE_DESKTOP: &str = include_str!("templates/debian/capyloon-mobile.desktop");
+static SESSION_DESKTOP: &str = include_str!("templates/debian/capyloon-session.desktop");
 static START_SH: &str = include_str!("templates/debian/start.sh");
 static PRERM: &str = include_str!("templates/debian/prerm");
 static PREINST: &str = include_str!("templates/debian/preinst");
 static POSTINST: &str = include_str!("templates/debian/postinst");
 static CONTROL: &str = include_str!("templates/debian/control");
 static B2GHALD_SERVICE: &str = include_str!("templates/debian/b2ghald.service");
-static B2GOS_SERVICE: &str = include_str!("templates/debian/b2gos.service");
+static CAPYLOON_SERVICE: &str = include_str!("templates/debian/capyloon.service");
 static PINEPHONE_ENV: &str = include_str!("templates/debian/env.d/pinephone.sh");
 static IPFSD_DESKTOP_CONFIG: &str = include_str!("templates/debian/ipfsd-desktop.toml");
 static IPFSD_MOBILE_CONFIG: &str = include_str!("templates/debian/ipfsd-mobile.toml");
@@ -114,7 +115,7 @@ impl DebianTarget {
         }
     }
 
-    // Returns a list of (content, dest relative to /opt/b2gos)
+    // Returns a list of (content, dest relative to /opt/capyloon)
     fn extra_files(&self) -> Vec<(&str, &str)> {
         match &self {
             DebianTarget::Desktop => vec![(IPFSD_DESKTOP_CONFIG, "ipfsd/config.toml")],
@@ -142,7 +143,7 @@ pub struct DebianCommand;
 
 impl DesktopCommand for DebianCommand {
     fn install_app(config: &BuildConfig, app: &(String, PathBuf)) {
-        // Install the apps under /opt/b2gos/webapps
+        // Install the apps under /opt/capyloon/webapps
         let task = ZipApp::new(config);
         if let Err(err) = task.run(app.clone()) {
             error!("ZipApp failed: {}", err);
@@ -188,26 +189,26 @@ impl DebianCommand {
 
         template!(
             DESKTOP_DESKTOP,
-            share.join("applications").join("b2gos-desktop.desktop"),
+            share.join("applications").join("capyloon-desktop.desktop"),
             None
         );
         template!(
             MOBILE_DESKTOP,
-            share.join("applications").join("b2gos-mobile.desktop"),
+            share.join("applications").join("capyloon-mobile.desktop"),
             None
         );
         template!(
             SESSION_DESKTOP,
-            share.join("xsessions").join("b2gos-session.desktop"),
+            share.join("xsessions").join("capyloon-session.desktop"),
             None
         );
 
-        let opt_b2gos = default_output.join("opt").join("b2gos");
+        let opt_capyloon = default_output.join("opt").join("capyloon");
 
         // api-daemon: regular configuration and executable.
-        let daemon_dir = opt_b2gos.join("api-daemon");
+        let daemon_dir = opt_capyloon.join("api-daemon");
         config
-            .set_output_path(&opt_b2gos)
+            .set_output_path(&opt_capyloon)
             .expect("Failed to set api-daemon path");
         let task = PrepareDaemon::new(&config);
         task.run(DaemonConfigKind::DebianDesktop)
@@ -216,7 +217,7 @@ impl DebianCommand {
             .expect("Failed to copy api-daemon binary");
         let _ = std::fs::copy(config.appscmd_binary(), daemon_dir.join("appscmd"))
             .expect("Failed to copy appscmd binary");
-        // Copy the default settings files to /opt/b2gos/api-daemon/default-settings.json
+        // Copy the default settings files to /opt/capyloon/api-daemon/default-settings.json
         let _ = std::fs::copy(
             &config.default_settings,
             daemon_dir.join("default-settings.json"),
@@ -231,7 +232,7 @@ impl DebianCommand {
                 .arg("xf")
                 .arg(format!("{}", source.display()))
                 .arg("-C")
-                .arg(format!("{}", opt_b2gos.display()))
+                .arg(format!("{}", opt_capyloon.display()))
                 .status()
         };
         match status {
@@ -251,8 +252,26 @@ impl DebianCommand {
             }
         }
 
+        // Copy the icons from b2g/chrome/icons/default/default${size}.png to /usr/share/icons/hicolor/${size}x${size}/apps/capyloon.png
+        {
+            let _timer = Timer::start_with_message("Icons installed", "Installing icons...");
+            let b2g_default = opt_capyloon
+                .join("b2g")
+                .join("chrome")
+                .join("icons")
+                .join("default");
+            let share_icons = share.join("icons").join("hicolor");
+            for size in [16, 32, 48, 64, 128, 256] {
+                let source = b2g_default.join(format!("default{}.png", size));
+                let dest_dir = share_icons.join(format!("{}x{}", size, size)).join("apps");
+                let _ = create_dir_all(&dest_dir);
+                let dest_icon = dest_dir.join("capyloon.png");
+                copy(source, dest_icon)?;
+            }
+        }
+
         // Add the default prefs file.
-        let prefs_dir = opt_b2gos.join("b2g").join("defaults").join("pref");
+        let prefs_dir = opt_capyloon.join("b2g").join("defaults").join("pref");
         let _ = create_dir_all(&prefs_dir);
         template!(USER_DESKTOP_JS, prefs_dir.join("user.js"), None);
 
@@ -285,7 +304,7 @@ impl DebianCommand {
         // b2ghald
         let b2ghald_bin = BuildConfig::b2ghald_binary();
         let b2ghalctl_bin = BuildConfig::b2ghalctl_binary();
-        let b2ghald_dir = opt_b2gos.join("b2ghald");
+        let b2ghald_dir = opt_capyloon.join("b2ghald");
         let _ = create_dir_all(&b2ghald_dir);
         copy(b2ghald_bin, b2ghald_dir.join("b2ghald"))?;
         copy(b2ghalctl_bin, b2ghald_dir.join("b2ghalctl"))?;
@@ -300,12 +319,12 @@ impl DebianCommand {
 
         // ipfsd. The configuration files are managed in extra_files()
         let ipfsd_bin = config.ipfsd_binary();
-        let ipfsd_dir = opt_b2gos.join("ipfsd");
+        let ipfsd_dir = opt_capyloon.join("ipfsd");
         let _ = create_dir_all(&ipfsd_dir);
         copy(ipfsd_bin, ipfsd_dir.join("ipfsd"))?;
 
-        // Create /usr/lib/systemd/system/b2gos.service
-        template!(B2GOS_SERVICE, systemd.join("b2gos.service"), None);
+        // Create /usr/lib/systemd/system/capyloon.service
+        template!(CAPYLOON_SERVICE, systemd.join("capyloon.service"), None);
 
         // Debian specific files.
         let debian_dir = default_output.join("DEBIAN");
@@ -368,6 +387,7 @@ impl DebianCommand {
 
         let mut file = options.write(true).create(true).open(path)?;
         file.write_all(template.as_bytes())?;
+        file.sync_all()?;
 
         Ok(())
     }

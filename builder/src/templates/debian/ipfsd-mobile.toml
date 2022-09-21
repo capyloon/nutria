@@ -17,7 +17,7 @@ access-control-allow-methods = 'GET, PUT, POST, DELETE, HEAD, OPTIONS'
 access-control-allow-origin = '*'
 
 [store]
-path = '__HOME__/.b2gos/ipfsd/store'
+path = '__HOME__/.capyloon/ipfsd/store'
 
 [p2p.libp2p]
 autonat = false

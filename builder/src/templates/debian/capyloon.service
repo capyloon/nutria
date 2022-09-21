@@ -1,5 +1,5 @@
 [Unit]
-Description=b2gOS, a Web Based OS
+Description=Capyloon, a Web Based OS
 Documentation=https://capyloon.org
 
 # replaces the getty
@@ -32,9 +32,8 @@ ConditionPathExists=/dev/tty0
 [Service]
 Environment=LANG=C.UTF-8
 Environment=XDG_SESSION_TYPE=wayland
-Environment=LD_LIBRARY_PATH=/opt/lib/aarch64-linux-gnu/
-Environment=B2GOS_LAUNCH_WESTON=1
-ExecStart=/opt/b2gos/start.sh
+Environment=CAPYLOON_LAUNCH_WESTON=1
+ExecStart=/opt/capyloon/start.sh
 TimeoutStartSec=30
 User=1000
 PAMName=login

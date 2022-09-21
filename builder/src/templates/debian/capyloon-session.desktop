@@ -1,8 +1,7 @@
 [Desktop Entry]
-Name=Capyloon - Mobile
+Name=Capyloon
 Comment=Long Live The Web!
-Exec=/opt/b2gos/start.sh
-Terminal=false
-Icon=b2g-os
+Exec=/opt/capyloon/start.sh --type=session
+Icon=capyloon
 Type=Application
 Categories=Network;

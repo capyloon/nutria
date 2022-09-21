@@ -13,7 +13,7 @@
     "core": true,
     "role": "system",
     "developer": {
-      "name": "The b2gOS Team"
+      "name": "The Capyloon Team"
     },
     "permissions": {
       "content-manager": {},

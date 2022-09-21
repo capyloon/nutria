@@ -1,13 +1,13 @@
 {
   "name": "Widgets",
-  "description": "b2gOS Launcher Widgets",
+  "description": "Capyloon Launcher Widgets",
   "orientation": "default",
   "start_url": "/index.html",
   "b2g_features": {
     "core": true,
     "role": "system",
     "developer": {
-      "name": "The b2gOS Team"
+      "name": "The Capyloon Team"
     }
   },
   "version": "1.0"
