@@ -75,6 +75,13 @@
 //! ```
 #![doc = include_str!("../examples/tutorial_builder/03_03_positional.md")]
 //!
+//! Note that the default [`ArgAction`][crate::ArgAction]` is [`Set`][crate::ArgAction::Set].  To
+//! accept multiple values, use [`Append`][crate::ArgAction::Append]:
+//! ```rust
+#![doc = include_str!("../examples/tutorial_builder/03_03_positional_mult.rs")]
+//! ```
+#![doc = include_str!("../examples/tutorial_builder/03_03_positional_mult.md")]
+//!
 //! ### Options
 //!
 //! You can name your arguments with a flag:
@@ -87,6 +94,13 @@
 //! ```
 #![doc = include_str!("../examples/tutorial_builder/03_02_option.md")]
 //!
+//! Note that the default [`ArgAction`][crate::ArgAction]` is [`Set`][crate::ArgAction::Set].  To
+//! accept multiple occurrences, use [`Append`][crate::ArgAction::Append]:
+//! ```rust
+#![doc = include_str!("../examples/tutorial_builder/03_02_option_mult.rs")]
+//! ```
+#![doc = include_str!("../examples/tutorial_builder/03_02_option_mult.md")]
+//!
 //! ### Flags
 //!
 //! Flags can also be switches that can be on/off:
@@ -96,7 +110,9 @@
 //! ```
 #![doc = include_str!("../examples/tutorial_builder/03_01_flag_bool.md")]
 //!
-//! Or counted.
+//! Note that the default [`ArgAction`][crate::ArgAction]` for a `bool` field is
+//! [`SetTrue`][crate::ArgAction::SetTrue].  To accept multiple values, use
+//! [`Append`][crate::ArgAction::Append]:
 //!
 //! ```rust
 #![doc = include_str!("../examples/tutorial_builder/03_01_flag_count.rs")]
@@ -126,6 +142,8 @@
 #![doc = include_str!("../examples/tutorial_builder/03_05_default_values.md")]
 //!
 //! ## Validation
+//!
+//! By default, arguments are assumed to be `String`s and only UTF-8 validation is performed.
 //!
 //! ### Enumerated values
 //!
@@ -167,6 +185,8 @@
 //! ```
 #![doc = include_str!("../examples/tutorial_builder/04_02_validate.md")]
 //!
+//! See [`Arg::value_parser`][crate::Arg::value_parser] for more details.
+//!
 //! ### Argument Relations
 //!
 //! You can declare dependencies or conflicts between [`Arg`][crate::Arg]s or even
@@ -198,7 +218,7 @@
 //!
 //! clap reports most development errors as `debug_assert!`s.  Rather than checking every
 //! subcommand, you should have a test that calls
-//! [`Command::debug_assert`][crate::App::debug_assert]:
+//! [`Command::debug_assert`][crate::Command::debug_assert]:
 //! ```rust,no_run
 #![doc = include_str!("../examples/tutorial_builder/05_01_assert.rs")]
 //! ```

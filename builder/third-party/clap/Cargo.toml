@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.56.1"
+rust-version = "1.60.0"
 name = "clap"
-version = "3.2.20"
+version = "4.0.2"
 include = [
     "build.rs",
     "src/**/*",
@@ -35,7 +35,6 @@ keywords = [
 categories = ["command-line-interface"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/clap-rs/clap"
-resolver = "2"
 
 [package.metadata.docs.rs]
 features = ["unstable-doc"]
@@ -121,6 +120,10 @@ name = "escaped-positional-derive"
 required-features = ["derive"]
 
 [[example]]
+name = "find"
+required-features = ["cargo"]
+
+[[example]]
 name = "git-derive"
 required-features = ["derive"]
 
@@ -139,6 +142,7 @@ path = "examples/multicall-hostname.rs"
 [[example]]
 name = "repl"
 path = "examples/repl.rs"
+required-features = ["help"]
 
 [[example]]
 name = "01_quick"
@@ -175,8 +179,18 @@ path = "examples/tutorial_builder/03_02_option.rs"
 required-features = ["cargo"]
 
 [[example]]
+name = "03_02_option_mult"
+path = "examples/tutorial_builder/03_02_option_mult.rs"
+required-features = ["cargo"]
+
+[[example]]
 name = "03_03_positional"
 path = "examples/tutorial_builder/03_03_positional.rs"
+required-features = ["cargo"]
+
+[[example]]
+name = "03_03_positional_mult"
+path = "examples/tutorial_builder/03_03_positional_mult.rs"
 required-features = ["cargo"]
 
 [[example]]
@@ -261,8 +275,18 @@ path = "examples/tutorial_derive/03_02_option.rs"
 required-features = ["derive"]
 
 [[example]]
+name = "03_02_option_mult_derive"
+path = "examples/tutorial_derive/03_02_option_mult.rs"
+required-features = ["derive"]
+
+[[example]]
 name = "03_03_positional_derive"
 path = "examples/tutorial_derive/03_03_positional.rs"
+required-features = ["derive"]
+
+[[example]]
+name = "03_03_positional_mult_derive"
+path = "examples/tutorial_derive/03_03_positional_mult.rs"
 required-features = ["derive"]
 
 [[example]]
@@ -312,11 +336,6 @@ test = true
 required-features = ["derive"]
 
 [[example]]
-name = "custom-bool"
-path = "examples/derive_ref/custom-bool.rs"
-required-features = ["derive"]
-
-[[example]]
 name = "interop_augment_args"
 path = "examples/derive_ref/augment_args.rs"
 required-features = ["derive"]
@@ -348,21 +367,14 @@ optional = true
 version = "1.2"
 
 [dependencies.clap_derive]
-version = "=3.2.18"
+version = "=4.0.1"
 optional = true
 
 [dependencies.clap_lex]
-version = "0.2.2"
-
-[dependencies.indexmap]
-version = "1.0"
+version = "0.3.0"
 
 [dependencies.once_cell]
 version = "1.12.0"
-optional = true
-
-[dependencies.regex]
-version = "1.0"
 optional = true
 
 [dependencies.strsim]
@@ -374,27 +386,19 @@ version = "1.1.1"
 optional = true
 
 [dependencies.terminal_size]
-version = "0.1.12"
+version = "0.2.1"
 optional = true
-
-[dependencies.textwrap]
-version = "0.15.0"
-features = []
-default-features = false
 
 [dependencies.unicase]
 version = "2.6"
 optional = true
 
-[dependencies.yaml-rust]
-version = "0.4.1"
+[dependencies.unicode-width]
+version = "0.1.9"
 optional = true
 
 [dev-dependencies.humantime]
 version = "2"
-
-[dev-dependencies.regex]
-version = "1.0"
 
 [dev-dependencies.rustversion]
 version = "1"
@@ -403,7 +407,7 @@ version = "1"
 version = "1.1.0"
 
 [dev-dependencies.snapbox]
-version = "0.2.9"
+version = "0.3"
 
 [dev-dependencies.static_assertions]
 version = "1.1.0"
@@ -420,52 +424,63 @@ features = [
 ]
 default-features = false
 
+[dev-dependencies.unic-emoji-char]
+version = "0.9.0"
+
 [features]
-cargo = ["once_cell"]
+cargo = ["dep:once_cell"]
 color = [
-    "atty",
-    "termcolor",
+    "dep:atty",
+    "dep:termcolor",
 ]
 debug = [
     "clap_derive/debug",
-    "backtrace",
+    "dep:backtrace",
 ]
 default = [
     "std",
     "color",
+    "help",
+    "usage",
+    "error-context",
     "suggestions",
 ]
-deprecated = ["clap_derive/deprecated"]
+deprecated = ["clap_derive?/deprecated"]
 derive = [
     "clap_derive",
-    "once_cell",
+    "dep:once_cell",
 ]
 env = []
-std = ["indexmap/std"]
-suggestions = ["strsim"]
+error-context = []
+help = []
+std = []
+string = []
+suggestions = [
+    "dep:strsim",
+    "error-context",
+]
 unicode = [
-    "textwrap/unicode-width",
-    "unicase",
+    "dep:unicode-width",
+    "dep:unicase",
 ]
 unstable-doc = [
     "derive",
     "cargo",
     "wrap_help",
-    "yaml",
     "env",
     "unicode",
-    "regex",
+    "string",
     "unstable-replace",
     "unstable-grouped",
 ]
 unstable-grouped = []
 unstable-replace = []
-unstable-v4 = [
-    "clap_derive/unstable-v4",
+unstable-v5 = [
+    "clap_derive?/unstable-v5",
     "deprecated",
 ]
+usage = []
 wrap_help = [
-    "terminal_size",
-    "textwrap/terminal_size",
+    "help",
+    "dep:terminal_size",
 ]
-yaml = ["yaml-rust"]

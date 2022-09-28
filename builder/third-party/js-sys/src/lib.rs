@@ -20,7 +20,7 @@
 
 use core::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Not, Rem, Shl, Shr, Sub};
 use std::cmp::Ordering;
-use std::convert::{self, Infallible};
+use std::convert::{self, Infallible, TryFrom};
 use std::f64;
 use std::fmt;
 use std::iter::{self, Product, Sum};
@@ -1046,12 +1046,12 @@ macro_rules! bigint_from {
         impl PartialEq<$x> for BigInt {
             #[inline]
             fn eq(&self, other: &$x) -> bool {
-                JsValue::from(self) == BigInt::from(*other).unchecked_into::<JsValue>()
+                JsValue::from(self) == JsValue::from(BigInt::from(*other))
             }
         }
     )*)
 }
-bigint_from!(i8 u8 i16 u16 i32 u32);
+bigint_from!(i8 u8 i16 u16 i32 u32 isize usize);
 
 macro_rules! bigint_from_big {
     ($($x:ident)*) => ($(
@@ -1068,9 +1068,18 @@ macro_rules! bigint_from_big {
                 self == &BigInt::from(*other)
             }
         }
+
+        impl TryFrom<BigInt> for $x {
+            type Error = BigInt;
+
+            #[inline]
+            fn try_from(x: BigInt) -> Result<Self, BigInt> {
+                Self::try_from(JsValue::from(x)).map_err(JsCast::unchecked_into)
+            }
+        }
     )*)
 }
-bigint_from_big!(i64 u64 i128 u128 isize usize);
+bigint_from_big!(i64 u64 i128 u128);
 
 impl PartialEq<Number> for BigInt {
     #[inline]
@@ -5854,9 +5863,9 @@ arrays! {
 
     /// `BigInt64Array()`
     /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt64Array
-    BigInt64Array: BigInt,
+    BigInt64Array: i64,
 
     /// `BigUint64Array()`
     /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigUint64Array
-    BigUint64Array: BigInt,
+    BigUint64Array: u64,
 }

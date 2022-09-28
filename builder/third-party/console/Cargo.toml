@@ -12,10 +12,10 @@
 [package]
 edition = "2018"
 name = "console"
-version = "0.15.1"
+version = "0.15.2"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 description = "A terminal and console abstraction for Rust"
-homepage = "https://github.com/mitsuhiko/console"
+homepage = "https://github.com/console-rs/console"
 documentation = "https://docs.rs/console"
 readme = "README.md"
 keywords = [
@@ -26,13 +26,13 @@ keywords = [
     "ansi",
 ]
 license = "MIT"
-repository = "https://github.com/mitsuhiko/console"
+repository = "https://github.com/console-rs/console"
+
+[dependencies.lazy_static]
+version = "1.4.0"
 
 [dependencies.libc]
 version = "0.2.30"
-
-[dependencies.once_cell]
-version = "1"
 
 [dependencies.regex]
 version = "1.4.2"

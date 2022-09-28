@@ -77,10 +77,10 @@ impl Interner {
     ///
     /// Note that repeated invocations of this function will be memoized, so the
     /// same `id` will always return the same resulting unique `id`.
-    fn resolve_import_module(&self, id: &str, span: Span) -> Result<&str, Diagnostic> {
+    fn resolve_import_module(&self, id: &str, span: Span) -> Result<ImportModule, Diagnostic> {
         let mut files = self.files.borrow_mut();
         if let Some(file) = files.get(id) {
-            return Ok(self.intern_str(&file.new_identifier));
+            return Ok(ImportModule::Named(self.intern_str(&file.new_identifier)));
         }
         self.check_for_package_json();
         let path = if id.starts_with("/") {
@@ -89,7 +89,7 @@ impl Interner {
             let msg = "relative module paths aren't supported yet";
             return Err(Diagnostic::span_error(span, msg));
         } else {
-            return Ok(self.intern_str(&id));
+            return Ok(ImportModule::RawNamed(self.intern_str(id)));
         };
 
         // Generate a unique ID which is somewhat readable as well, so mix in
@@ -239,16 +239,24 @@ fn shared_variant<'a>(v: &'a ast::Variant, intern: &'a Interner) -> EnumVariant<
 
 fn shared_import<'a>(i: &'a ast::Import, intern: &'a Interner) -> Result<Import<'a>, Diagnostic> {
     Ok(Import {
-        module: match &i.module {
-            ast::ImportModule::Named(m, span) => {
-                ImportModule::Named(intern.resolve_import_module(m, *span)?)
-            }
-            ast::ImportModule::RawNamed(m, _span) => ImportModule::RawNamed(intern.intern_str(m)),
-            ast::ImportModule::Inline(idx, _) => ImportModule::Inline(*idx as u32),
-            ast::ImportModule::None => ImportModule::None,
-        },
+        module: i
+            .module
+            .as_ref()
+            .map(|m| shared_module(m, intern))
+            .transpose()?,
         js_namespace: i.js_namespace.clone(),
         kind: shared_import_kind(&i.kind, intern)?,
+    })
+}
+
+fn shared_module<'a>(
+    m: &'a ast::ImportModule,
+    intern: &'a Interner,
+) -> Result<ImportModule<'a>, Diagnostic> {
+    Ok(match m {
+        ast::ImportModule::Named(m, span) => intern.resolve_import_module(m, *span)?,
+        ast::ImportModule::RawNamed(m, _span) => ImportModule::RawNamed(intern.intern_str(m)),
+        ast::ImportModule::Inline(idx, _) => ImportModule::Inline(*idx as u32),
     })
 }
 
@@ -345,11 +353,8 @@ impl Encoder {
     }
 
     fn finish(mut self) -> Vec<u8> {
-        let len = self.dst.len() - 4;
-        self.dst[0] = (len >> 0) as u8;
-        self.dst[1] = (len >> 8) as u8;
-        self.dst[2] = (len >> 16) as u8;
-        self.dst[3] = (len >> 24) as u8;
+        let len = (self.dst.len() - 4) as u32;
+        self.dst[..4].copy_from_slice(&len.to_le_bytes()[..]);
         self.dst
     }
 

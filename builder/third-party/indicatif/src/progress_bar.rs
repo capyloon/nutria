@@ -59,7 +59,7 @@ impl ProgressBar {
     }
 
     /// Get a clone of the current progress bar style.
-    pub fn style(self) -> ProgressStyle {
+    pub fn style(&self) -> ProgressStyle {
         self.state().style.clone()
     }
 
@@ -191,9 +191,13 @@ impl ProgressBar {
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
+        self.tick_inner(Instant::now());
+    }
+
+    fn tick_inner(&self, now: Instant) {
         // Only tick if a `Ticker` isn't installed
         if self.ticker.lock().unwrap().is_none() {
-            self.state().tick(Instant::now())
+            self.state().tick(now)
         }
     }
 
@@ -202,7 +206,7 @@ impl ProgressBar {
         self.pos.inc(delta);
         let now = Instant::now();
         if self.pos.allow(now) {
-            self.state().tick(now);
+            self.tick_inner(now);
         }
     }
 
@@ -233,7 +237,8 @@ impl ProgressBar {
 
     /// Update the `ProgressBar`'s inner [`ProgressState`]
     pub fn update(&self, f: impl FnOnce(&mut ProgressState)) {
-        self.state().update(Instant::now(), f)
+        self.state()
+            .update(Instant::now(), f, self.ticker.lock().unwrap().is_none())
     }
 
     /// Sets the position of the progress bar
@@ -241,7 +246,7 @@ impl ProgressBar {
         self.pos.set(pos);
         let now = Instant::now();
         if self.pos.allow(now) {
-            self.state().tick(now);
+            self.tick_inner(now);
         }
     }
 
@@ -282,10 +287,6 @@ impl ProgressBar {
             pos: Arc::downgrade(&self.pos),
             ticker: Arc::downgrade(&self.ticker),
         }
-    }
-
-    pub(crate) fn weak_bar_state(&self) -> Weak<Mutex<BarState>> {
-        Arc::downgrade(&self.state)
     }
 
     /// Resets the ETA calculation
@@ -493,10 +494,10 @@ impl ProgressBar {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn wrap_async_read<W: tokio::io::AsyncRead + Unpin>(&self, write: W) -> ProgressBarIter<W> {
+    pub fn wrap_async_read<R: tokio::io::AsyncRead + Unpin>(&self, read: R) -> ProgressBarIter<R> {
         ProgressBarIter {
             progress: self.clone(),
-            it: write,
+            it: read,
         }
     }
 

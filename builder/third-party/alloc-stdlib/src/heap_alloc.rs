@@ -96,33 +96,8 @@ impl<T : Clone> super::Allocator<T> for HeapAlloc<T> {
    }
 }
 
-#[cfg(feature="unsafe")]
-pub struct HeapAllocUninitialized<T>{
-   #[allow(dead_code)]
-   default_value : Option<T>,
-}
-
-#[cfg(feature="unsafe")]
-impl<T> HeapAllocUninitialized<T>{
-   pub unsafe fn new() -> HeapAllocUninitialized<T> {
-       return HeapAllocUninitialized::<T>{default_value:None};
-   }
-}
-
-#[cfg(feature="unsafe")]
-impl<T> super::Allocator<T> for HeapAllocUninitialized<T> {
-   type AllocatedMemory = WrapBox<T>;
-   fn alloc_cell(self : &mut Self, len : usize) -> WrapBox<T> {
-
-       let mut v : std::vec::Vec<T> = std::vec::Vec::with_capacity(len);
-       unsafe {v.set_len(len)};
-       let b = v.into_boxed_slice();
-       return WrapBox::<T>(b);
-   }
-   fn free_cell(self : &mut Self, _data : WrapBox<T>) {
-
-   }
-}
+#[deprecated]
+pub type HeapAllocUninitialized<T> = HeapAlloc<T>;
 
 
 pub struct HeapPrealloc<'a, T : 'a> {

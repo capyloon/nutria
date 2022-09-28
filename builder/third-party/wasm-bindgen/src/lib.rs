@@ -18,7 +18,7 @@ use core::ops::{
 };
 use core::u32;
 
-use crate::convert::{FromWasmAbi, WasmOptionalF64, WasmSlice};
+use crate::convert::{FromWasmAbi, WasmSlice};
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -68,6 +68,7 @@ pub mod describe;
 
 mod cast;
 pub use crate::cast::{JsCast, JsObject};
+use convert::WasmOption;
 
 if_std! {
     extern crate std;
@@ -154,7 +155,7 @@ impl JsValue {
     /// allocated large integer) and returns a handle to the JS version of it.
     #[inline]
     pub fn bigint_from_str(s: &str) -> JsValue {
-        unsafe { JsValue::_new(__wbindgen_bigint_new(s.as_ptr(), s.len())) }
+        unsafe { JsValue::_new(__wbindgen_bigint_from_str(s.as_ptr(), s.len())) }
     }
 
     /// Creates a new JS value which is a boolean.
@@ -201,6 +202,14 @@ impl JsValue {
     /// Creates a new `JsValue` from the JSON serialization of the object `t`
     /// provided.
     ///
+    /// **This function is deprecated**, due to [creating a dependency cycle in
+    /// some circumstances][dep-cycle-issue]. Use [`serde-wasm-bindgen`] or
+    /// [`gloo_utils::format::JsValueSerdeExt`] instead.
+    ///
+    /// [dep-cycle-issue]: https://github.com/rustwasm/wasm-bindgen/issues/2770
+    /// [`serde-wasm-bindgen`]: https://docs.rs/serde-wasm-bindgen
+    /// [`gloo_utils::format::JsValueSerdeExt`]: https://docs.rs/gloo-utils/latest/gloo_utils/format/trait.JsValueSerdeExt.html
+    ///
     /// This function will serialize the provided value `t` to a JSON string,
     /// send the JSON string to JS, parse it into a JS object, and then return
     /// a handle to the JS object. This is unlikely to be super speedy so it's
@@ -214,6 +223,7 @@ impl JsValue {
     ///
     /// Returns any error encountered when serializing `T` into JSON.
     #[cfg(feature = "serde-serialize")]
+    #[deprecated = "causes dependency cycles, use `serde-wasm-bindgen` or `gloo_utils::format::JsValueSerdeExt` instead"]
     pub fn from_serde<T>(t: &T) -> serde_json::Result<JsValue>
     where
         T: serde::ser::Serialize + ?Sized,
@@ -224,6 +234,14 @@ impl JsValue {
 
     /// Invokes `JSON.stringify` on this value and then parses the resulting
     /// JSON into an arbitrary Rust value.
+    ///
+    /// **This function is deprecated**, due to [creating a dependency cycle in
+    /// some circumstances][dep-cycle-issue]. Use [`serde-wasm-bindgen`] or
+    /// [`gloo_utils::format::JsValueSerdeExt`] instead.
+    ///
+    /// [dep-cycle-issue]: https://github.com/rustwasm/wasm-bindgen/issues/2770
+    /// [`serde-wasm-bindgen`]: https://docs.rs/serde-wasm-bindgen
+    /// [`gloo_utils::format::JsValueSerdeExt`]: https://docs.rs/gloo-utils/latest/gloo_utils/format/trait.JsValueSerdeExt.html
     ///
     /// This function will first call `JSON.stringify` on the `JsValue` itself.
     /// The resulting string is then passed into Rust which then parses it as
@@ -236,6 +254,7 @@ impl JsValue {
     ///
     /// Returns any error encountered when parsing the JSON into a `T`.
     #[cfg(feature = "serde-serialize")]
+    #[deprecated = "causes dependency cycles, use `serde-wasm-bindgen` or `gloo_utils::format::JsValueSerdeExt` instead"]
     pub fn into_serde<T>(&self) -> serde_json::Result<T>
     where
         T: for<'a> serde::de::Deserialize<'a>,
@@ -850,7 +869,7 @@ macro_rules! numbers {
 numbers! { i8 u8 i16 u16 i32 u32 f32 f64 }
 
 macro_rules! big_numbers {
-    ($($n:ident)*) => ($(
+    (|$arg:ident|, $($n:ident = $handle:expr,)*) => ($(
         impl PartialEq<$n> for JsValue {
             #[inline]
             fn eq(&self, other: &$n) -> bool {
@@ -860,14 +879,76 @@ macro_rules! big_numbers {
 
         impl From<$n> for JsValue {
             #[inline]
-            fn from(n: $n) -> JsValue {
-                JsValue::bigint_from_str(&n.to_string())
+            fn from($arg: $n) -> JsValue {
+                unsafe { JsValue::_new($handle) }
             }
         }
     )*)
 }
 
-big_numbers! { i64 u64 i128 u128 }
+fn bigint_get_as_i64(v: &JsValue) -> Option<i64> {
+    unsafe { Option::from_abi(__wbindgen_bigint_get_as_i64(v.idx)) }
+}
+
+macro_rules! try_from_for_num64 {
+    ($ty:ty) => {
+        impl TryFrom<JsValue> for $ty {
+            type Error = JsValue;
+
+            #[inline]
+            fn try_from(v: JsValue) -> Result<Self, JsValue> {
+                bigint_get_as_i64(&v)
+                    // Reinterpret bits; ABI-wise this is safe to do and allows us to avoid
+                    // having separate intrinsics per signed/unsigned types.
+                    .map(|as_i64| as_i64 as Self)
+                    // Double-check that we didn't truncate the bigint to 64 bits.
+                    .filter(|as_self| v == *as_self)
+                    // Not a bigint or not in range.
+                    .ok_or(v)
+            }
+        }
+    };
+}
+
+try_from_for_num64!(i64);
+try_from_for_num64!(u64);
+
+macro_rules! try_from_for_num128 {
+    ($ty:ty, $hi_ty:ty) => {
+        impl TryFrom<JsValue> for $ty {
+            type Error = JsValue;
+
+            #[inline]
+            fn try_from(v: JsValue) -> Result<Self, JsValue> {
+                // Truncate the bigint to 64 bits, this will give us the lower part.
+                let lo = match bigint_get_as_i64(&v) {
+                    // The lower part must be interpreted as unsigned in both i128 and u128.
+                    Some(lo) => lo as u64,
+                    // Not a bigint.
+                    None => return Err(v),
+                };
+                // Now we know it's a bigint, so we can safely use `>> 64n` without
+                // worrying about a JS exception on type mismatch.
+                let hi = v >> JsValue::from(64_u64);
+                // The high part is the one we want checked against a 64-bit range.
+                // If it fits, then our original number is in the 128-bit range.
+                let hi = <$hi_ty>::try_from(hi)?;
+                Ok(Self::from(hi) << 64 | Self::from(lo))
+            }
+        }
+    };
+}
+
+try_from_for_num128!(i128, i64);
+try_from_for_num128!(u128, u64);
+
+big_numbers! {
+    |n|,
+    i64 = __wbindgen_bigint_from_i64(n),
+    u64 = __wbindgen_bigint_from_u64(n),
+    i128 = __wbindgen_bigint_from_i128((n >> 64) as i64, n as u64),
+    u128 = __wbindgen_bigint_from_u128((n >> 64) as u64, n as u64),
+}
 
 // `usize` and `isize` have to be treated a bit specially, because we know that
 // they're 32-bit but the compiler conservatively assumes they might be bigger.
@@ -908,7 +989,11 @@ externs! {
 
         fn __wbindgen_string_new(ptr: *const u8, len: usize) -> u32;
         fn __wbindgen_number_new(f: f64) -> u32;
-        fn __wbindgen_bigint_new(ptr: *const u8, len: usize) -> u32;
+        fn __wbindgen_bigint_from_str(ptr: *const u8, len: usize) -> u32;
+        fn __wbindgen_bigint_from_i64(n: i64) -> u32;
+        fn __wbindgen_bigint_from_u64(n: u64) -> u32;
+        fn __wbindgen_bigint_from_i128(hi: i64, lo: u64) -> u32;
+        fn __wbindgen_bigint_from_u128(hi: u64, lo: u64) -> u32;
         fn __wbindgen_symbol_named_new(ptr: *const u8, len: usize) -> u32;
         fn __wbindgen_symbol_anonymous_new() -> u32;
 
@@ -948,9 +1033,10 @@ externs! {
         fn __wbindgen_ge(a: u32, b: u32) -> u32;
         fn __wbindgen_gt(a: u32, b: u32) -> u32;
 
-        fn __wbindgen_number_get(idx: u32) -> WasmOptionalF64;
+        fn __wbindgen_number_get(idx: u32) -> WasmOption<f64>;
         fn __wbindgen_boolean_get(idx: u32) -> u32;
         fn __wbindgen_string_get(idx: u32) -> WasmSlice;
+        fn __wbindgen_bigint_get_as_i64(idx: u32) -> WasmOption<i64>;
 
         fn __wbindgen_debug_string(ret: *mut [usize; 2], idx: u32) -> ();
 

@@ -80,7 +80,7 @@ enum Commands {
     /// Desktop: creates a debian package.
     Deb {
         /// The target device.
-        #[clap(arg_enum, long, short)]
+        #[clap(value_enum, long, short)]
         device: Option<DebianTarget>,
     },
     /// Cleans up the output directory.

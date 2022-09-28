@@ -20,14 +20,14 @@ pub struct ProgressDrawTarget {
 }
 
 impl ProgressDrawTarget {
-    /// Draw to a buffered stdout terminal at a max of 15 times a second.
+    /// Draw to a buffered stdout terminal at a max of 20 times a second.
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
     pub fn stdout() -> ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stdout(), 20)
     }
 
-    /// Draw to a buffered stderr terminal at a max of 15 times a second.
+    /// Draw to a buffered stderr terminal at a max of 20 times a second.
     ///
     /// This is the default draw target for progress bars.  For more
     /// information see `ProgressDrawTarget::to_term`.
@@ -117,6 +117,14 @@ impl ProgressDrawTarget {
         }
     }
 
+    /// Notifies the backing `MultiProgress` (if applicable) that the associated progress bar should
+    /// be marked a zombie.
+    pub(crate) fn mark_zombie(&self) {
+        if let TargetKind::Multi { idx, state } = &self.kind {
+            state.write().unwrap().mark_zombie(*idx);
+        }
+    }
+
     /// Apply the given draw state (draws it).
     pub(crate) fn drawable(&mut self, force_draw: bool, now: Instant) -> Option<Drawable<'_>> {
         match &mut self.kind {
@@ -188,8 +196,8 @@ impl ProgressDrawTarget {
         }
     }
 
-    pub(crate) fn last_line_count(&mut self) -> Option<&mut usize> {
-        self.kind.last_line_count()
+    pub(crate) fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
+        self.kind.adjust_last_line_count(adjust);
     }
 }
 
@@ -214,15 +222,21 @@ enum TargetKind {
 }
 
 impl TargetKind {
-    fn last_line_count(&mut self) -> Option<&mut usize> {
-        match self {
+    /// Adjust `last_line_count` such that the next draw operation keeps/clears additional lines
+    fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
+        let last_line_count: &mut usize = match self {
             TargetKind::Term {
                 last_line_count, ..
-            } => Some(last_line_count),
+            } => last_line_count,
             TargetKind::TermLike {
                 last_line_count, ..
-            } => Some(last_line_count),
-            _ => None,
+            } => last_line_count,
+            _ => return,
+        };
+
+        match adjust {
+            LineAdjust::Clear(count) => *last_line_count = last_line_count.saturating_add(count),
+            LineAdjust::Keep(count) => *last_line_count = last_line_count.saturating_sub(count),
         }
     }
 }
@@ -247,6 +261,24 @@ pub(crate) enum Drawable<'a> {
 }
 
 impl<'a> Drawable<'a> {
+    /// Adjust `last_line_count` such that the next draw operation keeps/clears additional lines
+    pub(crate) fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
+        let last_line_count: &mut usize = match self {
+            Drawable::Term {
+                last_line_count, ..
+            } => last_line_count,
+            Drawable::TermLike {
+                last_line_count, ..
+            } => last_line_count,
+            _ => return,
+        };
+
+        match adjust {
+            LineAdjust::Clear(count) => *last_line_count = last_line_count.saturating_add(count),
+            LineAdjust::Keep(count) => *last_line_count = last_line_count.saturating_sub(count),
+        }
+    }
+
     pub(crate) fn state(&mut self) -> DrawStateWrapper<'_> {
         let mut state = match self {
             Drawable::Term { draw_state, .. } => DrawStateWrapper::for_term(draw_state),
@@ -284,6 +316,13 @@ impl<'a> Drawable<'a> {
             } => draw_state.draw_to_term(term_like, last_line_count),
         }
     }
+}
+
+pub(crate) enum LineAdjust {
+    /// Adds to `last_line_count` so that the next draw also clears those lines
+    Clear(usize),
+    /// Subtracts from `last_line_count` so that the next draw retains those lines
+    Keep(usize),
 }
 
 pub(crate) struct DrawStateWrapper<'a> {
@@ -324,8 +363,8 @@ impl std::ops::DerefMut for DrawStateWrapper<'_> {
 impl Drop for DrawStateWrapper<'_> {
     fn drop(&mut self) {
         if let Some(orphaned) = &mut self.orphan_lines {
-            orphaned.extend(self.state.lines.drain(..self.state.orphan_lines));
-            self.state.orphan_lines = 0;
+            orphaned.extend(self.state.lines.drain(..self.state.orphan_lines_count));
+            self.state.orphan_lines_count = 0;
         }
     }
 }
@@ -385,7 +424,7 @@ pub(crate) struct DrawState {
     /// The lines to print (can contain ANSI codes)
     pub(crate) lines: Vec<String>,
     /// The number of lines that shouldn't be reaped by the next tick.
-    pub(crate) orphan_lines: usize,
+    pub(crate) orphan_lines_count: usize,
     /// True if we should move the cursor up when possible instead of clearing lines.
     pub(crate) move_cursor: bool,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
@@ -444,13 +483,13 @@ impl DrawState {
         }
 
         term.flush()?;
-        *last_line_count = self.lines.len() - self.orphan_lines + shift;
+        *last_line_count = self.lines.len() - self.orphan_lines_count + shift;
         Ok(())
     }
 
     fn reset(&mut self) {
         self.lines.clear();
-        self.orphan_lines = 0;
+        self.orphan_lines_count = 0;
     }
 }
 

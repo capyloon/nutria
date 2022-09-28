@@ -9,6 +9,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::format::{
     BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
+    HumanFloatCount,
 };
 use crate::state::{ProgressState, TabExpandedString, DEFAULT_TAB_WIDTH};
 
@@ -35,12 +36,12 @@ fn segment(s: &str) -> Vec<Box<str>> {
     s.chars().map(|x| x.to_string().into()).collect()
 }
 
-#[cfg(feature = "unicode_width")]
+#[cfg(feature = "unicode-width")]
 fn measure(s: &str) -> usize {
     unicode_width::UnicodeWidthStr::width(s)
 }
 
-#[cfg(not(feature = "unicode_width"))]
+#[cfg(not(feature = "unicode-width"))]
 fn measure(s: &str) -> usize {
     s.chars().count()
 }
@@ -71,6 +72,9 @@ impl ProgressStyle {
         Self::new(Template::from_str("{spinner} {msg}").unwrap())
     }
 
+    /// Sets the template string for the progress bar
+    ///
+    /// Review the [list of template keys](../index.html#templates) for more information.
     pub fn with_template(template: &str) -> Result<Self, TemplateError> {
         Ok(Self::new(Template::from_str(template)?))
     }
@@ -97,6 +101,9 @@ impl ProgressStyle {
     }
 
     /// Sets the tick character sequence for spinners
+    ///
+    /// Note that the last character is used as the [final tick string][Self::get_final_tick_str()].
+    /// At least two characters are required to provide a non-final and final state.
     pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
         self.tick_strings = s.chars().map(|c| c.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
@@ -109,6 +116,9 @@ impl ProgressStyle {
     }
 
     /// Sets the tick string sequence for spinners
+    ///
+    /// Note that the last string is used as the [final tick string][Self::get_final_tick_str()].
+    /// At least two strings are required to provide a non-final and final state.
     pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
         self.tick_strings = s.iter().map(|s| s.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
@@ -148,7 +158,7 @@ impl ProgressStyle {
 
     /// Sets the template string for the progress bar
     ///
-    /// Review the [list of template keys](./index.html#templates) for more information.
+    /// Review the [list of template keys](../index.html#templates) for more information.
     pub fn template(mut self, s: &str) -> Result<ProgressStyle, TemplateError> {
         self.template = Template::from_str(s)?;
         Ok(self)
@@ -300,7 +310,7 @@ impl ProgressStyle {
                                 .write_fmt(format_args!("{:#}", HumanDuration(state.elapsed())))
                                 .unwrap(),
                             "per_sec" => buf
-                                .write_fmt(format_args!("{:.4}/s", state.per_sec()))
+                                .write_fmt(format_args!("{}/s", HumanFloatCount(state.per_sec())))
                                 .unwrap(),
                             "bytes_per_sec" => buf
                                 .write_fmt(format_args!("{}/s", HumanBytes(state.per_sec() as u64)))
@@ -705,7 +715,7 @@ enum Alignment {
 }
 
 /// Trait for defining stateful or stateless formatters
-pub trait ProgressTracker: Send {
+pub trait ProgressTracker: Send + Sync {
     /// Creates a new instance of the progress tracker
     fn clone_box(&self) -> Box<dyn ProgressTracker>;
     /// Notifies the progress tracker of a tick event
@@ -722,7 +732,10 @@ impl Clone for Box<dyn ProgressTracker> {
     }
 }
 
-impl<F: Fn(&ProgressState, &mut dyn fmt::Write) + Send + Clone + 'static> ProgressTracker for F {
+impl<F> ProgressTracker for F
+where
+    F: Fn(&ProgressState, &mut dyn fmt::Write) + Send + Sync + Clone + 'static,
+{
     fn clone_box(&self) -> Box<dyn ProgressTracker> {
         Box::new(self.clone())
     }

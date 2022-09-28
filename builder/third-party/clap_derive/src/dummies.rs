@@ -18,12 +18,11 @@ pub fn parser_enum(name: &Ident) {
 
 pub fn into_app(name: &Ident) {
     append_dummy(quote! {
-        #[allow(deprecated)]
         impl clap::CommandFactory for #name {
-            fn into_app<'b>() -> clap::Command<'b> {
+            fn command<'b>() -> clap::Command {
                 unimplemented!()
             }
-            fn into_app_for_update<'b>() -> clap::Command<'b> {
+            fn command_for_update<'b>() -> clap::Command {
                 unimplemented!()
             }
         }
@@ -47,10 +46,10 @@ pub fn subcommand(name: &Ident) {
     from_arg_matches(name);
     append_dummy(quote! {
         impl clap::Subcommand for #name {
-            fn augment_subcommands(_cmd: clap::Command<'_>) -> clap::Command<'_> {
+            fn augment_subcommands(_cmd: clap::Command) -> clap::Command {
                 unimplemented!()
             }
-            fn augment_subcommands_for_update(_cmd: clap::Command<'_>) -> clap::Command<'_> {
+            fn augment_subcommands_for_update(_cmd: clap::Command) -> clap::Command {
                 unimplemented!()
             }
             fn has_subcommand(name: &str) -> bool {
@@ -64,10 +63,10 @@ pub fn args(name: &Ident) {
     from_arg_matches(name);
     append_dummy(quote! {
         impl clap::Args for #name {
-            fn augment_args(_cmd: clap::Command<'_>) -> clap::Command<'_> {
+            fn augment_args(_cmd: clap::Command) -> clap::Command {
                 unimplemented!()
             }
-            fn augment_args_for_update(_cmd: clap::Command<'_>) -> clap::Command<'_> {
+            fn augment_args_for_update(_cmd: clap::Command) -> clap::Command {
                 unimplemented!()
             }
         }
@@ -83,7 +82,7 @@ pub fn value_enum(name: &Ident) {
             fn from_str(_input: &str, _ignore_case: bool) -> ::std::result::Result<Self, String> {
                 unimplemented!()
             }
-            fn to_possible_value<'a>(&self) -> ::std::option::Option<clap::PossibleValue<'a>>{
+            fn to_possible_value<'a>(&self) -> ::std::option::Option<clap::builder::PossibleValue>{
                 unimplemented!()
             }
         }

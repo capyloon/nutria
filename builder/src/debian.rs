@@ -77,7 +77,7 @@ pub enum DebianError {
     Other(String),
 }
 
-#[derive(clap::ArgEnum, PartialEq, Debug, Clone)]
+#[derive(clap::ValueEnum, PartialEq, Debug, Clone)]
 pub enum DebianTarget {
     Desktop,
     Pinephone,

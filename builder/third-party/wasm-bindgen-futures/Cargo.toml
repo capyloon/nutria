@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "wasm-bindgen-futures"
-version = "0.4.32"
+version = "0.4.33"
 authors = ["The wasm-bindgen Developers"]
 description = "Bridging the gap between Rust Futures and JavaScript Promises"
 homepage = "https://rustwasm.github.io/wasm-bindgen/"
@@ -30,10 +30,10 @@ optional = true
 default-features = false
 
 [dependencies.js-sys]
-version = "0.3.59"
+version = "0.3.60"
 
 [dependencies.wasm-bindgen]
-version = "0.2.82"
+version = "0.2.83"
 
 [features]
 futures-core-03-stream = ["futures-core"]
@@ -46,7 +46,7 @@ version = "1.11.3"
 default-features = false
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-test]
-version = "0.3.32"
+version = "0.3.33"
 
 [target."cfg(target_feature = \"atomics\")".dependencies.web-sys]
 version = "0.3.24"

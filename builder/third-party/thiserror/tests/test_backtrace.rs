@@ -21,6 +21,7 @@ pub mod structs {
     use super::{Inner, InnerBacktrace};
     use std::any;
     use std::backtrace::Backtrace;
+    use std::error::Error;
     use std::sync::Arc;
     use thiserror::Error;
 
@@ -86,6 +87,20 @@ pub mod structs {
         backtrace: Arc<Backtrace>,
     }
 
+    #[derive(Error, Debug)]
+    #[error("...")]
+    pub struct AnyhowBacktrace {
+        #[backtrace]
+        source: anyhow::Error,
+    }
+
+    #[derive(Error, Debug)]
+    #[error("...")]
+    pub struct BoxDynErrorBacktrace {
+        #[backtrace]
+        source: Box<dyn Error>,
+    }
+
     #[test]
     fn test_backtrace() {
         let error = PlainBacktrace {
@@ -121,6 +136,37 @@ pub mod structs {
 
         let error = ArcBacktraceFrom::from(Inner);
         assert!(any::request_ref::<Backtrace>(&error).is_some());
+
+        let error = AnyhowBacktrace {
+            source: anyhow::Error::msg("..."),
+        };
+        assert!(any::request_ref::<Backtrace>(&error).is_some());
+
+        let error = BoxDynErrorBacktrace {
+            source: Box::new(PlainBacktrace {
+                backtrace: Backtrace::capture(),
+            }),
+        };
+        assert!(any::request_ref::<Backtrace>(&error).is_some());
+    }
+
+    // https://github.com/dtolnay/thiserror/issues/185 -- std::error::Error and
+    // std::any::Provide both have a method called 'provide', so directly
+    // calling it from generated code could be ambiguous.
+    #[test]
+    fn test_provide_name_collision() {
+        use std::any::Provider;
+
+        #[derive(Error, Debug)]
+        #[error("...")]
+        struct MyError {
+            #[source]
+            #[backtrace]
+            x: std::io::Error,
+        }
+
+        let _: dyn Error;
+        let _: dyn Provider;
     }
 }
 

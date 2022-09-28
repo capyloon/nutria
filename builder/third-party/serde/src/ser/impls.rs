@@ -522,7 +522,7 @@ where
     }
 }
 
-impl<T> Serialize for RefCell<T>
+impl<T: ?Sized> Serialize for RefCell<T>
 where
     T: Serialize,
 {
@@ -538,7 +538,7 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<T> Serialize for Mutex<T>
+impl<T: ?Sized> Serialize for Mutex<T>
 where
     T: Serialize,
 {
@@ -554,7 +554,7 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<T> Serialize for RwLock<T>
+impl<T: ?Sized> Serialize for RwLock<T>
 where
     T: Serialize,
 {
@@ -614,9 +614,10 @@ impl Serialize for SystemTime {
         S: Serializer,
     {
         use super::SerializeStruct;
-        let duration_since_epoch = self
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| S::Error::custom("SystemTime must be later than UNIX_EPOCH"))?;
+        let duration_since_epoch = match self.duration_since(UNIX_EPOCH) {
+            Ok(duration_since_epoch) => duration_since_epoch,
+            Err(_) => return Err(S::Error::custom("SystemTime must be later than UNIX_EPOCH")),
+        };
         let mut state = try!(serializer.serialize_struct("SystemTime", 2));
         try!(state.serialize_field("secs_since_epoch", &duration_since_epoch.as_secs()));
         try!(state.serialize_field("nanos_since_epoch", &duration_since_epoch.subsec_nanos()));

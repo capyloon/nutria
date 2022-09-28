@@ -6,51 +6,47 @@ Help:
 ```console
 $ git-derive
 ? failed
-git 
 A fictional versioning CLI
 
-USAGE:
-    git-derive[EXE] <SUBCOMMAND>
+Usage: git-derive[EXE] <COMMAND>
 
-OPTIONS:
-    -h, --help    Print help information
+Commands:
+  clone  Clones repos
+  diff   Compare two commits
+  push   pushes things
+  add    adds things
+  stash  
+  help   Print this message or the help of the given subcommand(s)
 
-SUBCOMMANDS:
-    add      adds things
-    clone    Clones repos
-    help     Print this message or the help of the given subcommand(s)
-    push     pushes things
-    stash    
+Options:
+  -h, --help  Print help information
 
 $ git-derive help
-git 
 A fictional versioning CLI
 
-USAGE:
-    git-derive[EXE] <SUBCOMMAND>
+Usage: git-derive[EXE] <COMMAND>
 
-OPTIONS:
-    -h, --help    Print help information
+Commands:
+  clone  Clones repos
+  diff   Compare two commits
+  push   pushes things
+  add    adds things
+  stash  
+  help   Print this message or the help of the given subcommand(s)
 
-SUBCOMMANDS:
-    add      adds things
-    clone    Clones repos
-    help     Print this message or the help of the given subcommand(s)
-    push     pushes things
-    stash    
+Options:
+  -h, --help  Print help information
 
 $ git-derive help add
-git-derive[EXE]-add 
 adds things
 
-USAGE:
-    git-derive[EXE] add <PATH>...
+Usage: git-derive[EXE] add <PATH>...
 
-ARGS:
-    <PATH>...    Stuff to add
+Arguments:
+  <PATH>...  Stuff to add
 
-OPTIONS:
-    -h, --help    Print help information
+Options:
+  -h, --help  Print help information
 
 ```
 
@@ -58,17 +54,15 @@ A basic argument:
 ```console
 $ git-derive add
 ? failed
-git-derive[EXE]-add 
 adds things
 
-USAGE:
-    git-derive[EXE] add <PATH>...
+Usage: git-derive[EXE] add <PATH>...
 
-ARGS:
-    <PATH>...    Stuff to add
+Arguments:
+  <PATH>...  Stuff to add
 
-OPTIONS:
-    -h, --help    Print help information
+Options:
+  -h, --help  Print help information
 
 $ git-derive add Cargo.toml Cargo.lock
 Adding ["Cargo.toml", "Cargo.lock"]
@@ -78,43 +72,34 @@ Adding ["Cargo.toml", "Cargo.lock"]
 Default subcommand:
 ```console
 $ git-derive stash -h
-git-derive[EXE]-stash 
+Usage: git-derive[EXE] stash [OPTIONS]
+       git-derive[EXE] stash <COMMAND>
 
-USAGE:
-    git-derive[EXE] stash [OPTIONS]
-    git-derive[EXE] stash <SUBCOMMAND>
+Commands:
+  push   
+  pop    
+  apply  
+  help   Print this message or the help of the given subcommand(s)
 
-OPTIONS:
-    -h, --help                 Print help information
-    -m, --message <MESSAGE>    
-
-SUBCOMMANDS:
-    apply    
-    help     Print this message or the help of the given subcommand(s)
-    pop      
-    push     
+Options:
+  -m, --message <MESSAGE>  
+  -h, --help               Print help information
 
 $ git-derive stash push -h
-git-derive[EXE]-stash-push 
+Usage: git-derive[EXE] stash push [OPTIONS]
 
-USAGE:
-    git-derive[EXE] stash push [OPTIONS]
-
-OPTIONS:
-    -h, --help                 Print help information
-    -m, --message <MESSAGE>    
+Options:
+  -m, --message <MESSAGE>  
+  -h, --help               Print help information
 
 $ git-derive stash pop -h
-git-derive[EXE]-stash-pop 
+Usage: git-derive[EXE] stash pop [STASH]
 
-USAGE:
-    git-derive[EXE] stash pop [STASH]
+Arguments:
+  [STASH]  
 
-ARGS:
-    <STASH>    
-
-OPTIONS:
-    -h, --help    Print help information
+Options:
+  -h, --help  Print help information
 
 $ git-derive stash -m "Prototype"
 Pushing StashPush { message: Some("Prototype") }
@@ -134,5 +119,34 @@ External subcommands:
 ```console
 $ git-derive custom-tool arg1 --foo bar
 Calling out to "custom-tool" with ["arg1", "--foo", "bar"]
+
+```
+
+Last argument:
+```console
+$ git-derive diff --help
+Compare two commits
+
+Usage: git-derive[EXE] diff [COMMIT] [COMMIT] [-- <PATH>]
+
+Arguments:
+  [COMMIT]  
+  [COMMIT]  
+  [PATH]    
+
+Options:
+  -h, --help  Print help information
+
+$ git-derive diff
+Diffing stage..worktree 
+
+$ git-derive diff ./src
+Diffing stage..worktree ./src
+
+$ git-derive diff HEAD ./src
+Diffing HEAD..worktree ./src
+
+$ git-derive diff HEAD~~ -- HEAD
+Diffing HEAD~~..worktree HEAD
 
 ```

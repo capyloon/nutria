@@ -250,10 +250,11 @@
 //!   dynamic library libproc_macro from rustc toolchain.
 
 // Syn types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/syn/1.0.99")]
+#![doc(html_root_url = "https://docs.rs/syn/1.0.101")]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![allow(non_camel_case_types)]
 #![allow(
+    clippy::bool_to_int_with_if,
     clippy::cast_lossless,
     clippy::cast_possible_truncation,
     clippy::cast_ptr_alignment,
@@ -809,14 +810,6 @@ mod verbatim;
 
 #[cfg(all(any(feature = "full", feature = "derive"), feature = "printing"))]
 mod print;
-
-////////////////////////////////////////////////////////////////////////////////
-
-// https://github.com/rust-lang/rust/issues/62830
-#[cfg(feature = "parsing")]
-mod rustdoc_workaround {
-    pub use crate::parse::{self as parse_module};
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 

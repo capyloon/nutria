@@ -13,7 +13,7 @@ fn test_size() {
         + size_of_val(&tables::TRIE_START)
         + size_of_val(&tables::TRIE_CONTINUE)
         + size_of_val(&tables::LEAF);
-    assert_eq!(9752, size);
+    assert_eq!(10016, size);
 }
 
 #[test]
@@ -24,7 +24,7 @@ fn test_xid_size() {
     mod ucd;
 
     let size = size_of_val(ucd::XID_START) + size_of_val(ucd::XID_CONTINUE);
-    assert_eq!(11344, size);
+    assert_eq!(11528, size);
 
     let _ = ucd::BY_NAME;
 }
@@ -71,7 +71,7 @@ fn test_trieset_size() {
         + size_of_val(tree3_level2)
         + size_of_val(tree3_level3);
 
-    assert_eq!(9952, start_size + continue_size);
+    assert_eq!(10208, start_size + continue_size);
 
     let _ = trie::BY_NAME;
 }
@@ -81,7 +81,7 @@ fn test_fst_size() {
     let xid_start_fst = include_bytes!("fst/xid_start.fst");
     let xid_continue_fst = include_bytes!("fst/xid_continue.fst");
     let size = xid_start_fst.len() + xid_continue_fst.len();
-    assert_eq!(132897, size);
+    assert_eq!(137749, size);
 }
 
 #[test]

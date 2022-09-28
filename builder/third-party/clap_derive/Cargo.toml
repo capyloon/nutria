@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.56.1"
+rust-version = "1.60.0"
 name = "clap_derive"
-version = "3.2.18"
+version = "4.0.1"
 include = [
     "build.rs",
     "src/**/*",
@@ -38,7 +38,6 @@ categories = [
 ]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/clap-rs/clap/tree/master/clap_derive"
-resolver = "2"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -66,7 +65,7 @@ version = "0.4.0"
 version = "1"
 
 [dependencies.proc-macro2]
-version = "1.0.28"
+version = "1.0.42"
 
 [dependencies.quote]
 version = "1.0.9"
@@ -80,4 +79,4 @@ debug = []
 default = []
 deprecated = []
 raw-deprecated = ["deprecated"]
-unstable-v4 = ["deprecated"]
+unstable-v5 = ["deprecated"]

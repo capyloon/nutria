@@ -7,7 +7,7 @@ use syn::{
     PathSegment, Type, TypePath,
 };
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Ty {
     Vec,
     Option,
@@ -33,6 +33,16 @@ impl Ty {
             }
         } else {
             t(Other)
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Vec => "Vec<T>",
+            Self::Option => "Option<T>",
+            Self::OptionOption => "Option<Option<T>>",
+            Self::OptionVec => "Option<Vec<T>>",
+            Self::Other => "...other...",
         }
     }
 }

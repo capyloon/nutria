@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
@@ -5,67 +6,68 @@ use clap::{Args, Parser, Subcommand};
 
 /// A fictional versioning CLI
 #[derive(Debug, Parser)] // requires `derive` feature
-#[clap(name = "git")]
-#[clap(about = "A fictional versioning CLI", long_about = None)]
+#[command(name = "git")]
+#[command(about = "A fictional versioning CLI", long_about = None)]
 struct Cli {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Debug, Subcommand)]
 enum Commands {
     /// Clones repos
-    #[clap(arg_required_else_help = true)]
+    #[command(arg_required_else_help = true)]
     Clone {
         /// The remote to clone
-        #[clap(value_parser)]
         remote: String,
     },
+    /// Compare two commits
+    Diff {
+        #[arg(value_name = "COMMIT")]
+        base: Option<OsString>,
+        #[arg(value_name = "COMMIT")]
+        head: Option<OsString>,
+        #[arg(last = true)]
+        path: Option<OsString>,
+    },
     /// pushes things
-    #[clap(arg_required_else_help = true)]
+    #[command(arg_required_else_help = true)]
     Push {
         /// The remote to target
-        #[clap(value_parser)]
         remote: String,
     },
     /// adds things
-    #[clap(arg_required_else_help = true)]
+    #[command(arg_required_else_help = true)]
     Add {
         /// Stuff to add
-        #[clap(required = true, value_parser)]
+        #[arg(required = true)]
         path: Vec<PathBuf>,
     },
     Stash(Stash),
-    #[clap(external_subcommand)]
+    #[command(external_subcommand)]
     External(Vec<OsString>),
 }
 
 #[derive(Debug, Args)]
-#[clap(args_conflicts_with_subcommands = true)]
+#[command(args_conflicts_with_subcommands = true)]
 struct Stash {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Option<StashCommands>,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     push: StashPush,
 }
 
 #[derive(Debug, Subcommand)]
 enum StashCommands {
     Push(StashPush),
-    Pop {
-        #[clap(value_parser)]
-        stash: Option<String>,
-    },
-    Apply {
-        #[clap(value_parser)]
-        stash: Option<String>,
-    },
+    Pop { stash: Option<String> },
+    Apply { stash: Option<String> },
 }
 
 #[derive(Debug, Args)]
 struct StashPush {
-    #[clap(short, long, value_parser)]
+    #[arg(short, long)]
     message: Option<String>,
 }
 
@@ -75,6 +77,30 @@ fn main() {
     match args.command {
         Commands::Clone { remote } => {
             println!("Cloning {}", remote);
+        }
+        Commands::Diff {
+            mut base,
+            mut head,
+            mut path,
+        } => {
+            if path.is_none() {
+                path = head;
+                head = None;
+                if path.is_none() {
+                    path = base;
+                    base = None;
+                }
+            }
+            let base = base
+                .as_deref()
+                .map(|s| s.to_str().unwrap())
+                .unwrap_or("stage");
+            let head = head
+                .as_deref()
+                .map(|s| s.to_str().unwrap())
+                .unwrap_or("worktree");
+            let path = path.as_deref().unwrap_or_else(|| OsStr::new(""));
+            println!("Diffing {}..{} {}", base, head, path.to_string_lossy());
         }
         Commands::Push { remote } => {
             println!("Pushing to {}", remote);

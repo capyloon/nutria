@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "wasm-bindgen-backend"
-version = "0.2.82"
+version = "0.2.83"
 authors = ["The wasm-bindgen Developers"]
 description = """
 Backend code generation of the wasm-bindgen tool
@@ -42,7 +42,7 @@ version = "1.0"
 features = ["full"]
 
 [dependencies.wasm-bindgen-shared]
-version = "=0.2.82"
+version = "=0.2.83"
 
 [features]
 extra-traits = ["syn/extra-traits"]

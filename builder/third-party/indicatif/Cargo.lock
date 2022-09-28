@@ -225,7 +225,7 @@ dependencies = [
 
 [[package]]
 name = "indicatif"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "console",
  "number_prefix",

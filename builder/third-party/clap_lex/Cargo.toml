@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.56.1"
+rust-version = "1.60.0"
 name = "clap_lex"
-version = "0.2.4"
+version = "0.3.0"
 include = [
     "build.rs",
     "src/**/*",
@@ -24,6 +24,7 @@ include = [
     "examples/**/*",
 ]
 description = "Minimal, flexible command line parser"
+readme = "README.md"
 keywords = [
     "argument",
     "cli",

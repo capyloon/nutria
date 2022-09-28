@@ -1,5 +1,4 @@
 // Std
-use std::collections::HashMap;
 use std::ffi::OsString;
 use std::mem;
 use std::ops::Deref;
@@ -10,6 +9,7 @@ use crate::parser::AnyValue;
 use crate::parser::Identifier;
 use crate::parser::PendingArg;
 use crate::parser::{ArgMatches, MatchedArg, SubCommand, ValueSource};
+use crate::util::FlatMap;
 use crate::util::Id;
 use crate::INTERNAL_ERROR_MSG;
 
@@ -30,17 +30,10 @@ impl ArgMatcher {
                     args.chain(groups).collect()
                 },
                 #[cfg(debug_assertions)]
-                valid_subcommands: _cmd.get_subcommands().map(|sc| sc.get_id()).collect(),
-                // HACK: Allow an external subcommand's ArgMatches be a stand-in for any ArgMatches
-                // since users can't detect it and avoid the asserts.
-                //
-                // See clap-rs/clap#3263
-                #[cfg(debug_assertions)]
-                #[cfg(not(feature = "unstable-v4"))]
-                disable_asserts: _cmd.is_allow_external_subcommands_set(),
-                #[cfg(debug_assertions)]
-                #[cfg(feature = "unstable-v4")]
-                disable_asserts: false,
+                valid_subcommands: _cmd
+                    .get_subcommands()
+                    .map(|sc| sc.get_name_str().clone())
+                    .collect(),
                 ..Default::default()
             },
             pending: None,
@@ -56,14 +49,14 @@ impl ArgMatcher {
             "ArgMatcher::get_global_values: global_arg_vec={:?}",
             global_arg_vec
         );
-        let mut vals_map = HashMap::new();
+        let mut vals_map = FlatMap::new();
         self.fill_in_global_values(global_arg_vec, &mut vals_map);
     }
 
     fn fill_in_global_values(
         &mut self,
         global_arg_vec: &[Id],
-        vals_map: &mut HashMap<Id, MatchedArg>,
+        vals_map: &mut FlatMap<Id, MatchedArg>,
     ) {
         for global_arg in global_arg_vec {
             if let Some(ma) = self.get(global_arg) {
@@ -108,20 +101,20 @@ impl ArgMatcher {
         self.matches.args.get_mut(arg)
     }
 
-    pub(crate) fn remove(&mut self, arg: &Id) {
-        self.matches.args.swap_remove(arg);
+    pub(crate) fn remove(&mut self, arg: &Id) -> bool {
+        self.matches.args.remove(arg).is_some()
     }
 
     pub(crate) fn contains(&self, arg: &Id) -> bool {
         self.matches.args.contains_key(arg)
     }
 
-    pub(crate) fn arg_ids(&self) -> indexmap::map::Keys<Id, MatchedArg> {
+    pub(crate) fn arg_ids(&self) -> std::slice::Iter<'_, Id> {
         self.matches.args.keys()
     }
 
-    pub(crate) fn entry(&mut self, arg: &Id) -> indexmap::map::Entry<Id, MatchedArg> {
-        self.matches.args.entry(arg.clone())
+    pub(crate) fn entry(&mut self, arg: Id) -> crate::util::Entry<Id, MatchedArg> {
+        self.matches.args.entry(arg)
     }
 
     pub(crate) fn subcommand(&mut self, sc: SubCommand) {
@@ -132,16 +125,12 @@ impl ArgMatcher {
         self.matches.subcommand_name()
     }
 
-    pub(crate) fn iter(&self) -> indexmap::map::Iter<Id, MatchedArg> {
-        self.matches.args.iter()
-    }
-
-    pub(crate) fn check_explicit<'a>(&self, arg: &Id, predicate: ArgPredicate<'a>) -> bool {
+    pub(crate) fn check_explicit(&self, arg: &Id, predicate: &ArgPredicate) -> bool {
         self.get(arg).map_or(false, |a| a.check_explicit(predicate))
     }
 
     pub(crate) fn start_custom_arg(&mut self, arg: &Arg, source: ValueSource) {
-        let id = &arg.id;
+        let id = arg.id.clone();
         debug!(
             "ArgMatcher::start_custom_arg: id={:?}, source={:?}",
             id, source
@@ -152,7 +141,7 @@ impl ArgMatcher {
         ma.new_val_group();
     }
 
-    pub(crate) fn start_custom_group(&mut self, id: &Id, source: ValueSource) {
+    pub(crate) fn start_custom_group(&mut self, id: Id, source: ValueSource) {
         debug!(
             "ArgMatcher::start_custom_arg: id={:?}, source={:?}",
             id, source
@@ -164,28 +153,24 @@ impl ArgMatcher {
     }
 
     pub(crate) fn start_occurrence_of_arg(&mut self, arg: &Arg) {
-        let id = &arg.id;
+        let id = arg.id.clone();
         debug!("ArgMatcher::start_occurrence_of_arg: id={:?}", id);
         let ma = self.entry(id).or_insert(MatchedArg::new_arg(arg));
         debug_assert_eq!(ma.type_id(), Some(arg.get_value_parser().type_id()));
         ma.set_source(ValueSource::CommandLine);
-        #[allow(deprecated)]
-        ma.inc_occurrences();
         ma.new_val_group();
     }
 
-    pub(crate) fn start_occurrence_of_group(&mut self, id: &Id) {
+    pub(crate) fn start_occurrence_of_group(&mut self, id: Id) {
         debug!("ArgMatcher::start_occurrence_of_group: id={:?}", id);
         let ma = self.entry(id).or_insert(MatchedArg::new_group());
         debug_assert_eq!(ma.type_id(), None);
         ma.set_source(ValueSource::CommandLine);
-        #[allow(deprecated)]
-        ma.inc_occurrences();
         ma.new_val_group();
     }
 
     pub(crate) fn start_occurrence_of_external(&mut self, cmd: &crate::Command) {
-        let id = &Id::empty_hash();
+        let id = Id::from_static_ref(Id::EXTERNAL);
         debug!("ArgMatcher::start_occurrence_of_external: id={:?}", id,);
         let ma = self.entry(id).or_insert(MatchedArg::new_external(cmd));
         debug_assert_eq!(
@@ -197,8 +182,6 @@ impl ArgMatcher {
             )
         );
         ma.set_source(ValueSource::CommandLine);
-        #[allow(deprecated)]
-        ma.inc_occurrences();
         ma.new_val_group();
     }
 
@@ -213,36 +196,22 @@ impl ArgMatcher {
     }
 
     pub(crate) fn needs_more_vals(&self, o: &Arg) -> bool {
-        let num_resolved = self.get(&o.id).map(|ma| ma.num_vals()).unwrap_or(0);
         let num_pending = self
             .pending
             .as_ref()
             .and_then(|p| (p.id == o.id).then(|| p.raw_vals.len()))
             .unwrap_or(0);
-        let current_num = num_resolved + num_pending;
         debug!(
-            "ArgMatcher::needs_more_vals: o={}, resolved={}, pending={}",
-            o.name, num_resolved, num_pending
+            "ArgMatcher::needs_more_vals: o={}, pending={}",
+            o.get_id(),
+            num_pending
         );
-        if current_num == 0 {
-            true
-        } else if let Some(num) = o.num_vals {
-            debug!("ArgMatcher::needs_more_vals: num_vals...{}", num);
-            #[allow(deprecated)]
-            if o.is_multiple_occurrences_set() {
-                (current_num % num) != 0
-            } else {
-                num != current_num
-            }
-        } else if let Some(num) = o.max_vals {
-            debug!("ArgMatcher::needs_more_vals: max_vals...{}", num);
-            current_num < num
-        } else if o.min_vals.is_some() {
-            debug!("ArgMatcher::needs_more_vals: min_vals...true");
-            true
-        } else {
-            o.is_multiple_values_set()
-        }
+        let expected = o.get_num_args().expect(INTERNAL_ERROR_MSG);
+        debug!(
+            "ArgMatcher::needs_more_vals: expected={}, actual={}",
+            expected, num_pending
+        );
+        expected.accepts_more(num_pending)
     }
 
     pub(crate) fn pending_arg_id(&self) -> Option<&Id> {
@@ -253,17 +222,29 @@ impl ArgMatcher {
         &mut self,
         id: &Id,
         ident: Option<Identifier>,
+        trailing_values: bool,
     ) -> &mut Vec<OsString> {
         let pending = self.pending.get_or_insert_with(|| PendingArg {
             id: id.clone(),
             ident,
             raw_vals: Default::default(),
+            trailing_idx: None,
         });
         debug_assert_eq!(pending.id, *id, "{}", INTERNAL_ERROR_MSG);
         if ident.is_some() {
             debug_assert_eq!(pending.ident, ident, "{}", INTERNAL_ERROR_MSG);
         }
+        if trailing_values {
+            pending.trailing_idx.get_or_insert(pending.raw_vals.len());
+        }
         &mut pending.raw_vals
+    }
+
+    pub(crate) fn start_trailing(&mut self) {
+        if let Some(pending) = &mut self.pending {
+            // Allow asserting its started on subsequent calls
+            pending.trailing_idx.get_or_insert(pending.raw_vals.len());
+        }
     }
 
     pub(crate) fn take_pending(&mut self) -> Option<PendingArg> {

@@ -1,6 +1,7 @@
 /// Semantics for a piece of error information
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
+#[cfg(feature = "error-context")]
 pub enum ContextKind {
     /// The cause of the error
     InvalidSubcommand,
@@ -18,10 +19,6 @@ pub enum ContextKind {
     ExpectedNumValues,
     /// Minimum number of allowed values
     MinValues,
-    /// Number of occurrences present
-    ActualNumOccurrences,
-    /// Maximum number of allowed occurrences
-    MaxOccurrences,
     /// Potential fix for the user
     SuggestedCommand,
     /// Potential fix for the user
@@ -38,9 +35,39 @@ pub enum ContextKind {
     Custom,
 }
 
+impl ContextKind {
+    /// End-user description of the error case, where relevant
+    pub fn as_str(self) -> Option<&'static str> {
+        match self {
+            Self::InvalidSubcommand => Some("Invalid Subcommand"),
+            Self::InvalidArg => Some("Invalid Argument"),
+            Self::PriorArg => Some("Prior Argument"),
+            Self::ValidValue => Some("Value Value"),
+            Self::InvalidValue => Some("Invalid Value"),
+            Self::ActualNumValues => Some("Actual Number of Values"),
+            Self::ExpectedNumValues => Some("Expected Number of Values"),
+            Self::MinValues => Some("Minimum Number of Values"),
+            Self::SuggestedCommand => Some("Suggested Command"),
+            Self::SuggestedSubcommand => Some("Suggested Subcommand"),
+            Self::SuggestedArg => Some("Suggested Argument"),
+            Self::SuggestedValue => Some("Suggested Value"),
+            Self::TrailingArg => Some("Trailing Argument"),
+            Self::Usage => None,
+            Self::Custom => None,
+        }
+    }
+}
+
+impl std::fmt::Display for ContextKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.as_str().unwrap_or_default().fmt(f)
+    }
+}
+
 /// A piece of error information
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
+#[cfg(feature = "error-context")]
 pub enum ContextValue {
     /// [`ContextKind`] is self-sufficient, no additional information needed
     None,
@@ -51,5 +78,20 @@ pub enum ContextValue {
     /// Many values
     Strings(Vec<String>),
     /// A single value
+    StyledStr(crate::builder::StyledStr),
+    /// A single value
     Number(isize),
+}
+
+impl std::fmt::Display for ContextValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => "".fmt(f),
+            Self::Bool(v) => v.fmt(f),
+            Self::String(v) => v.fmt(f),
+            Self::Strings(v) => v.join(", ").fmt(f),
+            Self::StyledStr(v) => v.fmt(f),
+            Self::Number(v) => v.fmt(f),
+        }
+    }
 }

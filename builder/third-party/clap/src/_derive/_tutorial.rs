@@ -49,14 +49,14 @@
 //!
 #![doc = include_str!("../../examples/tutorial_derive/02_apps.md")]
 //!
-//! You can use `#[clap(author, version, about)]` attribute defaults to fill these fields in from your `Cargo.toml` file.
+//! You can use `#[command(author, version, about)]` attribute defaults to fill these fields in from your `Cargo.toml` file.
 //!
 //! ```rust
 #![doc = include_str!("../../examples/tutorial_derive/02_crate.rs")]
 //! ```
 #![doc = include_str!("../../examples/tutorial_derive/02_crate.md")]
 //!
-//! You can use attributes to change the application level behavior of clap.  Any [`Command`][crate::Command]] builder function can be used as an attribute.
+//! You can use attributes to change the application level behavior of clap.  Any [`Command`][crate::Command] builder function can be used as an attribute.
 //!
 //! ```rust
 #![doc = include_str!("../../examples/tutorial_derive/02_app_settings.rs")]
@@ -74,6 +74,13 @@
 //! ```
 #![doc = include_str!("../../examples/tutorial_derive/03_03_positional.md")]
 //!
+//! Note that the default [`ArgAction`][crate::ArgAction] is [`Set`][crate::ArgAction::Set].  To
+//! accept multiple values, use [`Append`][crate::ArgAction::Append]:
+//! ```rust
+#![doc = include_str!("../../examples/tutorial_derive/03_03_positional_mult.rs")]
+//! ```
+#![doc = include_str!("../../examples/tutorial_derive/03_03_positional_mult.md")]
+//!
 //! ### Options
 //!
 //! You can name your arguments with a flag:
@@ -81,19 +88,26 @@
 //! - They can be optional
 //! - Intent is clearer
 //!
-//! The `#[clap(short = 'n')]` and `#[clap(long = "name")]` attributes that define
+//! The `#[arg(short = 'n')]` and `#[arg(long = "name")]` attributes that define
 //! the flags are [`Arg`][crate::Args] methods that are derived from the field name when no value
-//! is specified (`#[clap(short)]` and `#[clap(long)]`).
+//! is specified (`#[arg(short)]` and `#[arg(long)]`).
 //!
 //! ```rust
 #![doc = include_str!("../../examples/tutorial_derive/03_02_option.rs")]
 //! ```
 #![doc = include_str!("../../examples/tutorial_derive/03_02_option.md")]
 //!
+//! Note that the default [`ArgAction`][crate::ArgAction] is [`Set`][crate::ArgAction::Set].  To
+//! accept multiple occurrences, use [`Append`][crate::ArgAction::Append]:
+//! ```rust
+#![doc = include_str!("../../examples/tutorial_derive/03_02_option_mult.rs")]
+//! ```
+#![doc = include_str!("../../examples/tutorial_derive/03_02_option_mult.md")]
+//!
 //! ### Flags
 //!
 //! Flags can also be switches that can be on/off.  This is enabled via the
-//! `#[clap(action = ArgAction::SetTrue)]` attribute though this is implied when the field is a
+//! `#[arg(action = ArgAction::SetTrue)]` attribute though this is implied when the field is a
 //! `bool`.
 //!
 //! ```rust
@@ -101,7 +115,9 @@
 //! ```
 #![doc = include_str!("../../examples/tutorial_derive/03_01_flag_bool.md")]
 //!
-//! Or counted with `#[clap(action = clap::ArgAction::Count)]`:
+//! Note that the default [`ArgAction`][crate::ArgAction] for a `bool` field is
+//! [`SetTrue`][crate::ArgAction::SetTrue].  To accept multiple values, use
+//! [`Append`][crate::ArgAction::Append]:
 //!
 //! ```rust
 #![doc = include_str!("../../examples/tutorial_derive/03_01_flag_count.rs")]
@@ -110,7 +126,7 @@
 //!
 //! ### Subcommands
 //!
-//! Subcommands are derived with `#[derive(Subcommand)]` and be added via `#[clap(subcommand)]` attribute. Each
+//! Subcommands are derived with `#[derive(Subcommand)]` and be added via `#[command(subcommand)]` attribute. Each
 //! instance of a [Subcommand][crate::Subcommand] can have its own version, author(s), Args, and even its own
 //! subcommands.
 //!
@@ -129,7 +145,7 @@
 //!
 //! We've previously showed that arguments can be [`required`][crate::Arg::required] or optional.
 //! When optional, you work with a `Option` and can `unwrap_or`.  Alternatively, you can
-//! set `#[clap(default_value_t)]`.
+//! set `#[arg(default_value_t)]`.
 //!
 //! ```rust
 #![doc = include_str!("../../examples/tutorial_derive/03_05_default_values.rs")]
@@ -138,9 +154,12 @@
 //!
 //! ## Validation
 //!
+//! An appropriate default parser/validator will be selected for the field's type.  See
+//! [`value_parser!`][crate::value_parser!] for more details.
+//!
 //! ### Enumerated values
 //!
-//! If you have arguments of specific values you want to test for, you can derive
+//! For example, if you have arguments of specific values you want to test for, you can derive
 //! [`ValueEnum`][crate::ValueEnum].
 //!
 //! This allows you specify the valid values for that argument. If the user does not use one of
@@ -167,6 +186,8 @@
 #![doc = include_str!("../../examples/tutorial_derive/04_02_validate.rs")]
 //! ```
 #![doc = include_str!("../../examples/tutorial_derive/04_02_validate.md")]
+//!
+//! See [`Arg::value_parser`][crate::Arg::value_parser] for more details.
 //!
 //! ### Argument Relations
 //!
@@ -199,7 +220,7 @@
 //!
 //! clap reports most development errors as `debug_assert!`s.  Rather than checking every
 //! subcommand, you should have a test that calls
-//! [`Command::debug_assert`][crate::App::debug_assert]:
+//! [`Command::debug_assert`][crate::Command::debug_assert]:
 //! ```rust,no_run
 #![doc = include_str!("../../examples/tutorial_derive/05_01_assert.rs")]
 //! ```

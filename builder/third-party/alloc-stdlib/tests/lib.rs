@@ -18,7 +18,6 @@ use alloc_stdlib::{HeapPrealloc, HeapAlloc};
 use alloc_stdlib::{HeapAllocUninitialized};
 
 declare_stack_allocator_struct!(CallocAllocatedFreelist4096, 4096, calloc);
-declare_stack_allocator_struct!(MallocAllocatedFreelist4096, 4096, malloc);
 declare_stack_allocator_struct!(StackAllocatedFreelist4, 4, stack);
 declare_stack_allocator_struct!(StackAllocatedFreelist8, 8, stack);
 declare_stack_allocator_struct!(GlobalAllocatedFreelist, 16, global);
@@ -159,7 +158,7 @@ fn uninitialized_heap_pool_test() {
     assert_eq!(x[0], 4);
     assert_eq!(z[0], 6);
     assert_eq!(z[1], 8);
-    assert_eq!(reget_three[0], 0);
+    // assert_eq!(reget_three[0], 0); // not valid: uninitialized heap memory
     assert_eq!(reget_three[1], 9);
     let mut _z = ags.alloc_cell(1);
   }
@@ -190,7 +189,7 @@ fn uninitialized_calloc_pool_test() {
     assert_eq!(x[0], 4);
     assert_eq!(z[0], 6);
     assert_eq!(z[1], 8);
-    assert_eq!(reget_three[0], 0);
+    assert_eq!(reget_three[0], 0); // since we have control over this buffer and the free strategy: this should be zero
     assert_eq!(reget_three[1], 9);
     let mut _z = ags.alloc_cell(1);
   }
@@ -364,11 +363,15 @@ fn heap_pool_test() {
   }
   }
 }
+
+
+
 #[test]
 fn calloc_pool_test() {
 
   {
   let mut calloc_global_buffer = unsafe {define_allocator_memory_pool!(4096, u8, [0; 200 * 1024 * 1024], calloc)};
+  {
   let mut ags = CallocAllocatedFreelist4096::<u8>::new_allocator(&mut calloc_global_buffer.data, bzero);
   {
     let mut x = ags.alloc_cell(9999);
@@ -394,15 +397,7 @@ fn calloc_pool_test() {
     let mut _z = ags.alloc_cell(1);
   }
   }
-}
-
-
-
-#[test]
-fn calloc_leak_pool_test() {
-
   {
-  let mut calloc_global_buffer = unsafe{define_allocator_memory_pool!(4096, u8, [0; 200 * 1024 * 1024], calloc_no_free)};
   let mut ags = CallocAllocatedFreelist4096::<u8>::new_allocator(&mut calloc_global_buffer.data, bzero);
   {
     let mut x = ags.alloc_cell(9999);
@@ -428,67 +423,7 @@ fn calloc_leak_pool_test() {
     let mut _z = ags.alloc_cell(1);
   }
   }
-}
-
-
-#[test]
-fn malloc_pool_test() {
-
-  {
-  let mut malloc_global_buffer = unsafe {define_allocator_memory_pool!(4096, u8, [0; 200 * 1024 * 1024], malloc)};
-  {
-  let mut ags = MallocAllocatedFreelist4096::<u8>::new_allocator(&mut malloc_global_buffer.data, bzero);
-  {
-    let mut x = ags.alloc_cell(9999);
-    x.slice_mut()[0] = 4;
-    let mut y = ags.alloc_cell(4);
-    y[0] = 5;
-    ags.free_cell(y);
-
-    let mut three = ags.alloc_cell(3);
-    three[0] = 6;
-    ags.free_cell(three);
-
-    let mut z = ags.alloc_cell(4);
-    z.slice_mut()[1] = 8;
-    let mut reget_three = ags.alloc_cell(4);
-    reget_three.slice_mut()[1] = 9;
-    //y.mem[0] = 6; // <-- this is an error (use after free)
-    assert_eq!(x[0], 4);
-    assert_eq!(z[0], 0);
-    assert_eq!(z[1], 8);
-    assert_eq!(reget_three[0], 0);
-    assert_eq!(reget_three[1], 9);
-    let mut _z = ags.alloc_cell(1);
-  }
-  }
-  {
-  let mut ags = MallocAllocatedFreelist4096::<u8>::new_allocator(&mut malloc_global_buffer.data, bzero);
-  {
-    let mut x = ags.alloc_cell(9999);
-    x.slice_mut()[0] = 4;
-    let mut y = ags.alloc_cell(4);
-    y[0] = 5;
-    ags.free_cell(y);
-
-    let mut three = ags.alloc_cell(3);
-    three[0] = 6;
-    ags.free_cell(three);
-
-    let mut z = ags.alloc_cell(4);
-    z.slice_mut()[1] = 8;
-    let mut reget_three = ags.alloc_cell(4);
-    reget_three.slice_mut()[1] = 9;
-    //y.mem[0] = 6; // <-- this is an error (use after free)
-    assert_eq!(x[0], 4);
-    assert_eq!(z[0], 0);
-    assert_eq!(z[1], 8);
-    assert_eq!(reget_three[0], 0);
-    assert_eq!(reget_three[1], 9);
-    let mut _z = ags.alloc_cell(1);
-  }
-  }
-  drop(malloc_global_buffer);
+  drop(calloc_global_buffer);
   }
 }
 

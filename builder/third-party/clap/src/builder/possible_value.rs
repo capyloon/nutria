@@ -1,5 +1,6 @@
-use std::{borrow::Cow, iter};
-
+use crate::builder::IntoResettable;
+use crate::builder::Str;
+use crate::builder::StyledStr;
 use crate::util::eq_ignore_case;
 
 /// A possible value of an argument.
@@ -12,9 +13,9 @@ use crate::util::eq_ignore_case;
 /// # Examples
 ///
 /// ```rust
-/// # use clap::{Arg, PossibleValue};
+/// # use clap::{Arg, builder::PossibleValue, ArgAction};
 /// let cfg = Arg::new("config")
-///     .takes_value(true)
+///     .action(ArgAction::Set)
 ///     .value_name("FILE")
 ///     .value_parser([
 ///         PossibleValue::new("fast"),
@@ -27,14 +28,14 @@ use crate::util::eq_ignore_case;
 /// [hide]: PossibleValue::hide()
 /// [help]: PossibleValue::help()
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct PossibleValue<'help> {
-    name: &'help str,
-    help: Option<&'help str>,
-    aliases: Vec<&'help str>, // (name, visible)
+pub struct PossibleValue {
+    name: Str,
+    help: Option<StyledStr>,
+    aliases: Vec<Str>, // (name, visible)
     hide: bool,
 }
 
-impl<'help> PossibleValue<'help> {
+impl PossibleValue {
     /// Create a [`PossibleValue`] with its name.
     ///
     /// The name will be used to decide whether this value was provided by the user to an argument.
@@ -45,16 +46,16 @@ impl<'help> PossibleValue<'help> {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::PossibleValue;
+    /// # use clap::builder::PossibleValue;
     /// PossibleValue::new("fast")
     /// # ;
     /// ```
     /// [hidden]: PossibleValue::hide
-    /// [possible value]: crate::Arg::possible_values
+    /// [possible value]: crate::builder::PossibleValuesParser
     /// [`Arg::hide_possible_values(true)`]: crate::Arg::hide_possible_values()
-    pub fn new(name: &'help str) -> Self {
+    pub fn new(name: impl Into<Str>) -> Self {
         PossibleValue {
-            name,
+            name: name.into(),
             ..Default::default()
         }
     }
@@ -67,15 +68,15 @@ impl<'help> PossibleValue<'help> {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::PossibleValue;
+    /// # use clap::builder::PossibleValue;
     /// PossibleValue::new("slow")
     ///     .help("not fast")
     /// # ;
     /// ```
     #[inline]
     #[must_use]
-    pub fn help(mut self, help: &'help str) -> Self {
-        self.help = Some(help);
+    pub fn help(mut self, help: impl IntoResettable<StyledStr>) -> Self {
+        self.help = help.into_resettable().into_option();
         self
     }
 
@@ -87,7 +88,7 @@ impl<'help> PossibleValue<'help> {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::PossibleValue;
+    /// # use clap::builder::PossibleValue;
     /// PossibleValue::new("secret")
     ///     .hide(true)
     /// # ;
@@ -105,14 +106,18 @@ impl<'help> PossibleValue<'help> {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::PossibleValue;
+    /// # use clap::builder::PossibleValue;
     /// PossibleValue::new("slow")
     ///     .alias("not-fast")
     /// # ;
     /// ```
     #[must_use]
-    pub fn alias(mut self, name: &'help str) -> Self {
-        self.aliases.push(name);
+    pub fn alias(mut self, name: impl IntoResettable<Str>) -> Self {
+        if let Some(name) = name.into_resettable().into_option() {
+            self.aliases.push(name);
+        } else {
+            self.aliases.clear();
+        }
         self
     }
 
@@ -121,55 +126,42 @@ impl<'help> PossibleValue<'help> {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::PossibleValue;
+    /// # use clap::builder::PossibleValue;
     /// PossibleValue::new("slow")
     ///     .aliases(["not-fast", "snake-like"])
     /// # ;
     /// ```
     #[must_use]
-    pub fn aliases<I>(mut self, names: I) -> Self
-    where
-        I: IntoIterator<Item = &'help str>,
-    {
-        self.aliases.extend(names.into_iter());
+    pub fn aliases(mut self, names: impl IntoIterator<Item = impl Into<Str>>) -> Self {
+        self.aliases.extend(names.into_iter().map(|a| a.into()));
         self
     }
 }
 
 /// Reflection
-impl<'help> PossibleValue<'help> {
+impl PossibleValue {
     /// Get the name of the argument value
     #[inline]
-    pub fn get_name(&self) -> &'help str {
-        self.name
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
     }
 
     /// Get the help specified for this argument, if any
     #[inline]
-    pub fn get_help(&self) -> Option<&'help str> {
-        self.help
+    pub fn get_help(&self) -> Option<&StyledStr> {
+        self.help.as_ref()
     }
 
     /// Get the help specified for this argument, if any and the argument
     /// value is not hidden
     #[inline]
-    #[cfg(feature = "unstable-v4")]
-    pub(crate) fn get_visible_help(&self) -> Option<&'help str> {
+    #[cfg(feature = "help")]
+    pub(crate) fn get_visible_help(&self) -> Option<&StyledStr> {
         if !self.hide {
-            self.help
+            self.get_help()
         } else {
             None
         }
-    }
-
-    /// Deprecated, replaced with [`PossibleValue::is_hide_set`]
-    #[inline]
-    #[cfg_attr(
-        feature = "deprecated",
-        deprecated(since = "3.1.0", note = "Replaced with `PossibleValue::is_hide_set`")
-    )]
-    pub fn is_hidden(&self) -> bool {
-        self.is_hide_set()
     }
 
     /// Report if [`PossibleValue::hide`] is set
@@ -183,30 +175,15 @@ impl<'help> PossibleValue<'help> {
         !self.hide && self.help.is_some()
     }
 
-    /// Get the name if argument value is not hidden, `None` otherwise
-    #[cfg_attr(
-        feature = "deprecated",
-        deprecated(
-            since = "3.1.4",
-            note = "Use `PossibleValue::is_hide_set` and `PossibleValue::get_name`"
-        )
-    )]
-    pub fn get_visible_name(&self) -> Option<&'help str> {
-        if self.hide {
-            None
-        } else {
-            Some(self.name)
-        }
-    }
-
     /// Get the name if argument value is not hidden, `None` otherwise,
     /// but wrapped in quotes if it contains whitespace
-    pub(crate) fn get_visible_quoted_name(&self) -> Option<Cow<'help, str>> {
+    #[cfg(feature = "help")]
+    pub(crate) fn get_visible_quoted_name(&self) -> Option<std::borrow::Cow<'_, str>> {
         if !self.hide {
             Some(if self.name.contains(char::is_whitespace) {
                 format!("{:?}", self.name).into()
             } else {
-                self.name.into()
+                self.name.as_str().into()
             })
         } else {
             None
@@ -216,8 +193,8 @@ impl<'help> PossibleValue<'help> {
     /// Returns all valid values of the argument value.
     ///
     /// Namely the name and all aliases.
-    pub fn get_name_and_aliases(&self) -> impl Iterator<Item = &'help str> + '_ {
-        iter::once(&self.name).chain(&self.aliases).copied()
+    pub fn get_name_and_aliases(&self) -> impl Iterator<Item = &str> + '_ {
+        std::iter::once(self.get_name()).chain(self.aliases.iter().map(|s| s.as_str()))
     }
 
     /// Tests if the value is valid for this argument value
@@ -227,7 +204,7 @@ impl<'help> PossibleValue<'help> {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::PossibleValue;
+    /// # use clap::builder::PossibleValue;
     /// let arg_value = PossibleValue::new("fast").alias("not-slow");
     ///
     /// assert!(arg_value.matches("fast", false));
@@ -246,14 +223,8 @@ impl<'help> PossibleValue<'help> {
     }
 }
 
-impl<'help> From<&'help str> for PossibleValue<'help> {
-    fn from(s: &'help str) -> Self {
-        Self::new(s)
-    }
-}
-
-impl<'help> From<&'help &'help str> for PossibleValue<'help> {
-    fn from(s: &'help &'help str) -> Self {
+impl<S: Into<Str>> From<S> for PossibleValue {
+    fn from(s: S) -> Self {
         Self::new(s)
     }
 }

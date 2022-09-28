@@ -1,5 +1,5 @@
 /// Command line argument parser kind of error
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ErrorKind {
     /// Occurs when an [`Arg`][crate::Arg] has a set of possible values,
@@ -8,7 +8,7 @@ pub enum ErrorKind {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
+    /// # use clap::{Command, Arg, error::ErrorKind};
     /// let result = Command::new("prog")
     ///     .arg(Arg::new("speed")
     ///         .value_parser(["fast", "slow"]))
@@ -23,7 +23,7 @@ pub enum ErrorKind {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, arg, ErrorKind};
+    /// # use clap::{Command, arg, error::ErrorKind};
     /// let result = Command::new("prog")
     ///     .arg(arg!(--flag "some flag"))
     ///     .try_get_matches_from(vec!["prog", "--other"]);
@@ -41,7 +41,7 @@ pub enum ErrorKind {
     ///
     #[cfg_attr(not(feature = "suggestions"), doc = " ```no_run")]
     #[cfg_attr(feature = "suggestions", doc = " ```")]
-    /// # use clap::{Command, Arg, ErrorKind, };
+    /// # use clap::{Command, Arg, error::ErrorKind, };
     /// let result = Command::new("prog")
     ///     .subcommand(Command::new("config")
     ///         .about("Used for configuration")
@@ -56,59 +56,14 @@ pub enum ErrorKind {
     /// [`UnknownArgument`]: ErrorKind::UnknownArgument
     InvalidSubcommand,
 
-    /// Occurs when the user provides an unrecognized [`Subcommand`] which either
-    /// doesn't meet the threshold for being similar enough to an existing subcommand,
-    /// or the 'suggestions' feature is disabled.
-    /// Otherwise the more detailed [`InvalidSubcommand`] error is returned.
-    ///
-    /// This error typically happens when passing additional subcommand names to the `help`
-    /// subcommand. Otherwise, the more general [`UnknownArgument`] error is used.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind, };
-    /// let result = Command::new("prog")
-    ///     .subcommand(Command::new("config")
-    ///         .about("Used for configuration")
-    ///         .arg(Arg::new("config_file")
-    ///             .help("The configuration file to use")))
-    ///     .try_get_matches_from(vec!["prog", "help", "nothing"]);
-    /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().kind(), ErrorKind::UnrecognizedSubcommand);
-    /// ```
-    ///
-    /// [`Subcommand`]: crate::Subcommand
-    /// [`InvalidSubcommand`]: ErrorKind::InvalidSubcommand
-    /// [`UnknownArgument`]: ErrorKind::UnknownArgument
-    UnrecognizedSubcommand,
-
-    /// Occurs when the user provides an empty value for an option that does not allow empty
-    /// values.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
-    /// let res = Command::new("prog")
-    ///     .arg(Arg::new("color")
-    ///          .takes_value(true)
-    ///          .forbid_empty_values(true)
-    ///          .long("color"))
-    ///     .try_get_matches_from(vec!["prog", "--color="]);
-    /// assert!(res.is_err());
-    /// assert_eq!(res.unwrap_err().kind(), ErrorKind::EmptyValue);
-    /// ```
-    EmptyValue,
-
     /// Occurs when the user doesn't use equals for an option that requires equal
     /// sign to provide values.
     ///
     /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
+    /// # use clap::{Command, Arg, error::ErrorKind, ArgAction};
     /// let res = Command::new("prog")
     ///     .arg(Arg::new("color")
-    ///          .takes_value(true)
+    ///          .action(ArgAction::Set)
     ///          .require_equals(true)
     ///          .long("color"))
     ///     .try_get_matches_from(vec!["prog", "--color", "red"]);
@@ -123,7 +78,7 @@ pub enum ErrorKind {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
+    /// # use clap::{Command, Arg, error::ErrorKind, value_parser};
     /// fn is_numeric(val: &str) -> Result<(), String> {
     ///     match val.parse::<i64>() {
     ///         Ok(..) => Ok(()),
@@ -133,7 +88,7 @@ pub enum ErrorKind {
     ///
     /// let result = Command::new("prog")
     ///     .arg(Arg::new("num")
-    ///          .validator(is_numeric))
+    ///          .value_parser(value_parser!(u8)))
     ///     .try_get_matches_from(vec!["prog", "NotANumber"]);
     /// assert!(result.is_err());
     /// assert_eq!(result.unwrap_err().kind(), ErrorKind::ValueValidation);
@@ -141,77 +96,59 @@ pub enum ErrorKind {
     ValueValidation,
 
     /// Occurs when a user provides more values for an argument than were defined by setting
-    /// [`Arg::max_values`].
+    /// [`Arg::num_args`].
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
+    /// # use clap::{Command, Arg, error::ErrorKind};
     /// let result = Command::new("prog")
     ///     .arg(Arg::new("arg")
-    ///         .max_values(2))
+    ///         .num_args(1..=2))
     ///     .try_get_matches_from(vec!["prog", "too", "many", "values"]);
     /// assert!(result.is_err());
     /// assert_eq!(result.unwrap_err().kind(), ErrorKind::TooManyValues);
     /// ```
-    /// [`Arg::max_values`]: crate::Arg::max_values()
+    /// [`Arg::num_args`]: crate::Arg::num_args()
     TooManyValues,
 
     /// Occurs when the user provides fewer values for an argument than were defined by setting
-    /// [`Arg::min_values`].
+    /// [`Arg::num_args`].
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
+    /// # use clap::{Command, Arg, error::ErrorKind};
     /// let result = Command::new("prog")
     ///     .arg(Arg::new("some_opt")
     ///         .long("opt")
-    ///         .min_values(3))
+    ///         .num_args(3..))
     ///     .try_get_matches_from(vec!["prog", "--opt", "too", "few"]);
     /// assert!(result.is_err());
     /// assert_eq!(result.unwrap_err().kind(), ErrorKind::TooFewValues);
     /// ```
-    /// [`Arg::min_values`]: crate::Arg::min_values()
+    /// [`Arg::num_args`]: crate::Arg::num_args()
     TooFewValues,
 
-    /// Occurs when a user provides more occurrences for an argument than were defined by setting
-    /// [`Arg::max_occurrences`].
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
-    /// let result = Command::new("prog")
-    ///     .arg(Arg::new("verbosity")
-    ///         .short('v')
-    ///         .max_occurrences(2))
-    ///     .try_get_matches_from(vec!["prog", "-vvv"]);
-    /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().kind(), ErrorKind::TooManyOccurrences);
-    /// ```
-    /// [`Arg::max_occurrences`]: crate::Arg::max_occurrences()
-    TooManyOccurrences,
-
     /// Occurs when the user provides a different number of values for an argument than what's
-    /// been defined by setting [`Arg::number_of_values`] or than was implicitly set by
+    /// been defined by setting [`Arg::num_args`] or than was implicitly set by
     /// [`Arg::value_names`].
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
+    /// # use clap::{Command, Arg, error::ErrorKind, ArgAction};
     /// let result = Command::new("prog")
     ///     .arg(Arg::new("some_opt")
     ///         .long("opt")
-    ///         .takes_value(true)
-    ///         .number_of_values(2))
+    ///         .action(ArgAction::Set)
+    ///         .num_args(2))
     ///     .try_get_matches_from(vec!["prog", "--opt", "wrong"]);
     /// assert!(result.is_err());
     /// assert_eq!(result.unwrap_err().kind(), ErrorKind::WrongNumberOfValues);
     /// ```
     ///
-    /// [`Arg::number_of_values`]: crate::Arg::number_of_values()
+    /// [`Arg::num_args`]: crate::Arg::num_args()
     /// [`Arg::value_names`]: crate::Arg::value_names()
     WrongNumberOfValues,
 
@@ -221,13 +158,15 @@ pub enum ErrorKind {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
+    /// # use clap::{Command, Arg, error::ErrorKind, ArgAction};
     /// let result = Command::new("prog")
     ///     .arg(Arg::new("debug")
     ///         .long("debug")
+    ///         .action(ArgAction::SetTrue)
     ///         .conflicts_with("color"))
     ///     .arg(Arg::new("color")
-    ///         .long("color"))
+    ///         .long("color")
+    ///         .action(ArgAction::SetTrue))
     ///     .try_get_matches_from(vec!["prog", "--debug", "--color"]);
     /// assert!(result.is_err());
     /// assert_eq!(result.unwrap_err().kind(), ErrorKind::ArgumentConflict);
@@ -239,7 +178,7 @@ pub enum ErrorKind {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
+    /// # use clap::{Command, Arg, error::ErrorKind};
     /// let result = Command::new("prog")
     ///     .arg(Arg::new("debug")
     ///         .required(true))
@@ -255,7 +194,7 @@ pub enum ErrorKind {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, ErrorKind};
+    /// # use clap::{Command, error::ErrorKind};
     /// let err = Command::new("prog")
     ///     .subcommand_required(true)
     ///     .subcommand(Command::new("test"))
@@ -270,27 +209,11 @@ pub enum ErrorKind {
     /// [`Command::subcommand_required`]: crate::Command::subcommand_required
     MissingSubcommand,
 
-    /// Occurs when the user provides multiple values to an argument which doesn't allow that.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
-    /// let result = Command::new("prog")
-    ///     .arg(Arg::new("debug")
-    ///         .long("debug")
-    ///         .multiple_occurrences(false))
-    ///     .try_get_matches_from(vec!["prog", "--debug", "--debug"]);
-    /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().kind(), ErrorKind::UnexpectedMultipleUsage);
-    /// ```
-    UnexpectedMultipleUsage,
-
     /// Occurs when the user provides a value containing invalid UTF-8.
     ///
     /// To allow arbitrary data
-    /// - Set [`Arg::allow_invalid_utf8`] for argument values
-    /// - Set [`Command::allow_invalid_utf8_for_external_subcommands`] for external-subcommand
+    /// - Set [`Arg::value_parser(value_parser!(OsString))`] for argument values
+    /// - Set [`Command::external_subcommand_value_parser`] for external-subcommand
     ///   values
     ///
     /// # Platform Specific
@@ -301,13 +224,13 @@ pub enum ErrorKind {
     ///
     #[cfg_attr(not(unix), doc = " ```ignore")]
     #[cfg_attr(unix, doc = " ```")]
-    /// # use clap::{Command, Arg, ErrorKind};
+    /// # use clap::{Command, Arg, error::ErrorKind, ArgAction};
     /// # use std::os::unix::ffi::OsStringExt;
     /// # use std::ffi::OsString;
     /// let result = Command::new("prog")
     ///     .arg(Arg::new("utf8")
     ///         .short('u')
-    ///         .takes_value(true))
+    ///         .action(ArgAction::Set))
     ///     .try_get_matches_from(vec![OsString::from("myprog"),
     ///                                 OsString::from("-u"),
     ///                                 OsString::from_vec(vec![0xE9])]);
@@ -316,7 +239,7 @@ pub enum ErrorKind {
     /// ```
     ///
     /// [`Arg::allow_invalid_utf8`]: crate::Arg::allow_invalid_utf8
-    /// [`Command::allow_invalid_utf8_for_external_subcommands`]: crate::Command::allow_invalid_utf8_for_external_subcommands
+    /// [`Command::external_subcommand_value_parser`]: crate::Command::external_subcommand_value_parser
     InvalidUtf8,
 
     /// Not a true "error" as it means `--help` or similar was used.
@@ -327,8 +250,9 @@ pub enum ErrorKind {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
+    #[cfg_attr(not(feature = "help"), doc = " ```ignore")]
+    #[cfg_attr(feature = "help", doc = " ```")]
+    /// # use clap::{Command, Arg, error::ErrorKind};
     /// let result = Command::new("prog")
     ///     .try_get_matches_from(vec!["prog", "--help"]);
     /// assert!(result.is_err());
@@ -343,7 +267,7 @@ pub enum ErrorKind {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind, };
+    /// # use clap::{Command, Arg, error::ErrorKind, };
     /// let result = Command::new("prog")
     ///     .arg_required_else_help(true)
     ///     .subcommand(Command::new("config")
@@ -365,7 +289,7 @@ pub enum ErrorKind {
     /// # Examples
     ///
     /// ```rust
-    /// # use clap::{Command, Arg, ErrorKind};
+    /// # use clap::{Command, Arg, error::ErrorKind};
     /// let result = Command::new("prog")
     ///     .version("3.0")
     ///     .try_get_matches_from(vec!["prog", "--version"]);
@@ -373,13 +297,6 @@ pub enum ErrorKind {
     /// assert_eq!(result.unwrap_err().kind(), ErrorKind::DisplayVersion);
     /// ```
     DisplayVersion,
-
-    /// Occurs when using the [`ArgMatches::value_of_t`] and friends to convert an argument value
-    /// into type `T`, but the argument you requested wasn't used. I.e. you asked for an argument
-    /// with name `config` to be converted, but `config` wasn't used by the user.
-    ///
-    /// [`ArgMatches::value_of_t`]: crate::ArgMatches::value_of_t()
-    ArgumentNotFound,
 
     /// Represents an [I/O error].
     /// Can occur when writing to `stderr` or `stdout` or reading a configuration file.
@@ -404,13 +321,10 @@ impl ErrorKind {
                 Some("Found an argument which wasn't expected or isn't valid in this context")
             }
             Self::InvalidSubcommand => Some("A subcommand wasn't recognized"),
-            Self::UnrecognizedSubcommand => Some("A subcommand wasn't recognized"),
-            Self::EmptyValue => Some("An argument requires a value but none was supplied"),
             Self::NoEquals => Some("Equal is needed when assigning values to one of the arguments"),
             Self::ValueValidation => Some("Invalid value for one of the arguments"),
             Self::TooManyValues => Some("An argument received an unexpected value"),
             Self::TooFewValues => Some("An argument requires more values"),
-            Self::TooManyOccurrences => Some("An argument occurred too many times"),
             Self::WrongNumberOfValues => Some("An argument received too many or too few values"),
             Self::ArgumentConflict => {
                 Some("An argument cannot be used with one or more of the other specified arguments")
@@ -419,14 +333,10 @@ impl ErrorKind {
                 Some("One or more required arguments were not provided")
             }
             Self::MissingSubcommand => Some("A subcommand is required but one was not provided"),
-            Self::UnexpectedMultipleUsage => {
-                Some("An argument was provided more than once but cannot be used multiple times")
-            }
             Self::InvalidUtf8 => Some("Invalid UTF-8 was detected in one or more arguments"),
             Self::DisplayHelp => None,
             Self::DisplayHelpOnMissingArgumentOrSubcommand => None,
             Self::DisplayVersion => None,
-            Self::ArgumentNotFound => Some("An argument wasn't found"),
             Self::Io => None,
             Self::Format => None,
         }

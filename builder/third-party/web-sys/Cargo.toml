@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "web-sys"
-version = "0.3.59"
+version = "0.3.60"
 authors = ["The wasm-bindgen Developers"]
 description = """
 Bindings for all Web APIs, a procedurally generated crate from WebIDL
@@ -32,10 +32,10 @@ test = false
 doctest = false
 
 [dependencies.js-sys]
-version = "0.3.59"
+version = "0.3.60"
 
 [dependencies.wasm-bindgen]
-version = "0.2.82"
+version = "0.2.83"
 
 [features]
 AbortController = []
@@ -189,6 +189,7 @@ BrowserElementExecuteScriptOptions = []
 BrowserFeedWriter = []
 BrowserFindCaseSensitivity = []
 BrowserFindDirection = []
+ByteLengthQueuingStrategy = []
 Cache = []
 CacheBatchOperation = []
 CacheQueryOptions = []
@@ -296,6 +297,7 @@ ConvolverNode = [
 ]
 ConvolverOptions = []
 Coordinates = []
+CountQueuingStrategy = []
 Credential = []
 CredentialCreationOptions = []
 CredentialRequestOptions = []
@@ -1539,18 +1541,22 @@ PushSubscriptionKeys = []
 PushSubscriptionOptions = []
 PushSubscriptionOptionsInit = []
 QueuingStrategy = []
+QueuingStrategyInit = []
 RadioNodeList = ["NodeList"]
 Range = []
 RcwnPerfStats = []
 RcwnStatus = []
+ReadableByteStreamController = []
 ReadableStream = []
-ReadableStreamByobReadResult = []
 ReadableStreamByobReader = []
-ReadableStreamDefaultReadResult = []
+ReadableStreamByobRequest = []
+ReadableStreamDefaultController = []
 ReadableStreamDefaultReader = []
 ReadableStreamGetReaderOptions = []
 ReadableStreamIteratorOptions = []
+ReadableStreamReadResult = []
 ReadableStreamReaderMode = []
+ReadableStreamType = []
 ReadableWritablePair = []
 RecordingState = []
 ReferrerPolicy = []
@@ -2312,6 +2318,8 @@ TouchList = []
 TrackEvent = ["Event"]
 TrackEventInit = []
 TransformStream = []
+TransformStreamDefaultController = []
+Transformer = []
 TransitionEvent = ["Event"]
 TransitionEventInit = []
 Transport = []
@@ -2325,6 +2333,8 @@ UdpMessageEventInit = []
 UdpOptions = []
 UiEvent = ["Event"]
 UiEventInit = []
+UnderlyingSink = []
+UnderlyingSource = []
 Url = []
 UrlSearchParams = []
 Usb = ["EventTarget"]
@@ -2480,6 +2490,7 @@ Worklet = []
 WorkletGlobalScope = []
 WorkletOptions = []
 WritableStream = []
+WritableStreamDefaultController = []
 WritableStreamDefaultWriter = []
 XPathExpression = []
 XPathNsResolver = []
@@ -2559,7 +2570,7 @@ gpu_shader_stage = []
 gpu_texture_usage = []
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-futures]
-version = "0.4.32"
+version = "0.4.33"
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-test]
-version = "0.3.32"
+version = "0.3.33"

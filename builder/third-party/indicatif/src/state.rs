@@ -84,9 +84,11 @@ impl BarState {
         }
     }
 
-    pub(crate) fn update(&mut self, now: Instant, f: impl FnOnce(&mut ProgressState)) {
+    pub(crate) fn update(&mut self, now: Instant, f: impl FnOnce(&mut ProgressState), tick: bool) {
         f(&mut self.state);
-        self.tick(now);
+        if tick {
+            self.tick(now);
+        }
     }
 
     pub(crate) fn set_length(&mut self, now: Instant, len: u64) {
@@ -137,7 +139,7 @@ impl BarState {
 
         let mut draw_state = drawable.state();
         draw_state.lines.extend(msg.lines().map(Into::into));
-        draw_state.orphan_lines = draw_state.lines.len();
+        draw_state.orphan_lines_count = draw_state.lines.len();
         if !matches!(self.state.status, Status::DoneHidden) {
             self.style
                 .format_state(&self.state, &mut draw_state.lines, width);
@@ -159,14 +161,15 @@ impl BarState {
 
     pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
         let width = self.draw_target.width();
+
+        // `|= self.is_finished()` should not be needed here, but we used to always draw for
+        // finished progress bars, so it's kept as to not cause compatibility issues in weird cases.
         force_draw |= self.state.is_finished();
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
             Some(drawable) => drawable,
             None => return Ok(()),
         };
 
-        // `|| self.is_finished()` should not be needed here, but we used to always for draw for
-        // finished progress bar, so it's kept as to not cause compatibility issues in weird cases.
         let mut draw_state = drawable.state();
 
         if !matches!(self.state.status, Status::DoneHidden) {
@@ -181,12 +184,17 @@ impl BarState {
 
 impl Drop for BarState {
     fn drop(&mut self) {
-        // Progress bar is already finished.  Do not need to do anything.
+        // Progress bar is already finished.  Do not need to do anything other than notify
+        // the `MultiProgress` that we're now a zombie.
         if self.state.is_finished() {
+            self.draw_target.mark_zombie();
             return;
         }
 
         self.finish_using_style(Instant::now(), self.on_finish.clone());
+
+        // Notify the `MultiProgress` that we're now a zombie.
+        self.draw_target.mark_zombie();
     }
 }
 
