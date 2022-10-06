@@ -37,4 +37,4 @@ storage_path = "__HOME__/.capyloon/costaeres"
 metadata_cache_capacity = 250
 
 [dweb]
-storage_path = "__HOME__/.capyloon/costadweberes"
+storage_path = "__HOME__/.capyloon/costaeres"
