@@ -28,19 +28,22 @@ export class ApiDaemon {
   constructor(config, global) {
     console.log(`ApiDaemon [${window.location.hostname}] constructor`);
     this.port = config.port;
-    this.global = global;
+    this.global = {};
 
     let coreScripts = [
-      `http://127.0.0.1:${this.port}/api/v1/shared/core.js`,
-      `http://127.0.0.1:${this.port}/api/v1/shared/session.js`,
+      // `core`,
+      `session`,
     ];
 
     // A promise that resolves once the core files are imported.
     this.coreLoaded = new Promise(async (resolve, reject) => {
       try {
         for (let i = 0; i < coreScripts.length; i++) {
-          let url = coreScripts[i];
-          await TimedPromise(import(url), `import(${url})`);
+          let url = `http://127.0.0.1:${this.port}/api/v1/shared/${coreScripts[i]}.js`;
+          this.global[`lib_${coreScripts[i]}`] = await TimedPromise(
+            import(url),
+            `import(${url})`
+          );
         }
         resolve();
       } catch (e) {
@@ -74,7 +77,9 @@ export class ApiDaemon {
           externalapi
             .getToken()
             .then((token) => {
-              console.log(`ApiDaemon [${window.location.hostname}] Opening websocket session for token ${token}`);
+              console.log(
+                `ApiDaemon [${window.location.hostname}] Opening websocket session for token ${token}`
+              );
               this.session.open(
                 "websocket",
                 `localhost:${this.port}`,
@@ -149,7 +154,10 @@ export class ApiDaemon {
       // Wait for the service specific script to be loaded if needed.
       if (!service.loaded) {
         try {
-          await TimedPromise(import(service.url), `import(${service.url})`);
+          this.global[service.libName] = await TimedPromise(
+            import(service.url),
+            `import(${service.url})`
+          );
         } catch (e) {
           console.error(`ApiDaemon failed to load ${url}`);
           return Promise.reject();
