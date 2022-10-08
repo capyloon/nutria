@@ -23,8 +23,13 @@ else
 PREF_FILE_NAME := "gsi.js"
 endif
 
-$(LOCAL_INSTALLED_MODULE): $(LOCAL_BUILT_MODULE)
+$(LOCAL_BUILT_MODULE):
+	@echo "Packaging Nutria apps..."
+	(cd $(NUTRIA_PATH)/builder ; \
+	 NUTRIA_APPS_ROOT=$(abspath $(NUTRIA_PATH)/apps) \
+         $(SHELL) install.sh $(B2G_DEFAULTS)/../)
 	@echo "Installing frontend..."
+	@touch $(TARGET_OUT_INTERMEDIATES)/DATA/nutria_intermediates/nutria
 	# Copy the custom prefs file.
 	@mkdir -p $(B2G_DEFAULTS)/pref
 	@cp $(NUTRIA_PATH)/defaults/pref/common.js $(B2G_DEFAULTS)/pref/common.js
@@ -33,10 +38,3 @@ $(LOCAL_INSTALLED_MODULE): $(LOCAL_BUILT_MODULE)
 	@cp $(NUTRIA_PATH)/defaults/default-settings.json $(B2G_DEFAULTS)/settings.json
 	# Create a "buffer file" to have spare room on the system partition.
 	dd if=/dev/urandom of=$(B2G_DEFAULTS)/delete_me_when_disk_full bs=1M count=100
-
-$(LOCAL_BUILT_MODULE):
-	@echo "Packaging Nutria apps..."
-	(cd $(NUTRIA_PATH)/builder ; \
-	 NUTRIA_APPS_ROOT=$(abspath $(NUTRIA_PATH)/apps) \
-         $(SHELL) install.sh $(B2G_DEFAULTS)/../)
-
