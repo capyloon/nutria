@@ -321,7 +321,7 @@ class SiteInfo extends HTMLElement {
     let button = this.shadowRoot.querySelector("sl-button.add-home");
     button.classList.remove("hidden");
     let pwaLogo = this.shadowRoot.querySelector("sl-button.add-home img");
-    if (this.state.manifestUrl !== "") {
+    if (this.state.manifestUrl && this.state.manifestUrl !== "") {
       pwaLogo.classList.remove("hidden");
     } else {
       pwaLogo.classList.add("hidden");
@@ -343,7 +343,7 @@ class SiteInfo extends HTMLElement {
   async addToHome() {
     let activityData = null;
 
-    if (this.state.manifestUrl !== "") {
+    if (this.state.manifestUrl && this.state.manifestUrl !== "") {
       let service = await window.apiDaemon.getAppsManager();
       let app;
       try {

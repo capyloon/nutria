@@ -14,7 +14,7 @@ class ProcessManager {
   setForeground(pid) {
     console.log(`ProcessManager: setForeground ${pid}`);
     this.service.then((procmanager) => {
-      let lib = window.lib_procmanager;
+      let lib = window.apiDaemon.getLibraryFor("ProcManager");
       procmanager
         .begin("systemapp")
         .then(() => procmanager.add(pid, lib.GroupType.FOREGROUND))
@@ -30,7 +30,7 @@ class ProcessManager {
   setBackground(pid, tryToKeep = false) {
     console.log(`ProcessManager: setBackground ${pid} keep=${tryToKeep}`);
     this.service.then((procmanager) => {
-      let lib = window.lib_procmanager;
+      let lib = window.apiDaemon.getLibraryFor("ProcManager");;
       let backgroundType = tryToKeep
         ? lib.GroupType.TRY_TO_KEEP
         : lib.GroupType.BACKGROUND;
@@ -49,7 +49,6 @@ class ProcessManager {
   remove(pid) {
     console.log(`ProcessManager: remove ${pid}`);
     this.service.then((procmanager) => {
-      let lib = window.lib_procmanager;
       procmanager
         .begin("systemapp")
         .then(() => procmanager.remove(pid))
@@ -62,7 +61,7 @@ class ProcessManager {
 
   moveToForeground(newFg, oldFg, tryToKeep) {
     this.service.then((procmanager) => {
-      let lib = window.lib_procmanager;
+      let lib = window.apiDaemon.getLibraryFor("ProcManager");;
       let backgroundType = tryToKeep
         ? lib.GroupType.TRY_TO_KEEP
         : lib.GroupType.BACKGROUND;
@@ -116,7 +115,7 @@ class ContentWindow extends HTMLElement {
       title: "",
       secure: "insecure",
       icon: "",
-      manifestUrl: "",
+      manifestUrl: null,
       iconSize: 0,
       canGoBack: false,
       canGoForward: false,
@@ -332,6 +331,7 @@ class ContentWindow extends HTMLElement {
       "recordingstatus",
       "scroll",
       "securitychange",
+      "showmodalprompt",
       "titlechange",
       "visibilitychange",
     ];
@@ -970,6 +970,14 @@ class ContentWindow extends HTMLElement {
         }
         this.recordAudio = detail.audio;
         this.recordVideo = detail.video;
+        break;
+      case "loadstart":
+        // Reset state when loading a new document.
+        this.state.icon = null;
+        this.state.title = null;
+        this.state.manifestUrl = null;
+        this.state.secure = "insecure";
+        uiUpdateNeeded = true;
         break;
       default:
         console.error(

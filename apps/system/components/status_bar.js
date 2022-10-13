@@ -447,7 +447,7 @@ class StatusBar extends HTMLElement {
         this.state.highLuminance = false;
       }
     } else {
-      console.error("No backgroundcolor available!");
+      // No background color available:
       // Apply the same treatement as transparent background colors.
       this.style.backgroundColor = null;
       this.style.backgroundColor = null;
