@@ -37,7 +37,7 @@ async function setupAudio() {
   let settings = await apiDaemon.getSettings();
 
   // Get the current audio volume, in %
-  let currentVolume = 0;
+  let currentVolume = 50;
   try {
     let setting = await settings.get("audio.volume.current");
     currentVolume = setting.value;
