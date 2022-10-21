@@ -49,7 +49,7 @@ window-manager .carousel {
   grid-auto-flow: column;
   grid-template-rows: 1fr;
   grid-gap: 1em;
-  backdrop-filter: blur(5px);
+  backdrop-filter: saturate(180%) blur(20px);
 
   /* This element will overflow scroll and scroll-snap */
   overflow-x: scroll;
