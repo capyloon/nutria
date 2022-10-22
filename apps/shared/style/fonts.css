@@ -3,6 +3,10 @@
   src: url(/fonts/Readex_Pro/ReadexPro-VariableFont_wght.ttf);
 }
 
+* {
+  --sl-font-sans: "Readex Pro", sans-serif;
+}
+
 html, body {
-  font-family: "Readex Pro", sans-serif;
+  font-family: var(--sl-font-sans);
 }
