@@ -80,6 +80,9 @@ L10nRegistry.getInstance().registerSources([
   ),
 ]);
 
+// Load the "Readex Pro" font
+addSharedStylesheet(`style/fonts.css`);
+
 function depGraphLoaded() {
   return new Promise((resolve) => {
     loadSharedScript("js/dep_graph.js").onload = resolve;

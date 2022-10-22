@@ -1,5 +1,5 @@
 {
-  "name": "settings",
+  "name": "Settings",
   "description": "Configure all the things",
   "start_url": "/index.html",
   "icons": [
