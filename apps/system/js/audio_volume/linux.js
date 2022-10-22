@@ -47,7 +47,7 @@ async function setupAudio() {
   }
 
   // Initialize the HW to the current value.
-  // await setAudioVolume(currentVolume);
+  await setAudioVolume(currentVolume);
 
   let handler = async (event) => {
     const kStep = 5;
