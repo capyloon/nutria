@@ -13,7 +13,7 @@ select {
   outline: none;
   padding: 0.75rem;
   font-size: 1rem;
-  font-family: 'Readex Pro', sans-serif;
+  font-family: "Readex Pro", sans-serif;
   text-overflow: ellipsis;
 }
 
@@ -45,7 +45,7 @@ button.truncate {
 /* Input styling */
 input {
   font-size: 1rem;
-  font-family: 'Readex Pro', sans-serif;
+  font-family: "Readex Pro", sans-serif;
   padding: 0.5em;
   border-radius: 0;
   border-left: none;
