@@ -49,3 +49,6 @@ addStylesheet(`/style/${isDevice ? "device" : "desktop"}.css`);
 let depGraphLoaded = new Promise((resolve) => {
   loadSharedScript("js/dep_graph.js").onload = resolve;
 });
+
+// Load the "Readex Pro" font
+addStylesheet(`http://shared.localhost:${location.port}/style/fonts.css`);
