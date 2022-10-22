@@ -52,6 +52,7 @@ input {
   border-top: none;
   border-bottom: 2px solid var(--button-background-active);
   background-color: transparent;
+  font-family: var(--sl-font-sans);
 }
 
 /* Range input */

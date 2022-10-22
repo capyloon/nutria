@@ -5,6 +5,8 @@
 
 * {
   --sl-font-sans: "Readex Pro", sans-serif;
+  --sl-input-font-family: var(--sl-font-sans);
+  --sl-tooltip-font-family: var(--sl-font-sans);
 }
 
 html, body {
