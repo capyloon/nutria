@@ -425,9 +425,9 @@ document.addEventListener(
       console.log(`D/hal === userproximity event: near=${event.near}`);
     };
 
-    window.ondevicelight = (event) => {
-      console.log(`D/hal === devicelight event: value=${event.value}`);
-    };
+    // window.ondevicelight = (event) => {
+    //   console.log(`D/hal === devicelight event: value=${event.value}`);
+    // };
 
     // window.ondevicemotion = (event) => {
     //   console.log(`D/hal === devicemotion event: ${event}`);

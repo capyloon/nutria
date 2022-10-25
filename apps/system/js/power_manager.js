@@ -5,10 +5,12 @@ const kDefaultIdleTimeoutSec = 30;
 class ScreenManager {
   constructor() {
     actionsDispatcher.addListener("set-screen-on", () => {
+      // console.log(`ScreenManager set-screen-on`);
       document.body.classList.remove("screen-off");
     });
 
     actionsDispatcher.addListener("set-screen-off", () => {
+      // console.log(`ScreenManager set-screen-off`);
       document.body.classList.add("screen-off");
       window.lockscreen.lock();
     });
@@ -39,6 +41,7 @@ class PowerManagerService {
   }
 
   init() {
+    this.locked = false;
     this._ready = new Promise((resolve, reject) => {
       window.apiDaemon.getPowerManager().then(
         (service) => {
@@ -84,6 +87,10 @@ class PowerManagerService {
 
   turnOn() {
     this.ready().then(async () => {
+      if (this.locked) {
+        return;
+      }
+      this.locked = true;
       console.log(
         `==== PowerManagerService::turnOn brightness=${this._currentBrighness}`
       );
@@ -94,11 +101,16 @@ class PowerManagerService {
       };
       await this.service.controlScreen(screenControlInfo);
       console.log(`==== PowerManagerService::turnOn done`);
+      this.locked = false;
     });
   }
 
   turnOff() {
     this.ready().then(async () => {
+      if (this.locked) {
+        return;
+      }
+      this.locked = true;
       this._currentBrighness = await this.service.screenBrightness;
       console.log(
         `==== PowerManagerService::turnOff brightness=${this._currentBrighness}`
@@ -110,6 +122,7 @@ class PowerManagerService {
       };
       await this.service.controlScreen(screenControlInfo);
       console.log(`==== PowerManagerService::turnOff done`);
+      this.locked = false;
 
       // Wake up on any key on desktop.
       if (embedder.sessionType !== "mobile") {
@@ -169,8 +182,10 @@ class PowerManagement {
     this.service = new PowerManagerService();
     this.powerOn = true;
     this.service.turnOn();
-    this.inPowerMenu = false;
     this.powerMenu = document.body.querySelector("reboot-menu");
+    this.idleCallback = this.onIdle.bind(this);
+
+    embedder.userIdle.addObserver(this.idleCallback, kDefaultIdleTimeoutSec);
 
     // Short press turns on/off the screen.
     actionsDispatcher.addListener("power-short-press", () => {
@@ -183,6 +198,9 @@ class PowerManagement {
       actionsDispatcher.dispatch(
         this.powerOn ? "set-screen-on" : "set-screen-off"
       );
+      if (this.powerOn) {
+        embedder.userIdle.addObserver(this.idleCallback, kDefaultIdleTimeoutSec);
+      }
       // TODO: add embedding support to throttle the system app when the screen is off.
     });
 
@@ -198,39 +216,35 @@ class PowerManagement {
         actionsDispatcher.dispatch("set-screen-on");
       }
     });
-
-    // Automatically turn off the screen when idle for too long.
-    // TODO: configure with a setting.
-    embedder.userIdle.addObserver((topic, duration) => {
-      console.log(
-        `PowerManagement: Idle state change to ${topic} for ${duration}s`
-      );
-
-      if (topic !== "idle") {
-        this.powerOn = true;
-        actionsDispatcher.dispatch("set-screen-on");
-        return;
-      }
-
-      if (!this.powerOn) {
-        return;
-      }
-
-      // TODO: use a setting to control this behavior.
-      // Don't turn off the screen if the device is plugged in and is not a
-      // full screen session.
-      if (this.service.isCharging && embedder.sessionType !== "session") {
-        console.log(`PowerManagement: don't turn off the screen of a plugged in device.`);
-        return;
-      }
-
-      this.powerOn = false;
-      actionsDispatcher.dispatch("set-screen-off");
-    }, kDefaultIdleTimeoutSec);
   }
 
-  get powerService() {
-    return this.service;
+  // Automatically turn off the screen when idle for too long.
+  // TODO: configure with a setting.
+  onIdle(topic, duration) {
+    console.log(
+      `PowerManagement: Idle state change to ${topic} for ${duration}s`
+    );
+
+    if (topic !== "idle") {
+      console.error(`Unexpected idle state change: ${topic}`);
+      return;
+    }
+
+    if (!this.powerOn) {
+      return;
+    }
+
+    // TODO: use a setting to control this behavior.
+    // Don't turn off the screen if the device is plugged in and is not a
+    // full screen session.
+    if (this.service.isCharging && embedder.sessionType !== "session") {
+      console.log(`PowerManagement: don't turn off the screen of a plugged in device.`);
+      return;
+    }
+
+    embedder.userIdle.removeObserver(this.idleCallback, kDefaultIdleTimeoutSec);
+    this.powerOn = false;
+    actionsDispatcher.dispatch("set-screen-off");
   }
 }
 
