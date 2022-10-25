@@ -125,8 +125,11 @@ sl-input::part(password-toggle-button) {
 
 #datetime-timezone-details sl-details::part(content) {
   padding: 0em;
-  max-height: 40vh;
   overflow: auto;
+}
+
+#datetime-timezone-details sl-menu {
+  max-height: 40vh;
 }
 
 #datetime-timezone-details sl-menu::part(base) {
