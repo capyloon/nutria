@@ -38,7 +38,7 @@ class SearchPanel {
     }
     item.checked = !item.checked;
 
-    this.okBtn.disabled = this.alert.open = this.enabled === 0;
+    this.alert.open = this.enabled === 0;
   }
 
   async init() {
@@ -48,7 +48,6 @@ class SearchPanel {
     }
 
     this.alert = this.panel.querySelector("sl-alert");
-    this.okBtn = this.panel.querySelector(".panel-ok");
 
     let menu = this.panel.querySelector("sl-menu");
 
@@ -81,7 +80,7 @@ class SearchPanel {
         menu.append(menuItem);
       }
 
-      this.okBtn.disabled = this.alert.open = this.enabled === 0;
+      this.alert.open = this.enabled === 0;
 
       rendered = true;
     });
