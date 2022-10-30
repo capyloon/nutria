@@ -8,5 +8,9 @@
   {
     "source": "https://cdn-static.ecosia.org/opensearch.xml",
     "id": "ecosia.xml"
+  },
+  {
+    "source": "https://ipfs-search.com/opensearch.xml",
+    "id": "ipfs-search.xml"
   }
 ]

@@ -1,0 +1,7 @@
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+  <ShortName>ipfs-search.com</ShortName>
+  <Description>Search the Distributed Web.</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <Url type="text/html" template="https://ipfs-search.com/#/search?q={searchTerms}" />
+  <Image height="48" width="48" type="image/png">https://ipfs-search.com/assets/images/favicon.png</Image>
+</OpenSearchDescription>
