@@ -5,7 +5,7 @@
    height="16"
    version="1.1"
    id="svg25"
-   sodipodi:docname="sms_mobile.svg"
+   sodipodi:docname="contacts.svg"
    inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -96,10 +96,10 @@
        style="color-interpolation-filters:sRGB;"
        inkscape:label="Drop Shadow"
        id="filter37"
-       x="-0.12"
-       y="-0.12"
-       width="1.24"
-       height="1.29">
+       x="-0.84"
+       y="-0.94"
+       width="2.68"
+       height="3.03">
       <feFlood
          flood-opacity="0.25098"
          flood-color="rgb(0,0,0)"
@@ -125,8 +125,107 @@
          in="SourceGraphic"
          in2="offset"
          operator="over"
-         result="composite2"
+         result="fbSourceGraphic"
          id="feComposite35" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix33" />
+      <feFlood
+         id="feFlood35"
+         flood-opacity="0.501961"
+         flood-color="rgb(0,0,0)"
+         result="flood"
+         in="fbSourceGraphic" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite37"
+         in="flood"
+         operator="in"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur39"
+         in="composite1"
+         stdDeviation="1"
+         result="blur" />
+      <feOffset
+         id="feOffset41"
+         dx="0"
+         dy="1"
+         result="offset" />
+      <feComposite
+         in2="offset"
+         id="feComposite43"
+         in="fbSourceGraphic"
+         operator="over"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix93" />
+      <feFlood
+         id="feFlood95"
+         flood-opacity="1"
+         flood-color="rgb(64,192,96)"
+         result="flood"
+         in="fbSourceGraphic" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite97"
+         in="flood"
+         operator="out"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur99"
+         in="composite1"
+         stdDeviation="1"
+         result="blur" />
+      <feOffset
+         id="feOffset101"
+         dx="0"
+         dy="-1"
+         result="offset" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite103"
+         in="offset"
+         operator="atop"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix183" />
+      <feFlood
+         id="feFlood185"
+         flood-opacity="0.5"
+         flood-color="#000"
+         result="flood"
+         in="fbSourceGraphic" />
+      <feComposite
+         in2="fbSourceGraphic"
+         id="feComposite187"
+         in="flood"
+         operator="in"
+         result="composite1" />
+      <feGaussianBlur
+         id="feGaussianBlur189"
+         in="composite1"
+         stdDeviation="1"
+         result="blur" />
+      <feOffset
+         id="feOffset191"
+         dx="0"
+         dy="1"
+         result="offset" />
+      <feComposite
+         in2="offset"
+         id="feComposite193"
+         in="fbSourceGraphic"
+         operator="over"
+         result="composite2" />
     </filter>
   </defs>
   <sodipodi:namedview
@@ -138,15 +237,15 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="830"
+     inkscape:window-width="869"
      inkscape:window-height="480"
      id="namedview27"
      showgrid="false"
      inkscape:zoom="14.75"
-     inkscape:cx="5.6610169"
+     inkscape:cx="5.6949153"
      inkscape:cy="7.9661017"
-     inkscape:window-x="0"
-     inkscape:window-y="0"
+     inkscape:window-x="26"
+     inkscape:window-y="23"
      inkscape:window-maximized="0"
      inkscape:current-layer="svg25"
      inkscape:pagecheckerboard="0" />
@@ -158,11 +257,11 @@
      y2="100%">
     <stop
        offset="0%"
-       style="stop-color:#40a060;stop-opacity:1"
+       style="stop-color:#50c060;stop-opacity:1"
        id="stop2" />
     <stop
        offset="100%"
-       style="stop-color:#308050;stop-opacity:1"
+       style="stop-color:#107020;stop-opacity:1"
        id="stop4" />
   </linearGradient>
   <linearGradient
@@ -190,7 +289,7 @@
     }
   </style>
   <path
-     d="M4 0 12 0Q16 0 16 4L16 12Q16 16 12 16L4 16Q0 16 0 12L0 4Q0 0 4 0"
+     d="M0 0 16 0 16 16 0 16 0 0"
      class="ac-color"
      id="path19" />
   <path
