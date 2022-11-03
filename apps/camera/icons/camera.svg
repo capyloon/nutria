@@ -231,7 +231,7 @@
        id="stop2" />
     <stop
        offset="100%"
-       style="stop-color:#858585;stop-opacity:1"
+       style="stop-color:#404448;stop-opacity:1"
        id="stop4" />
   </linearGradient>
   <linearGradient
