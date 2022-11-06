@@ -97,14 +97,8 @@ const customRunner = {
   homescreenLauncher: () => {
     return async () => {
       timingFromStart("wm.openFrame for homescreen");
-      window.wm.openFrame(
-        `${await homescreenManager.url()}#${
-          embedder.isGonk() ? "device" : "desktop"
-        }`,
-        {
-          isHomescreen: true,
-        }
-      );
+      let url = await homescreenManager.url();
+      window.wm.openFrame(url, { isHomescreen: true });
       return Promise.resolve();
     };
   },
