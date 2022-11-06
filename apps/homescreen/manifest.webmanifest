@@ -1,6 +1,6 @@
 {
   "name": "Homescreen",
-  "description": "Capyloon Homescreen",
+  "description": "Capyloon Default Homescreen",
   "orientation": "default",
   "start_url": "/index.html",
   "b2g_features": {

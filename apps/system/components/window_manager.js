@@ -618,6 +618,15 @@ class WindowManager extends HTMLElement {
     }
   }
 
+  // Load a new homescreen url.
+  switchHome(url) {
+    if (!this.homescreenId) {
+      return;
+    }
+
+    this.frames[this.homescreenId].navigateTo("home", { url });
+  }
+
   openCaptivePortal() {
     this.openFrame("http://example.com", {
       activate: true,

@@ -60,12 +60,45 @@ function daemonReady() {
   });
 }
 
+class HomescreenManager {
+  constructor() {
+    this.homescreenUrl = null;
+  }
+
+  async url() {
+    if (!this.homescreenUrl) {
+      await this.init();
+    }
+
+    return this.homescreenUrl;
+  }
+
+  async init() {
+    let settings = await apiDaemon.getSettings();
+    try {
+      let result = await settings.get("homescreen.manifestUrl");
+      // TODO: don't hardcode index.html as the starting url.
+      let url = new URL(result.value);
+      this.homescreenUrl = `${url.origin}/index.html`;
+    } catch (e) {}
+
+    settings.addObserver("homescreen.manifestUrl", async (setting) => {
+      let url = new URL(setting.value);
+      this.homescreenUrl = `${url.origin}/index.html`;
+      // Load the new homescreen
+      window.wm.switchHome(this.homescreenUrl);
+    });
+  }
+}
+
+const homescreenManager = new HomescreenManager();
+
 const customRunner = {
   homescreenLauncher: () => {
-    return () => {
+    return async () => {
       timingFromStart("wm.openFrame for homescreen");
       window.wm.openFrame(
-        `http://homescreen.localhost:${config.port}/index.html#${
+        `${await homescreenManager.url()}#${
           embedder.isGonk() ? "device" : "desktop"
         }`,
         {

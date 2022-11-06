@@ -24,7 +24,8 @@
       "mobileconnection": {},
       "mobilenetwork": {},
       "sms": {},
-      "telephony": {}
+      "telephony": {},
+      "webapps-manage": {}
     }
   },
   "version": "1.0"

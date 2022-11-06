@@ -43,6 +43,7 @@ privacy-tp-enabled = Enable Tracking Protection
 # Display preferences panel
 display-title = Display Preferences
 display-prefer-dark = Use Dark Mode
+display-choose-homescreen = Choose Your Homescreen
 
 # Search engines panel
 search-title = Search Engines
