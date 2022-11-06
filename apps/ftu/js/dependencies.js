@@ -114,7 +114,7 @@ const kDeps = [
   { name: "identity-module", kind: "module", param: "js/identity_panel.js" },
   {
     name: "switch-setting",
-    kind: "module",
+    kind: "sharedModule",
     param: ["js/switch_setting.js", "SwitchAndSetting"],
   },
   { name: "dummy", kind: "virtual", deps: ["shoelace-drawer"] },

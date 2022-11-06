@@ -171,7 +171,7 @@ const kDeps = [
   },
   {
     name: "switch-setting",
-    kind: "module",
+    kind: "sharedModule",
     param: ["js/switch_setting.js", "SwitchAndSetting"],
   },
   { name: "dummy", kind: "virtual", deps: ["shoelace-drawer"] },
