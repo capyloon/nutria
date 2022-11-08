@@ -1,20 +1,20 @@
 [
   {
-    "id": "default-1",
-    "kind": "bookmark",
-    "title": "Apps",
-    "url": "https://appsco.pe/",
-    "icon": "./resources/appscope.png",
-    "backgroundColor": "white",
-    "position": "0, 0"
-  },
-  {
     "id": "default-2",
     "kind": "bookmark",
     "title": "Wikipedia",
     "url": "https://en.wikipedia.org",
     "icon": "./resources/wikipedia.png",
     "backgroundColor": "rgb(234, 236, 240)",
+    "position": "0, 0"
+  },
+  {
+    "id": "default-1",
+    "kind": "bookmark",
+    "title": "Mastodon",
+    "url": "https://pinafore.social/",
+    "icon": "./resources/pinafore.png",
+    "backgroundColor": "#5263af",
     "position": "0, 1"
   },
   {
