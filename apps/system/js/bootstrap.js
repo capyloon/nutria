@@ -77,8 +77,9 @@ class HomescreenManager {
     let settings = await apiDaemon.getSettings();
     try {
       let result = await settings.get("homescreen.manifestUrl");
+      let port = window.config.isDevice ? "" : ":8081";
+      let url = new URL(result.value.replace("$PORT", port));
       // TODO: don't hardcode index.html as the starting url.
-      let url = new URL(result.value);
       this.homescreenUrl = `${url.origin}/index.html`;
     } catch (e) {}
 
