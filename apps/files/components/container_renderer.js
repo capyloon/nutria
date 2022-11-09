@@ -161,6 +161,7 @@ export class ContainerRenderer extends LitElement {
     if (kind == "container") {
       this.id = id;
       this.dispatchEvent(new CustomEvent("update-path", { detail: id }));
+      history.pushState({ id, container: true }, "");
       this.getItems();
     } else {
       this.dispatchEvent(new CustomEvent("switch-to-leaf", { detail: { id } }));
@@ -215,7 +216,9 @@ export class ContainerRenderer extends LitElement {
       <div class="flex-fill"></div>
       <footer>
         <div @click="${this.switchMode}">
-          <sl-icon-button name="${this.iconLayout ? "list" : "layout-grid"}"></sl-icon-button>
+          <sl-icon-button
+            name="${this.iconLayout ? "list" : "layout-grid"}"
+          ></sl-icon-button>
         </div>
         ${optionalDelete}
         <div @click="${this.closeApp}">

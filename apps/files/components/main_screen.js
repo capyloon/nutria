@@ -9,6 +9,10 @@ class MainScreen extends LitElement {
     this.editMode = false;
     this.isContainer = false;
     this.isPublishedOnIpfs = false;
+
+    addEventListener("popstate", (event) => {
+      this.switchTo(event.state, true);
+    });
   }
 
   log(msg) {
@@ -59,7 +63,9 @@ class MainScreen extends LitElement {
     let svc = await contentManager.getService();
 
     let root = await svc.getRoot();
-    await this.switchTo({ container: true, id: root.id });
+    let data = { container: true, id: root.id };
+    history.replaceState(data, "");
+    await this.switchTo(data, true);
   }
 
   // Returns the mime type of the default variant for this id.
@@ -69,9 +75,13 @@ class MainScreen extends LitElement {
     return meta.variants.find((variant) => variant.name == "default")?.mimeType;
   }
 
-  async switchTo(data) {
+  async switchTo(data, fromPopState = false) {
     if (!data) {
       return;
+    }
+
+    if (!fromPopState) {
+      history.pushState(data, "");
     }
 
     this.data = data;

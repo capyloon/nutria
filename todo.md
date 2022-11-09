@@ -11,16 +11,13 @@ UCAN improvements:
 P1:
 - "share" activity
 - CI: docker images for daily builds
-- CI: better integration avec Estuary
+- CI: better integration avec Estuary/web3.storage
 - Better generic VFS api.
 - cross device experience
-- coastaeres encryption
-- replace some activities by cross app router
+- replace some activities by cross app router (system: launch | homescreen: toggle-app-list, new-tab)
 - permission prompts: tab modals + permissions in page-info
 - activity chooser UI: screen modal
 - revamp website (eg. similar to https://regolith-linux.org/)
-- files app: fix history support
-- webamp as a media player (https://github.com/captbaritone/webamp)
 - be in good standing in https://github.com/arthuredelstein/privacytests.org
 
 P2:
@@ -57,9 +54,7 @@ libp2p discovery
 
 Next Release items
 ==================
-- QR Code support
-- Settings rewrite
-- ipfsd integration
+- Homescreen Switcher
 
 Release Check List
 ==================
@@ -67,3 +62,4 @@ Release Check List
 2. Publish sargo and gsi images.
 3. Publish desktop, pinephone and librem5 debs.
 4. Update /releases.html and /releases.xml
+5. tweet and toot

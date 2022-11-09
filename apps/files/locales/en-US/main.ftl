@@ -1,5 +1,5 @@
 # Main page
-page-title = Content Manager
+page-title = Files
 
 # <main-screen>
 # The label of the root resource in a breadcrumb display.

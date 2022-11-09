@@ -85,7 +85,8 @@ navigator.serviceWorker.onmessage = async (event) => {
   await contentManager.as_superuser();
 
   if (activity.name === "view-resource") {
-    document.querySelector("main-screen").switchTo(activity.data);
+    history.replaceState(activity.data, "");
+    document.querySelector("main-screen").switchTo(activity.data, true);
   } else if (activity.name === "install-wasm-plugin") {
     // TODO: run in the service worker instead.
     try {
