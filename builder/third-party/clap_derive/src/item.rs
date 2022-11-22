@@ -17,15 +17,12 @@ use std::env;
 use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
 use proc_macro2::{self, Span, TokenStream};
 use proc_macro_error::abort;
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::DeriveInput;
-use syn::{
-    self, ext::IdentExt, spanned::Spanned, Attribute, Field, Ident, LitStr, MetaNameValue, Type,
-    Variant,
-};
+use syn::{self, ext::IdentExt, spanned::Spanned, Attribute, Field, Ident, LitStr, Type, Variant};
 
 use crate::attr::*;
-use crate::utils::{inner_type, is_simple_ty, process_doc_comment, Sp, Ty};
+use crate::utils::{extract_doc_comment, format_doc_comment, inner_type, is_simple_ty, Sp, Ty};
 
 /// Default casing style for generated arguments.
 pub const DEFAULT_CASING: CasingStyle = CasingStyle::Kebab;
@@ -46,10 +43,12 @@ pub struct Item {
     value_parser: Option<ValueParser>,
     action: Option<Action>,
     verbatim_doc_comment: bool,
+    force_long_help: bool,
     next_display_order: Option<Method>,
     next_help_heading: Option<Method>,
     is_enum: bool,
     is_positional: bool,
+    skip_group: bool,
     kind: Sp<Kind>,
 }
 
@@ -66,7 +65,7 @@ impl Item {
         let parsed_attrs = ClapAttr::parse_all(attrs);
         res.infer_kind(&parsed_attrs);
         res.push_attrs(&parsed_attrs);
-        res.push_doc_comment(attrs, "about", true);
+        res.push_doc_comment(attrs, "about", Some("long_about"));
 
         res
     }
@@ -83,7 +82,7 @@ impl Item {
         let parsed_attrs = ClapAttr::parse_all(attrs);
         res.infer_kind(&parsed_attrs);
         res.push_attrs(&parsed_attrs);
-        res.push_doc_comment(attrs, "about", true);
+        res.push_doc_comment(attrs, "about", Some("long_about"));
 
         res
     }
@@ -142,12 +141,12 @@ impl Item {
         let parsed_attrs = ClapAttr::parse_all(&variant.attrs);
         res.infer_kind(&parsed_attrs);
         res.push_attrs(&parsed_attrs);
-        if matches!(&*res.kind, Kind::Command(_)) {
-            res.push_doc_comment(&variant.attrs, "about", true);
+        if matches!(&*res.kind, Kind::Command(_) | Kind::Subcommand(_)) {
+            res.push_doc_comment(&variant.attrs, "about", Some("long_about"));
         }
 
         match &*res.kind {
-            Kind::Flatten => {
+            Kind::Flatten(_) => {
                 if res.has_explicit_methods() {
                     abort!(
                         res.kind.span(),
@@ -188,7 +187,7 @@ impl Item {
         res.infer_kind(&parsed_attrs);
         res.push_attrs(&parsed_attrs);
         if matches!(&*res.kind, Kind::Value) {
-            res.push_doc_comment(&variant.attrs, "help", false);
+            res.push_doc_comment(&variant.attrs, "help", None);
         }
 
         res
@@ -216,11 +215,11 @@ impl Item {
         res.infer_kind(&parsed_attrs);
         res.push_attrs(&parsed_attrs);
         if matches!(&*res.kind, Kind::Arg(_)) {
-            res.push_doc_comment(&field.attrs, "help", true);
+            res.push_doc_comment(&field.attrs, "help", Some("long_help"));
         }
 
         match &*res.kind {
-            Kind::Flatten => {
+            Kind::Flatten(_) => {
                 if res.has_explicit_methods() {
                     abort!(
                         res.kind.span(),
@@ -268,10 +267,12 @@ impl Item {
             value_parser: None,
             action: None,
             verbatim_doc_comment: false,
+            force_long_help: false,
             next_display_order: None,
             next_help_heading: None,
             is_enum: false,
             is_positional: true,
+            skip_group: false,
             kind,
         }
     }
@@ -291,7 +292,7 @@ impl Item {
                         ),
                     });
                 }
-                AttrKind::Arg | AttrKind::Clap | AttrKind::StructOpt => {}
+                AttrKind::Group | AttrKind::Arg | AttrKind::Clap | AttrKind::StructOpt => {}
             }
             self.name = Name::Assigned(quote!(#arg));
         } else if name == "name" {
@@ -309,7 +310,11 @@ impl Item {
                         ),
                     });
                 }
-                AttrKind::Command | AttrKind::Value | AttrKind::Clap | AttrKind::StructOpt => {}
+                AttrKind::Group
+                | AttrKind::Command
+                | AttrKind::Value
+                | AttrKind::Clap
+                | AttrKind::StructOpt => {}
             }
             self.name = Name::Assigned(quote!(#arg));
         } else if name == "value_parser" {
@@ -330,6 +335,7 @@ impl Item {
                 continue;
             }
 
+            let actual_attr_kind = *attr.kind.get();
             let kind = match &attr.magic {
                 Some(MagicAttrName::FromGlobal) => {
                     if attr.value.is_some() {
@@ -370,10 +376,15 @@ impl Item {
                         let expr = attr.value_or_abort();
                         abort!(expr, "attribute `{}` does not accept a value", attr.name);
                     }
-                    let kind = Sp::new(Kind::Flatten, attr.name.clone().span());
+                    let ty = self
+                        .kind()
+                        .ty()
+                        .cloned()
+                        .unwrap_or_else(|| Sp::new(Ty::Other, self.kind.span()));
+                    let kind = Sp::new(Kind::Flatten(ty), attr.name.clone().span());
                     Some(kind)
                 }
-                Some(MagicAttrName::Skip) => {
+                Some(MagicAttrName::Skip) if actual_attr_kind != AttrKind::Group => {
                     let expr = attr.value.clone();
                     let kind = Sp::new(
                         Kind::Skip(expr, self.kind.attr_kind()),
@@ -403,6 +414,8 @@ impl Item {
                         attr.kind.span(),
                     ));
                 }
+
+                (AttrKind::Group, AttrKind::Command) => {}
 
                 _ if attr.kind != expected_attr_kind => {
                     abort!(
@@ -491,6 +504,18 @@ impl Item {
                     {
                         self.methods.push(method);
                     }
+                }
+
+                Some(MagicAttrName::LongAbout) if attr.value.is_none() => {
+                    assert_attr_kind(attr, &[AttrKind::Command]);
+
+                    self.force_long_help = true;
+                }
+
+                Some(MagicAttrName::LongHelp) if attr.value.is_none() => {
+                    assert_attr_kind(attr, &[AttrKind::Arg]);
+
+                    self.force_long_help = true;
                 }
 
                 Some(MagicAttrName::Author) if attr.value.is_none() => {
@@ -799,12 +824,18 @@ impl Item {
                     self.env_casing = CasingStyle::from_lit(lit);
                 }
 
+                Some(MagicAttrName::Skip) if actual_attr_kind == AttrKind::Group => {
+                    self.skip_group = true;
+                }
+
                 None
                 // Magic only for the default, otherwise just forward to the builder
                 | Some(MagicAttrName::Short)
                 | Some(MagicAttrName::Long)
                 | Some(MagicAttrName::Env)
                 | Some(MagicAttrName::About)
+                | Some(MagicAttrName::LongAbout)
+                | Some(MagicAttrName::LongHelp)
                 | Some(MagicAttrName::Author)
                 | Some(MagicAttrName::Version)
                  => {
@@ -854,28 +885,30 @@ impl Item {
         }
     }
 
-    fn push_doc_comment(&mut self, attrs: &[Attribute], name: &str, supports_long_help: bool) {
-        use syn::Lit::*;
-        use syn::Meta::*;
+    fn push_doc_comment(&mut self, attrs: &[Attribute], short_name: &str, long_name: Option<&str>) {
+        let lines = extract_doc_comment(attrs);
 
-        let comment_parts: Vec<_> = attrs
-            .iter()
-            .filter(|attr| attr.path.is_ident("doc"))
-            .filter_map(|attr| {
-                if let Ok(NameValue(MetaNameValue { lit: Str(s), .. })) = attr.parse_meta() {
-                    Some(s.value())
-                } else {
-                    // non #[doc = "..."] attributes are not our concern
-                    // we leave them for rustc to handle
-                    None
-                }
-            })
-            .collect();
-
-        let (short, long) = process_doc_comment(comment_parts, name, !self.verbatim_doc_comment);
-        self.doc_comment.extend(short);
-        if supports_long_help {
-            self.doc_comment.extend(long);
+        if !lines.is_empty() {
+            let (short_help, long_help) =
+                format_doc_comment(&lines, !self.verbatim_doc_comment, self.force_long_help);
+            let short_name = format_ident!("{}", short_name);
+            let short = Method::new(
+                short_name,
+                short_help
+                    .map(|h| quote!(#h))
+                    .unwrap_or_else(|| quote!(None)),
+            );
+            self.doc_comment.push(short);
+            if let Some(long_name) = long_name {
+                let long_name = format_ident!("{}", long_name);
+                let long = Method::new(
+                    long_name,
+                    long_help
+                        .map(|h| quote!(#h))
+                        .unwrap_or_else(|| quote!(None)),
+                );
+                self.doc_comment.push(long);
+            }
         }
     }
 
@@ -883,10 +916,10 @@ impl Item {
         match (self.kind.get(), kind.get()) {
             (Kind::Arg(_), Kind::FromGlobal(_))
             | (Kind::Arg(_), Kind::Subcommand(_))
-            | (Kind::Arg(_), Kind::Flatten)
+            | (Kind::Arg(_), Kind::Flatten(_))
             | (Kind::Arg(_), Kind::Skip(_, _))
             | (Kind::Command(_), Kind::Subcommand(_))
-            | (Kind::Command(_), Kind::Flatten)
+            | (Kind::Command(_), Kind::Flatten(_))
             | (Kind::Command(_), Kind::Skip(_, _))
             | (Kind::Command(_), Kind::ExternalSubcommand)
             | (Kind::Value, Kind::Skip(_, _)) => {
@@ -1025,6 +1058,10 @@ impl Item {
             .iter()
             .any(|m| m.name != "help" && m.name != "long_help")
     }
+
+    pub fn skip_group(&self) -> bool {
+        self.skip_group
+    }
 }
 
 #[derive(Clone)]
@@ -1119,7 +1156,7 @@ pub enum Kind {
     Value,
     FromGlobal(Sp<Ty>),
     Subcommand(Sp<Ty>),
-    Flatten,
+    Flatten(Sp<Ty>),
     Skip(Option<AttrValue>, AttrKind),
     ExternalSubcommand,
 }
@@ -1132,7 +1169,7 @@ impl Kind {
             Self::Value => "value",
             Self::FromGlobal(_) => "from_global",
             Self::Subcommand(_) => "subcommand",
-            Self::Flatten => "flatten",
+            Self::Flatten(_) => "flatten",
             Self::Skip(_, _) => "skip",
             Self::ExternalSubcommand => "external_subcommand",
         }
@@ -1145,7 +1182,7 @@ impl Kind {
             Self::Value => AttrKind::Value,
             Self::FromGlobal(_) => AttrKind::Arg,
             Self::Subcommand(_) => AttrKind::Command,
-            Self::Flatten => AttrKind::Command,
+            Self::Flatten(_) => AttrKind::Command,
             Self::Skip(_, kind) => *kind,
             Self::ExternalSubcommand => AttrKind::Command,
         }
@@ -1153,10 +1190,12 @@ impl Kind {
 
     pub fn ty(&self) -> Option<&Sp<Ty>> {
         match self {
-            Self::Arg(ty) | Self::Command(ty) | Self::FromGlobal(ty) | Self::Subcommand(ty) => {
-                Some(ty)
-            }
-            Self::Value | Self::Flatten | Self::Skip(_, _) | Self::ExternalSubcommand => None,
+            Self::Arg(ty)
+            | Self::Command(ty)
+            | Self::Flatten(ty)
+            | Self::FromGlobal(ty)
+            | Self::Subcommand(ty) => Some(ty),
+            Self::Value | Self::Skip(_, _) | Self::ExternalSubcommand => None,
         }
     }
 }

@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.60.0"
 name = "clap"
-version = "4.0.2"
+version = "4.0.26"
 include = [
     "build.rs",
     "src/**/*",
@@ -367,7 +367,7 @@ optional = true
 version = "1.2"
 
 [dependencies.clap_derive]
-version = "=4.0.1"
+version = "=4.0.21"
 optional = true
 
 [dependencies.clap_lex]
@@ -407,16 +407,16 @@ version = "1"
 version = "1.1.0"
 
 [dev-dependencies.snapbox]
-version = "0.3"
+version = "0.4"
 
 [dev-dependencies.static_assertions]
 version = "1.1.0"
 
 [dev-dependencies.trybuild]
-version = "1.0.18"
+version = "1.0.71"
 
 [dev-dependencies.trycmd]
-version = "0.13"
+version = "0.14.3"
 features = [
     "color-auto",
     "diff",
@@ -434,7 +434,7 @@ color = [
     "dep:termcolor",
 ]
 debug = [
-    "clap_derive/debug",
+    "clap_derive?/debug",
     "dep:backtrace",
 ]
 default = [
@@ -447,7 +447,7 @@ default = [
 ]
 deprecated = ["clap_derive?/deprecated"]
 derive = [
-    "clap_derive",
+    "dep:clap_derive",
     "dep:once_cell",
 ]
 env = []

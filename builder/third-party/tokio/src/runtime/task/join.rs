@@ -10,8 +10,10 @@ use std::task::{Context, Poll, Waker};
 cfg_rt! {
     /// An owned permission to join on a task (await its termination).
     ///
-    /// This can be thought of as the equivalent of [`std::thread::JoinHandle`] for
-    /// a task rather than a thread.
+    /// This can be thought of as the equivalent of [`std::thread::JoinHandle`]
+    /// for a Tokio task rather than a thread. You do not need to `.await` the
+    /// `JoinHandle` to make the task execute — it will start running in the
+    /// background immediately.
     ///
     /// A `JoinHandle` *detaches* the associated task when it is dropped, which
     /// means that there is no longer any handle to the task, and no way to `join`
@@ -265,7 +267,7 @@ impl<T> JoinHandle<T> {
             raw.ref_inc();
             raw
         });
-        super::AbortHandle::new(raw, self.id.clone())
+        super::AbortHandle::new(raw, self.id)
     }
 
     /// Returns a [task ID] that uniquely identifies this task relative to other
@@ -280,7 +282,7 @@ impl<T> JoinHandle<T> {
     #[cfg(tokio_unstable)]
     #[cfg_attr(docsrs, doc(cfg(tokio_unstable)))]
     pub fn id(&self) -> super::Id {
-        self.id.clone()
+        self.id
     }
 }
 
@@ -293,7 +295,7 @@ impl<T> Future for JoinHandle<T> {
         let mut ret = Poll::Pending;
 
         // Keep track of task budget
-        let coop = ready!(crate::coop::poll_proceed(cx));
+        let coop = ready!(crate::runtime::coop::poll_proceed(cx));
 
         // Raw should always be set. If it is not, this is due to polling after
         // completion

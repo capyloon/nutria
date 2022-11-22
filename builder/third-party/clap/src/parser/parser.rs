@@ -20,7 +20,7 @@ use crate::parser::{ArgMatcher, SubCommand};
 use crate::parser::{Validator, ValueSource};
 use crate::util::Id;
 use crate::ArgAction;
-use crate::{INTERNAL_ERROR_MSG, INVALID_UTF8};
+use crate::INTERNAL_ERROR_MSG;
 
 pub(crate) struct Parser<'cmd> {
     cmd: &'cmd mut Command,
@@ -171,11 +171,14 @@ impl<'cmd> Parser<'cmd> {
                         }
                         ParseResult::NoMatchingArg { arg } => {
                             let _ = self.resolve_pending(matcher);
-                            let remaining_args: Vec<_> = raw_args
-                                .remaining(&mut args_cursor)
-                                .map(|x| x.to_str().expect(INVALID_UTF8))
-                                .collect();
-                            return Err(self.did_you_mean_error(&arg, matcher, &remaining_args));
+                            let remaining_args: Vec<_> =
+                                raw_args.remaining(&mut args_cursor).collect();
+                            return Err(self.did_you_mean_error(
+                                &arg,
+                                matcher,
+                                &remaining_args,
+                                trailing_values,
+                            ));
                         }
                         ParseResult::UnneededAttachedValue { rest, used, arg } => {
                             let _ = self.resolve_pending(matcher);
@@ -257,10 +260,14 @@ impl<'cmd> Parser<'cmd> {
                         }
                         ParseResult::NoMatchingArg { arg } => {
                             let _ = self.resolve_pending(matcher);
+                            // We already know it looks like a flag
+                            let suggested_trailing_arg =
+                                !trailing_values && self.cmd.has_positionals();
                             return Err(ClapError::unknown_argument(
                                 self.cmd,
                                 arg,
                                 None,
+                                suggested_trailing_arg,
                                 Usage::new(self.cmd).create_usage_with_title(&[]),
                             ));
                         }
@@ -286,7 +293,7 @@ impl<'cmd> Parser<'cmd> {
                         let arg_values = matcher.pending_values_mut(id, None, trailing_values);
                         arg_values.push(arg_os.to_value_os().to_os_str().into_owned());
                         if matcher.needs_more_vals(arg) {
-                            ParseResult::Opt(arg.id.clone())
+                            ParseResult::Opt(arg.get_id().clone())
                         } else {
                             ParseResult::ValuesDone
                         }
@@ -308,10 +315,9 @@ impl<'cmd> Parser<'cmd> {
                 // The last positional argument, or second to last positional
                 // argument may be set to .multiple_values(true) or `.multiple_occurrences(true)`
                 let low_index_mults = is_second_to_last
-                    && self
-                        .cmd
-                        .get_positionals()
-                        .any(|a| a.is_multiple() && (positional_count != a.index.unwrap_or(0)))
+                    && self.cmd.get_positionals().any(|a| {
+                        a.is_multiple() && (positional_count != a.get_index().unwrap_or(0))
+                    })
                     && self
                         .cmd
                         .get_positionals()
@@ -336,7 +342,7 @@ impl<'cmd> Parser<'cmd> {
                         if let Some(arg) = self
                             .cmd
                             .get_positionals()
-                            .find(|a| a.index == Some(pos_counter))
+                            .find(|a| a.get_index() == Some(pos_counter))
                         {
                             // If next value looks like a new_arg or it's a
                             // subcommand, skip positional argument under current
@@ -375,10 +381,14 @@ impl<'cmd> Parser<'cmd> {
             if let Some(arg) = self.cmd.get_keymap().get(&pos_counter) {
                 if arg.is_last_set() && !trailing_values {
                     let _ = self.resolve_pending(matcher);
+                    // Its already considered a positional, we don't need to suggest turning it
+                    // into one
+                    let suggested_trailing_arg = false;
                     return Err(ClapError::unknown_argument(
                         self.cmd,
                         arg_os.display().to_string(),
                         None,
+                        suggested_trailing_arg,
                         Usage::new(self.cmd).create_usage_with_title(&[]),
                     ));
                 }
@@ -387,7 +397,7 @@ impl<'cmd> Parser<'cmd> {
                     trailing_values = true;
                 }
 
-                if matcher.pending_arg_id() != Some(&arg.id) || !arg.is_multiple_values_set() {
+                if matcher.pending_arg_id() != Some(arg.get_id()) || !arg.is_multiple_values_set() {
                     ok!(self.resolve_pending(matcher));
                 }
                 if let Some(_parse_result) = self.check_terminator(arg, arg_os.to_value_os()) {
@@ -397,7 +407,7 @@ impl<'cmd> Parser<'cmd> {
                     );
                 } else {
                     let arg_values = matcher.pending_values_mut(
-                        &arg.id,
+                        arg.get_id(),
                         Some(Identifier::Index),
                         trailing_values,
                     );
@@ -409,7 +419,7 @@ impl<'cmd> Parser<'cmd> {
                     pos_counter += 1;
                     parse_state = ParseState::ValuesDone;
                 } else {
-                    parse_state = ParseState::Pos(arg.id.clone());
+                    parse_state = ParseState::Pos(arg.get_id().clone());
                 }
                 valid_arg_found = true;
             } else if let Some(external_parser) =
@@ -498,14 +508,10 @@ impl<'cmd> Parser<'cmd> {
         );
         // If the argument looks like a subcommand.
         if !candidates.is_empty() {
-            let candidates: Vec<_> = candidates
-                .iter()
-                .map(|candidate| format!("'{}'", candidate))
-                .collect();
             return ClapError::invalid_subcommand(
                 self.cmd,
                 arg_os.display().to_string(),
-                candidates.join(" or "),
+                candidates,
                 self.cmd
                     .get_bin_name()
                     .unwrap_or_else(|| self.cmd.get_name())
@@ -525,10 +531,14 @@ impl<'cmd> Parser<'cmd> {
             );
         }
 
+        let suggested_trailing_arg = !trailing_values
+            && self.cmd.has_positionals()
+            && (arg_os.is_long() || arg_os.is_short());
         ClapError::unknown_argument(
             self.cmd,
             arg_os.display().to_string(),
             None,
+            suggested_trailing_arg,
             Usage::new(self.cmd).create_usage_with_title(&[]),
         )
     }
@@ -637,8 +647,8 @@ impl<'cmd> Parser<'cmd> {
             current_positional.get_id()
         );
 
-        if self.cmd[&current_positional.id].is_allow_hyphen_values_set()
-            || (self.cmd[&current_positional.id].is_allow_negative_numbers_set()
+        if self.cmd[current_positional.get_id()].is_allow_hyphen_values_set()
+            || (self.cmd[current_positional.get_id()].is_allow_negative_numbers_set()
                 && next.is_number())
         {
             // If allow hyphen, this isn't a new arg.
@@ -784,9 +794,9 @@ impl<'cmd> Parser<'cmd> {
                         matcher.check_explicit(arg_id, &crate::builder::ArgPredicate::IsPresent)
                     })
                     .filter(|&n| {
-                        self.cmd
-                            .find(n)
-                            .map_or(true, |a| !(a.is_hide_set() || required.contains(&a.id)))
+                        self.cmd.find(n).map_or(true, |a| {
+                            !(a.is_hide_set() || required.contains(a.get_id()))
+                        })
                     })
                     .cloned()
                     .collect();
@@ -1038,8 +1048,8 @@ impl<'cmd> Parser<'cmd> {
             debug!("Parser::parse_opt_value: More arg vals required...");
             ok!(self.resolve_pending(matcher));
             let trailing_values = false;
-            matcher.pending_values_mut(&arg.id, Some(ident), trailing_values);
-            Ok(ParseResult::Opt(arg.id.clone()))
+            matcher.pending_values_mut(arg.get_id(), Some(ident), trailing_values);
+            Ok(ParseResult::Opt(arg.get_id().clone()))
         }
     }
 
@@ -1075,17 +1085,8 @@ impl<'cmd> Parser<'cmd> {
             let value_parser = arg.get_value_parser();
             let val = ok!(value_parser.parse_ref(self.cmd, Some(arg), &raw_val));
 
-            matcher.add_val_to(&arg.id, val, raw_val);
-            matcher.add_index_to(&arg.id, self.cur_idx.get());
-        }
-
-        // Increment or create the group "args"
-        for group in self.cmd.groups_for_arg(&arg.id) {
-            matcher.add_val_to(
-                &group,
-                AnyValue::new(arg.get_id().clone()),
-                OsString::from(arg.get_id().as_str()),
-            );
+            matcher.add_val_to(arg.get_id(), val, raw_val);
+            matcher.add_index_to(arg.get_id(), self.cur_idx.get());
         }
 
         Ok(())
@@ -1180,7 +1181,7 @@ impl<'cmd> Parser<'cmd> {
                     self.cur_idx.set(self.cur_idx.get() + 1);
                     debug!("Parser::react: cur_idx:={}", self.cur_idx.get());
                 }
-                if matcher.remove(&arg.id)
+                if matcher.remove(arg.get_id())
                     && !(self.cmd.is_args_override_self() || arg.overrides.contains(arg.get_id()))
                 {
                     return Err(ClapError::argument_conflict(
@@ -1223,7 +1224,7 @@ impl<'cmd> Parser<'cmd> {
                     raw_vals
                 };
 
-                if matcher.remove(&arg.id)
+                if matcher.remove(arg.get_id())
                     && !(self.cmd.is_args_override_self() || arg.overrides.contains(arg.get_id()))
                 {
                     return Err(ClapError::argument_conflict(
@@ -1244,7 +1245,7 @@ impl<'cmd> Parser<'cmd> {
                     raw_vals
                 };
 
-                if matcher.remove(&arg.id)
+                if matcher.remove(arg.get_id())
                     && !(self.cmd.is_args_override_self() || arg.overrides.contains(arg.get_id()))
                 {
                     return Err(ClapError::argument_conflict(
@@ -1269,13 +1270,12 @@ impl<'cmd> Parser<'cmd> {
                     raw_vals
                 };
 
-                matcher.remove(&arg.id);
+                matcher.remove(arg.get_id());
                 self.start_custom_arg(matcher, arg, source);
                 ok!(self.push_arg_values(arg, raw_vals, matcher));
                 Ok(ParseResult::ValuesDone)
             }
             ArgAction::Help => {
-                debug_assert_eq!(raw_vals, Vec::<OsString>::new());
                 let use_long = match ident {
                     Some(Identifier::Long) => true,
                     Some(Identifier::Short) => false,
@@ -1286,7 +1286,6 @@ impl<'cmd> Parser<'cmd> {
                 Err(self.help_err(use_long))
             }
             ArgAction::Version => {
-                debug_assert_eq!(raw_vals, Vec::<OsString>::new());
                 let use_long = match ident {
                     Some(Identifier::Long) => true,
                     Some(Identifier::Short) => false,
@@ -1366,8 +1365,8 @@ impl<'cmd> Parser<'cmd> {
         let mut transitive = Vec::new();
         for arg_id in matcher.arg_ids() {
             if let Some(overrider) = self.cmd.find(arg_id) {
-                if overrider.overrides.contains(&arg.id) {
-                    transitive.push(&overrider.id);
+                if overrider.overrides.contains(arg.get_id()) {
+                    transitive.push(overrider.get_id());
                 }
             }
         }
@@ -1422,7 +1421,7 @@ impl<'cmd> Parser<'cmd> {
     fn add_default_value(&self, arg: &Arg, matcher: &mut ArgMatcher) -> ClapResult<()> {
         if !arg.default_vals_ifs.is_empty() {
             debug!("Parser::add_default_value: has conditional defaults");
-            if !matcher.contains(&arg.id) {
+            if !matcher.contains(arg.get_id()) {
                 for (id, val, default) in arg.default_vals_ifs.iter() {
                     let add = if let Some(a) = matcher.get(id) {
                         match val {
@@ -1461,7 +1460,7 @@ impl<'cmd> Parser<'cmd> {
                 "Parser::add_default_value:iter:{}: has default vals",
                 arg.get_id()
             );
-            if matcher.contains(&arg.id) {
+            if matcher.contains(arg.get_id()) {
                 debug!("Parser::add_default_value:iter:{}: was used", arg.get_id());
             // do nothing
             } else {
@@ -1502,20 +1501,15 @@ impl<'cmd> Parser<'cmd> {
             self.remove_overrides(arg, matcher);
         }
         matcher.start_custom_arg(arg, source);
-        for group in self.cmd.groups_for_arg(&arg.id) {
-            matcher.start_custom_group(group, source);
-        }
-    }
-
-    /// Increase occurrence of specific argument and the grouped arg it's in.
-    fn start_occurrence_of_arg(&self, matcher: &mut ArgMatcher, arg: &Arg) {
-        // With each new occurrence, remove overrides from prior occurrences
-        self.remove_overrides(arg, matcher);
-
-        matcher.start_occurrence_of_arg(arg);
-        // Increment or create the group "args"
-        for group in self.cmd.groups_for_arg(&arg.id) {
-            matcher.start_occurrence_of_group(group);
+        if source.is_explicit() {
+            for group in self.cmd.groups_for_arg(arg.get_id()) {
+                matcher.start_custom_group(group.clone(), source);
+                matcher.add_val_to(
+                    &group,
+                    AnyValue::new(arg.get_id().clone()),
+                    OsString::from(arg.get_id().as_str()),
+                );
+            }
         }
     }
 }
@@ -1527,7 +1521,8 @@ impl<'cmd> Parser<'cmd> {
         &mut self,
         arg: &str,
         matcher: &mut ArgMatcher,
-        remaining_args: &[&str],
+        remaining_args: &[&OsStr],
+        trailing_values: bool,
     ) -> ClapError {
         debug!("Parser::did_you_mean_error: arg={}", arg);
         // Didn't match a flag or option
@@ -1552,7 +1547,7 @@ impl<'cmd> Parser<'cmd> {
         // Add the arg to the matches to build a proper usage string
         if let Some((name, _)) = did_you_mean.as_ref() {
             if let Some(arg) = self.cmd.get_keymap().get(&name.as_ref()) {
-                self.start_occurrence_of_arg(matcher, arg);
+                self.start_custom_arg(matcher, arg, ValueSource::CommandLine);
             }
         }
 
@@ -1566,10 +1561,16 @@ impl<'cmd> Parser<'cmd> {
             .cloned()
             .collect();
 
+        // `did_you_mean` is a lot more likely and should cause us to skip the `--` suggestion
+        //
+        // In theory, this is only called for `--long`s, so we don't need to check
+        let suggested_trailing_arg =
+            did_you_mean.is_none() && !trailing_values && self.cmd.has_positionals();
         ClapError::unknown_argument(
             self.cmd,
             format!("--{}", arg),
             did_you_mean,
+            suggested_trailing_arg,
             Usage::new(self.cmd)
                 .required(&required)
                 .create_usage_with_title(&*used),

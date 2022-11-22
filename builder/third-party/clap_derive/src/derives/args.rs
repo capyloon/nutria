@@ -90,6 +90,13 @@ pub fn gen_for_struct(
     let augmentation = gen_augment(fields, &app_var, item, false);
     let augmentation_update = gen_augment(fields, &app_var, item, true);
 
+    let group_id = if item.skip_group() {
+        quote!(None)
+    } else {
+        let group_id = item.ident().unraw().to_string();
+        quote!(Some(clap::Id::from(#group_id)))
+    };
+
     quote! {
         #[allow(dead_code, unreachable_code, unused_variables, unused_braces)]
         #[allow(
@@ -140,6 +147,9 @@ pub fn gen_for_struct(
         )]
         #[deny(clippy::correctness)]
         impl #impl_generics clap::Args for #item_name #ty_generics #where_clause {
+            fn group_id() -> Option<clap::Id> {
+                #group_id
+            }
             fn augment_args<'b>(#app_var: clap::Command) -> clap::Command {
                 #augmentation
             }
@@ -192,8 +202,12 @@ pub fn gen_augment(
                         #implicit_methods;
                 })
             }
-            Kind::Flatten => {
-                let ty = &field.ty;
+            Kind::Flatten(ty) => {
+                let inner_type = match (**ty, sub_type(&field.ty)) {
+                    (Ty::Option, Some(sub_type)) => sub_type,
+                    _ => &field.ty,
+                };
+
                 let next_help_heading = item.next_help_heading();
                 let next_display_order = item.next_display_order();
                 if override_required {
@@ -201,14 +215,14 @@ pub fn gen_augment(
                         let #app_var = #app_var
                             #next_help_heading
                             #next_display_order;
-                        let #app_var = <#ty as clap::Args>::augment_args_for_update(#app_var);
+                        let #app_var = <#inner_type as clap::Args>::augment_args_for_update(#app_var);
                     })
                 } else {
                     Some(quote_spanned! { kind.span()=>
                         let #app_var = #app_var
                             #next_help_heading
                             #next_display_order;
-                        let #app_var = <#ty as clap::Args>::augment_args(#app_var);
+                        let #app_var = <#inner_type as clap::Args>::augment_args(#app_var);
                     })
                 }
             }
@@ -218,6 +232,13 @@ pub fn gen_augment(
                 let value_name = item.value_name();
 
                 let implicit_methods = match **ty {
+                    Ty::Unit => {
+                        // Leaving out `value_parser` as it will always fail
+                        quote_spanned! { ty.span()=>
+                            .value_name(#value_name)
+                            #action
+                        }
+                    }
                     Ty::Option => {
                         quote_spanned! { ty.span()=>
                             .value_name(#value_name)
@@ -313,13 +334,57 @@ pub fn gen_augment(
         quote!()
     };
     let initial_app_methods = parent_item.initial_top_level_methods();
-    let group_id = parent_item.ident().unraw().to_string();
     let final_app_methods = parent_item.final_top_level_methods();
+    let group_app_methods = if parent_item.skip_group() {
+        quote!()
+    } else {
+        let group_id = parent_item.ident().unraw().to_string();
+        let literal_group_members = fields
+            .iter()
+            .filter_map(|(_field, item)| {
+                let kind = item.kind();
+                if matches!(*kind, Kind::Arg(_)) {
+                    Some(item.id())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        let literal_group_members_len = literal_group_members.len();
+        let mut literal_group_members = quote! {{
+            let members: [clap::Id; #literal_group_members_len] = [#( clap::Id::from(#literal_group_members) ),* ];
+            members
+        }};
+        // HACK: Validation isn't ready yet for nested arg groups, so just don't populate the group in
+        // that situation
+        let possible_group_members_len = fields
+            .iter()
+            .filter(|(_field, item)| {
+                let kind = item.kind();
+                matches!(*kind, Kind::Flatten(_))
+            })
+            .count();
+        if 0 < possible_group_members_len {
+            literal_group_members = quote! {{
+                let members: [clap::Id; 0] = [];
+                members
+            }};
+        }
+
+        quote!(
+            .group(
+                clap::ArgGroup::new(#group_id)
+                    .multiple(true)
+                    .args(#literal_group_members)
+            )
+        )
+    };
     quote! {{
         #deprecations
         let #app_var = #app_var
             #initial_app_methods
-            .group(clap::ArgGroup::new(#group_id).multiple(true));
+            #group_app_methods
+            ;
         #( #args )*
         #app_var #final_app_methods
     }}
@@ -356,7 +421,6 @@ pub fn gen_constructor(fields: &[(&Field, Item)]) -> TokenStream {
                             }
                         }
                     },
-                    Ty::Vec |
                     Ty::Other => {
                         quote_spanned! { kind.span()=>
                             #field_name: {
@@ -364,6 +428,8 @@ pub fn gen_constructor(fields: &[(&Field, Item)]) -> TokenStream {
                             }
                         }
                     },
+                    Ty::Unit |
+                    Ty::Vec |
                     Ty::OptionOption |
                     Ty::OptionVec => {
                         abort!(
@@ -375,8 +441,43 @@ pub fn gen_constructor(fields: &[(&Field, Item)]) -> TokenStream {
                 }
             }
 
-            Kind::Flatten => quote_spanned! { kind.span()=>
-                #field_name: clap::FromArgMatches::from_arg_matches_mut(#arg_matches)?
+            Kind::Flatten(ty) => {
+                let inner_type = match (**ty, sub_type(&field.ty)) {
+                    (Ty::Option, Some(sub_type)) => sub_type,
+                    _ => &field.ty,
+                };
+                match **ty {
+                    Ty::Other => {
+                        quote_spanned! { kind.span()=>
+                            #field_name: <#inner_type as clap::FromArgMatches>::from_arg_matches_mut(#arg_matches)?
+                        }
+                    },
+                    Ty::Option => {
+                        quote_spanned! { kind.span()=>
+                            #field_name: {
+                                let group_id = <#inner_type as clap::Args>::group_id()
+                                    .expect("`#[arg(flatten)]`ed field type implements `Args::group_id`");
+                                if #arg_matches.contains_id(group_id.as_str()) {
+                                    Some(
+                                        <#inner_type as clap::FromArgMatches>::from_arg_matches_mut(#arg_matches)?
+                                    )
+                                } else {
+                                    None
+                                }
+                            }
+                        }
+                    },
+                    Ty::Unit |
+                    Ty::Vec |
+                    Ty::OptionOption |
+                    Ty::OptionVec => {
+                        abort!(
+                            ty.span(),
+                            "{} types are not supported for flatten",
+                            ty.as_str()
+                        );
+                    }
+                }
             },
 
             Kind::Skip(val, _) => match val {
@@ -452,9 +553,36 @@ pub fn gen_updater(fields: &[(&Field, Item)], use_self: bool) -> TokenStream {
                 }
             }
 
-            Kind::Flatten => quote_spanned! { kind.span()=> {
-                    #access
-                    clap::FromArgMatches::update_from_arg_matches_mut(#field_name, #arg_matches)?;
+            Kind::Flatten(ty) => {
+                let inner_type = match (**ty, sub_type(&field.ty)) {
+                    (Ty::Option, Some(sub_type)) => sub_type,
+                    _ => &field.ty,
+                };
+
+                let updater = quote_spanned! { ty.span()=>
+                    <#inner_type as clap::FromArgMatches>::update_from_arg_matches_mut(#field_name, #arg_matches)?;
+                };
+
+                let updater = match **ty {
+                    Ty::Option => quote_spanned! { kind.span()=>
+                        if let Some(#field_name) = #field_name.as_mut() {
+                            #updater
+                        } else {
+                            *#field_name = Some(<#inner_type as clap::FromArgMatches>::from_arg_matches_mut(
+                                #arg_matches
+                            )?);
+                        }
+                    },
+                    _ => quote_spanned! { kind.span()=>
+                        #updater
+                    },
+                };
+
+                quote_spanned! { kind.span()=>
+                    {
+                        #access
+                        #updater
+                    }
                 }
             },
 
@@ -490,6 +618,12 @@ fn gen_parsers(
     let arg_matches = format_ident!("__clap_arg_matches");
 
     let field_value = match **ty {
+        Ty::Unit => {
+            quote_spanned! { ty.span()=>
+                ()
+            }
+        }
+
         Ty::Option => {
             quote_spanned! { ty.span()=>
                 #arg_matches.#get_one(#id)

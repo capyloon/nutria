@@ -1,7 +1,9 @@
 #![allow(
     clippy::cognitive_complexity,
     clippy::large_enum_variant,
-    clippy::needless_doctest_main
+    clippy::module_inception,
+    clippy::needless_doctest_main,
+    clippy::declare_interior_mutable_const
 )]
 #![warn(
     missing_debug_implementations,
@@ -479,7 +481,6 @@ pub mod io;
 pub mod net;
 
 mod loom;
-mod park;
 
 cfg_process! {
     pub mod process;
@@ -497,12 +498,8 @@ cfg_rt! {
     pub mod runtime;
 }
 cfg_not_rt! {
-    cfg_io_driver_impl! {
-        pub(crate) mod runtime;
-    }
+    pub(crate) mod runtime;
 }
-
-pub(crate) mod coop;
 
 cfg_signal! {
     pub mod signal;

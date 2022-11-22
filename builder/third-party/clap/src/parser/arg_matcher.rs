@@ -25,8 +25,8 @@ impl ArgMatcher {
             matches: ArgMatches {
                 #[cfg(debug_assertions)]
                 valid_args: {
-                    let args = _cmd.get_arguments().map(|a| a.id.clone());
-                    let groups = _cmd.get_groups().map(|g| g.id.clone());
+                    let args = _cmd.get_arguments().map(|a| a.get_id().clone());
+                    let groups = _cmd.get_groups().map(|g| g.get_id().clone());
                     args.chain(groups).collect()
                 },
                 #[cfg(debug_assertions)]
@@ -130,7 +130,7 @@ impl ArgMatcher {
     }
 
     pub(crate) fn start_custom_arg(&mut self, arg: &Arg, source: ValueSource) {
-        let id = arg.id.clone();
+        let id = arg.get_id().clone();
         debug!(
             "ArgMatcher::start_custom_arg: id={:?}, source={:?}",
             id, source
@@ -149,23 +149,6 @@ impl ArgMatcher {
         let ma = self.entry(id).or_insert(MatchedArg::new_group());
         debug_assert_eq!(ma.type_id(), None);
         ma.set_source(source);
-        ma.new_val_group();
-    }
-
-    pub(crate) fn start_occurrence_of_arg(&mut self, arg: &Arg) {
-        let id = arg.id.clone();
-        debug!("ArgMatcher::start_occurrence_of_arg: id={:?}", id);
-        let ma = self.entry(id).or_insert(MatchedArg::new_arg(arg));
-        debug_assert_eq!(ma.type_id(), Some(arg.get_value_parser().type_id()));
-        ma.set_source(ValueSource::CommandLine);
-        ma.new_val_group();
-    }
-
-    pub(crate) fn start_occurrence_of_group(&mut self, id: Id) {
-        debug!("ArgMatcher::start_occurrence_of_group: id={:?}", id);
-        let ma = self.entry(id).or_insert(MatchedArg::new_group());
-        debug_assert_eq!(ma.type_id(), None);
-        ma.set_source(ValueSource::CommandLine);
         ma.new_val_group();
     }
 
@@ -199,7 +182,7 @@ impl ArgMatcher {
         let num_pending = self
             .pending
             .as_ref()
-            .and_then(|p| (p.id == o.id).then(|| p.raw_vals.len()))
+            .and_then(|p| (p.id == *o.get_id()).then(|| p.raw_vals.len()))
             .unwrap_or(0);
         debug!(
             "ArgMatcher::needs_more_vals: o={}, pending={}",

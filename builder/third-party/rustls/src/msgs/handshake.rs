@@ -1,14 +1,14 @@
+#![allow(non_camel_case_types)]
+use crate::enums::{CipherSuite, ProtocolVersion, SignatureScheme};
 use crate::key;
 use crate::msgs::base::{Payload, PayloadU16, PayloadU24, PayloadU8};
 use crate::msgs::codec;
 use crate::msgs::codec::{Codec, Reader};
-use crate::msgs::enums::ECCurveType;
-use crate::msgs::enums::PSKKeyExchangeMode;
-use crate::msgs::enums::{CertificateStatusType, ClientCertificateType};
-use crate::msgs::enums::{CipherSuite, Compression, ECPointFormat, ExtensionType};
-use crate::msgs::enums::{HandshakeType, ProtocolVersion};
-use crate::msgs::enums::{HashAlgorithm, ServerNameType, SignatureAlgorithm};
-use crate::msgs::enums::{KeyUpdateRequest, NamedGroup, SignatureScheme};
+use crate::msgs::enums::{
+    CertificateStatusType, ClientCertificateType, Compression, ECCurveType, ECPointFormat,
+    ExtensionType, HandshakeType, HashAlgorithm, KeyUpdateRequest, NamedGroup, PSKKeyExchangeMode,
+    ServerNameType, SignatureAlgorithm,
+};
 use crate::rand;
 
 #[cfg(feature = "logging")]
@@ -52,7 +52,7 @@ macro_rules! declare_u16_vec(
 declare_u16_vec!(VecU16OfPayloadU8, PayloadU8);
 declare_u16_vec!(VecU16OfPayloadU16, PayloadU16);
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub struct Random(pub [u8; 32]);
 
 impl fmt::Debug for Random {
@@ -1061,10 +1061,10 @@ pub enum HelloRetryExtension {
 impl HelloRetryExtension {
     pub fn get_type(&self) -> ExtensionType {
         match *self {
-            HelloRetryExtension::KeyShare(_) => ExtensionType::KeyShare,
-            HelloRetryExtension::Cookie(_) => ExtensionType::Cookie,
-            HelloRetryExtension::SupportedVersions(_) => ExtensionType::SupportedVersions,
-            HelloRetryExtension::Unknown(ref r) => r.typ,
+            Self::KeyShare(_) => ExtensionType::KeyShare,
+            Self::Cookie(_) => ExtensionType::Cookie,
+            Self::SupportedVersions(_) => ExtensionType::SupportedVersions,
+            Self::Unknown(ref r) => r.typ,
         }
     }
 }
@@ -1075,10 +1075,10 @@ impl Codec for HelloRetryExtension {
 
         let mut sub: Vec<u8> = Vec::new();
         match *self {
-            HelloRetryExtension::KeyShare(ref r) => r.encode(&mut sub),
-            HelloRetryExtension::Cookie(ref r) => r.encode(&mut sub),
-            HelloRetryExtension::SupportedVersions(ref r) => r.encode(&mut sub),
-            HelloRetryExtension::Unknown(ref r) => r.encode(&mut sub),
+            Self::KeyShare(ref r) => r.encode(&mut sub),
+            Self::Cookie(ref r) => r.encode(&mut sub),
+            Self::SupportedVersions(ref r) => r.encode(&mut sub),
+            Self::Unknown(ref r) => r.encode(&mut sub),
         }
 
         (sub.len() as u16).encode(bytes);
@@ -1337,9 +1337,9 @@ pub enum CertificateExtension {
 impl CertificateExtension {
     pub fn get_type(&self) -> ExtensionType {
         match *self {
-            CertificateExtension::CertificateStatus(_) => ExtensionType::StatusRequest,
-            CertificateExtension::SignedCertificateTimestamp(_) => ExtensionType::SCT,
-            CertificateExtension::Unknown(ref r) => r.typ,
+            Self::CertificateStatus(_) => ExtensionType::StatusRequest,
+            Self::SignedCertificateTimestamp(_) => ExtensionType::SCT,
+            Self::Unknown(ref r) => r.typ,
         }
     }
 
@@ -1350,14 +1350,14 @@ impl CertificateExtension {
 
     pub fn get_cert_status(&self) -> Option<&Vec<u8>> {
         match *self {
-            CertificateExtension::CertificateStatus(ref cs) => Some(&cs.ocsp_response.0),
+            Self::CertificateStatus(ref cs) => Some(&cs.ocsp_response.0),
             _ => None,
         }
     }
 
     pub fn get_sct_list(&self) -> Option<&SCTList> {
         match *self {
-            CertificateExtension::SignedCertificateTimestamp(ref sctl) => Some(sctl),
+            Self::SignedCertificateTimestamp(ref sctl) => Some(sctl),
             _ => None,
         }
     }
@@ -1369,9 +1369,9 @@ impl Codec for CertificateExtension {
 
         let mut sub: Vec<u8> = Vec::new();
         match *self {
-            CertificateExtension::CertificateStatus(ref r) => r.encode(&mut sub),
-            CertificateExtension::SignedCertificateTimestamp(ref r) => r.encode(&mut sub),
-            CertificateExtension::Unknown(ref r) => r.encode(&mut sub),
+            Self::CertificateStatus(ref r) => r.encode(&mut sub),
+            Self::SignedCertificateTimestamp(ref r) => r.encode(&mut sub),
+            Self::Unknown(ref r) => r.encode(&mut sub),
         }
 
         (sub.len() as u16).encode(bytes);
@@ -1595,19 +1595,26 @@ impl Codec for ECParameters {
 #[derive(Debug, Clone)]
 pub struct DigitallySignedStruct {
     pub scheme: SignatureScheme,
+    #[deprecated(since = "0.20.7", note = "Use sig() accessor")]
     pub sig: PayloadU16,
 }
 
 impl DigitallySignedStruct {
+    #![allow(deprecated)]
     pub fn new(scheme: SignatureScheme, sig: Vec<u8>) -> Self {
         Self {
             scheme,
             sig: PayloadU16::new(sig),
         }
     }
+
+    pub fn signature(&self) -> &[u8] {
+        &self.sig.0
+    }
 }
 
 impl Codec for DigitallySignedStruct {
+    #![allow(deprecated)]
     fn encode(&self, bytes: &mut Vec<u8>) {
         self.scheme.encode(bytes);
         self.sig.encode(bytes);
@@ -1701,8 +1708,8 @@ pub enum ServerKeyExchangePayload {
 impl Codec for ServerKeyExchangePayload {
     fn encode(&self, bytes: &mut Vec<u8>) {
         match *self {
-            ServerKeyExchangePayload::ECDHE(ref x) => x.encode(bytes),
-            ServerKeyExchangePayload::Unknown(ref x) => x.encode(bytes),
+            Self::ECDHE(ref x) => x.encode(bytes),
+            Self::Unknown(ref x) => x.encode(bytes),
         }
     }
 
@@ -1715,7 +1722,7 @@ impl Codec for ServerKeyExchangePayload {
 
 impl ServerKeyExchangePayload {
     pub fn unwrap_given_kxa(&self, kxa: &KeyExchangeAlgorithm) -> Option<ECDHEServerKeyExchange> {
-        if let ServerKeyExchangePayload::Unknown(ref unk) = *self {
+        if let Self::Unknown(ref unk) = *self {
             let mut rd = Reader::init(&unk.0);
 
             let result = match *kxa {
@@ -1795,6 +1802,18 @@ impl HasServerExtensions for EncryptedExtensions {
 // -- CertificateRequest and sundries --
 declare_u8_vec!(ClientCertificateTypes, ClientCertificateType);
 pub type DistinguishedName = PayloadU16;
+/// DistinguishedNames is a `Vec<Vec<u8>>` wrapped in internal types. Each element contains the
+/// DER or BER encoded [`Subject` field from RFC 5280](https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.6)
+/// for a single certificate. The Subject field is
+/// [encoded as an RFC 5280 `Name`](https://datatracker.ietf.org/doc/html/rfc5280#page-116).
+/// It can be decoded using [x509-parser's FromDer trait](https://docs.rs/x509-parser/latest/x509_parser/traits/trait.FromDer.html).
+///
+/// ```ignore
+/// for name in distinguished_names {
+///     use x509_parser::traits::FromDer;
+///     println!("{}", x509_parser::x509::X509Name::from_der(&name.0)?.1);
+/// }
+/// ```
 pub type DistinguishedNames = VecU16OfPayloadU16;
 
 #[derive(Debug)]
@@ -1839,9 +1858,9 @@ pub enum CertReqExtension {
 impl CertReqExtension {
     pub fn get_type(&self) -> ExtensionType {
         match *self {
-            CertReqExtension::SignatureAlgorithms(_) => ExtensionType::SignatureAlgorithms,
-            CertReqExtension::AuthorityNames(_) => ExtensionType::CertificateAuthorities,
-            CertReqExtension::Unknown(ref r) => r.typ,
+            Self::SignatureAlgorithms(_) => ExtensionType::SignatureAlgorithms,
+            Self::AuthorityNames(_) => ExtensionType::CertificateAuthorities,
+            Self::Unknown(ref r) => r.typ,
         }
     }
 }
@@ -1852,9 +1871,9 @@ impl Codec for CertReqExtension {
 
         let mut sub: Vec<u8> = Vec::new();
         match *self {
-            CertReqExtension::SignatureAlgorithms(ref r) => r.encode(&mut sub),
-            CertReqExtension::AuthorityNames(ref r) => r.encode(&mut sub),
-            CertReqExtension::Unknown(ref r) => r.encode(&mut sub),
+            Self::SignatureAlgorithms(ref r) => r.encode(&mut sub),
+            Self::AuthorityNames(ref r) => r.encode(&mut sub),
+            Self::Unknown(ref r) => r.encode(&mut sub),
         }
 
         (sub.len() as u16).encode(bytes);
@@ -1981,8 +2000,8 @@ pub enum NewSessionTicketExtension {
 impl NewSessionTicketExtension {
     pub fn get_type(&self) -> ExtensionType {
         match *self {
-            NewSessionTicketExtension::EarlyData(_) => ExtensionType::EarlyData,
-            NewSessionTicketExtension::Unknown(ref r) => r.typ,
+            Self::EarlyData(_) => ExtensionType::EarlyData,
+            Self::Unknown(ref r) => r.typ,
         }
     }
 }
@@ -1993,8 +2012,8 @@ impl Codec for NewSessionTicketExtension {
 
         let mut sub: Vec<u8> = Vec::new();
         match *self {
-            NewSessionTicketExtension::EarlyData(r) => r.encode(&mut sub),
-            NewSessionTicketExtension::Unknown(ref r) => r.encode(&mut sub),
+            Self::EarlyData(r) => r.encode(&mut sub),
+            Self::Unknown(ref r) => r.encode(&mut sub),
         }
 
         (sub.len() as u16).encode(bytes);

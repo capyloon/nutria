@@ -34,7 +34,7 @@ impl<'cmd> Validator<'cmd> {
             debug!("Validator::validate: needs_val_of={:?}", a);
 
             let o = &self.cmd[&a];
-            let should_err = if let Some(v) = matcher.args.get(&o.id) {
+            let should_err = if let Some(v) = matcher.args.get(o.get_id()) {
                 v.all_val_groups_empty() && o.get_min_vals() != 0
             } else {
                 true
@@ -70,6 +70,10 @@ impl<'cmd> Validator<'cmd> {
             return Err(Error::missing_subcommand(
                 self.cmd,
                 bn.to_string(),
+                self.cmd
+                    .all_subcommand_names()
+                    .map(|s| s.to_owned())
+                    .collect::<Vec<_>>(),
                 Usage::new(self.cmd)
                     .required(&self.required)
                     .create_usage_with_title(&[]),
@@ -112,6 +116,9 @@ impl<'cmd> Validator<'cmd> {
             .arg_ids()
             .filter(|arg_id| {
                 matcher.check_explicit(arg_id, &crate::builder::ArgPredicate::IsPresent)
+                    // Avoid including our own groups by checking none of them.  If a group is present, the
+                    // args for the group will be.
+                    && self.cmd.find(arg_id).is_some()
             })
             .count();
         if args_count <= 1 {
@@ -193,7 +200,7 @@ impl<'cmd> Validator<'cmd> {
             .filter(|arg_id| matcher.check_explicit(arg_id, &ArgPredicate::IsPresent))
             .filter(|n| {
                 // Filter out the args we don't want to specify.
-                self.cmd.find(n).map_or(true, |a| !a.is_hide_set())
+                self.cmd.find(n).map_or(false, |a| !a.is_hide_set())
             })
             .filter(|key| !conflicting_keys.contains(key))
             .cloned()
@@ -220,11 +227,11 @@ impl<'cmd> Validator<'cmd> {
             debug!("Validator::gather_requires:iter:{:?}", name);
             if let Some(arg) = self.cmd.find(name) {
                 let is_relevant = |(val, req_arg): &(ArgPredicate, Id)| -> Option<Id> {
-                    let required = matcher.check_explicit(&arg.id, val);
+                    let required = matcher.check_explicit(arg.get_id(), val);
                     required.then(|| req_arg.clone())
                 };
 
-                for req in self.cmd.unroll_arg_requires(is_relevant, &arg.id) {
+                for req in self.cmd.unroll_arg_requires(is_relevant, arg.get_id()) {
                     self.required.insert(req);
                 }
             } else if let Some(g) = self.cmd.find_group(name) {
@@ -374,7 +381,7 @@ impl<'cmd> Validator<'cmd> {
         conflicts: &mut Conflicts,
     ) -> bool {
         debug!("Validator::is_missing_required_ok: {}", a.get_id());
-        let conflicts = conflicts.gather_conflicts(self.cmd, matcher, &a.id);
+        let conflicts = conflicts.gather_conflicts(self.cmd, matcher, a.get_id());
         !conflicts.is_empty()
     }
 
@@ -438,7 +445,7 @@ impl<'cmd> Validator<'cmd> {
             .filter(|arg_id| matcher.check_explicit(arg_id, &ArgPredicate::IsPresent))
             .filter(|n| {
                 // Filter out the args we don't want to specify.
-                self.cmd.find(n).map_or(true, |a| !a.is_hide_set())
+                self.cmd.find(n).map_or(false, |a| !a.is_hide_set())
             })
             .cloned()
             .chain(raw_req_args)

@@ -1,5 +1,6 @@
 use crate::builder::{ConfigBuilder, WantsCipherSuites};
 use crate::conn::{CommonState, ConnectionCommon, Side, State};
+use crate::enums::{CipherSuite, ProtocolVersion, SignatureScheme};
 use crate::error::Error;
 use crate::kx::SupportedKxGroup;
 #[cfg(feature = "logging")]
@@ -7,17 +8,17 @@ use crate::log::trace;
 use crate::msgs::base::{Payload, PayloadU8};
 #[cfg(feature = "quic")]
 use crate::msgs::enums::AlertDescription;
-use crate::msgs::enums::ProtocolVersion;
-use crate::msgs::enums::SignatureScheme;
 use crate::msgs::handshake::{ClientHelloPayload, ServerExtension};
 use crate::msgs::message::Message;
+use crate::sign;
 use crate::suites::SupportedCipherSuite;
 use crate::vecbuf::ChunkVecBuffer;
 use crate::verify;
+#[cfg(feature = "secret_extraction")]
+use crate::ExtractedSecrets;
 use crate::KeyLog;
 #[cfg(feature = "quic")]
 use crate::{conn::Protocol, quic};
-use crate::{sign, CipherSuite};
 
 use super::hs;
 
@@ -152,9 +153,23 @@ impl<'a> ClientHello<'a> {
         self.signature_schemes
     }
 
-    /// Get the alpn.
+    /// Get the ALPN protocol identifiers submitted by the client.
     ///
-    /// Returns `None` if the client did not include an ALPN extension
+    /// Returns `None` if the client did not include an ALPN extension.
+    ///
+    /// Application Layer Protocol Negotiation (ALPN) is a TLS extension that lets a client
+    /// submit a set of identifiers that each a represent an application-layer protocol.
+    /// The server will then pick its preferred protocol from the set submitted by the client.
+    /// Each identifier is represented as a byte array, although common values are often ASCII-encoded.
+    /// See the official RFC-7301 specifications at <https://datatracker.ietf.org/doc/html/rfc7301>
+    /// for more information on ALPN.
+    ///
+    /// For example, a HTTP client might specify "http/1.1" and/or "h2". Other well-known values
+    /// are listed in the at IANA registry at
+    /// <https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids>.
+    ///
+    /// The server can specify supported ALPN protocols by setting [`ServerConfig::alpn_protocols`].
+    /// During the handshake, the server will select the first protocol configured that the client supports.
     pub fn alpn(&self) -> Option<impl Iterator<Item = &'a [u8]>> {
         self.alpn.map(|protocols| {
             protocols
@@ -231,6 +246,11 @@ pub struct ServerConfig {
     /// does nothing.
     pub key_log: Arc<dyn KeyLog>,
 
+    /// Allows traffic secrets to be extracted after the handshake,
+    /// e.g. for kTLS setup.
+    #[cfg(feature = "secret_extraction")]
+    pub enable_secret_extraction: bool,
+
     /// Amount of early data to accept for sessions created by
     /// this config.  Specify 0 to disable early data.  The
     /// default is 0.
@@ -264,6 +284,18 @@ pub struct ServerConfig {
     /// sent by the server comes after receiving and validating the client's
     /// handshake up to the `Finished` message.  This is the safest option.
     pub send_half_rtt_data: bool,
+}
+
+impl fmt::Debug for ServerConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ServerConfig")
+            .field("ignore_client_order", &self.ignore_client_order)
+            .field("max_fragment_size", &self.max_fragment_size)
+            .field("alpn_protocols", &self.alpn_protocols)
+            .field("max_early_data_size", &self.max_early_data_size)
+            .field("send_half_rtt_data", &self.send_half_rtt_data)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ServerConfig {
@@ -311,8 +343,8 @@ impl<'a> std::io::Read for ReadEarlyData<'a> {
     }
 
     #[cfg(read_buf)]
-    fn read_buf(&mut self, buf: &mut io::ReadBuf<'_>) -> io::Result<()> {
-        self.early_data.read_buf(buf)
+    fn read_buf(&mut self, cursor: io::BorrowedCursor<'_>) -> io::Result<()> {
+        self.early_data.read_buf(cursor)
     }
 }
 
@@ -335,7 +367,12 @@ impl ServerConnection {
         config: Arc<ServerConfig>,
         extra_exts: Vec<ServerExtension>,
     ) -> Result<Self, Error> {
-        let common = CommonState::new(config.max_fragment_size, Side::Server)?;
+        let mut common = CommonState::new(Side::Server);
+        common.set_max_fragment_size(config.max_fragment_size)?;
+        #[cfg(feature = "secret_extraction")]
+        {
+            common.enable_secret_extraction = config.enable_secret_extraction;
+        }
         Ok(Self {
             inner: ConnectionCommon::new(
                 Box::new(hs::ExpectClientHello::new(config, extra_exts)),
@@ -426,6 +463,12 @@ impl ServerConnection {
             None
         }
     }
+
+    /// Extract secrets, so they can be used when configuring kTLS, for example.
+    #[cfg(feature = "secret_extraction")]
+    pub fn extract_secrets(self) -> Result<ExtractedSecrets, Error> {
+        self.inner.extract_secrets()
+    }
 }
 
 impl fmt::Debug for ServerConnection {
@@ -463,21 +506,34 @@ pub struct Acceptor {
     inner: Option<ConnectionCommon<ServerConnectionData>>,
 }
 
+impl Default for Acceptor {
+    fn default() -> Self {
+        Self {
+            inner: Some(ConnectionCommon::new(
+                Box::new(Accepting),
+                ServerConnectionData::default(),
+                CommonState::new(Side::Server),
+            )),
+        }
+    }
+}
+
 impl Acceptor {
     /// Create a new `Acceptor`.
+    #[deprecated(
+        since = "0.20.7",
+        note = "Use Acceptor::default instead for an infallible constructor"
+    )]
     pub fn new() -> Result<Self, Error> {
-        let common = CommonState::new(None, Side::Server)?;
-        let state = Box::new(Accepting);
-        Ok(Self {
-            inner: Some(ConnectionCommon::new(state, Default::default(), common)),
-        })
+        Ok(Self::default())
     }
 
     /// Returns true if the caller should call [`Connection::read_tls()`] as soon as possible.
     ///
-    /// For more details, refer to [`CommonState::wants_read()`].
+    /// Since the purpose of an Acceptor is to read and then parse TLS bytes, this always returns true.
     ///
     /// [`Connection::read_tls()`]: crate::Connection::read_tls
+    #[deprecated(since = "0.20.7", note = "Always returns true")]
     pub fn wants_read(&self) -> bool {
         self.inner
             .as_ref()
@@ -528,14 +584,9 @@ impl Acceptor {
             }
         };
 
-        // XXX(https://github.com/rustls/rustls/issues/973): We shouldn't be using
-        // `ALL_CIPHER_SUITES` here.
-        let supported_cipher_suites = &crate::ALL_CIPHER_SUITES;
-
         let (_, sig_schemes) = hs::process_client_hello(
             &message,
             false,
-            supported_cipher_suites,
             &mut connection.common_state,
             &mut connection.data,
         )?;
@@ -578,6 +629,14 @@ impl Accepted {
         self.connection
             .common_state
             .set_max_fragment_size(config.max_fragment_size)?;
+
+        #[cfg(feature = "secret_extraction")]
+        {
+            self.connection
+                .common_state
+                .enable_secret_extraction = config.enable_secret_extraction;
+        }
+
         let state = hs::ExpectClientHello::new(config, Vec::new());
         let mut cx = hs::ServerContext {
             common: &mut self.connection.common_state,
@@ -658,9 +717,9 @@ impl EarlyDataState {
     }
 
     #[cfg(read_buf)]
-    fn read_buf(&mut self, buf: &mut io::ReadBuf<'_>) -> io::Result<()> {
+    fn read_buf(&mut self, cursor: io::BorrowedCursor<'_>) -> io::Result<()> {
         match self {
-            Self::Accepted(ref mut received) => received.read_buf(buf),
+            Self::Accepted(ref mut received) => received.read_buf(cursor),
             _ => Err(io::Error::from(io::ErrorKind::BrokenPipe)),
         }
     }
@@ -689,11 +748,12 @@ fn test_read_in_new_state() {
 #[cfg(read_buf)]
 #[test]
 fn test_read_buf_in_new_state() {
+    use std::io::BorrowedBuf;
+
+    let mut buf = [0u8; 5];
+    let mut buf: BorrowedBuf<'_> = buf.as_mut_slice().into();
     assert_eq!(
-        format!(
-            "{:?}",
-            EarlyDataState::default().read_buf(&mut io::ReadBuf::new(&mut [0u8; 5]))
-        ),
+        format!("{:?}", EarlyDataState::default().read_buf(buf.unfilled())),
         "Err(Kind(BrokenPipe))"
     );
 }

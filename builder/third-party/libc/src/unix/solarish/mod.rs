@@ -1440,6 +1440,7 @@ pub const MAP_RENAME: ::c_int = 0x20;
 pub const MAP_ALIGN: ::c_int = 0x200;
 pub const MAP_TEXT: ::c_int = 0x400;
 pub const MAP_INITDATA: ::c_int = 0x800;
+pub const MAP_32BIT: ::c_int = 0x80;
 pub const MAP_FAILED: *mut ::c_void = !0 as *mut ::c_void;
 
 pub const MCL_CURRENT: ::c_int = 0x0001;
@@ -1683,6 +1684,9 @@ pub const MADV_SEQUENTIAL: ::c_int = 2;
 pub const MADV_WILLNEED: ::c_int = 3;
 pub const MADV_DONTNEED: ::c_int = 4;
 pub const MADV_FREE: ::c_int = 5;
+pub const MADV_ACCESS_DEFAULT: ::c_int = 6;
+pub const MADV_ACCESS_LWP: ::c_int = 7;
+pub const MADV_ACCESS_MANY: ::c_int = 8;
 
 pub const AF_UNSPEC: ::c_int = 0;
 pub const AF_UNIX: ::c_int = 1;
@@ -3141,18 +3145,9 @@ extern "C" {
     pub fn setpflags(flags: ::c_uint, value: ::c_uint) -> ::c_int;
 
     pub fn sysinfo(command: ::c_int, buf: *mut ::c_char, count: ::c_long) -> ::c_int;
-}
 
-#[link(name = "sendfile")]
-extern "C" {
-    pub fn sendfile(out_fd: ::c_int, in_fd: ::c_int, off: *mut ::off_t, len: ::size_t)
-        -> ::ssize_t;
-    pub fn sendfilev(
-        fildes: ::c_int,
-        vec: *const sendfilevec_t,
-        sfvcnt: ::c_int,
-        xferred: *mut ::size_t,
-    ) -> ::ssize_t;
+    pub fn faccessat(fd: ::c_int, path: *const ::c_char, amode: ::c_int, flag: ::c_int) -> ::c_int;
+
     // #include <link.h>
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     pub fn dl_iterate_phdr(
@@ -3197,6 +3192,18 @@ extern "C" {
     pub fn backtrace(buffer: *mut *mut ::c_void, size: ::c_int) -> ::c_int;
     pub fn backtrace_symbols(buffer: *const *mut ::c_void, size: ::c_int) -> *mut *mut ::c_char;
     pub fn backtrace_symbols_fd(buffer: *const *mut ::c_void, size: ::c_int, fd: ::c_int);
+}
+
+#[link(name = "sendfile")]
+extern "C" {
+    pub fn sendfile(out_fd: ::c_int, in_fd: ::c_int, off: *mut ::off_t, len: ::size_t)
+        -> ::ssize_t;
+    pub fn sendfilev(
+        fildes: ::c_int,
+        vec: *const sendfilevec_t,
+        sfvcnt: ::c_int,
+        xferred: *mut ::size_t,
+    ) -> ::ssize_t;
 }
 
 #[link(name = "lgrp")]

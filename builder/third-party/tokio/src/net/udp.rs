@@ -740,7 +740,7 @@ impl UdpSocket {
     ///
     /// # Cancel safety
     ///
-    /// This method is cancel safe. If `recv_from` is used as the event in a
+    /// This method is cancel safe. If `recv` is used as the event in a
     /// [`tokio::select!`](crate::select) statement and some other branch
     /// completes first, it is guaranteed that no messages were received on this
     /// socket.
@@ -925,7 +925,7 @@ impl UdpSocket {
 
                 // Safety: We trust `UdpSocket::recv` to have filled up `n` bytes in the
                 // buffer.
-                let n = (&*self.io).recv(dst)?;
+                let n = (*self.io).recv(dst)?;
 
                 unsafe {
                     buf.advance_mut(n);
@@ -989,7 +989,7 @@ impl UdpSocket {
 
                 // Safety: We trust `UdpSocket::recv_from` to have filled up `n` bytes in the
                 // buffer.
-                let (n, addr) = (&*self.io).recv_from(dst)?;
+                let (n, addr) = (*self.io).recv_from(dst)?;
 
                 unsafe {
                     buf.advance_mut(n);
@@ -1544,8 +1544,8 @@ impl UdpSocket {
 
     /// Sets the value for the `IP_TOS` option on this socket.
     ///
-    /// This value sets the time-to-live field that is used in every packet sent
-    /// from this socket.
+    /// This value sets the type-of-service field that is used in every packet
+    /// sent from this socket.
     ///
     /// **NOTE:** On Windows, `IP_TOS` is only supported on [Windows 8+ or
     /// Windows Server 2012+.](https://docs.microsoft.com/en-us/windows/win32/winsock/ipproto-ip-socket-options)

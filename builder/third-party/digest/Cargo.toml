@@ -3,28 +3,39 @@
 # When uploading crates to the registry Cargo will automatically
 # "normalize" Cargo.toml files for maximal compatibility
 # with all versions of Cargo and also rewrite `path` dependencies
-# to registry (e.g., crates.io) dependencies
+# to registry (e.g., crates.io) dependencies.
 #
-# If you believe there's an error in this file please file an
-# issue against the rust-lang/cargo repository. If you're
-# editing this file be aware that the upstream Cargo.toml
-# will likely look very different (and much more reasonable)
+# If you are reading this file be aware that the original Cargo.toml
+# will likely look very different (and much more reasonable).
+# See Cargo.toml.orig for the original contents.
 
 [package]
 edition = "2018"
 name = "digest"
-version = "0.10.5"
+version = "0.10.6"
 authors = ["RustCrypto Developers"]
-description = "Traits for cryptographic hash functions"
+description = "Traits for cryptographic hash functions and message authentication codes"
 documentation = "https://docs.rs/digest"
 readme = "README.md"
-keywords = ["digest", "crypto", "hash"]
-categories = ["cryptography", "no-std"]
+keywords = [
+    "digest",
+    "crypto",
+    "hash",
+]
+categories = [
+    "cryptography",
+    "no-std",
+]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/RustCrypto/traits"
+
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+rustdoc-args = [
+    "--cfg",
+    "docsrs",
+]
+
 [dependencies.blobby]
 version = "0.3"
 optional = true
@@ -53,4 +64,7 @@ dev = ["blobby"]
 mac = ["subtle"]
 oid = ["const-oid"]
 rand_core = ["crypto-common/rand_core"]
-std = ["alloc", "crypto-common/std"]
+std = [
+    "alloc",
+    "crypto-common/std",
+]

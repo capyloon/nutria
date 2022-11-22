@@ -1,5 +1,6 @@
 use crate::check::inappropriate_message;
 use crate::conn::{CommonState, ConnectionRandoms, Side, State};
+use crate::enums::ProtocolVersion;
 use crate::error::Error;
 use crate::hash_hs::HandshakeHash;
 use crate::key::Certificate;
@@ -8,11 +9,13 @@ use crate::log::{debug, trace};
 use crate::msgs::base::Payload;
 use crate::msgs::ccs::ChangeCipherSpecPayload;
 use crate::msgs::codec::Codec;
-use crate::msgs::enums::{AlertDescription, ContentType, HandshakeType, ProtocolVersion};
+use crate::msgs::enums::{AlertDescription, ContentType, HandshakeType};
 use crate::msgs::handshake::{ClientECDHParams, HandshakeMessagePayload, HandshakePayload};
 use crate::msgs::handshake::{NewSessionTicketPayload, SessionID};
 use crate::msgs::message::{Message, MessagePayload};
 use crate::msgs::persist;
+#[cfg(feature = "secret_extraction")]
+use crate::suites::PartiallyExtractedSecrets;
 use crate::tls12::{self, ConnectionSecrets, Tls12CipherSuite};
 use crate::{kx, ticketer, verify};
 
@@ -27,8 +30,9 @@ use std::sync::Arc;
 pub(super) use client_hello::CompleteClientHelloHandling;
 
 mod client_hello {
+    use crate::enums::SignatureScheme;
     use crate::msgs::enums::ECPointFormat;
-    use crate::msgs::enums::{ClientCertificateType, Compression, SignatureScheme};
+    use crate::msgs::enums::{ClientCertificateType, Compression};
     use crate::msgs::handshake::{CertificateRequestPayload, ClientSessionTicket, Random};
     use crate::msgs::handshake::{
         CertificateStatus, DigitallySignedStruct, ECDHEServerKeyExchange,
@@ -395,8 +399,8 @@ mod client_hello {
         let secdh = ServerECDHParams::new(skxg.name, kx.pubkey.as_ref());
 
         let mut msg = Vec::new();
-        msg.extend(&randoms.client);
-        msg.extend(&randoms.server);
+        msg.extend(randoms.client);
+        msg.extend(randoms.server);
         secdh.encode(&mut msg);
 
         let signer = signing_key
@@ -927,5 +931,11 @@ impl State<ServerConnectionData> for ExpectTraffic {
         self.secrets
             .export_keying_material(output, label, context);
         Ok(())
+    }
+
+    #[cfg(feature = "secret_extraction")]
+    fn extract_secrets(&self) -> Result<PartiallyExtractedSecrets, Error> {
+        self.secrets
+            .extract_secrets(Side::Server)
     }
 }

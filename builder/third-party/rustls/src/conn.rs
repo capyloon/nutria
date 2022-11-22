@@ -1,3 +1,4 @@
+use crate::enums::ProtocolVersion;
 use crate::error::Error;
 use crate::key;
 #[cfg(feature = "logging")]
@@ -6,7 +7,7 @@ use crate::msgs::alert::AlertMessagePayload;
 use crate::msgs::base::Payload;
 use crate::msgs::deframer::MessageDeframer;
 use crate::msgs::enums::HandshakeType;
-use crate::msgs::enums::{AlertDescription, AlertLevel, ContentType, ProtocolVersion};
+use crate::msgs::enums::{AlertDescription, AlertLevel, ContentType};
 use crate::msgs::fragmenter::MessageFragmenter;
 use crate::msgs::handshake::Random;
 use crate::msgs::hsjoiner::HandshakeJoiner;
@@ -17,17 +18,22 @@ use crate::msgs::message::{
 use crate::quic;
 use crate::record_layer;
 use crate::suites::SupportedCipherSuite;
+#[cfg(feature = "secret_extraction")]
+use crate::suites::{ExtractedSecrets, PartiallyExtractedSecrets};
 #[cfg(feature = "tls12")]
 use crate::tls12::ConnectionSecrets;
 use crate::vecbuf::ChunkVecBuffer;
-
+#[cfg(feature = "quic")]
 use std::collections::VecDeque;
+
 use std::convert::TryFrom;
+use std::fmt::Debug;
 use std::io;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
 /// A client or server connection.
+#[derive(Debug)]
 pub enum Connection {
     /// A client connection
     Client(crate::client::ClientConnection),
@@ -41,24 +47,24 @@ impl Connection {
     /// See [`ConnectionCommon::read_tls()`] for more information.
     pub fn read_tls(&mut self, rd: &mut dyn io::Read) -> Result<usize, io::Error> {
         match self {
-            Connection::Client(conn) => conn.read_tls(rd),
-            Connection::Server(conn) => conn.read_tls(rd),
+            Self::Client(conn) => conn.read_tls(rd),
+            Self::Server(conn) => conn.read_tls(rd),
         }
     }
 
     /// Returns an object that allows reading plaintext.
     pub fn reader(&mut self) -> Reader {
         match self {
-            Connection::Client(conn) => conn.reader(),
-            Connection::Server(conn) => conn.reader(),
+            Self::Client(conn) => conn.reader(),
+            Self::Server(conn) => conn.reader(),
         }
     }
 
     /// Returns an object that allows writing plaintext.
     pub fn writer(&mut self) -> Writer {
         match self {
-            Connection::Client(conn) => Writer::new(&mut **conn),
-            Connection::Server(conn) => Writer::new(&mut **conn),
+            Self::Client(conn) => Writer::new(&mut **conn),
+            Self::Server(conn) => Writer::new(&mut **conn),
         }
     }
 
@@ -67,8 +73,8 @@ impl Connection {
     /// See [`ConnectionCommon::process_new_packets()`] for more information.
     pub fn process_new_packets(&mut self) -> Result<IoState, Error> {
         match self {
-            Connection::Client(conn) => conn.process_new_packets(),
-            Connection::Server(conn) => conn.process_new_packets(),
+            Self::Client(conn) => conn.process_new_packets(),
+            Self::Server(conn) => conn.process_new_packets(),
         }
     }
 
@@ -82,8 +88,17 @@ impl Connection {
         context: Option<&[u8]>,
     ) -> Result<(), Error> {
         match self {
-            Connection::Client(conn) => conn.export_keying_material(output, label, context),
-            Connection::Server(conn) => conn.export_keying_material(output, label, context),
+            Self::Client(conn) => conn.export_keying_material(output, label, context),
+            Self::Server(conn) => conn.export_keying_material(output, label, context),
+        }
+    }
+
+    /// Extract secrets, to set up kTLS for example
+    #[cfg(feature = "secret_extraction")]
+    pub fn extract_secrets(self) -> Result<ExtractedSecrets, Error> {
+        match self {
+            Self::Client(conn) => conn.extract_secrets(),
+            Self::Server(conn) => conn.extract_secrets(),
         }
     }
 
@@ -96,8 +111,8 @@ impl Connection {
         T: io::Read + io::Write,
     {
         match self {
-            Connection::Client(conn) => conn.complete_io(io),
-            Connection::Server(conn) => conn.complete_io(io),
+            Self::Client(conn) => conn.complete_io(io),
+            Self::Server(conn) => conn.complete_io(io),
         }
     }
 }
@@ -106,36 +121,36 @@ impl Connection {
 impl crate::quic::QuicExt for Connection {
     fn quic_transport_parameters(&self) -> Option<&[u8]> {
         match self {
-            Connection::Client(conn) => conn.quic_transport_parameters(),
-            Connection::Server(conn) => conn.quic_transport_parameters(),
+            Self::Client(conn) => conn.quic_transport_parameters(),
+            Self::Server(conn) => conn.quic_transport_parameters(),
         }
     }
 
     fn zero_rtt_keys(&self) -> Option<quic::DirectionalKeys> {
         match self {
-            Connection::Client(conn) => conn.zero_rtt_keys(),
-            Connection::Server(conn) => conn.zero_rtt_keys(),
+            Self::Client(conn) => conn.zero_rtt_keys(),
+            Self::Server(conn) => conn.zero_rtt_keys(),
         }
     }
 
     fn read_hs(&mut self, plaintext: &[u8]) -> Result<(), Error> {
         match self {
-            Connection::Client(conn) => conn.read_quic_hs(plaintext),
-            Connection::Server(conn) => conn.read_quic_hs(plaintext),
+            Self::Client(conn) => conn.read_quic_hs(plaintext),
+            Self::Server(conn) => conn.read_quic_hs(plaintext),
         }
     }
 
     fn write_hs(&mut self, buf: &mut Vec<u8>) -> Option<quic::KeyChange> {
         match self {
-            Connection::Client(conn) => quic::write_hs(conn, buf),
-            Connection::Server(conn) => quic::write_hs(conn, buf),
+            Self::Client(conn) => quic::write_hs(conn, buf),
+            Self::Server(conn) => quic::write_hs(conn, buf),
         }
     }
 
     fn alert(&self) -> Option<AlertDescription> {
         match self {
-            Connection::Client(conn) => conn.alert(),
-            Connection::Server(conn) => conn.alert(),
+            Self::Client(conn) => conn.alert(),
+            Self::Server(conn) => conn.alert(),
         }
     }
 }
@@ -145,8 +160,8 @@ impl Deref for Connection {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            Connection::Client(conn) => &conn.common_state,
-            Connection::Server(conn) => &conn.common_state,
+            Self::Client(conn) => &conn.common_state,
+            Self::Server(conn) => &conn.common_state,
         }
     }
 }
@@ -154,15 +169,15 @@ impl Deref for Connection {
 impl DerefMut for Connection {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            Connection::Client(conn) => &mut conn.common_state,
-            Connection::Server(conn) => &mut conn.common_state,
+            Self::Client(conn) => &mut conn.common_state,
+            Self::Server(conn) => &mut conn.common_state,
         }
     }
 }
 
 /// Values of this structure are returned from [`Connection::process_new_packets`]
 /// and tell the caller the current I/O state of the TLS connection.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct IoState {
     tls_bytes_to_write: usize,
     plaintext_bytes_to_read: usize,
@@ -264,12 +279,13 @@ impl<'a> io::Read for Reader<'a> {
     /// You may learn the number of bytes available at any time by inspecting
     /// the return of [`Connection::process_new_packets`].
     #[cfg(read_buf)]
-    fn read_buf(&mut self, buf: &mut io::ReadBuf<'_>) -> io::Result<()> {
-        let before = buf.filled_len();
-        self.received_plaintext.read_buf(buf)?;
-        let len = buf.filled_len() - before;
+    fn read_buf(&mut self, mut cursor: io::BorrowedCursor<'_>) -> io::Result<()> {
+        let before = cursor.written();
+        self.received_plaintext
+            .read_buf(cursor.reborrow())?;
+        let len = cursor.written() - before;
 
-        if len == 0 && buf.capacity() > 0 {
+        if len == 0 && cursor.capacity() > 0 {
             // No bytes available:
             match (self.peer_cleanly_closed, self.has_seen_eof) {
                 // cleanly closed; don't care about TCP EOF: express this as Ok(0)
@@ -351,7 +367,7 @@ impl<'a> io::Write for Writer<'a> {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) enum Protocol {
     Tcp,
     #[cfg(feature = "quic")]
@@ -748,6 +764,23 @@ impl<Data> ConnectionCommon<Data> {
             Err(e) => Err(e.clone()),
         }
     }
+
+    /// Extract secrets, so they can be used when configuring kTLS, for example.
+    #[cfg(feature = "secret_extraction")]
+    pub fn extract_secrets(self) -> Result<ExtractedSecrets, Error> {
+        if !self.enable_secret_extraction {
+            return Err(Error::General("Secret extraction is disabled".into()));
+        }
+
+        let st = self.state?;
+
+        let record_layer = self.common_state.record_layer;
+        let PartiallyExtractedSecrets { tx, rx } = st.extract_secrets()?;
+        Ok(ExtractedSecrets {
+            tx: (record_layer.write_seq(), tx),
+            rx: (record_layer.read_seq(), rx),
+        })
+    }
 }
 
 #[cfg(feature = "quic")]
@@ -821,11 +854,13 @@ pub struct CommonState {
     pub(crate) protocol: Protocol,
     #[cfg(feature = "quic")]
     pub(crate) quic: Quic,
+    #[cfg(feature = "secret_extraction")]
+    pub(crate) enable_secret_extraction: bool,
 }
 
 impl CommonState {
-    pub(crate) fn new(max_fragment_size: Option<usize>, side: Side) -> Result<Self, Error> {
-        Ok(Self {
+    pub(crate) fn new(side: Side) -> Self {
+        Self {
             negotiated_version: None,
             side,
             record_layer: record_layer::RecordLayer::new(),
@@ -840,8 +875,7 @@ impl CommonState {
             has_seen_eof: false,
             received_middlebox_ccs: 0,
             peer_certificates: None,
-            message_fragmenter: MessageFragmenter::new(max_fragment_size)
-                .map_err(|_| Error::BadMaxFragmentSize)?,
+            message_fragmenter: MessageFragmenter::default(),
             received_plaintext: ChunkVecBuffer::new(Some(0)),
             sendable_plaintext: ChunkVecBuffer::new(Some(DEFAULT_BUFFER_LIMIT)),
             sendable_tls: ChunkVecBuffer::new(Some(DEFAULT_BUFFER_LIMIT)),
@@ -849,7 +883,9 @@ impl CommonState {
             protocol: Protocol::Tcp,
             #[cfg(feature = "quic")]
             quic: Quic::new(),
-        })
+            #[cfg(feature = "secret_extraction")]
+            enable_secret_extraction: false,
+        }
     }
 
     /// Returns true if the caller should call [`CommonState::write_tls`] as soon
@@ -1027,12 +1063,11 @@ impl CommonState {
     /// Fragment `m`, encrypt the fragments, and then queue
     /// the encrypted fragments for sending.
     pub(crate) fn send_msg_encrypt(&mut self, m: PlainMessage) {
-        let mut plain_messages = VecDeque::new();
-        self.message_fragmenter
-            .fragment(m, &mut plain_messages);
-
-        for m in plain_messages {
-            self.send_single_fragment(m.borrow());
+        let iter = self
+            .message_fragmenter
+            .fragment_message(&m);
+        for m in iter {
+            self.send_single_fragment(m);
         }
     }
 
@@ -1049,15 +1084,12 @@ impl CommonState {
             Limit::No => payload.len(),
         };
 
-        let mut plain_messages = VecDeque::new();
-        self.message_fragmenter.fragment_borrow(
+        let iter = self.message_fragmenter.fragment_slice(
             ContentType::ApplicationData,
             ProtocolVersion::TLSv1_2,
             &payload[..len],
-            &mut plain_messages,
         );
-
-        for m in plain_messages {
+        for m in iter {
             self.send_single_fragment(m);
         }
 
@@ -1218,11 +1250,12 @@ impl CommonState {
             }
         }
         if !must_encrypt {
-            let mut to_send = VecDeque::new();
-            self.message_fragmenter
-                .fragment(m.into(), &mut to_send);
-            for mm in to_send {
-                self.queue_tls_message(mm.into_unencrypted_opaque());
+            let msg = &m.into();
+            let iter = self
+                .message_fragmenter
+                .fragment_message(msg);
+            for m in iter {
+                self.queue_tls_message(m.to_unencrypted_opaque());
             }
         } else {
             self.send_msg_encrypt(m.into());
@@ -1362,6 +1395,11 @@ pub(crate) trait State<Data>: Send + Sync {
         _label: &[u8],
         _context: Option<&[u8]>,
     ) -> Result<(), Error> {
+        Err(Error::HandshakeNotComplete)
+    }
+
+    #[cfg(feature = "secret_extraction")]
+    fn extract_secrets(&self) -> Result<PartiallyExtractedSecrets, Error> {
         Err(Error::HandshakeNotComplete)
     }
 

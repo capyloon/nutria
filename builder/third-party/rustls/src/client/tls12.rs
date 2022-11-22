@@ -1,5 +1,6 @@
 use crate::check::{inappropriate_handshake_message, inappropriate_message};
 use crate::conn::{CommonState, ConnectionRandoms, Side, State};
+use crate::enums::ProtocolVersion;
 use crate::error::Error;
 use crate::hash_hs::HandshakeHash;
 #[cfg(feature = "logging")]
@@ -7,14 +8,17 @@ use crate::log::{debug, trace};
 use crate::msgs::base::{Payload, PayloadU8};
 use crate::msgs::ccs::ChangeCipherSpecPayload;
 use crate::msgs::codec::Codec;
-use crate::msgs::enums::{AlertDescription, ProtocolVersion};
+use crate::msgs::enums::AlertDescription;
 use crate::msgs::enums::{ContentType, HandshakeType};
-use crate::msgs::handshake::{CertificatePayload, DecomposedSignatureScheme, SCTList, SessionID};
-use crate::msgs::handshake::{DigitallySignedStruct, ServerECDHParams};
-use crate::msgs::handshake::{HandshakeMessagePayload, HandshakePayload, NewSessionTicketPayload};
+use crate::msgs::handshake::{
+    CertificatePayload, DecomposedSignatureScheme, DigitallySignedStruct, HandshakeMessagePayload,
+    HandshakePayload, NewSessionTicketPayload, SCTList, ServerECDHParams, SessionID,
+};
 use crate::msgs::message::{Message, MessagePayload};
 use crate::msgs::persist;
 use crate::sign::Signer;
+#[cfg(feature = "secret_extraction")]
+use crate::suites::PartiallyExtractedSecrets;
 use crate::suites::SupportedCipherSuite;
 use crate::ticketer::TimeBase;
 use crate::tls12::{self, ConnectionSecrets, Tls12CipherSuite};
@@ -990,6 +994,7 @@ impl ExpectFinished {
 
         let time_now = match TimeBase::now() {
             Ok(time_now) => time_now,
+            #[allow(unused_variables)]
             Err(e) => {
                 debug!("Session not saved: {}", e);
                 return;
@@ -1103,5 +1108,11 @@ impl State<ClientConnectionData> for ExpectTraffic {
         self.secrets
             .export_keying_material(output, label, context);
         Ok(())
+    }
+
+    #[cfg(feature = "secret_extraction")]
+    fn extract_secrets(&self) -> Result<PartiallyExtractedSecrets, Error> {
+        self.secrets
+            .extract_secrets(Side::Client)
     }
 }

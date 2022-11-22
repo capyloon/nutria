@@ -297,6 +297,13 @@ macro_rules! cfg_signal_internal {
     }
 }
 
+macro_rules! cfg_signal_internal_and_unix {
+    ($($item:item)*) => {
+        #[cfg(unix)]
+        cfg_signal_internal! { $($item)* }
+    }
+}
+
 macro_rules! cfg_not_signal_internal {
     ($($item:item)*) => {
         $(
@@ -476,6 +483,36 @@ macro_rules! cfg_not_has_atomic_u64 {
                     target_arch = "riscv32",
                     tokio_wasm
                     ))]
+            $item
+        )*
+    }
+}
+
+macro_rules! cfg_has_const_mutex_new {
+    ($($item:item)*) => {
+        $(
+            #[cfg(all(
+                not(all(loom, test)),
+                any(
+                    feature = "parking_lot",
+                    not(tokio_no_const_mutex_new)
+                )
+            ))]
+            $item
+        )*
+    }
+}
+
+macro_rules! cfg_not_has_const_mutex_new {
+    ($($item:item)*) => {
+        $(
+            #[cfg(not(all(
+                not(all(loom, test)),
+                any(
+                    feature = "parking_lot",
+                    not(tokio_no_const_mutex_new)
+                )
+            )))]
             $item
         )*
     }

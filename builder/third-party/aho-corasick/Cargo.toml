@@ -12,14 +12,9 @@
 [package]
 edition = "2018"
 name = "aho-corasick"
-version = "0.7.19"
+version = "0.7.20"
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
-exclude = [
-    "/aho-corasick-debug",
-    "/ci/*",
-    "/.travis.yml",
-    "/appveyor.yml",
-]
+exclude = ["/aho-corasick-debug"]
 autotests = false
 description = "Fast multiple substring searching."
 homepage = "https://github.com/BurntSushi/aho-corasick"
@@ -32,7 +27,7 @@ keywords = [
     "multi",
 ]
 categories = ["text-processing"]
-license = "Unlicense/MIT"
+license = "Unlicense OR MIT"
 repository = "https://github.com/BurntSushi/aho-corasick"
 
 [profile.bench]

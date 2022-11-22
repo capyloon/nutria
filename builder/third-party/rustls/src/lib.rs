@@ -265,7 +265,7 @@
     trivial_casts,
     trivial_numeric_casts,
     missing_docs,
-    unreachable_pub,
+    //unreachable_pub, https://github.com/rust-lang/rust/issues/102352
     unused_import_braces,
     unused_extern_crates,
     unused_qualifications
@@ -312,7 +312,6 @@ mod log {
     macro_rules! error    ( ($($tt:tt)*) => {{}} );
 }
 
-#[allow(missing_docs)]
 #[macro_use]
 mod msgs;
 mod anchors;
@@ -336,6 +335,7 @@ mod x509;
 mod check;
 mod bs_debug;
 mod builder;
+mod enums;
 mod key;
 mod key_log;
 mod key_log_file;
@@ -365,19 +365,22 @@ pub use crate::builder::{
 pub use crate::conn::{
     CommonState, Connection, ConnectionCommon, IoState, Reader, SideData, Writer,
 };
+pub use crate::enums::{CipherSuite, ProtocolVersion, SignatureScheme};
 pub use crate::error::Error;
 pub use crate::key::{Certificate, PrivateKey};
 pub use crate::key_log::{KeyLog, NoKeyLog};
 pub use crate::key_log_file::KeyLogFile;
 pub use crate::kx::{SupportedKxGroup, ALL_KX_GROUPS};
-pub use crate::msgs::enums::CipherSuite;
-pub use crate::msgs::enums::ProtocolVersion;
-pub use crate::msgs::enums::SignatureScheme;
-pub use crate::msgs::handshake::DistinguishedNames;
+pub use crate::msgs::enums::{
+    AlertDescription, ContentType, HandshakeType, NamedGroup, SignatureAlgorithm,
+};
+pub use crate::msgs::handshake::{DigitallySignedStruct, DistinguishedNames};
 pub use crate::stream::{Stream, StreamOwned};
 pub use crate::suites::{
     BulkAlgorithm, SupportedCipherSuite, ALL_CIPHER_SUITES, DEFAULT_CIPHER_SUITES,
 };
+#[cfg(feature = "secret_extraction")]
+pub use crate::suites::{ConnectionTrafficSecrets, ExtractedSecrets};
 pub use crate::ticketer::Ticketer;
 #[cfg(feature = "tls12")]
 pub use crate::tls12::Tls12CipherSuite;

@@ -494,7 +494,7 @@ impl<'cmd, 'writer> HelpTemplate<'cmd, 'writer> {
     fn long(&mut self, arg: &Arg) {
         debug!("HelpTemplate::long");
         if let Some(long) = arg.get_long() {
-            if arg.short.is_some() {
+            if arg.get_short().is_some() {
                 self.none(", ");
             }
             self.literal(format!("--{}", long));
@@ -516,7 +516,7 @@ impl<'cmd, 'writer> HelpTemplate<'cmd, 'writer> {
             let self_len = display_width(&arg.to_string());
             // Since we're writing spaces from the tab point we first need to know if we
             // had a long and short, or just short
-            let padding = if arg.long.is_some() {
+            let padding = if arg.get_long().is_some() {
                 // Only account 4 after the val
                 TAB_WIDTH
             } else {
@@ -689,7 +689,11 @@ impl<'cmd, 'writer> HelpTemplate<'cmd, 'writer> {
             // force_next_line
             let h = arg.get_help().unwrap_or_default();
             let h_w = h.display_width() + display_width(spec_vals);
-            let taken = longest + 12;
+            let taken = if arg.is_positional() {
+                longest + TAB_WIDTH * 2
+            } else {
+                longest + TAB_WIDTH * 2 + 4 // See `fn short` for the 4
+            };
             self.term_w >= taken
                 && (taken as f32 / self.term_w as f32) > 0.40
                 && h_w > (self.term_w - taken)
@@ -925,7 +929,7 @@ impl<'cmd, 'writer> HelpTemplate<'cmd, 'writer> {
             // force_next_line
             let h = cmd.get_about().unwrap_or_default();
             let h_w = h.display_width() + display_width(spec_vals);
-            let taken = longest + 12;
+            let taken = longest + TAB_WIDTH * 2;
             self.term_w >= taken
                 && (taken as f32 / self.term_w as f32) > 0.40
                 && h_w > (self.term_w - taken)
@@ -939,7 +943,7 @@ impl<'cmd, 'writer> HelpTemplate<'cmd, 'writer> {
         self.none(TAB);
         self.writer.extend(sc_str.into_iter());
         if !next_line_help {
-            self.spaces(width.max(longest + TAB_WIDTH) - width);
+            self.spaces(longest + TAB_WIDTH - width);
         }
     }
 }
@@ -969,7 +973,7 @@ fn option_sort_key(arg: &Arg) -> (usize, String) {
         x.to_string()
     } else {
         let mut s = '{'.to_string();
-        s.push_str(arg.id.as_str());
+        s.push_str(arg.get_id().as_str());
         s
     };
     (arg.get_display_order(), key)
@@ -1017,7 +1021,7 @@ fn replace_newline_var(styled: &mut StyledStr) {
 }
 
 fn longest_filter(arg: &Arg) -> bool {
-    arg.is_takes_value_set() || arg.long.is_some() || arg.short.is_none()
+    arg.is_takes_value_set() || arg.get_long().is_some() || arg.get_short().is_none()
 }
 
 #[cfg(test)]

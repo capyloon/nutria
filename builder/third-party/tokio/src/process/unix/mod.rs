@@ -21,8 +21,6 @@
 //! processes in general aren't scalable (e.g. millions) so it shouldn't be that
 //! bad in theory...
 
-pub(crate) mod driver;
-
 pub(crate) mod orphan;
 use orphan::{OrphanQueue, OrphanQueueImpl, Wait};
 
@@ -32,9 +30,8 @@ use reap::Reaper;
 use crate::io::{AsyncRead, AsyncWrite, PollEvented, ReadBuf};
 use crate::process::kill::Kill;
 use crate::process::SpawnedChild;
-use crate::signal::unix::driver::Handle as SignalHandle;
+use crate::runtime::signal::Handle as SignalHandle;
 use crate::signal::unix::{signal, Signal, SignalKind};
-use crate::util::once_cell::OnceCell;
 
 use mio::event::Source;
 use mio::unix::SourceFd;
@@ -64,10 +61,22 @@ impl Kill for StdChild {
     }
 }
 
-fn get_orphan_queue() -> &'static OrphanQueueImpl<StdChild> {
-    static ORPHAN_QUEUE: OnceCell<OrphanQueueImpl<StdChild>> = OnceCell::new();
+cfg_not_has_const_mutex_new! {
+    fn get_orphan_queue() -> &'static OrphanQueueImpl<StdChild> {
+        use crate::util::once_cell::OnceCell;
 
-    ORPHAN_QUEUE.get(OrphanQueueImpl::new)
+        static ORPHAN_QUEUE: OnceCell<OrphanQueueImpl<StdChild>> = OnceCell::new();
+
+        ORPHAN_QUEUE.get(OrphanQueueImpl::new)
+    }
+}
+
+cfg_has_const_mutex_new! {
+    fn get_orphan_queue() -> &'static OrphanQueueImpl<StdChild> {
+        static ORPHAN_QUEUE: OrphanQueueImpl<StdChild> = OrphanQueueImpl::new();
+
+        &ORPHAN_QUEUE
+    }
 }
 
 pub(crate) struct GlobalOrphanQueue;
@@ -79,7 +88,7 @@ impl fmt::Debug for GlobalOrphanQueue {
 }
 
 impl GlobalOrphanQueue {
-    fn reap_orphans(handle: &SignalHandle) {
+    pub(crate) fn reap_orphans(handle: &SignalHandle) {
         get_orphan_queue().reap_orphans(handle)
     }
 }

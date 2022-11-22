@@ -121,7 +121,7 @@
 //!  1. The output is created on the thread that the future was polled on. Since
 //!     only non-Send futures can have non-Send output, the future was polled on
 //!     the thread that the future was spawned from.
-//!  2. Since JoinHandle<Output> is not Send if Output is not Send, the
+//!  2. Since `JoinHandle<Output>` is not Send if Output is not Send, the
 //!     JoinHandle is also on the thread that the future was spawned from.
 //!  3. Thus, the JoinHandle will not move the output across threads when it
 //!     takes or drops the output.
@@ -138,6 +138,8 @@
 // Some task infrastructure is here to support `JoinSet`, which is currently
 // unstable. This should be removed once `JoinSet` is stabilized.
 #![cfg_attr(not(tokio_unstable), allow(dead_code))]
+
+use crate::runtime::context;
 
 mod core;
 use self::core::Cell;
@@ -193,6 +195,10 @@ use std::{fmt, mem};
 ///   task completes, the same ID may be used for another task.
 /// - Task IDs are *not* sequential, and do not indicate the order in which
 ///   tasks are spawned, what runtime a task is spawned on, or any other data.
+/// - The task ID of the currently running task can be obtained from inside the
+///   task via the [`task::try_id()`](crate::task::try_id()) and
+///   [`task::id()`](crate::task::id()) functions and from outside the task via
+///   the [`JoinHandle::id()`](crate::task::JoinHandle::id()) function.
 ///
 /// **Note**: This is an [unstable API][unstable]. The public API of this type
 /// may break in 1.x releases. See [the documentation on unstable
@@ -201,9 +207,48 @@ use std::{fmt, mem};
 /// [unstable]: crate#unstable-features
 #[cfg_attr(docsrs, doc(cfg(all(feature = "rt", tokio_unstable))))]
 #[cfg_attr(not(tokio_unstable), allow(unreachable_pub))]
-// TODO(eliza): there's almost certainly no reason not to make this `Copy` as well...
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct Id(u64);
+
+/// Returns the [`Id`] of the currently running task.
+///
+/// # Panics
+///
+/// This function panics if called from outside a task. Please note that calls
+/// to `block_on` do not have task IDs, so the method will panic if called from
+/// within a call to `block_on`. For a version of this function that doesn't
+/// panic, see [`task::try_id()`](crate::runtime::task::try_id()).
+///
+/// **Note**: This is an [unstable API][unstable]. The public API of this type
+/// may break in 1.x releases. See [the documentation on unstable
+/// features][unstable] for details.
+///
+/// [task ID]: crate::task::Id
+/// [unstable]: crate#unstable-features
+#[cfg_attr(not(tokio_unstable), allow(unreachable_pub))]
+#[track_caller]
+pub fn id() -> Id {
+    context::current_task_id().expect("Can't get a task id when not inside a task")
+}
+
+/// Returns the [`Id`] of the currently running task, or `None` if called outside
+/// of a task.
+///
+/// This function is similar to  [`task::id()`](crate::runtime::task::id()), except
+/// that it returns `None` rather than panicking if called outside of a task
+/// context.
+///
+/// **Note**: This is an [unstable API][unstable]. The public API of this type
+/// may break in 1.x releases. See [the documentation on unstable
+/// features][unstable] for details.
+///
+/// [task ID]: crate::task::Id
+/// [unstable]: crate#unstable-features
+#[cfg_attr(not(tokio_unstable), allow(unreachable_pub))]
+#[track_caller]
+pub fn try_id() -> Option<Id> {
+    context::current_task_id()
+}
 
 /// An owned handle to the task, tracked by ref count.
 #[repr(transparent)]
@@ -284,7 +329,7 @@ cfg_rt! {
         T: Future + 'static,
         T::Output: 'static,
     {
-        let raw = RawTask::new::<T, S>(task, scheduler, id.clone());
+        let raw = RawTask::new::<T, S>(task, scheduler, id);
         let task = Task {
             raw,
             _p: PhantomData,
@@ -507,21 +552,35 @@ impl Id {
     }
 
     cfg_not_has_atomic_u64! {
-        pub(crate) fn next() -> Self {
-            use crate::util::once_cell::OnceCell;
-            use crate::loom::sync::Mutex;
+        cfg_has_const_mutex_new! {
+            pub(crate) fn next() -> Self {
+                use crate::loom::sync::Mutex;
+                static NEXT_ID: Mutex<u64> = Mutex::const_new(1);
 
-            fn init_next_id() -> Mutex<u64> {
-                Mutex::new(1)
+                let mut lock = NEXT_ID.lock();
+                let id = *lock;
+                *lock += 1;
+                Self(id)
             }
+        }
 
-            static NEXT_ID: OnceCell<Mutex<u64>> = OnceCell::new();
+        cfg_not_has_const_mutex_new! {
+            pub(crate) fn next() -> Self {
+                use crate::util::once_cell::OnceCell;
+                use crate::loom::sync::Mutex;
 
-            let next_id = NEXT_ID.get(init_next_id);
-            let mut lock = next_id.lock();
-            let id = *lock;
-            *lock += 1;
-            Self(id)
+                fn init_next_id() -> Mutex<u64> {
+                    Mutex::new(1)
+                }
+
+                static NEXT_ID: OnceCell<Mutex<u64>> = OnceCell::new();
+
+                let next_id = NEXT_ID.get(init_next_id);
+                let mut lock = next_id.lock();
+                let id = *lock;
+                *lock += 1;
+                Self(id)
+            }
         }
     }
 

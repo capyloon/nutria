@@ -190,11 +190,7 @@ impl ProgressStyle {
         let entirely_filled = fill as usize;
         // 1 if the bar is not entirely empty or full (meaning we need to draw the "current"
         // character between the filled and "to do" segment), 0 otherwise.
-        let head = if fill > 0.0 && entirely_filled < width {
-            1
-        } else {
-            0
-        };
+        let head = usize::from(fill > 0.0 && entirely_filled < width);
 
         let cur = if head == 1 {
             // Number of fine-grained progress entries in progress_chars.
@@ -359,22 +355,42 @@ impl ProgressStyle {
                     }
                 }
                 TemplatePart::Literal(s) => cur.push_str(s.expanded()),
-                TemplatePart::NewLine => lines.push(match wide {
-                    Some(inner) => {
-                        inner.expand(mem::take(&mut cur), self, state, &mut buf, target_width)
-                    }
-                    None => mem::take(&mut cur),
-                }),
+                TemplatePart::NewLine => {
+                    self.push_line(lines, &mut cur, state, &mut buf, target_width, &wide)
+                }
             }
         }
 
         if !cur.is_empty() {
-            lines.push(match wide {
-                Some(inner) => {
-                    inner.expand(mem::take(&mut cur), self, state, &mut buf, target_width)
-                }
-                None => mem::take(&mut cur),
-            })
+            self.push_line(lines, &mut cur, state, &mut buf, target_width, &wide);
+        }
+    }
+
+    fn push_line(
+        &self,
+        lines: &mut Vec<String>,
+        cur: &mut String,
+        state: &ProgressState,
+        buf: &mut String,
+        target_width: u16,
+        wide: &Option<WideElement>,
+    ) {
+        let expanded = match wide {
+            Some(inner) => inner.expand(mem::take(cur), self, state, buf, target_width),
+            None => mem::take(cur),
+        };
+
+        // If there are newlines, we need to split them up
+        // and add the lines separately so that they're counted
+        // correctly on re-render.
+        for (i, line) in expanded.split('\n').enumerate() {
+            // No newlines found in this case
+            if i == 0 && line.len() == expanded.len() {
+                lines.push(expanded);
+                break;
+            }
+
+            lines.push(line.to_string());
         }
     }
 }
@@ -403,7 +419,7 @@ impl<'a> WideElement<'a> {
         buf: &mut String,
         width: u16,
     ) -> String {
-        let left = (width as usize).saturating_sub(measure_text_width(&*cur.replace('\x00', "")));
+        let left = (width as usize).saturating_sub(measure_text_width(&cur.replace('\x00', "")));
         match self {
             Self::Bar { alt_style } => cur.replace(
                 '\x00',
@@ -930,5 +946,43 @@ mod tests {
         state.message = TabExpandedString::NoTabs("foobar".into());
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m foobar \u{1b}[0m");
+    }
+
+    #[test]
+    fn multiline_handling() {
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        let mut state = ProgressState::new(Some(10), pos);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::default_bar();
+        state.message = TabExpandedString::new("foo\nbar\nbaz".into(), 2);
+        style.template = Template::from_str("{msg}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+
+        assert_eq!(buf.len(), 3);
+        assert_eq!(&buf[0], "foo");
+        assert_eq!(&buf[1], "bar");
+        assert_eq!(&buf[2], "baz");
+
+        buf.clear();
+        style.template = Template::from_str("{wide_msg}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+
+        assert_eq!(buf.len(), 3);
+        assert_eq!(&buf[0], "foo");
+        assert_eq!(&buf[1], "bar");
+        assert_eq!(&buf[2], "baz");
+
+        buf.clear();
+        state.prefix = TabExpandedString::new("prefix\nprefix".into(), 2);
+        style.template = Template::from_str("{prefix} {wide_msg}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+
+        assert_eq!(buf.len(), 4);
+        assert_eq!(&buf[0], "prefix");
+        assert_eq!(&buf[1], "prefix foo");
+        assert_eq!(&buf[2], "bar");
+        assert_eq!(&buf[3], "baz");
     }
 }

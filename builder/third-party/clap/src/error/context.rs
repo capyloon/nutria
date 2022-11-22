@@ -9,6 +9,8 @@ pub enum ContextKind {
     InvalidArg,
     /// Existing arguments
     PriorArg,
+    /// Accepted subcommands
+    ValidSubcommand,
     /// Accepted values
     ValidValue,
     /// Rejected values
@@ -29,6 +31,8 @@ pub enum ContextKind {
     SuggestedValue,
     /// Trailing argument
     TrailingArg,
+    /// Potential fix for the user
+    Suggested,
     /// A usage string
     Usage,
     /// An opaque message to the user
@@ -42,7 +46,8 @@ impl ContextKind {
             Self::InvalidSubcommand => Some("Invalid Subcommand"),
             Self::InvalidArg => Some("Invalid Argument"),
             Self::PriorArg => Some("Prior Argument"),
-            Self::ValidValue => Some("Value Value"),
+            Self::ValidSubcommand => Some("Valid Subcommand"),
+            Self::ValidValue => Some("Valid Value"),
             Self::InvalidValue => Some("Invalid Value"),
             Self::ActualNumValues => Some("Actual Number of Values"),
             Self::ExpectedNumValues => Some("Expected Number of Values"),
@@ -52,6 +57,7 @@ impl ContextKind {
             Self::SuggestedArg => Some("Suggested Argument"),
             Self::SuggestedValue => Some("Suggested Value"),
             Self::TrailingArg => Some("Trailing Argument"),
+            Self::Suggested => Some("Suggested"),
             Self::Usage => None,
             Self::Custom => None,
         }
@@ -79,6 +85,8 @@ pub enum ContextValue {
     Strings(Vec<String>),
     /// A single value
     StyledStr(crate::builder::StyledStr),
+    /// many value
+    StyledStrs(Vec<crate::builder::StyledStr>),
     /// A single value
     Number(isize),
 }
@@ -91,6 +99,15 @@ impl std::fmt::Display for ContextValue {
             Self::String(v) => v.fmt(f),
             Self::Strings(v) => v.join(", ").fmt(f),
             Self::StyledStr(v) => v.fmt(f),
+            Self::StyledStrs(v) => {
+                for (i, v) in v.iter().enumerate() {
+                    if i != 0 {
+                        ", ".fmt(f)?;
+                    }
+                    v.fmt(f)?;
+                }
+                Ok(())
+            }
             Self::Number(v) => v.fmt(f),
         }
     }

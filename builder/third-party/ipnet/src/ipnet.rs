@@ -838,8 +838,11 @@ impl Ipv4Net {
         intervals = merge_intervals(intervals);
         let mut res: Vec<Ipv4Net> = Vec::new();
         
-        for (start, end) in intervals {
-            let iter = Ipv4Subnets::new(start.into(), end.saturating_sub(1).into(), 0);
+        for (start, mut end) in intervals {
+            if end != std::u32::MAX {
+                end = end.saturating_sub(1)
+            }
+            let iter = Ipv4Subnets::new(start.into(), end.into(), 0);
             res.extend(iter);
         }
         res
@@ -1157,8 +1160,11 @@ impl Ipv6Net {
         intervals = merge_intervals(intervals);
         let mut res: Vec<Ipv6Net> = Vec::new();
 
-        for (start, end) in intervals {
-            let iter = Ipv6Subnets::new(start.into(), end.saturating_sub(1).into(), 0);
+        for (start, mut end) in intervals {
+            if end != std::u128::MAX {
+                end = end.saturating_sub(1)
+            }
+            let iter = Ipv6Subnets::new(start.into(), end.into(), 0);
             res.extend(iter);
         }
         res
@@ -1435,20 +1441,31 @@ impl Iterator for IpSubnets {
 
 fn next_ipv4_subnet(start: Ipv4Addr, end: Ipv4Addr, min_prefix_len: u8) -> Ipv4Net {
     let range = end.saturating_sub(start).saturating_add(1);
-    let range_bits = 32u32.saturating_sub(range.leading_zeros()).saturating_sub(1);
-    let start_tz = u32::from(start).trailing_zeros();
-    let new_prefix_len = 32 - min(range_bits, start_tz);
-    let next_prefix_len = max(new_prefix_len as u8, min_prefix_len);
-    Ipv4Net::new(start, next_prefix_len).unwrap()
+    if range == std::u32::MAX && min_prefix_len == 0 {
+        Ipv4Net::new(start, min_prefix_len).unwrap()
+    }
+    else {
+        let range_bits = 32u32.saturating_sub(range.leading_zeros()).saturating_sub(1);
+        let start_tz = u32::from(start).trailing_zeros();
+        let new_prefix_len = 32 - min(range_bits, start_tz);
+        let next_prefix_len = max(new_prefix_len as u8, min_prefix_len);
+        Ipv4Net::new(start, next_prefix_len).unwrap()
+    }
 }
 
 fn next_ipv6_subnet(start: Ipv6Addr, end: Ipv6Addr, min_prefix_len: u8) -> Ipv6Net {
     let range = end.saturating_sub(start).saturating_add(1);
-    let range_bits = 128u32.saturating_sub(range.leading_zeros()).saturating_sub(1);
-    let start_tz = u128::from(start).trailing_zeros();
-    let new_prefix_len = 128 - min(range_bits, start_tz);
-    let next_prefix_len = max(new_prefix_len as u8, min_prefix_len);
-    Ipv6Net::new(start, next_prefix_len).unwrap()
+    if range == std::u128::MAX && min_prefix_len == 0 {
+        Ipv6Net::new(start, min_prefix_len).unwrap()
+    }
+    else {
+        let range = end.saturating_sub(start).saturating_add(1);
+        let range_bits = 128u32.saturating_sub(range.leading_zeros()).saturating_sub(1);
+        let start_tz = u128::from(start).trailing_zeros();
+        let new_prefix_len = 128 - min(range_bits, start_tz);
+        let next_prefix_len = max(new_prefix_len as u8, min_prefix_len);
+        Ipv6Net::new(start, next_prefix_len).unwrap()
+    }
 }
 
 impl Iterator for Ipv4Subnets {
@@ -1641,6 +1658,12 @@ mod tests {
     );
 
     make_ipv4_subnets_test!(
+        test_ipv4_subnets_zero_max,
+        "0.0.0.0", "255.255.255.255", 0,
+        "0.0.0.0/0",
+    );
+
+    make_ipv4_subnets_test!(
         test_ipv4_subnets_max_max,
         "255.255.255.255", "255.255.255.255", 0,
         "255.255.255.255/32",
@@ -1677,6 +1700,12 @@ mod tests {
         test_ipv6_subnets_zero_zero,
         "::", "::", 0,
         "::/128",
+    );
+
+    make_ipv6_subnets_test!(
+        test_ipv6_subnets_zero_max,
+        "::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 0,
+        "::/0",
     );
 
     make_ipv6_subnets_test!(
@@ -1740,6 +1769,21 @@ mod tests {
         assert_eq!(IpNet::aggregate(&ip_nets), ip_aggs);
         assert_eq!(Ipv4Net::aggregate(&ipv4_nets), ipv4_aggs);
         assert_eq!(Ipv6Net::aggregate(&ipv6_nets), ipv6_aggs);
+    }
+    
+    #[test]
+    fn test_aggregate_issue44() {
+        let nets: Vec<Ipv4Net> = vec!["128.0.0.0/1".parse().unwrap()];
+        assert_eq!(Ipv4Net::aggregate(&nets), nets);
+
+        let nets: Vec<Ipv4Net> = vec!["0.0.0.0/1".parse().unwrap(), "128.0.0.0/1".parse().unwrap()];
+        assert_eq!(Ipv4Net::aggregate(&nets), vec!["0.0.0.0/0".parse().unwrap()]);
+
+        let nets: Vec<Ipv6Net> = vec!["8000::/1".parse().unwrap()];
+        assert_eq!(Ipv6Net::aggregate(&nets), nets);
+
+        let nets: Vec<Ipv6Net> = vec!["::/1".parse().unwrap(), "8000::/1".parse().unwrap()];
+        assert_eq!(Ipv6Net::aggregate(&nets), vec!["::/0".parse().unwrap()]);
     }
 
     #[test]

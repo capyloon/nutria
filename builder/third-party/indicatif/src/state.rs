@@ -1,8 +1,9 @@
 use std::borrow::Cow;
-use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{fmt, io};
+
+use portable_atomic::{AtomicU64, AtomicU8, Ordering};
 
 use crate::draw_target::ProgressDrawTarget;
 use crate::style::ProgressStyle;
@@ -244,7 +245,7 @@ impl ProgressState {
     pub fn fraction(&self) -> f32 {
         let pos = self.pos.pos.load(Ordering::Relaxed);
         let pct = match (pos, self.len) {
-            (_, None) => 1.0,
+            (_, None) => 0.0,
             (_, Some(0)) => 1.0,
             (0, _) => 0.0,
             (pos, Some(len)) => pos as f32 / len as f32,
@@ -385,6 +386,11 @@ impl Estimator {
     fn record(&mut self, new: u64, now: Instant) {
         let delta = new.saturating_sub(self.prev.0);
         if delta == 0 || now < self.prev.1 {
+            // Reset on backwards seek to prevent breakage from seeking to the end for length determination
+            // See https://github.com/console-rs/indicatif/issues/480
+            if new < self.prev.0 {
+                self.reset(now);
+            }
             return;
         }
 
@@ -617,8 +623,11 @@ mod tests {
         let mut est = Estimator::new(now);
         est.record(0, now);
         est.record(1, now);
+        assert_eq!(est.len(), 1);
         // Should not panic.
         est.record(0, now);
+        // Assert that the state of the estimator reset on rewind
+        assert_eq!(est.len(), 0);
 
         let pb = ProgressBar::hidden();
         pb.set_length(10);

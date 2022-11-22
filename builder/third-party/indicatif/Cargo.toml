@@ -11,8 +11,9 @@
 
 [package]
 edition = "2018"
+rust-version = "1.56"
 name = "indicatif"
-version = "0.17.1"
+version = "0.17.2"
 exclude = ["screenshots/*"]
 description = "A progress bar and cli reporting library for Rust"
 documentation = "https://docs.rs/indicatif"
@@ -42,6 +43,9 @@ default-features = false
 
 [dependencies.number_prefix]
 version = "0.4"
+
+[dependencies.portable-atomic]
+version = "0.3.15"
 
 [dependencies.rayon]
 version = "1.1"

@@ -61,6 +61,39 @@ fn progress_bar_builder_method_order() {
 }
 
 #[test]
+fn progress_bar_percent_with_no_length() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let pb = ProgressBar::with_draw_target(
+        None,
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    )
+    .with_style(ProgressStyle::with_template("{wide_bar} {percent}%").unwrap());
+
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb.tick();
+
+    assert_eq!(
+        in_mem.contents(),
+        "░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0%"
+    );
+
+    pb.set_length(10);
+
+    pb.inc(1);
+    assert_eq!(
+        in_mem.contents(),
+        "███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 10%"
+    );
+
+    pb.finish();
+    assert_eq!(
+        in_mem.contents(),
+        "███████████████████████████████████████████████████████████████████████████ 100%"
+    );
+}
+
+#[test]
 fn multi_progress_single_bar_and_leave() {
     let in_mem = InMemoryTerm::new(10, 80);
     let mp =
@@ -773,4 +806,90 @@ fn multi_zombie_handling() {
     mp.clear().unwrap();
 
     assert_eq!(in_mem.contents(), "pb1 done!\npb3 done!\npb2 done!");
+}
+
+#[test]
+fn multi_progress_multiline_msg() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let pb1 = mp.add(ProgressBar::new_spinner().with_message("test1"));
+    let pb2 = mp.add(ProgressBar::new_spinner().with_message("test2"));
+
+    assert_eq!(in_mem.contents(), "");
+
+    pb1.inc(1);
+    pb2.inc(1);
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+⠁ test1
+⠁ test2
+            "#
+        .trim()
+    );
+
+    pb1.set_message("test1\n  test1 line2\n  test1 line3");
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+⠁ test1
+  test1 line2
+  test1 line3
+⠁ test2
+            "#
+        .trim()
+    );
+
+    pb1.inc(1);
+    pb2.inc(1);
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+⠉ test1
+  test1 line2
+  test1 line3
+⠉ test2
+            "#
+        .trim()
+    );
+
+    pb2.set_message("test2\n  test2 line2");
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+⠉ test1
+  test1 line2
+  test1 line3
+⠉ test2
+  test2 line2
+            "#
+        .trim()
+    );
+
+    pb1.set_message("single line again");
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+⠉ single line again
+⠉ test2
+  test2 line2
+            "#
+        .trim()
+    );
+
+    pb1.finish_with_message("test1 done!");
+    pb2.finish_with_message("test2 done!");
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"  test1 done!
+  test2 done!"#
+    );
 }

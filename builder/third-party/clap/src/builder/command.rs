@@ -946,9 +946,6 @@ impl Command {
 
     /// Try not to fail on parse errors, like missing option values.
     ///
-    /// **Note:** Make sure you apply it as `global_setting` if you want this setting
-    /// to be propagated to subcommands and sub-subcommands!
-    ///
     /// **NOTE:** This choice is propagated to all child subcommands.
     ///
     /// # Examples
@@ -978,7 +975,10 @@ impl Command {
         }
     }
 
-    /// Specifies that all arguments override themselves.
+    /// Replace prior occurrences of arguments rather than error
+    ///
+    /// For any argument that would conflict with itself by default (e.g.
+    /// [`ArgAction::Set`][ArgAction::Set], it will now override itself.
     ///
     /// This is the equivalent to saying the `foo` arg using [`Arg::overrides_with("foo")`] for all
     /// defined arguments.
@@ -1062,6 +1062,8 @@ impl Command {
     ///
     /// **NOTE:** This setting applies globally and *not* on a per-command basis.
     ///
+    /// **NOTE:** This requires the [`wrap_help` feature][crate::_features]
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -1085,6 +1087,8 @@ impl Command {
     /// Using `0` will ignore terminal widths and use source formatting (default).
     ///
     /// **NOTE:** This setting applies globally and *not* on a per-command basis.
+    ///
+    /// **NOTE:** This requires the [`wrap_help` feature][crate::_features]
     ///
     /// # Examples
     ///
@@ -1127,9 +1131,6 @@ impl Command {
     /// Specifies to use the version of the current command for all [`subcommands`].
     ///
     /// Defaults to `false`; subcommands have independent version strings from their parents.
-    ///
-    /// **Note:** Make sure you apply it as `global_setting` if you want this setting
-    /// to be propagated to subcommands and sub-subcommands!
     ///
     /// **NOTE:** This choice is propagated to all child subcommands.
     ///
@@ -1453,6 +1454,9 @@ impl Command {
     /// automatically set your application's author(s) to the same thing as your
     /// crate at compile time.
     ///
+    /// **NOTE:** A custom [`help_template`][Command::help_template] is needed for author to show
+    /// up.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -1461,7 +1465,6 @@ impl Command {
     ///      .author("Me, me@mymain.com")
     /// # ;
     /// ```
-    /// [`crate_authors!`]: ./macro.crate_authors!.html
     #[must_use]
     pub fn author(mut self, author: impl IntoResettable<Str>) -> Self {
         self.author = author.into_resettable().into_option();
@@ -1616,7 +1619,6 @@ impl Command {
     ///     .version("v0.1.24")
     /// # ;
     /// ```
-    /// [`crate_version!`]: ./macro.crate_version!.html
     #[must_use]
     pub fn version(mut self, ver: impl IntoResettable<Str>) -> Self {
         self.version = ver.into_resettable().into_option();
@@ -1644,7 +1646,6 @@ impl Command {
     ///  binary: myprog")
     /// # ;
     /// ```
-    /// [`crate_version!`]: ./macro.crate_version!.html
     #[must_use]
     pub fn long_version(mut self, ver: impl IntoResettable<Str>) -> Self {
         self.long_version = ver.into_resettable().into_option();
@@ -1763,11 +1764,29 @@ impl Command {
     ///
     /// # Examples
     ///
+    /// For a very brief help:
+    ///
     /// ```no_run
     /// # use clap::Command;
     /// Command::new("myprog")
     ///     .version("1.0")
     ///     .help_template("{bin} ({version}) - {usage}")
+    /// # ;
+    /// ```
+    ///
+    /// For showing more application context:
+    ///
+    /// ```no_run
+    /// # use clap::Command;
+    /// Command::new("myprog")
+    ///     .version("1.0")
+    ///     .help_template("\
+    /// {before-help}{name} {version}
+    /// {author-with-newline}{about-with-newline}
+    /// {usage-heading} {usage}
+    ///
+    /// {all-args}{after-help}
+    /// ")
     /// # ;
     /// ```
     /// [`Command::about`]: Command::about()
@@ -2840,9 +2859,6 @@ impl Command {
     ///             values   subcommand
     /// ```
     ///
-    /// **Note:** Make sure you apply it as `global_setting` if you want this setting
-    /// to be propagated to subcommands and sub-subcommands!
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -3502,7 +3518,7 @@ impl Command {
                             .iter()
                             .flat_map(|x| x.args.args()),
                     )
-                    .find(|arg| arg.id == *id)
+                    .find(|arg| arg.get_id() == id)
                     .expect(
                         "Command::get_arg_conflicts_with: \
                     The passed arg conflicts with an arg unknown to the cmd",
@@ -3527,7 +3543,11 @@ impl Command {
     fn get_subcommands_containing(&self, arg: &Arg) -> Vec<&Self> {
         let mut vec = std::vec::Vec::new();
         for idx in 0..self.subcommands.len() {
-            if self.subcommands[idx].args.args().any(|ar| ar.id == arg.id) {
+            if self.subcommands[idx]
+                .args
+                .args()
+                .any(|ar| ar.get_id() == arg.get_id())
+            {
                 vec.push(&self.subcommands[idx]);
                 vec.append(&mut self.subcommands[idx].get_subcommands_containing(arg));
             }
@@ -4107,7 +4127,7 @@ impl Command {
             let args_missing_help: Vec<Id> = self
                 .args
                 .args()
-                .filter(|arg| arg.help.is_none() && arg.long_help.is_none())
+                .filter(|arg| arg.get_help().is_none() && arg.get_long_help().is_none())
                 .map(|arg| arg.get_id().clone())
                 .collect();
 
@@ -4267,7 +4287,7 @@ impl Command {
                         .action(ArgAction::Append)
                         .num_args(..)
                         .value_name("COMMAND")
-                        .help("The subcommand whose help message to display"),
+                        .help("Print help for the subcommand(s)"),
                 )
             };
             self._propagate_subcommand(&mut help_subcmd);
@@ -4353,7 +4373,7 @@ impl Command {
     }
 
     pub(crate) fn find(&self, arg_id: &Id) -> Option<&Arg> {
-        self.args.args().find(|a| a.id == *arg_id)
+        self.args.args().find(|a| a.get_id() == arg_id)
     }
 
     #[inline]
@@ -4413,7 +4433,7 @@ impl Command {
 
     #[cfg(debug_assertions)]
     pub(crate) fn id_exists(&self, id: &Id) -> bool {
-        self.args.args().any(|x| x.id == *id) || self.groups.iter().any(|x| x.id == *id)
+        self.args.args().any(|x| x.get_id() == id) || self.groups.iter().any(|x| x.id == *id)
     }
 
     /// Iterate through the groups this arg is member of.
@@ -4443,7 +4463,7 @@ impl Command {
     pub(crate) fn required_graph(&self) -> ChildGraph<Id> {
         let mut reqs = ChildGraph::with_capacity(5);
         for a in self.args.args().filter(|a| a.is_required_set()) {
-            reqs.insert(a.id.clone());
+            reqs.insert(a.get_id().clone());
         }
         for group in &self.groups {
             if group.required {
@@ -4506,7 +4526,7 @@ impl Command {
                 for r in arg.requires.iter().filter_map(&func) {
                     if let Some(req) = self.find(&r) {
                         if !req.requires.is_empty() {
-                            r_vec.push(&req.id)
+                            r_vec.push(req.get_id())
                         }
                     }
                     args.push(r);
@@ -4571,7 +4591,7 @@ impl Command {
         // specified by the user is sent through. If hide_short_help is not included,
         // then items specified with hidden_short_help will also be hidden.
         let should_long = |v: &Arg| {
-            v.long_help.is_some()
+            v.get_long_help().is_some()
                 || v.is_hide_long_help_set()
                 || v.is_hide_short_help_set()
                 || v.get_possible_values()

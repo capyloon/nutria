@@ -1,5 +1,6 @@
 use crate::check::inappropriate_handshake_message;
 use crate::conn::{CommonState, ConnectionRandoms, State};
+use crate::enums::{ProtocolVersion, SignatureScheme};
 use crate::error::Error;
 use crate::hash_hs::{HandshakeHash, HandshakeHashBuffer};
 use crate::kx;
@@ -9,8 +10,8 @@ use crate::msgs::base::{Payload, PayloadU8};
 use crate::msgs::ccs::ChangeCipherSpecPayload;
 use crate::msgs::codec::Codec;
 use crate::msgs::enums::KeyUpdateRequest;
-use crate::msgs::enums::{AlertDescription, NamedGroup, ProtocolVersion};
-use crate::msgs::enums::{ContentType, ExtensionType, HandshakeType, SignatureScheme};
+use crate::msgs::enums::{AlertDescription, NamedGroup};
+use crate::msgs::enums::{ContentType, ExtensionType, HandshakeType};
 use crate::msgs::handshake::ClientExtension;
 use crate::msgs::handshake::DigitallySignedStruct;
 use crate::msgs::handshake::EncryptedExtensions;
@@ -28,6 +29,8 @@ use crate::tls13::Tls13CipherSuite;
 use crate::verify;
 #[cfg(feature = "quic")]
 use crate::{conn::Protocol, msgs::base::PayloadU16, quic};
+#[cfg(feature = "secret_extraction")]
+use crate::{conn::Side, suites::PartiallyExtractedSecrets};
 use crate::{sign, KeyLog};
 
 use super::client_conn::ClientConnectionData;
@@ -1151,6 +1154,12 @@ impl State<ClientConnectionData> for ExpectTraffic {
                 .record_layer
                 .set_message_encrypter(self.suite.derive_encrypter(&write_key));
         }
+    }
+
+    #[cfg(feature = "secret_extraction")]
+    fn extract_secrets(&self) -> Result<PartiallyExtractedSecrets, Error> {
+        self.key_schedule
+            .extract_secrets(self.suite.common.aead_algorithm, Side::Client)
     }
 }
 

@@ -95,7 +95,7 @@ where
         let s = to_string(value).unwrap();
         assert_eq!(s, out);
 
-        let v = to_value(&value).unwrap();
+        let v = to_value(value).unwrap();
         let s = to_string(&v).unwrap();
         assert_eq!(s, out);
     }
@@ -111,7 +111,7 @@ where
         let s = to_string_pretty(value).unwrap();
         assert_eq!(s, out);
 
-        let v = to_value(&value).unwrap();
+        let v = to_value(value).unwrap();
         let s = to_string_pretty(&v).unwrap();
         assert_eq!(s, out);
     }
@@ -1107,7 +1107,7 @@ fn test_parse_string() {
     ]);
 
     test_parse_ok(vec![
-        ("\"\"", "".to_string()),
+        ("\"\"", String::new()),
         ("\"foo\"", "foo".to_string()),
         (" \"foo\" ", "foo".to_string()),
         ("\"\\\"\"", "\"".to_string()),
@@ -1928,7 +1928,7 @@ fn test_deny_float_key() {
 
     // map with float key
     let map = treemap!(Float => "x");
-    assert!(serde_json::to_value(&map).is_err());
+    assert!(serde_json::to_value(map).is_err());
 }
 
 #[test]

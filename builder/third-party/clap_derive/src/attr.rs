@@ -35,10 +35,7 @@ impl ClapAttr {
                 } else if attr.path.is_ident("command") {
                     Some(Sp::new(AttrKind::Command, attr.path.span()))
                 } else if attr.path.is_ident("group") {
-                    abort!(
-                        attr.path.span(),
-                        "`#[group()]` attributes are not supported yet"
-                    )
+                    Some(Sp::new(AttrKind::Group, attr.path.span()))
                 } else if attr.path.is_ident("arg") {
                     Some(Sp::new(AttrKind::Arg, attr.path.span()))
                 } else if attr.path.is_ident("value") {
@@ -108,6 +105,8 @@ impl Parse for ClapAttr {
             "external_subcommand" => Some(MagicAttrName::ExternalSubcommand),
             "verbatim_doc_comment" => Some(MagicAttrName::VerbatimDocComment),
             "about" => Some(MagicAttrName::About),
+            "long_about" => Some(MagicAttrName::LongAbout),
+            "long_help" => Some(MagicAttrName::LongHelp),
             "author" => Some(MagicAttrName::Author),
             "version" => Some(MagicAttrName::Version),
             _ => None,
@@ -163,6 +162,8 @@ pub enum MagicAttrName {
     VerbatimDocComment,
     ExternalSubcommand,
     About,
+    LongAbout,
+    LongHelp,
     Author,
     Version,
     RenameAllEnv,
@@ -202,6 +203,7 @@ pub enum AttrKind {
     Clap,
     StructOpt,
     Command,
+    Group,
     Arg,
     Value,
 }
@@ -212,6 +214,7 @@ impl AttrKind {
             Self::Clap => "clap",
             Self::StructOpt => "structopt",
             Self::Command => "command",
+            Self::Group => "group",
             Self::Arg => "arg",
             Self::Value => "value",
         }

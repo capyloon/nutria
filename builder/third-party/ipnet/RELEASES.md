@@ -3,6 +3,7 @@
 ## Version 2.5.0
 
 * Manually implement JsonSchema for IpNet, Ipv4Net, Ipv6Net #41 because default derived JsonSchema does not correspond to Serde representation #40
+* Migrate to edition 2018
 
 ## Version 2.4.0
 

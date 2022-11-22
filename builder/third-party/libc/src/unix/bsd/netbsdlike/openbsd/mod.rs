@@ -1639,9 +1639,37 @@ pub const SF_ARCHIVED: ::c_uint = 0x00010000;
 pub const SF_IMMUTABLE: ::c_uint = 0x00020000;
 pub const SF_APPEND: ::c_uint = 0x00040000;
 
+// sys/mount.h
+pub const MNT_NOPERM: ::c_int = 0x00000020;
+pub const MNT_WXALLOWED: ::c_int = 0x00000800;
+pub const MNT_EXRDONLY: ::c_int = 0x00000080;
+pub const MNT_DEFEXPORTED: ::c_int = 0x00000200;
+pub const MNT_EXPORTANON: ::c_int = 0x00000400;
+pub const MNT_ROOTFS: ::c_int = 0x00004000;
+pub const MNT_NOATIME: ::c_int = 0x00008000;
+pub const MNT_DELEXPORT: ::c_int = 0x00020000;
+pub const MNT_STALLED: ::c_int = 0x00100000;
+pub const MNT_SWAPPABLE: ::c_int = 0x00200000;
+pub const MNT_WANTRDWR: ::c_int = 0x02000000;
+pub const MNT_SOFTDEP: ::c_int = 0x04000000;
+pub const MNT_DOOMED: ::c_int = 0x08000000;
+
+// For use with vfs_fsync and getfsstat
 pub const MNT_WAIT: ::c_int = 1;
 pub const MNT_NOWAIT: ::c_int = 2;
 pub const MNT_LAZY: ::c_int = 3;
+
+pub const LC_COLLATE_MASK: ::c_int = 1 << ::LC_COLLATE;
+pub const LC_CTYPE_MASK: ::c_int = 1 << ::LC_CTYPE;
+pub const LC_MONETARY_MASK: ::c_int = 1 << ::LC_MONETARY;
+pub const LC_NUMERIC_MASK: ::c_int = 1 << ::LC_NUMERIC;
+pub const LC_TIME_MASK: ::c_int = 1 << ::LC_TIME;
+pub const LC_MESSAGES_MASK: ::c_int = 1 << ::LC_MESSAGES;
+
+const _LC_LAST: ::c_int = 7;
+pub const LC_ALL_MASK: ::c_int = (1 << _LC_LAST) - 2;
+
+pub const LC_GLOBAL_LOCALE: ::locale_t = -1isize as ::locale_t;
 
 const_fn! {
     {const} fn _ALIGN(p: usize) -> usize {

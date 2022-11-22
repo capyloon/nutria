@@ -74,9 +74,10 @@ checksum = "2f7254b99e31cad77da24b08ebf628882739a608578bb1bcdfc1f9c21260d7c0"
 
 [[package]]
 name = "once_cell"
-version = "1.15.0"
+version = "1.16.0"
 dependencies = [
  "atomic-polyfill",
+ "critical-section",
  "crossbeam-utils",
  "lazy_static",
  "parking_lot_core",

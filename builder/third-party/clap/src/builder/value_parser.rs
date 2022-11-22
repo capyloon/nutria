@@ -599,6 +599,54 @@ where
 }
 
 /// Parse/validate argument values
+///
+/// As alternatives to implementing `TypedValueParser`,
+/// - Use `Fn(&str) -> Result<T, E>` which implements `TypedValueParser`
+/// - [`TypedValueParser::map`] or [`TypedValueParser::try_map`] to adapt an existing `TypedValueParser`
+///
+/// See `ValueParserFactory` to register `TypedValueParser::Value` with
+/// [`value_parser!`][crate::value_parser].
+///
+/// # Example
+///
+#[cfg_attr(not(feature = "error-context"), doc = " ```ignore")]
+#[cfg_attr(feature = "error-context", doc = " ```")]
+/// # use clap::error::ErrorKind;
+/// # use clap::error::ContextKind;
+/// # use clap::error::ContextValue;
+/// #[derive(Clone)]
+/// struct Custom(u32);
+///
+/// #[derive(Clone)]
+/// struct CustomValueParser;
+///
+/// impl clap::builder::TypedValueParser for CustomValueParser {
+///     type Value = Custom;
+///
+///     fn parse_ref(
+///         &self,
+///         cmd: &clap::Command,
+///         arg: Option<&clap::Arg>,
+///         value: &std::ffi::OsStr,
+///     ) -> Result<Self::Value, clap::Error> {
+///         let inner = clap::value_parser!(u32);
+///         let val = inner.parse_ref(cmd, arg, value)?;
+///
+///         const INVALID_VALUE: u32 = 10;
+///         if val == INVALID_VALUE {
+///             let mut err = clap::Error::new(ErrorKind::ValueValidation)
+///                 .with_cmd(cmd);
+///             if let Some(arg) = arg {
+///                 err.insert(ContextKind::InvalidArg, ContextValue::String(arg.to_string()));
+///             }
+///             err.insert(ContextKind::InvalidValue, ContextValue::String(INVALID_VALUE.to_string()));
+///             return Err(err);
+///         }
+///
+///         Ok(Custom(val))
+///     }
+/// }
+/// ```
 pub trait TypedValueParser: Clone + Send + Sync + 'static {
     /// Argument's value type
     type Value: Send + Sync + Clone;
@@ -677,6 +725,56 @@ pub trait TypedValueParser: Clone + Send + Sync + 'static {
         F: Fn(Self::Value) -> T + Clone,
     {
         MapValueParser::new(self, func)
+    }
+
+    /// Adapt a `TypedValueParser` from one value to another
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use std::ffi::OsString;
+    /// # use std::ffi::OsStr;
+    /// # use std::path::PathBuf;
+    /// # use std::path::Path;
+    /// # use clap::Command;
+    /// # use clap::Arg;
+    /// # use clap::builder::TypedValueParser as _;
+    /// # use clap::builder::OsStringValueParser;
+    /// let cmd = Command::new("mycmd")
+    ///     .arg(
+    ///         Arg::new("flag")
+    ///             .long("flag")
+    ///             .value_parser(
+    ///                 OsStringValueParser::new()
+    ///                 .try_map(verify_ext)
+    ///             )
+    ///     );
+    ///
+    /// fn verify_ext(os: OsString) -> Result<PathBuf, &'static str> {
+    ///     let path = PathBuf::from(os);
+    ///     if path.extension() != Some(OsStr::new("rs")) {
+    ///         return Err("only Rust files are supported");
+    ///     }
+    ///     Ok(path)
+    /// }
+    ///
+    /// let error = cmd.clone().try_get_matches_from(["mycmd", "--flag", "foo.txt"]).unwrap_err();
+    /// error.print();
+    ///
+    /// let matches = cmd.try_get_matches_from(["mycmd", "--flag", "foo.rs"]).unwrap();
+    /// assert!(matches.contains_id("flag"));
+    /// assert_eq!(
+    ///     matches.get_one::<PathBuf>("flag").map(|s| s.as_path()),
+    ///     Some(Path::new("foo.rs"))
+    /// );
+    /// ```
+    fn try_map<T, E, F>(self, func: F) -> TryMapValueParser<Self, F>
+    where
+        F: Fn(Self::Value) -> Result<T, E> + Clone + Send + Sync + 'static,
+        T: Send + Sync + Clone,
+        E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
+    {
+        TryMapValueParser::new(self, func)
     }
 }
 
@@ -1883,6 +1981,62 @@ where
     }
 }
 
+/// Adapt a `TypedValueParser` from one value to another
+///
+/// See [`TypedValueParser::try_map`]
+#[derive(Clone, Debug)]
+pub struct TryMapValueParser<P, F> {
+    parser: P,
+    func: F,
+}
+
+impl<P, F, T, E> TryMapValueParser<P, F>
+where
+    P: TypedValueParser,
+    P::Value: Send + Sync + Clone,
+    F: Fn(P::Value) -> Result<T, E> + Clone + Send + Sync + 'static,
+    T: Send + Sync + Clone,
+    E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
+{
+    fn new(parser: P, func: F) -> Self {
+        Self { parser, func }
+    }
+}
+
+impl<P, F, T, E> TypedValueParser for TryMapValueParser<P, F>
+where
+    P: TypedValueParser,
+    P::Value: Send + Sync + Clone,
+    F: Fn(P::Value) -> Result<T, E> + Clone + Send + Sync + 'static,
+    T: Send + Sync + Clone,
+    E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
+{
+    type Value = T;
+
+    fn parse_ref(
+        &self,
+        cmd: &crate::Command,
+        arg: Option<&crate::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, crate::Error> {
+        let mid_value = ok!(self.parser.parse_ref(cmd, arg, value));
+        let value = ok!((self.func)(mid_value).map_err(|e| {
+            let arg = arg
+                .map(|a| a.to_string())
+                .unwrap_or_else(|| "...".to_owned());
+            crate::Error::value_validation(arg, value.to_string_lossy().into_owned(), e.into())
+                .with_cmd(cmd)
+        }));
+        Ok(value)
+    }
+
+    fn possible_values(
+        &self,
+    ) -> Option<Box<dyn Iterator<Item = crate::builder::PossibleValue> + '_>> {
+        self.parser.possible_values()
+    }
+}
+
 /// Register a type with [value_parser!][crate::value_parser!]
 ///
 /// # Example
@@ -2146,10 +2300,10 @@ pub mod via_prelude {
 /// Supported types
 /// - [`ValueParserFactory` types][ValueParserFactory], including
 ///   - [Native types][ValueParser]: `bool`, `String`, `OsString`, `PathBuf`
-///   - [Ranged numeric types][RangedI64ValueParser]: `u8`, `i8`, `u16`, `i16, `u32`, `i32`, `u64`, `i64`
+///   - [Ranged numeric types][RangedI64ValueParser]: `u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`, `i64`
 /// - [`ValueEnum` types][crate::ValueEnum]
-/// - [`From<&OsString>` types][std::convert::From] and [`From<&OsStr>` types][std::convert::From]
-/// - [`From<&String>` types][std::convert::From] and [`From<&str>` types][std::convert::From]
+/// - [`From<OsString>` types][std::convert::From] and [`From<&OsStr>` types][std::convert::From]
+/// - [`From<String>` types][std::convert::From] and [`From<&str>` types][std::convert::From]
 /// - [`FromStr` types][std::str::FromStr], including usize, isize
 ///
 /// # Example

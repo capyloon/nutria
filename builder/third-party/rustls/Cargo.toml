@@ -11,13 +11,14 @@
 
 [package]
 edition = "2018"
+rust-version = "1.56"
 name = "rustls"
-version = "0.20.6"
+version = "0.20.7"
 build = "build.rs"
 autobenches = false
 description = "Rustls is a modern TLS library written in Rust."
 homepage = "https://github.com/rustls/rustls"
-readme = "../README.md"
+readme = "README.md"
 categories = [
     "network-programming",
     "cryptography",
@@ -102,4 +103,5 @@ default = [
 logging = ["log"]
 quic = []
 read_buf = ["rustversion"]
+secret_extraction = []
 tls12 = []

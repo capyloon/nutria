@@ -50,7 +50,6 @@ use crate::INTERNAL_ERROR_MSG;
 /// // Using a usage string (setting a similar argument to the one above)
 /// let input = arg!(-i --input <FILE> "Provides an input file to the program");
 /// ```
-#[allow(missing_debug_implementations)]
 #[derive(Default, Clone)]
 pub struct Arg {
     pub(crate) id: Id,
@@ -121,9 +120,9 @@ impl Arg {
     /// Sets the short version of the argument without the preceding `-`.
     ///
     /// By default `V` and `h` are used by the auto-generated `version` and `help` arguments,
-    /// respectively. You may use the uppercase `V` or lowercase `h` for your own arguments, in
-    /// which case `clap` simply will not assign those to the auto-generated
-    /// `version` or `help` arguments.
+    /// respectively. You will need to disable the auto-generated flags
+    /// ([`disable_help_flag`][crate::Command::disable_help_flag],
+    /// [`disable_version_flag`][crate::Command::disable_version_flag]) and define your own.
     ///
     /// # Examples
     ///
@@ -141,6 +140,25 @@ impl Arg {
     ///     ]);
     ///
     /// assert_eq!(m.get_one::<String>("config").map(String::as_str), Some("file.toml"));
+    /// ```
+    ///
+    /// To use `-h` for your own flag and still have help:
+    /// ```rust
+    /// # use clap::{Command, Arg,  ArgAction};
+    /// let m = Command::new("prog")
+    ///     .disable_help_flag(true)
+    ///     .arg(Arg::new("host")
+    ///         .short('h')
+    ///         .long("host"))
+    ///     .arg(Arg::new("help")
+    ///         .long("help")
+    ///         .global(true)
+    ///         .action(ArgAction::Help))
+    ///     .get_matches_from(vec![
+    ///         "prog", "-h", "wikipedia.org"
+    ///     ]);
+    ///
+    /// assert_eq!(m.get_one::<String>("host").map(String::as_str), Some("wikipedia.org"));
     /// ```
     #[inline]
     #[must_use]
@@ -467,7 +485,6 @@ impl Arg {
     /// [`Arg::short`]: Arg::short()
     /// [`Arg::long`]: Arg::long()
     /// [`Arg::num_args(true)`]: Arg::num_args()
-    /// [`panic!`]: https://doc.rust-lang.org/std/macro.panic!.html
     /// [`Command`]: crate::Command
     #[inline]
     #[must_use]
@@ -1302,12 +1319,14 @@ impl Arg {
     /// To limit values to just numbers, see
     /// [`allow_negative_numbers`][Arg::allow_negative_numbers].
     ///
+    /// See also [`trailing_var_arg`][Arg::trailing_var_arg].
+    ///
     /// **NOTE:** Setting this requires [taking values][Arg::num_args]
     ///
-    /// **NOTE:** If a positional argument has `allow_hyphen_values` and is followed by a known
-    /// flag, it will be treated as a flag (see [`trailing_var_arg`][Arg::trailing_var_arg] for
-    /// consuming known flags).  If an option has `allow_hyphen_values` and is followed by a known
-    /// flag, it will be treated as the value for the option.
+    /// **WARNING:** Prior arguments with `allow_hyphen_values(true)` get precedence over known
+    /// flags but known flags get precedence over the next possible positional argument with
+    /// `allow_hyphen_values(true)`.  When combined with [`Arg::num_args(..)`],
+    /// [`Arg::value_terminator`] is one way to ensure processing stops.
     ///
     /// **WARNING**: Take caution when using this setting combined with another argument using
     /// [`Arg::num_args`], as this becomes ambiguous `$ prog --arg -- -- val`. All
@@ -2730,12 +2749,12 @@ impl Arg {
     pub fn default_value_if(
         mut self,
         arg_id: impl Into<Id>,
-        val: impl Into<ArgPredicate>,
+        predicate: impl Into<ArgPredicate>,
         default: impl IntoResettable<OsStr>,
     ) -> Self {
         self.default_vals_ifs.push((
             arg_id.into(),
-            val.into(),
+            predicate.into(),
             default.into_resettable().into_option(),
         ));
         self
@@ -2750,15 +2769,15 @@ impl Arg {
     pub fn default_value_if_os(
         self,
         arg_id: impl Into<Id>,
-        val: impl Into<ArgPredicate>,
+        predicate: impl Into<ArgPredicate>,
         default: impl IntoResettable<OsStr>,
     ) -> Self {
-        self.default_value_if(arg_id, val, default)
+        self.default_value_if(arg_id, predicate, default)
     }
 
     /// Specifies multiple values and conditions in the same manner as [`Arg::default_value_if`].
     ///
-    /// The method takes a slice of tuples in the `(arg, Option<val>, default)` format.
+    /// The method takes a slice of tuples in the `(arg, predicate, default)` format.
     ///
     /// **NOTE**: The conditions are stored in order and evaluated in the same order. I.e. the first
     /// if multiple conditions are true, the first one found will be applied and the ultimate value.
@@ -2848,8 +2867,8 @@ impl Arg {
             ),
         >,
     ) -> Self {
-        for (arg, val, default) in ifs {
-            self = self.default_value_if(arg, val, default);
+        for (arg, predicate, default) in ifs {
+            self = self.default_value_if(arg, predicate, default);
         }
         self
     }
@@ -3502,6 +3521,8 @@ impl Arg {
     ///
     /// **NOTE** [`Arg::exclusive(true)`] allows specifying an argument which conflicts with every other argument.
     ///
+    /// **NOTE:** All arguments implicitly conflict with themselves.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -3603,8 +3624,6 @@ impl Arg {
     /// conflicts, requirements, etc. are evaluated **after** all "overrides" have been removed
     ///
     /// **NOTE:** Overriding an argument implies they [conflict][Arg::conflicts_with`].
-    ///
-    /// **NOTE:** All arguments implicitly override themselves.
     ///
     /// # Examples
     ///
@@ -3902,7 +3921,7 @@ impl Arg {
     /// assert_eq!(arg.is_positional(), false);
     /// ```
     pub fn is_positional(&self) -> bool {
-        self.long.is_none() && self.short.is_none()
+        self.get_long().is_none() && self.get_short().is_none()
     }
 
     /// Reports whether [`Arg::required`] is set
@@ -4164,7 +4183,7 @@ impl Arg {
     fn render_arg_val(&self, required: bool) -> String {
         let mut rendered = String::new();
 
-        let num_vals = self.get_num_args().expect(INTERNAL_ERROR_MSG);
+        let num_vals = self.get_num_args().unwrap_or_else(|| 1.into());
 
         let mut val_names = if self.val_names.is_empty() {
             vec![self.id.as_internal_str().to_owned()]
@@ -4234,7 +4253,7 @@ impl PartialOrd for Arg {
 
 impl Ord for Arg {
     fn cmp(&self, other: &Arg) -> Ordering {
-        self.id.cmp(&other.id)
+        self.get_id().cmp(other.get_id())
     }
 }
 

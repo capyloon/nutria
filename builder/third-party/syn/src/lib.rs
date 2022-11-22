@@ -250,13 +250,14 @@
 //!   dynamic library libproc_macro from rustc toolchain.
 
 // Syn types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/syn/1.0.101")]
+#![doc(html_root_url = "https://docs.rs/syn/1.0.103")]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![allow(non_camel_case_types)]
 #![allow(
     clippy::bool_to_int_with_if,
     clippy::cast_lossless,
     clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
     clippy::cast_ptr_alignment,
     clippy::default_trait_access,
     clippy::doc_markdown,

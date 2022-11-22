@@ -24,12 +24,18 @@ impl OwnedTrustAnchor {
 
     /// Constructs an `OwnedTrustAnchor` from its components.
     ///
-    /// `subject` is the subject field of the trust anchor.
+    /// All inputs are DER-encoded.
     ///
-    /// `spki` is the `subjectPublicKeyInfo` field of the trust anchor.
+    /// `subject` is the [Subject] field of the trust anchor.
     ///
-    /// `name_constraints` is the value of a DER-encoded name constraints to
+    /// `spki` is the [SubjectPublicKeyInfo] field of the trust anchor.
+    ///
+    /// `name_constraints` is the [Name Constraints] to
     /// apply for this trust anchor, if any.
+    ///
+    /// [Subject]: https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.6
+    /// [SubjectPublicKeyInfo]: https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.7
+    /// [Name Constraints]: https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.10
     pub fn from_subject_spki_name_constraints(
         subject: impl Into<Vec<u8>>,
         spki: impl Into<Vec<u8>>,
@@ -40,6 +46,18 @@ impl OwnedTrustAnchor {
             spki: spki.into(),
             name_constraints: name_constraints.map(|x| x.into()),
         }
+    }
+
+    /// Return the subject field.
+    ///
+    /// This can be decoded using [x509-parser's FromDer trait](https://docs.rs/x509-parser/latest/x509_parser/traits/trait.FromDer.html).
+    ///
+    /// ```ignore
+    /// use x509_parser::traits::FromDer;
+    /// println!("{}", x509_parser::x509::X509Name::from_der(anchor.subject())?.1);
+    /// ```
+    pub fn subject(&self) -> &[u8] {
+        &self.subject
     }
 }
 
@@ -68,6 +86,7 @@ impl RootCertStore {
     }
 
     /// Return the Subject Names for certificates in the container.
+    #[deprecated(since = "0.20.7", note = "Use OwnedTrustAnchor::subject() instead")]
     pub fn subjects(&self) -> DistinguishedNames {
         let mut r = DistinguishedNames::new();
 

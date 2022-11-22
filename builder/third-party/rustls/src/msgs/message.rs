@@ -1,11 +1,10 @@
+use crate::enums::ProtocolVersion;
 use crate::error::Error;
 use crate::msgs::alert::AlertMessagePayload;
 use crate::msgs::base::Payload;
 use crate::msgs::ccs::ChangeCipherSpecPayload;
 use crate::msgs::codec::{Codec, Reader};
-use crate::msgs::enums::HandshakeType;
-use crate::msgs::enums::{AlertDescription, AlertLevel};
-use crate::msgs::enums::{ContentType, ProtocolVersion};
+use crate::msgs::enums::{AlertDescription, AlertLevel, ContentType, HandshakeType};
 use crate::msgs::handshake::HandshakeMessagePayload;
 
 use std::convert::TryFrom;
@@ -271,6 +270,16 @@ pub struct BorrowedPlainMessage<'a> {
     pub typ: ContentType,
     pub version: ProtocolVersion,
     pub payload: &'a [u8],
+}
+
+impl<'a> BorrowedPlainMessage<'a> {
+    pub fn to_unencrypted_opaque(&self) -> OpaqueMessage {
+        OpaqueMessage {
+            version: self.version,
+            typ: self.typ,
+            payload: Payload(self.payload.to_vec()),
+        }
+    }
 }
 
 #[derive(Debug)]

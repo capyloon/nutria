@@ -119,7 +119,15 @@ pub type thread_throughput_qos_policy_t = *mut thread_throughput_qos_policy;
 
 pub type pthread_introspection_hook_t =
     extern "C" fn(event: ::c_uint, thread: ::pthread_t, addr: *mut ::c_void, size: ::size_t);
-pub type pthread_jit_write_callback_t = Option<extern "C" fn(ctx: *mut ::c_void) -> ::c_int>;
+pub type pthread_jit_write_callback_t = ::Option<extern "C" fn(ctx: *mut ::c_void) -> ::c_int>;
+
+pub type os_unfair_lock = os_unfair_lock_s;
+pub type os_unfair_lock_t = *mut os_unfair_lock;
+
+pub type os_log_t = *mut ::c_void;
+pub type os_log_type_t = u8;
+pub type os_signpost_id_t = u64;
+pub type os_signpost_type_t = u8;
 
 pub type vm_statistics_t = *mut vm_statistics;
 pub type vm_statistics_data_t = vm_statistics;
@@ -1294,6 +1302,10 @@ s_no_extra_traits! {
         pub l2p_flags: ::c_uint,
         pub l2p_contigbytes: ::off_t,
         pub l2p_devoffset: ::off_t,
+    }
+
+    pub struct os_unfair_lock_s {
+        _os_unfair_lock_opaque: u32,
     }
 }
 
@@ -2576,6 +2588,27 @@ cfg_if! {
                 l2p_devoffset.hash(state);
             }
         }
+        impl PartialEq for os_unfair_lock {
+            fn eq(&self, other: &os_unfair_lock) -> bool {
+                self._os_unfair_lock_opaque == other._os_unfair_lock_opaque
+            }
+        }
+
+        impl Eq for os_unfair_lock {}
+
+        impl ::fmt::Debug for os_unfair_lock {
+            fn fmt(&self, f: &mut ::fmt::Formatter) -> ::fmt::Result {
+                f.debug_struct("os_unfair_lock")
+                    .field("_os_unfair_lock_opaque", &self._os_unfair_lock_opaque)
+                    .finish()
+            }
+        }
+
+        impl ::hash::Hash for os_unfair_lock {
+            fn hash<H: ::hash::Hasher>(&self, state: &mut H) {
+                self._os_unfair_lock_opaque.hash(state);
+            }
+        }
     }
 }
 
@@ -2661,7 +2694,11 @@ pub const ABMON_11: ::nl_item = 43;
 pub const ABMON_12: ::nl_item = 44;
 
 pub const CLOCK_REALTIME: ::clockid_t = 0;
+pub const CLOCK_MONOTONIC_RAW: ::clockid_t = 4;
+pub const CLOCK_MONOTONIC_RAW_APPROX: ::clockid_t = 5;
 pub const CLOCK_MONOTONIC: ::clockid_t = 6;
+pub const CLOCK_UPTIME_RAW: ::clockid_t = 8;
+pub const CLOCK_UPTIME_RAW_APPROX: ::clockid_t = 9;
 pub const CLOCK_PROCESS_CPUTIME_ID: ::clockid_t = 12;
 pub const CLOCK_THREAD_CPUTIME_ID: ::clockid_t = 16;
 
@@ -3863,6 +3900,20 @@ pub const PTHREAD_RWLOCK_INITIALIZER: pthread_rwlock_t = pthread_rwlock_t {
     __opaque: [0; __PTHREAD_RWLOCK_SIZE__],
 };
 
+pub const OS_UNFAIR_LOCK_INIT: os_unfair_lock = os_unfair_lock {
+    _os_unfair_lock_opaque: 0,
+};
+
+pub const OS_LOG_TYPE_DEFAULT: ::os_log_type_t = 0x00;
+pub const OS_LOG_TYPE_INFO: ::os_log_type_t = 0x01;
+pub const OS_LOG_TYPE_DEBUG: ::os_log_type_t = 0x02;
+pub const OS_LOG_TYPE_ERROR: ::os_log_type_t = 0x10;
+pub const OS_LOG_TYPE_FAULT: ::os_log_type_t = 0x11;
+
+pub const OS_SIGNPOST_EVENT: ::os_signpost_type_t = 0x00;
+pub const OS_SIGNPOST_INTERVAL_BEGIN: ::os_signpost_type_t = 0x01;
+pub const OS_SIGNPOST_INTERVAL_END: ::os_signpost_type_t = 0x02;
+
 pub const MINSIGSTKSZ: ::size_t = 32768;
 pub const SIGSTKSZ: ::size_t = 131072;
 
@@ -4976,6 +5027,18 @@ f! {
     pub {const} fn VM_MAKE_TAG(id: u8) -> u32 {
         (id as u32) << 24u32
     }
+
+    pub fn major(dev: dev_t) -> i32 {
+        (dev >> 24) & 0xff
+    }
+
+    pub fn minor(dev: dev_t) -> i32 {
+        dev & 0xffffff
+    }
+
+    pub fn makedev(major: i32, minor: i32) -> dev_t {
+        (major << 24) | minor
+    }
 }
 
 safe_f! {
@@ -5208,6 +5271,21 @@ extern "C" {
     ) -> ::c_int;
     pub fn pthread_jit_write_freeze_callbacks_np();
     pub fn pthread_cpu_number_np(cpu_number_out: *mut ::size_t) -> ::c_int;
+
+    pub fn os_unfair_lock_lock(lock: os_unfair_lock_t);
+    pub fn os_unfair_lock_trylock(lock: os_unfair_lock_t) -> bool;
+    pub fn os_unfair_lock_unlock(lock: os_unfair_lock_t);
+    pub fn os_unfair_lock_assert_owner(lock: os_unfair_lock_t);
+    pub fn os_unfair_lock_assert_not_owner(lock: os_unfair_lock_t);
+
+    pub fn os_log_create(subsystem: *const ::c_char, category: *const ::c_char) -> ::os_log_t;
+    pub fn os_log_type_enabled(oslog: ::os_log_t, tpe: ::os_log_type_t) -> bool;
+    pub fn os_signpost_id_make_with_pointer(
+        log: ::os_log_t,
+        ptr: *const ::c_void,
+    ) -> ::os_signpost_id_t;
+    pub fn os_signpost_id_generate(log: ::os_log_t) -> ::os_signpost_id_t;
+    pub fn os_signpost_enabled(log: ::os_log_t) -> bool;
 
     pub fn thread_policy_set(
         thread: thread_t,
@@ -5789,6 +5867,12 @@ extern "C" {
         attrBufSize: ::size_t,
         options: u64,
     ) -> ::c_int;
+
+    pub fn malloc_size(ptr: *const ::c_void) -> ::size_t;
+    pub fn malloc_good_size(size: ::size_t) -> ::size_t;
+
+    pub fn dirname(path: *mut ::c_char) -> *mut ::c_char;
+    pub fn basename(path: *mut ::c_char) -> *mut ::c_char;
 }
 
 pub unsafe fn mach_task_self() -> ::mach_port_t {
@@ -5820,7 +5904,10 @@ cfg_if! {
     }
 }
 
-#[link(name = "iconv")]
+// These require a dependency on `libiconv`, and including this when built as
+// part of `std` means every Rust program gets it. Ideally we would have a link
+// modifier to only include these if they are used, but we do not.
+#[cfg_attr(not(feature = "rustc-dep-of-std"), link(name = "iconv"))]
 extern "C" {
     pub fn iconv_open(tocode: *const ::c_char, fromcode: *const ::c_char) -> iconv_t;
     pub fn iconv(

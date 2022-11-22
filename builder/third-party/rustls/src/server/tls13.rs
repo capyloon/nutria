@@ -1,5 +1,6 @@
 use crate::check::inappropriate_handshake_message;
 use crate::conn::{CommonState, ConnectionRandoms, State};
+use crate::enums::ProtocolVersion;
 use crate::error::Error;
 use crate::hash_hs::HandshakeHash;
 use crate::key::Certificate;
@@ -7,7 +8,7 @@ use crate::key::Certificate;
 use crate::log::{debug, trace, warn};
 use crate::msgs::codec::Codec;
 use crate::msgs::enums::{AlertDescription, KeyUpdateRequest};
-use crate::msgs::enums::{ContentType, HandshakeType, ProtocolVersion};
+use crate::msgs::enums::{ContentType, HandshakeType};
 use crate::msgs::handshake::HandshakeMessagePayload;
 use crate::msgs::handshake::HandshakePayload;
 use crate::msgs::handshake::{NewSessionTicketExtension, NewSessionTicketPayloadTLS13};
@@ -21,6 +22,8 @@ use crate::tls13::Tls13CipherSuite;
 use crate::verify;
 #[cfg(feature = "quic")]
 use crate::{check::inappropriate_message, conn::Protocol};
+#[cfg(feature = "secret_extraction")]
+use crate::{conn::Side, suites::PartiallyExtractedSecrets};
 
 use super::hs::{self, HandshakeHashOrBuffer, ServerContext};
 use super::server_conn::ServerConnectionData;
@@ -32,11 +35,12 @@ use ring::constant_time;
 pub(super) use client_hello::CompleteClientHelloHandling;
 
 mod client_hello {
+    use crate::enums::SignatureScheme;
     use crate::kx;
     use crate::msgs::base::{Payload, PayloadU8};
     use crate::msgs::ccs::ChangeCipherSpecPayload;
+    use crate::msgs::enums::NamedGroup;
     use crate::msgs::enums::{Compression, PSKKeyExchangeMode};
-    use crate::msgs::enums::{NamedGroup, SignatureScheme};
     use crate::msgs::handshake::CertReqExtension;
     use crate::msgs::handshake::CertificateEntry;
     use crate::msgs::handshake::CertificateExtension;
@@ -1348,6 +1352,12 @@ impl State<ServerConnectionData> for ExpectTraffic {
                 .record_layer
                 .set_message_encrypter(self.suite.derive_encrypter(&write_key));
         }
+    }
+
+    #[cfg(feature = "secret_extraction")]
+    fn extract_secrets(&self) -> Result<PartiallyExtractedSecrets, Error> {
+        self.key_schedule
+            .extract_secrets(self.suite.common.aead_algorithm, Side::Server)
     }
 }
 

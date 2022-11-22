@@ -11,6 +11,7 @@
 
 use crate::future::Future;
 use crate::loom::cell::UnsafeCell;
+use crate::runtime::context;
 use crate::runtime::task::raw::{self, Vtable};
 use crate::runtime::task::state::State;
 use crate::runtime::task::{Id, Schedule};
@@ -155,7 +156,29 @@ impl<T: Future> CoreStage<T> {
     pub(super) fn with_mut<R>(&self, f: impl FnOnce(*mut Stage<T>) -> R) -> R {
         self.stage.with_mut(f)
     }
+}
 
+/// Set and clear the task id in the context when the future is executed or
+/// dropped, or when the output produced by the future is dropped.
+pub(crate) struct TaskIdGuard {
+    parent_task_id: Option<Id>,
+}
+
+impl TaskIdGuard {
+    fn enter(id: Id) -> Self {
+        TaskIdGuard {
+            parent_task_id: context::set_current_task_id(Some(id)),
+        }
+    }
+}
+
+impl Drop for TaskIdGuard {
+    fn drop(&mut self) {
+        context::set_current_task_id(self.parent_task_id);
+    }
+}
+
+impl<T: Future, S: Schedule> Core<T, S> {
     /// Polls the future.
     ///
     /// # Safety
@@ -171,7 +194,7 @@ impl<T: Future> CoreStage<T> {
     /// heap.
     pub(super) fn poll(&self, mut cx: Context<'_>) -> Poll<T::Output> {
         let res = {
-            self.stage.with_mut(|ptr| {
+            self.stage.stage.with_mut(|ptr| {
                 // Safety: The caller ensures mutual exclusion to the field.
                 let future = match unsafe { &mut *ptr } {
                     Stage::Running(future) => future,
@@ -181,6 +204,7 @@ impl<T: Future> CoreStage<T> {
                 // Safety: The caller ensures the future is pinned.
                 let future = unsafe { Pin::new_unchecked(future) };
 
+                let _guard = TaskIdGuard::enter(self.task_id);
                 future.poll(&mut cx)
             })
         };
@@ -224,7 +248,7 @@ impl<T: Future> CoreStage<T> {
     pub(super) fn take_output(&self) -> super::Result<T::Output> {
         use std::mem;
 
-        self.stage.with_mut(|ptr| {
+        self.stage.stage.with_mut(|ptr| {
             // Safety:: the caller ensures mutual exclusion to the field.
             match mem::replace(unsafe { &mut *ptr }, Stage::Consumed) {
                 Stage::Finished(output) => output,
@@ -234,7 +258,8 @@ impl<T: Future> CoreStage<T> {
     }
 
     unsafe fn set_stage(&self, stage: Stage<T>) {
-        self.stage.with_mut(|ptr| *ptr = stage)
+        let _guard = TaskIdGuard::enter(self.task_id);
+        self.stage.stage.with_mut(|ptr| *ptr = stage)
     }
 }
 

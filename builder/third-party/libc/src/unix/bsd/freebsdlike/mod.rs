@@ -630,6 +630,7 @@ pub const MAP_FAILED: *mut ::c_void = !0 as *mut ::c_void;
 pub const MCL_CURRENT: ::c_int = 0x0001;
 pub const MCL_FUTURE: ::c_int = 0x0002;
 
+pub const MNT_EXPUBLIC: ::c_int = 0x20000000;
 pub const MNT_NOATIME: ::c_int = 0x10000000;
 pub const MNT_NOCLUSTERR: ::c_int = 0x40000000;
 pub const MNT_NOCLUSTERW: ::c_int = 0x80000000;
@@ -1731,6 +1732,8 @@ extern "C" {
     pub fn eui64_ntoa(id: *const eui64, a: *mut ::c_char, len: ::size_t) -> ::c_int;
     pub fn eui64_ntohost(hostname: *mut ::c_char, len: ::size_t, id: *const eui64) -> ::c_int;
     pub fn eui64_hostton(hostname: *const ::c_char, id: *mut eui64) -> ::c_int;
+
+    pub fn eaccess(path: *const ::c_char, mode: ::c_int) -> ::c_int;
 }
 
 #[link(name = "rt")]
