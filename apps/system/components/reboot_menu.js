@@ -58,7 +58,7 @@ class RebootMenu extends HTMLElement {
 
   async takeScreenshot() {
     console.log(`takeScreenshot`);
-    let file = embedder.takeScreenshot();
+    let blob = await embedder.takeScreenshot();
 
     let now = new Date();
     now = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
@@ -70,9 +70,9 @@ class RebootMenu extends HTMLElement {
 
     let container = await contentManager.ensureTopLevelContainer("screenshots");
 
-    // console.log(`Screenshot container is ${container}, adding ${filename}`);
+    // console.log(`Screenshot container is ${container}, adding ${filename}`, blob);
 
-    contentManager.create(container, filename, file).then(
+    contentManager.create(container, filename, blob).then(
       async () => {
         console.log(`Screenshot saved in screenshots/${filename}`);
         let msg = await window.utils.l10n("screenshot-saved-success", {
@@ -81,7 +81,8 @@ class RebootMenu extends HTMLElement {
         window.toaster.show(msg, "success");
       },
       async (error) => {
-        console.error(`Error saving file: ${JSON.stringify(error)}`);
+        console.error(`Error saving screenshot: ${JSON.stringify(error)}`);
+        console.error(error);
         let msg = await window.utils.l10n("screenshot-saved-error", {
           error: JSON.stringify(error),
         });
