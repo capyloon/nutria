@@ -24,7 +24,7 @@ PREF_FILE_NAME := "gsi.js"
 endif
 
 $(LOCAL_BUILT_MODULE):
-	@echo "Packaging Nutria apps..."
+	@echo "Packaging Nutria apps for product ${TARGET_PRODUCT"
 	(cd $(NUTRIA_PATH)/builder ; \
 	 NUTRIA_APPS_ROOT=$(abspath $(NUTRIA_PATH)/apps) \
          $(SHELL) install.sh $(B2G_DEFAULTS)/../)
