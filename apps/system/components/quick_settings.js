@@ -29,7 +29,7 @@ class QuickSettings extends HTMLElement {
       </section>
       <section id="brightness-section">
         <sl-icon name="sun"></sl-icon>
-        <sl-range id="brightness" name="brightness" min="5" max="100" value="100"></sl-range>
+        <sl-range id="brightness" name="brightness" min="0" max="100" value="100"></sl-range>
       </section>
       <section class="notifications"></section>
       <section class="browser-actions"></section>
