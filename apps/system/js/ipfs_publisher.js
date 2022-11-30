@@ -175,7 +175,7 @@ class IpfsPublisher {
         actions: [
           {
             title: actionTitle,
-            action: "ipfs-share",
+            action: "ipfs-publish",
           },
         ],
       });
@@ -280,7 +280,7 @@ class IpfsObserver {
 
     // Bring up the text sharing UI for a resource id published on IPFS.
     actionsDispatcher.addListener(
-      "share-resource",
+      "publish-resource",
       async (_name, resourceId) => {
         this.log(`Sharing: ${resourceId}`);
 
@@ -356,20 +356,20 @@ class IpfsObserver {
   async handleEvent(event) {
     let detail = event.detail;
     // serviceworkermessage event.detail format is:
-    // {"category":"notification","type":"action","data":{"action":"ipfs-share","tag":"ipfs-publish_58d30236-0076-4bc5-9082-94f1c2d97a74"}}
+    // {"category":"notification","type":"action","data":{"action":"ipfs-publish","tag":"ipfs-publish_58d30236-0076-4bc5-9082-94f1c2d97a74"}}
 
     if (detail.category !== "notification" || detail.type !== "action") {
       return;
     }
     let data = detail.data;
-    if (data.action !== "ipfs-share") {
+    if (data.action !== "ipfs-publish") {
       return;
     }
 
     // If the event is an ipfs-share action, trigger the ipfs sharing UI.
     let resourceId = data.tag.split("_")[1];
     if (resourceId) {
-      actionsDispatcher.dispatch("share-resource", resourceId);
+      actionsDispatcher.dispatch("publish-resource", resourceId);
     }
   }
 }

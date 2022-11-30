@@ -42,7 +42,7 @@
         },
         "returnValue": false
       },
-      "share-resource": {
+      "publish-resource": {
         "filters": {
           "id": { "required": true }
         },

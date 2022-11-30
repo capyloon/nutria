@@ -113,8 +113,8 @@ export class ContainerRenderer extends LitElement {
       return;
     }
     event.stopPropagation();
-    // Trigger a "resource sharing" activity.
-    let activity = new WebActivity("share-resource", { id });
+    // Trigger a "resource publishing" activity.
+    let activity = new WebActivity("publish-resource", { id });
     activity.start();
   }
 
