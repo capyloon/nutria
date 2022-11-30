@@ -6,7 +6,7 @@ window.config = {
   port: isDevice ? 80 : 8081,
 };
 
-function addLink(url) {
+function addStylesheet(url) {
   let link = document.createElement("link");
   link.setAttribute("rel", "stylesheet");
   link.setAttribute("href", url);
@@ -29,11 +29,11 @@ function loadSharedScript(url) {
 }
 
 // Load <link rel="stylesheet" href="style/{device|desktop}.css" />
-addLink(`/style/${isDevice ? "device" : "desktop"}.css`);
+addStylesheet(`/style/${isDevice ? "device" : "desktop"}.css`);
 
 let depGraphLoaded = new Promise((resolve) => {
   loadSharedScript("js/dep_graph.js").onload = resolve;
 });
 
 // Load the "Readex Pro" font
-addSharedStylesheet(`style/fonts.css`);
+addStylesheet(`http://shared.localhost:${location.port}/style/fonts.css`);
