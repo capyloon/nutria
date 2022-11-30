@@ -1,0 +1,35 @@
+{
+  "name": "Peers",
+  "description": "Peer 2 peer world",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "/icons/ipfs-logo.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "developer": {
+      "name": "The Capyloon team"
+    },
+    "permissions": {
+      "content-manager": {},
+      "dweb": {}
+    },
+    "serviceworker": {
+      "script_url": "sw.js"
+    },
+    "activities": {
+      "share": {
+        "filters": {
+          "type": ["audio", "image", "url", "text", "video", "application"]
+        },
+        "href": "/index.html#activity",
+        "returnValue": true
+      }
+    }
+  },
+  "version": "1.0"
+}
