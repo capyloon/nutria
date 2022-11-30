@@ -1,0 +1,15 @@
+.hidden {
+  display: none;
+}
+
+#share {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  align-items: center;
+}
+
+#qr-code {
+    background-color: white;
+    padding: 2em;
+}

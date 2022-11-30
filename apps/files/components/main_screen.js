@@ -201,6 +201,27 @@ class MainScreen extends LitElement {
     }
   }
 
+  async shareResource() {
+    // Download the resource as a Blob, and trigger the "share" activity.
+    try {
+      let resource = await contentManager.resourceFromId(this.data.id);
+      let response = await fetch(resource.variantUrl());
+      let blob = await response.blob();
+      this.log(`Sharing blob ${blob.type} ${blob.size}`);
+      let activity = new WebActivity("share", {
+        type: blob.type.split("/")[0],
+        blob,
+        name: resource.meta.name,
+      });
+      // let activity = new WebActivity("share", { type: "image/png", url: "http://example.com" });
+      await activity.start();
+    } catch (e) {
+      this.error(
+        `Failed to share resource ${this.data.id}: ${JSON.stringify(e)}`
+      );
+    }
+  }
+
   render() {
     this.log(`render editMode=${this.editMode}`);
     let content = this.renderer || html`<div></div>`;
@@ -222,7 +243,7 @@ class MainScreen extends LitElement {
             ? html`<sl-icon-button disabled name="upload"></sl-icon-button>`
             : html`<sl-icon-button name="upload"></sl-icon-button>`}
         </div>
-        <div>
+        <div @click="${this.shareResource}">
           <sl-icon-button name="share-2"></sl-icon-button>
         </div>
         <div @click="${this.deleteResource}">
