@@ -42,28 +42,18 @@
   font-size: 14px;
 }
 
+/**
+  mascot.png size is 880x477. Keep aspect ratio here
+  since we can't use 'height: auto' when using a
+  background image
+  */
 #logo div.image {
-  width: 128px;
-  height: 128px;
-  animation: logo-anim 6s linear infinite;
-  background-image: url(../resources/logo.webp);
+  width: 256px;
+  height: 139px;
+  background-image: url(../resources/mascot.png);
   background-size: contain;
-  margin: 1em;
-}
-
-@keyframes logo-anim {
-  25% {
-    transform: rotate(-25deg);
-  }
-  50% {
-    transform: rotate(0deg);
-  }
-  75% {
-    transform: rotate(25deg);
-  }
-  100% {
-    transform: rotate(0deg);
-  }
+  margin-top: 2em;
+  margin-bottom: 2em;
 }
 
 /* FTU app styling */
