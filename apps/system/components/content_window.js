@@ -30,7 +30,7 @@ class ProcessManager {
   setBackground(pid, tryToKeep = false) {
     console.log(`ProcessManager: setBackground ${pid} keep=${tryToKeep}`);
     this.service.then((procmanager) => {
-      let lib = window.apiDaemon.getLibraryFor("ProcManager");;
+      let lib = window.apiDaemon.getLibraryFor("ProcManager");
       let backgroundType = tryToKeep
         ? lib.GroupType.TRY_TO_KEEP
         : lib.GroupType.BACKGROUND;
@@ -61,7 +61,7 @@ class ProcessManager {
 
   moveToForeground(newFg, oldFg, tryToKeep) {
     this.service.then((procmanager) => {
-      let lib = window.apiDaemon.getLibraryFor("ProcManager");;
+      let lib = window.apiDaemon.getLibraryFor("ProcManager");
       let backgroundType = tryToKeep
         ? lib.GroupType.TRY_TO_KEEP
         : lib.GroupType.BACKGROUND;
@@ -847,7 +847,7 @@ class ContentWindow extends HTMLElement {
         uiUpdateNeeded = true;
         break;
       case "contextmenu":
-        if (detail && !this.config.isHomescreen) {
+        if (detail && typeof detail == "object" && !this.config.isHomescreen) {
           console.log(`Got ContextMenu event detail=${JSON.stringify(detail)}`);
           detail.pageUrl = this.state.url;
           let menu = document.body.querySelector("context-menu");
