@@ -126,7 +126,6 @@ impl AdbCommand for ClearCacheCommand {
     }
 }
 
-
 // Command that resets time on device.
 // Equivalent to the command: "adb shell date @`date +%s`"
 pub struct ResetTimeCommand;

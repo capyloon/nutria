@@ -154,7 +154,7 @@ impl BuildConfig {
                 .unwrap_or_else(|_| panic!("Invalid NUTRIA_IPFSD_CONFIG path: {}", path)),
             Err(_) => {
                 let cwd = env::current_dir().unwrap_or_else(|_| env::temp_dir());
-                cwd.parent().unwrap().join("defaults").join("iroh-one.toml")
+                cwd.parent().unwrap().join("defaults").join("ipfsd.toml")
             }
         }
     }

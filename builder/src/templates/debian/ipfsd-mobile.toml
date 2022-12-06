@@ -1,18 +1,18 @@
 # ipfsd mobile configuration
 
 gateway_uds_path = '/tmp/ipfsd.http'
-resolver_gateway = 'dweb.link'
 
 [gateway]
+http_resolvers = ['dweb.link']
 cache = false
 denylist = false
 fetch = false
 port = 0
-writeable = false
+writeable = true
 
 [gateway.headers]
 accept-ranges = 'none'
-access-control-allow-headers = 'content-type, content-disposition, last-modified, cache-control, accept-ranges, etag, service-worker, x-ipfs-gateway-prefix, x-trace-id, x-content-type-options, x-ipfs-path, x-ipfs-roots'
+access-control-allow-headers = 'location, content-type, content-disposition, last-modified, cache-control, accept-ranges, etag, service-worker, x-ipfs-gateway-prefix, x-trace-id, x-content-type-options, x-ipfs-path, x-ipfs-roots'
 access-control-allow-methods = 'GET, PUT, POST, DELETE, HEAD, OPTIONS'
 access-control-allow-origin = '*'
 

@@ -39,6 +39,8 @@ sed -e s#__HOME__#${HOME}#g /opt/capyloon/api-daemon/config.toml > ${HOME}/.capy
 
 # Copy the ipfsd config file and substitute the ${HOME} value.
 sed -e s#__HOME__#${HOME}#g /opt/capyloon/ipfsd/config.toml > ${HOME}/.capyloon/ipfsd-config.toml
+# Forcibly remove the lock file since it doesn't get cleaned up when rebooting.
+rm -f ${HOME}/.local/share/iroh/iroh-one.lock
 
 export RUST_LOG=warn
 

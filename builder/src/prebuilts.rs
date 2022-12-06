@@ -118,7 +118,7 @@ impl DownloadTask {
 }
 
 impl Task for DownloadTask {
-    type Input = (Url, String); // (url to download, unpack directory)
+    type Input = (String, Url, String); // (prebuilt name, url to download, unpack directory)
     type Output = ();
     type Error = DownloadTaskError;
 
@@ -129,7 +129,7 @@ impl Task for DownloadTask {
         Self { topdir }
     }
 
-    fn run(&self, (url, path): Self::Input) -> Result<Self::Output, Self::Error> {
+    fn run(&self, (name, url, path): Self::Input) -> Result<Self::Output, Self::Error> {
         let unpack_path = self.topdir.join(path);
 
         let url2 = url.clone();
@@ -137,7 +137,7 @@ impl Task for DownloadTask {
             Some(segments) => segments.last().unwrap_or("<no package>"),
             None => "<no package>",
         };
-        info!("About to download and unpack {}", url.as_str());
+        info!("About to download and unpack {}: {}", name, url.as_str());
 
         let _ = fs::create_dir_all(&self.topdir.join(".cache"));
         let cache_path = self.topdir.join(".cache").join(package);
@@ -271,7 +271,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
 
         if let Some(url) = &item.api_daemon {
             let url = Url::parse(url)?;
-            if let Err(err) = task.run((url, ".".into())) {
+            if let Err(err) = task.run(("api-daemon".into(), url, ".".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
                 let _ = writeln!(
@@ -297,7 +297,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
 
         if let Some(url) = &item.b2ghald {
             let url = Url::parse(url)?;
-            if let Err(err) = task.run((url, ".".into())) {
+            if let Err(err) = task.run(("b2ghald".into(), url, ".".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
                 let _ = writeln!(
@@ -317,7 +317,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
 
         if let Some(url) = &item.b2g {
             let url = Url::parse(url)?;
-            if let Err(err) = task.run((url.clone(), "prebuilts".into())) {
+            if let Err(err) = task.run(("b2g".into(), url.clone(), "prebuilts".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
                 #[cfg(target_os = "macos")]
@@ -339,7 +339,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
 
         if let Some(url) = &item.ipfsd {
             let url = Url::parse(url)?;
-            if let Err(err) = task.run((url, ".".into())) {
+            if let Err(err) = task.run(("ipfsd".into(), url, ".".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
                 let _ = writeln!(
@@ -353,7 +353,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
 
         if let Some(url) = &item.weston {
             let url = Url::parse(url)?;
-            if let Err(err) = task.run((url.clone(), "prebuilts".into())) {
+            if let Err(err) = task.run(("weston".into(), url.clone(), "prebuilts".into())) {
                 error!("Failed to download & unpack: {}", err);
             } else {
                 maybe_add_package(&mut env_file, &topdir, &url, "NUTRIA_WESTON_PACKAGE");
