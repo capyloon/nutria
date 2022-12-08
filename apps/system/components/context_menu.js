@@ -71,7 +71,7 @@ class ContextMenu extends HTMLElement {
         <sl-menu-item class="when-image" data-l10n-id="image-set-wallpaper"></sl-menu-item>
         <sl-menu-item class="when-image" data-l10n-id="image-download"></sl-menu-item>
         <sl-menu-item class="when-image" data-l10n-id="image-new-tab"></sl-menu-item>
-        <sl-menu-item class="when-image" data-l10n-id="image-share" disabled></sl-menu-item>
+        <sl-menu-item class="when-image" data-l10n-id="image-share"></sl-menu-item>
         <sl-divider class="when-image-and-link"></sl-divider>
         <sl-menu-label class="when-link"><sl-icon name="link"></sl-icon><span data-l10n-id="link-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-link" data-l10n-id="link-new-tab"></sl-menu-item>
@@ -96,6 +96,11 @@ class ContextMenu extends HTMLElement {
     shadow.querySelector("sl-menu-item[data-l10n-id=image-new-tab]").onclick =
       () => {
         this.openUrlInNewTab(this.imageUrl);
+      };
+
+    shadow.querySelector("sl-menu-item[data-l10n-id=image-share]").onclick =
+      () => {
+        this.shareImage(this.imageUrl);
       };
 
     shadow.querySelector("sl-menu-item[data-l10n-id=link-new-tab]").onclick =
@@ -152,6 +157,28 @@ class ContextMenu extends HTMLElement {
       "sl-after-hide",
       () => {
         window.wm.openFrame(url, { activate: true });
+      },
+      { once: true }
+    );
+    this.close();
+  }
+
+  async shareImage(url) {
+    this.dialog.addEventListener(
+      "sl-after-hide",
+      async () => {
+        try {
+          let uri = new URL(url);
+          let blob = await this.contentWindow.webView.fetchAsBlob(url);
+          let activity = new WebActivity("share", {
+            type: blob.type.split("/")[0],
+            blob,
+            name: uri.pathname.split("/").reverse()[0],
+          });
+          activity.start();
+        } catch (e) {
+          console.error(e);
+        }
       },
       { once: true }
     );
