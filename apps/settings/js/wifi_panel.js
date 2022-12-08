@@ -78,17 +78,14 @@ class PasswordDialog {
   }
 
   updateValidity() {
-    this.input.reportValidity();
-    this.btnOk.disabled = this.input.invalid;
+    this.btnOk.disabled = !this.input.checkValidity();
   }
 
-  async handleEvent(event) {
+  handleEvent(event) {
     if (event.type === "click") {
       this.close(event.target);
       return;
     } else if (event.type === "sl-input") {
-      // See https://github.com/shoelace-style/shoelace/issues/888#issuecomment-1243750572
-      await this.input.updateComplete;
       this.updateValidity();
     }
   }

@@ -76,7 +76,8 @@
 
       <sl-dialog id="wifi-password-dialog">
         <sl-input
-          toggle-password
+          password-toggle
+          clearable
           type="password"
           minlength="8"
           id="wifi-password-input"
@@ -198,7 +199,7 @@
         </header>
 
         <header>
-          <img id="privacy-tor-icon"></img>&nbsp;
+          <img id="privacy-tor-icon" />&nbsp;
           <span data-l10n-id="privacy-tor-enabled"></span>
           <sl-switch id="privacy-tor-switch"></sl-switch>
         </header>
@@ -298,8 +299,8 @@
       </div>
     </template>
 
-     <!-- The identity panel -->
-     <template id="identity-panel-tmpl">
+    <!-- The identity panel -->
+    <template id="identity-panel-tmpl">
       <div class="drawer-content">
         <h1 data-l10n-id="identity-title" class="branded-text"></h1>
         <header>
@@ -314,7 +315,10 @@
           <strong data-l10n-id="identity-error-duplicate"></strong>
         </sl-alert>
         <div class="identity-add">
-          <sl-input data-l10n-attrs="placeholder" data-l10n-id="identity-add-input"></sl-input>
+          <sl-input
+            data-l10n-attrs="placeholder"
+            data-l10n-id="identity-add-input"
+          ></sl-input>
           <sl-button data-l10n-id="identity-add"></sl-button>
         </div>
       </div>

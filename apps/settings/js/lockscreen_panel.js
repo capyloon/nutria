@@ -139,7 +139,7 @@ class StateManager {
     await this.edit1.updateComplete;
     await this.edit2.updateComplete;
 
-    if (this.edit1.invalid || this.edit2.invalid) {
+    if (!this.edit1.checkValidity() || !this.edit2.checkValidity()) {
       button.setAttribute("disabled", "true");
       codeCheck.classList.add("hidden");
       return;

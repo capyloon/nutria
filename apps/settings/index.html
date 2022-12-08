@@ -58,9 +58,11 @@
 
       <sl-dialog id="wifi-password-dialog">
         <sl-input
-          toggle-password
+          password-toggle
+          clearable
           type="password"
           minlength="8"
+          required
           id="wifi-password-input"
           data-l10n-attrs="label"
           data-l10n-id="wifi-password-desc"
@@ -294,7 +296,8 @@
             maxlength="8"
             pattern="[0-9]*"
             required
-            toggle-password
+            password-toggle
+            clearable
           ></sl-input>
 
           <sl-input
@@ -307,7 +310,8 @@
             maxlength="8"
             pattern="[0-9]*"
             required
-            toggle-password
+            password-toggle
+            clearable
           ></sl-input>
           <div id="lockscreen-code-check" class="hidden"></div>
           <sl-button

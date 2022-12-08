@@ -204,3 +204,37 @@ sl-input::part(password-toggle-button) {
   flex-wrap: wrap;
   gap: 0.5em;
 }
+
+/* user invalid styles */
+sl-input[data-user-invalid]::part(base),
+sl-select[data-user-invalid]::part(control) {
+ border-color: var(--sl-color-danger-600);
+}
+
+[data-user-invalid]::part(form-control-label),
+[data-user-invalid]::part(form-control-help-text) {
+ color: var(--sl-color-danger-700);
+}
+
+sl-input:focus-within[data-user-invalid]::part(base),
+sl-select:focus-within[data-user-invalid]::part(control) {
+ border-color: var(--sl-color-danger-600);
+ box-shadow: 0 0 0 var(--sl-focus-ring-width) var(--sl-color-danger-300);
+}
+
+/* User valid styles */
+sl-input[data-user-valid]::part(base),
+sl-select[data-user-valid]::part(control) {
+ border-color: var(--sl-color-success-600);
+}
+
+[data-user-valid]::part(form-control-label),
+[data-user-valid]::part(form-control-help-text) {
+ color: var(--sl-color-success-700);
+}
+
+sl-input:focus-within[data-user-valid]::part(base),
+sl-select:focus-within[data-user-valid]::part(control) {
+ border-color: var(--sl-color-success-600);
+ box-shadow: 0 0 0 var(--sl-focus-ring-width) var(--sl-color-success-300);
+}
