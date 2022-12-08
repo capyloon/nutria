@@ -1,1 +1,0 @@
-import{a as l}from"./chunk.CVLGOF4Q.js";import{a as o,f as m}from"./chunk.X7Q42RGY.js";import{c as r}from"./chunk.3G4FHXSN.js";import{g as e}from"./chunk.OAQCUA7X.js";var t=class extends m{render(){return r` <slot></slot> `}};t.styles=l,t=e([o("sl-visually-hidden")],t);export{t as a};

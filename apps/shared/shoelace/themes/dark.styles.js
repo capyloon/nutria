@@ -375,6 +375,7 @@ export default css`
     --sl-input-border-width: 1px;
     --sl-input-required-content: "*";
     --sl-input-required-content-offset: -2px;
+    --sl-input-required-content-color: var(--sl-input-label-color);
 
     --sl-input-border-radius-small: var(--sl-border-radius-medium);
     --sl-input-border-radius-medium: var(--sl-border-radius-medium);
@@ -465,7 +466,10 @@ export default css`
   }
 
   .sl-toast-stack sl-alert {
-    --box-shadow: var(--sl-shadow-large);
     margin: var(--sl-spacing-medium);
+  }
+
+  .sl-toast-stack sl-alert::part(base) {
+    box-shadow: var(--sl-shadow-large);
   }
 `;
