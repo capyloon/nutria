@@ -28,13 +28,13 @@ class ActionBookmark extends HTMLElement {
     this.onclick = () => {
       this.dispatchEvent(new CustomEvent("open-bookmark", { bubbles: true }));
       console.log(`open-bookmark event dispatched`);
-      let activity = new WebActivity("launch", {
-        url: data.url,
+      let details = {
         title: data.title,
         icon: this.icon,
         backgroundColor: data.backgroundColor,
-      });
-      activity.start();
+      };
+      let encoded = encodeURIComponent(JSON.stringify(details));
+      window.open(data.url, "_blank", `details=${encoded}`);
     };
   }
 

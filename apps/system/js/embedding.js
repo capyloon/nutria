@@ -98,16 +98,28 @@ const UAHelper = {
 
     // Open a new tab in all cases.
     createContentWindowInFrame(aURI, aParams, aWhere, aFlags, aName) {
-      log(
-        `browserWindow::createContentWindowInFrame ${aURI} ${aParams.features}`
-      );
+      log(`browserWindow::createContentWindowInFrame ${aURI}`);
 
       // Ci.nsIBrowserDOMWindow.OPEN_PRINT_BROWSER case
       let isPrinting = aWhere == 4;
 
+      let details = {};
+
+      if (aParams.features?.startsWith("details=")) {
+        try {
+          let encoded = aParams.features.substr(8); // "details=".length
+          details = JSON.parse(decodeURIComponent(encoded));
+          // Needed because aFeatures is all lowercase...
+          details.backgroundColor = details.backgroundcolor;
+        } catch (e) {
+          log(`Failed to decode features: ${e}`);
+        }
+      }
+
       let webView = exports.wm.openFrame(aURI, {
         activate: !isPrinting,
         openWindowInfo: aParams.openWindowInfo,
+        details,
       });
       return webView;
     },
@@ -227,7 +239,7 @@ const UAHelper = {
   embedder.wrCapture = () => {
     log(`wrCapture`);
     window.windowUtils.wrCapture();
-  }
+  };
 
   exports.embedder = embedder;
 

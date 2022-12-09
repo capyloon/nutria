@@ -31,19 +31,6 @@ window.addEventListener("serviceworkermessage", ({ detail }) => {
   if (category === "systemmessage" && type === "activity") {
     const { activityId, source } = data;
     switch (source.name) {
-      case "launch":
-        let config = source.data;
-        let details = {
-          title: config.title,
-          icon: config.icon,
-          backgroundColor: config.backgroundColor,
-          search: config.search,
-        };
-        if (config.search) {
-          console.log(`LAUNCH: search query was '${config.search}'`);
-        }
-        wm.openFrame(config.url, { activate: true, details });
-        break;
       case "publish-resource":
         actionsDispatcher.dispatch("publish-resource", source.data.id);
         break;

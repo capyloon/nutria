@@ -54,8 +54,11 @@ class SearchSource {
       url = `https://${url}`;
     }
 
-    let activity = new WebActivity("launch", { url, search });
-    activity.start();
+    let details = {
+      search,
+    };
+    let encoded = encodeURIComponent(JSON.stringify(details));
+    window.open(url, "_blank", `details=${encoded}`);
     return true;
   }
 

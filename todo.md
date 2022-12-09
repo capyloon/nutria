@@ -9,12 +9,11 @@ UCAN improvements:
 - Check the UCAN blocked status when checking UCAN validity.
 
 P1:
-- "share" activity
 - CI: docker images for daily builds
 - CI: better integration avec Estuary/web3.storage
 - Better generic VFS api.
 - cross device experience
-- replace some activities by cross app router (system: launch | homescreen: toggle-app-list, new-tab)
+- replace some activities by cross app router (homescreen: toggle-app-list, new-tab)
 - permission prompts: tab modals + permissions in page-info
 - activity chooser UI: screen modal
 - revamp website (eg. similar to https://regolith-linux.org/)
@@ -55,6 +54,7 @@ libp2p discovery
 Next Release items
 ==================
 - Homescreen Switcher
+- New "peers" app
 
 Release Check List
 ==================

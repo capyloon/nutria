@@ -36,12 +36,6 @@
       }
     },
     "activities": {
-      "launch": {
-        "filters": {
-          "url": { "required": true }
-        },
-        "returnValue": false
-      },
       "publish-resource": {
         "filters": {
           "id": { "required": true }
