@@ -497,6 +497,9 @@ document.addEventListener(
       toggleAppList: () => {
         peer.send("homescreen.localhost", "toggleAppList");
       },
+      newTab: () => {
+        peer.send("homescreen.localhost", "newTab");
+      },
     };
   },
   { once: true }

@@ -152,8 +152,7 @@ class WindowManagerKeys {
       !window.lockscreen.isLocked()
     ) {
       this.wm.goHome();
-      let activity = new WebActivity("new-tab", {});
-      activity.start().then(() => console.log(`new-tab done`));
+      window.XacHomescreen.newTab();
     }
 
     // Do a WebRender Capture with [Ctrl] + [Shift] + [w]

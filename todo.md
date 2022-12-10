@@ -13,7 +13,6 @@ P1:
 - CI: better integration avec Estuary/web3.storage
 - Better generic VFS api.
 - cross device experience
-- replace some activities by cross app router (homescreen: toggle-app-list, new-tab)
 - permission prompts: tab modals + permissions in page-info
 - activity chooser UI: screen modal
 - revamp website (eg. similar to https://regolith-linux.org/)

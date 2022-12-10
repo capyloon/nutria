@@ -153,7 +153,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Configure activity handlers.
   let activities = new ActivityManager({
-    "new-tab": openSearchBox,
     "add-to-home": addToHome,
   });
 
@@ -189,11 +188,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       appsList.toggle();
       return Promise.resolve();
     },
+
+    newTab: openSearchBox,
   };
 
   let xac = await import(`http://shared.localhost:${config.port}/xac/peer.js`);
   let peer = new xac.Peer(
-    [{ host: "system", fns: ["toggleAppList"] }],
+    [{ host: "system", fns: ["toggleAppList", "newTab"] }],
     HomescreenFns
   );
   peer.addEventListener("ready", () => {
