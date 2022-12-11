@@ -296,7 +296,6 @@ class SiteInfo extends HTMLElement {
   }
 
   open() {
-    // Check the context menu data to decide which sections to show.
     if (!this.state) {
       return;
     }

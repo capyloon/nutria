@@ -14,7 +14,6 @@ P1:
 - Better generic VFS api.
 - cross device experience
 - permission prompts: tab modals + permissions in page-info
-- activity chooser UI: screen modal
 - revamp website (eg. similar to https://regolith-linux.org/)
 - be in good standing in https://github.com/arthuredelstein/privacytests.org
 

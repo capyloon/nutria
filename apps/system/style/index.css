@@ -110,7 +110,8 @@ so can't be part of component specific css file.
 */
 #site-info,
 #reboot-menu,
-#quick-settings {
+#quick-settings,
+#activity-chooser {
   --size: fit-content;
 }
 
@@ -119,7 +120,9 @@ so can't be part of component specific css file.
 #reboot-menu::part(panel),
 #reboot-menu::part(body),
 #quick-settings::part(panel),
-#quick-settings::part(body) {
+#quick-settings::part(body),
+#activity-chooser::part(panel),
+#activity-chooser::part(body) {
   background-color: transparent;
   padding: 0;
 }
@@ -148,6 +151,7 @@ so can't be part of component specific css file.
 /* Desktop mode */
 @media (min-width: 800px) {
   #site-info::part(panel),
+  #activity-chooser::part(panel),
   #quick-settings::part(body) {
     max-width: calc(min(50%, 600px));
   }

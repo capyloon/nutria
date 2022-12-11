@@ -213,8 +213,14 @@ const UAHelper = {
   const activityChooser = {
     choseActivity(detail) {
       log(`choseActivity ${JSON.stringify(detail)}`);
-      // Always return the first choice until we have a chooser UI.
-      return Promise.resolve({ id: detail.id, value: 0 });
+      // Don't show the chooser if there's only one option.
+      if (detail.choices.length === 1) {
+        return Promise.resolve({ id: detail.id, value: 0 });
+      }
+
+      let chooser =
+        document.getElementById("activity-chooser").firstElementChild;
+      return chooser.open(detail);
     },
   };
 

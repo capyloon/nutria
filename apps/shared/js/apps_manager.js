@@ -95,7 +95,7 @@ export class AppsManager extends EventTarget {
         summary.backgroundColor = manifest.theme_color;
       }
     } catch (e) {
-      console.error(`AppsList: oops ${e}`);
+      console.error(`ZZZ AppsList: oops ${e}`);
     }
     return summary;
   }

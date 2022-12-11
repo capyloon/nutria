@@ -167,8 +167,8 @@ const kDeps = [
   },
   {
     name: "apps manager",
-    kind: "windowModule",
-    param: ["/js/apps_manager.js", "appsManager", "AppsManager"],
+    kind: "sharedWindowModule",
+    param: ["js/apps_manager.js", "appsManager", "AppsManager"],
     deps: ["shared-api-daemon"],
   },
   {

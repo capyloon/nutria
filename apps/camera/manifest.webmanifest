@@ -25,6 +25,12 @@
     "activities": {
       "scan-qr-code": {
         "returnValue": true
+      },
+      "pick": {
+        "filters": {
+          "type": { "required": true, "value": ["image"] }
+        },
+        "returnValue": true
       }
     }
   },

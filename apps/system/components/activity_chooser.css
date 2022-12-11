@@ -1,0 +1,27 @@
+/* <activity-chooser> styling */
+
+:host {
+  color: var(--sl-color-neutral-700);
+}
+
+:host .container {
+  background-color: var(--sl-panel-background-color);
+  padding: 0.5em;
+  margin: 0.5em;
+  border-radius: var(--sl-border-radius-medium);
+  display: flex;
+  flex-direction: column;
+}
+
+:host sl-button {
+  width: fit-content;
+}
+
+:host sl-menu {
+  border: none;
+  padding: 0;
+}
+
+:host img {
+    width: 2em;
+}

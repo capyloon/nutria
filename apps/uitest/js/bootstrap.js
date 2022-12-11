@@ -144,6 +144,17 @@ document.addEventListener(
       window["music"].setAttribute("controls", "true");
       window["video"].setAttribute("controls", "true");
     }, 3000);
+
+    window["activity"].onclick = async () => {
+      try {
+        let activity = new WebActivity("pick", { type: "image" });
+        let blob = await activity.start();
+        console.log(`Got blob: ${blob}`);
+        window["activity-image"].src = URL.createObjectURL(blob);
+      } catch (e) {
+        console.log(`The 'pick' activity was canceled: ${e}`);
+      }
+    };
   },
   { once: true }
 );

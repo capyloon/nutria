@@ -1,4 +1,4 @@
-const ACTIVITY_NAMES = ["view-resource", "install-wasm-plugin"];
+const ACTIVITY_NAMES = ["pick", "view-resource", "install-wasm-plugin"];
 
 function log(msg) {
   console.log(`ContentMgrSw: ${msg}`);
