@@ -2,7 +2,12 @@ const kDeps = [
   {
     name: "main",
     kind: "virtual",
-    deps: ["main screen", "shoelace-light-theme", "shoelace-setup"],
+    deps: [
+      "main screen",
+      "activity manager",
+      "shoelace-light-theme",
+      "shoelace-setup",
+    ],
   },
   {
     name: "lit element",
@@ -34,6 +39,11 @@ const kDeps = [
     param: ["js/content_manager.js", "contentManager", "ContentManager"],
     deps: ["api daemon core"],
   },
+  {
+    name: "activity manager",
+    kind: "sharedModule",
+    param: ["js/activity_manager.js", ["ActivityManager"]],
+  },
 ];
 
 function log(msg) {
@@ -58,6 +68,13 @@ document.addEventListener(
       )
     );
 
+    // Configure activity handlers.
+    let activities = new ActivityManager({
+      "view-resource": activityViewResource,
+      "install-wasm-plugin": activityInstallPlugin,
+      pick: activityPick,
+    });
+
     await contentManager.as_superuser();
 
     log(`Starting at ${document.location}`);
@@ -71,31 +88,35 @@ document.addEventListener(
   { once: true }
 );
 
-// Listen to messages from the service worker.
-// This needs to be setup before the DOMContentLoaded event handler returns.
-navigator.serviceWorker.onmessage = async (event) => {
+async function ensureReady() {
   await ready;
-
-  let activity = event.data;
-  log(`Activity: ${activity.name}`);
-  for (let prop in activity.data) {
-    log(`   ${prop}: ${activity.data[prop]}`);
-  }
-
   await contentManager.as_superuser();
+}
 
-  if (activity.name === "view-resource") {
-    history.replaceState(activity.data, "");
-    document.querySelector("main-screen").switchTo(activity.data, true);
-  } else if (activity.name === "install-wasm-plugin") {
-    // TODO: run in the service worker instead.
-    try {
-      log(`Installing wasm plugin: ${JSON.stringify(activity.data)}`);
-      let pluginsManager = contentManager.getPluginsManager();
-      await pluginsManager.add(activity.data.json, activity.data.url);
-    } catch (e) {
-      console.error(`WASM plugin installation failed: ${e}`);
-    }
-    window.close();
+async function activityViewResource(data) {
+  await ensureReady();
+  log(`activityViewResource ${data.id}`);
+  history.replaceState(data, "");
+  document.querySelector("main-screen").switchTo(data, true);
+}
+
+async function activityInstallPlugin(data) {
+  await ensureReady();
+  // TODO: run in the service worker instead.
+  try {
+    await contentManager.as_superuser();
+
+    log(`Installing wasm plugin: ${JSON.stringify(data)}`);
+    let pluginsManager = contentManager.getPluginsManager();
+    await pluginsManager.add(data.json, data.url);
+  } catch (e) {
+    console.error(`WASM plugin installation failed: ${e}`);
   }
-};
+  window.close();
+}
+
+async function activityPick(data) {
+  await ensureReady();
+  log(`ZZZ pick ${JSON.stringify(data)}`);
+  document.querySelector("main-screen").openRoot();
+}
