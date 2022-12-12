@@ -39,7 +39,6 @@ class ActivityChooser extends LitElement {
 
   makeChoice(event) {
     let value = event.target.dataset.index;
-    console.log(`ZZZ makeChoice value=${value}`);
     this.drawer.addEventListener(
       "sl-after-hide",
       () => {

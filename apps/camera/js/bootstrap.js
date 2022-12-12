@@ -36,6 +36,8 @@ function log(msg) {
 // A promise that resolves with the cameraManager when it's ready.
 var cameraReady;
 
+var cameraManager;
+
 document.addEventListener("DOMContentLoaded", async () => {
   console.log(`DOMContentLoaded`);
   await depGraphLoaded;
@@ -50,6 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Configure activity handlers.
   let activities = new ActivityManager({
     "scan-qr-code": captureQRCode,
+    "pick": pickImage,
   });
 
   await graph.waitForDeps("main");
@@ -71,7 +74,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     cameraModule = await import("./camera_webrtc.js");
   }
 
-  let cameraManager = new cameraModule.Camera(window["preview"]);
+  cameraManager = new cameraModule.Camera(window["preview"]);
 
   let count = await cameraManager.getCameraCount();
   log(`Found ${count} cameras.`);
@@ -87,19 +90,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
-  window["shutter"].onclick = async () => {
-    await cameraManager.takePicture();
-  };
+  window["shutter"].addEventListener("click", takePicture);
 
   // Kick-off preview with the first/default camera.
   await cameraManager.nextCamera();
   onCameraReady(cameraManager);
 });
 
+async function takePicture() {
+  await cameraManager.takePicture();
+}
+
+async function pickImage() {
+  return new Promise((resolve, reject) => {
+    // Re-bind the shutter button
+    window["shutter"].removeEventListener("click", takePicture);
+
+    window["shutter"].onclick = async () => {
+      try {
+        let blob = await cameraManager.takePicture(true);
+        resolve(blob);
+      } catch (e) {
+        reject();
+      }
+      window.close();
+    };
+  });
+}
+
 async function captureQRCode() {
   window["qr-overlay"].classList.remove("hidden");
 
-  return new Promise(async (resolve, reject) => {
+  return new Promise(async (resolve) => {
     const { QrCodeScanner } = await import(`./qr_code.js`);
     let scanner = new QrCodeScanner(cameraReady);
     scanner.addEventListener("found", (event) => {

@@ -78,7 +78,7 @@ export class Camera extends CameraBase {
     this.preview.play();
   }
 
-  async takePicture() {
+  async takePicture(returnBlob = false) {
     if (!this.camera) {
       this.error(`Can't takePicture(): no camera available.`);
       return;
@@ -89,7 +89,11 @@ export class Camera extends CameraBase {
       let blob = await this.camera.takePicture();
       this.log(`Got picture blob: ${blob.size} ${blob.type}`);
       this.camera.resumePreview();
-      await this.savePicture(blob);
+      if (returnBlob) {
+        return blob;
+      } else {
+        await this.savePicture(blob);
+      }
     } catch (e) {
       this.error(`takePicture() failed: ${e}`);
       this.camera.resumePreview();

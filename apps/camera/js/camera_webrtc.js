@@ -84,13 +84,17 @@ export class Camera extends CameraBase {
     this.preview.play();
   }
 
-  async takePicture() {
+  async takePicture(returnBlob = false) {
     const imageCapture = new ImageCapture(this.camera.getVideoTracks()[0]);
     return new Promise((resolve, reject) => {
       imageCapture.onphoto = async (event) => {
         this.endShutterEffect();
-        await this.savePicture(event.data);
-        resolve();
+        if (returnBlob) {
+          resolve(event.data);
+        } else {
+          await this.savePicture(event.data);
+          resolve();
+        }
       };
 
       imageCapture.onerror = reject;
