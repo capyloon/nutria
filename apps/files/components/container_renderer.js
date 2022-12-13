@@ -1,13 +1,14 @@
 /* renderer component for containers */
 
 export class ContainerRenderer extends LitElement {
-  constructor(id) {
+  constructor(id, filter) {
     super();
     this.id = id;
     this.getItems();
     this.iconLayout = false;
     this.selected = new Set();
     this.selectedCount = 0;
+    this.filter = filter;
   }
 
   log(msg) {
@@ -47,6 +48,17 @@ export class ContainerRenderer extends LitElement {
 
     for (let item of items) {
       const isFolder = item.kind === lib.ResourceKind.CONTAINER;
+
+      // filter out files that don't match the pick activity.
+      if (!isFolder && this.filter) {
+        let defaultMime = item.variants.find(
+          (variant) => variant.name == "default"
+        )?.mimeType;
+        // TODO: better filtering
+        if (!defaultMime.startsWith(this.filter)) {
+          continue;
+        }
+      }
 
       // Add up the size of all variants.
       let fullSize = 0;

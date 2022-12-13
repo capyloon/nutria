@@ -10,6 +10,11 @@ class MainScreen extends LitElement {
     this.isContainer = false;
     this.isPublishedOnIpfs = false;
 
+    // When in file picker mode, contains the mime type filter.
+    this.fileFilter = null;
+    // When in file picker mode, a { resolve, reject } object.
+    this.filePicker = null;
+
     addEventListener("popstate", (event) => {
       this.switchTo(event.state, true);
     });
@@ -33,7 +38,14 @@ class MainScreen extends LitElement {
     };
   }
 
+  enterFilePickerMode(filter, defered) {
+    this.fileFilter = filter;
+    this.filePicker = defered;
+  }
+
   closeApp() {
+    this.filePicker?.reject();
+
     window.close();
   }
 
@@ -92,7 +104,7 @@ class MainScreen extends LitElement {
       let { ContainerRenderer } = await import(
         "/components/container_renderer.js"
       );
-      this.renderer = new ContainerRenderer(data.id);
+      this.renderer = new ContainerRenderer(data.id, this.fileFilter);
       this.renderer.addEventListener("update-path", (event) => {
         this.data.id = event.detail;
         this.buildBreadCrumb(event.detail);
@@ -221,9 +233,31 @@ class MainScreen extends LitElement {
     }
   }
 
+  async pickResource() {
+    // Download the resource as a Blob, and return it as the activity result.
+    if (!this.filePicker) {
+      return;
+    }
+
+    try {
+      let resource = await contentManager.resourceFromId(this.data.id);
+      let response = await fetch(resource.variantUrl());
+      let blob = await response.blob();
+      this.filePicker.resolve(blob);
+    } catch (e) {
+      this.error(
+        `Failed to pick resource ${this.data.id}: ${JSON.stringify(e)}`
+      );
+      this.filePicker.reject();
+    }
+    window.close();
+  }
+
   render() {
     this.log(`render editMode=${this.editMode}`);
     let content = this.renderer || html`<div></div>`;
+
+    let filePickerClass = this.filePicker ? "hidden" : "";
 
     return html`<link rel="stylesheet" href="components/main_screen.css" />
       <sl-breadcrumb @click="${this.switchPath}"
@@ -233,20 +267,28 @@ class MainScreen extends LitElement {
       <footer class="${this.editMode || this.isContainer ? "hidden" : ""}">
         <div
           @click="${this.enterEditMode}"
-          class="${this.renderer?.canEdit() ? "" : "hidden"}"
+          class="${!this.filePicker && this.renderer?.canEdit()
+            ? ""
+            : "hidden"}"
         >
           <sl-icon-button name="edit"></sl-icon-button>
         </div>
-        <div @click="${this.uploadResource}">
+        <div @click="${this.uploadResource}" class="${filePickerClass}">
           ${this.isPublishedOnIpfs
             ? html`<sl-icon-button disabled name="upload"></sl-icon-button>`
             : html`<sl-icon-button name="upload"></sl-icon-button>`}
         </div>
-        <div @click="${this.shareResource}">
+        <div @click="${this.shareResource}" class="${filePickerClass}">
           <sl-icon-button name="share-2"></sl-icon-button>
         </div>
-        <div @click="${this.deleteResource}">
+        <div @click="${this.deleteResource}" class="${filePickerClass}">
           <sl-icon-button name="trash-2"></sl-icon-button>
+        </div>
+        <div
+          @click="${this.pickResource}"
+          class="${this.filePicker ? "" : "hidden"}"
+        >
+          <sl-icon-button name="check"></sl-icon-button>
         </div>
         <div @click="${this.closeApp}">
           <sl-icon-button name="x"></sl-icon-button>

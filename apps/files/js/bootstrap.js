@@ -117,6 +117,12 @@ async function activityInstallPlugin(data) {
 
 async function activityPick(data) {
   await ensureReady();
-  log(`ZZZ pick ${JSON.stringify(data)}`);
-  document.querySelector("main-screen").openRoot();
+  let mainScreen = document.querySelector("main-screen");
+  let defered = {};
+  let p = new Promise((resolve, reject) => {
+    defered = { resolve, reject };
+  });
+  mainScreen.enterFilePickerMode(data.type, defered);
+  mainScreen.openRoot();
+  return p;
 }
