@@ -1,6 +1,6 @@
 {
   "name": "Contacts",
-  "description": "Manage your contacts",
+  "description": "Manage your address book",
   "start_url": "/index.html",
   "icons": [
     {
@@ -9,38 +9,16 @@
       "sizes": "any"
     }
   ],
+  "background_color": "#ffffff",
   "b2g_features": {
     "core": true,
     "developer": {
       "name": "The Capyloon team"
     },
     "permissions": {
-      "contacts": { "access": "readwrite" }
-    },
-    "serviceworker": {
-      "script_url": "sw.js"
-    },
-    "activities": {
-      "new-contact": {
-        "filters": {
-          "name": { "required": true }
-        }
-      }
-    },
-    "skills": [
-      {
-        "description": "New Contact",
-        "trigger": "new contact {name:string} {number:phone}? {email:email}?",
-        "activity": "new-contact",
-        "pinnable": false
-      },
-      {
-        "description": "New Friend",
-        "trigger": "new friend {name:string} {number:phone}? {email:email}?",
-        "activity": "new-contact",
-        "pinnable": false
-      }
-    ]
+      "content-manager": {},
+      "dweb": {}
+    }
   },
   "version": "1.0"
 }

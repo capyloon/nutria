@@ -1,24 +1,39 @@
-:host {
-  border-bottom: 2px solid var(--medium-color);
-  padding: 1em;
+/* Styling for the <contact-info> element */
+
+:host .main {
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
 }
 
-:host(:not(.open)) .details {
+:host .details {
+  font-size: 1.25rem;
+  line-height: 2rem;
+  padding-left: 3em;
+}
+
+:host .actions {
+  font-size: 1.5rem;
+  display: flex;
+  justify-content: right;
+  gap: 1em;
+}
+
+:host *.hidden {
   display: none;
 }
 
-:host .details a {
-  display: flex;
-  grid-gap: 0.5em;
-  align-items: center;
-  margin: 0.25em;
-  color: var(--light-color);
-  font-size: initial;
+:host {
+  border: solid var(--sl-panel-border-width) transparent;
+  border-radius: var(--sl-border-radius-medium);
 }
 
-:host .header {
-  cursor: pointer;
-  text-transform: capitalize;
-  font-size: larger;
-  font-weight: bold;
+:host(:hover) {
+  border: solid var(--sl-panel-border-width) var(--sl-panel-border-color);
+}
+
+:host .comm-item {
+  display: flex;
+  gap: 0.25em;
+  align-items: center;
 }

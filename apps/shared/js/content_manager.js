@@ -2,6 +2,7 @@
 
 const PLACES_MIME_TYPE = "application/x-places+json";
 const MEDIA_MIME_TYPE = "application/x-media+json";
+const CONTACTS_MIME_TYPE = "application/x-contact+json";
 
 export class ContentManager {
   constructor() {
@@ -29,6 +30,10 @@ export class ContentManager {
   getOpenSearchManager(callback) {
     this.log(`getOpenSearchManager`);
     return new OpenSearchManager(callback);
+  }
+
+  getContactsManager(callback) {
+    return new ContactsManager(callback);
   }
 
   log(msg) {
@@ -993,6 +998,158 @@ class OpenSearchManager extends ContentManager {
       }
     } catch (e) {
       this.error(`Failed to load default search engines: ${e}`);
+    }
+  }
+}
+
+// Contact Wrapper.
+// These fields are indexed: { name: "...", phone: "[...]", email: "[...]" }
+class Contact {
+  constructor() {
+    // The resource id.
+    this.id = null;
+
+    // Fields representing the contact.
+    this.name = null;
+    this.phone = [];
+    this.email = [];
+    this.did = [];
+  }
+
+  static fromJson(json, id) {
+    let contact = new Contact();
+
+    contact.id = id;
+
+    // TODO: validation.
+    contact.name = json.name;
+    contact.phone = json.phone;
+    contact.email = json.email;
+    contact.did = json.did;
+
+    return contact;
+  }
+
+  // Return an object suitable for storage as the default variant.
+  asDefaultVariant() {
+    return {
+      name: this.name,
+      phone: this.phone,
+      email: this.email,
+      did: this.did,
+    };
+  }
+}
+
+// Helper to abstract contacts management.
+class ContactsManager extends ContentManager {
+  constructor(updatedCallback = null) {
+    super();
+    this.container = null;
+    this.list = [];
+    if (updatedCallback && typeof updatedCallback === "function") {
+      this.onupdated = updatedCallback;
+    }
+  }
+
+  newContact() {
+    return new Contact();
+  }
+
+  log(msg) {
+    console.log(`ContactsManager: ${msg}`);
+  }
+
+  error(msg) {
+    console.error(`ContactsManager: ${msg}`);
+  }
+
+  async ready() {
+    if (!this.container) {
+      this.container = await this.ensureTopLevelContainer("contacts");
+      this.svc = await this.service;
+      this.lib = await this.lib();
+      await this.ensureHttpKey(this.svc);
+    }
+  }
+
+  async onchange(change) {
+    this.log(`list modified: ${JSON.stringify(change)}`);
+    if (
+      change.kind == this.lib.ModificationKind.CHILD_CREATED ||
+      change.kind == this.lib.ModificationKind.CHILD_DELETED
+    ) {
+      await this.update();
+    }
+  }
+
+  async deleteContact(contact) {
+    let svc = await this.service;
+    await svc.delete(contact.id);
+  }
+
+  async init() {
+    await this.ready();
+
+    await this.svc.addObserver(this.container, this.onchange.bind(this));
+    await this.update();
+  }
+
+  // Refresh the list of contacts.
+  async update() {
+    let cursor = await this.svc.childrenOf(this.container);
+
+    let list = [];
+    let done = false;
+    while (!done) {
+      try {
+        let children = await cursor.next();
+        for (let child of children) {
+          if (child.kind === this.lib.ResourceKind.LEAF) {
+            let blob = await this.svc.getVariant(child.id, "default");
+            if (blob.type === CONTACTS_MIME_TYPE) {
+              let json = JSON.parse(await blob.text());
+              list.push(Contact.fromJson(json, child.id));
+            }
+            // TODO: fetch the photo variant.
+          }
+        }
+      } catch (e) {
+        // cursor.next() rejects when no more items are available, so it's not
+        // a fatal error.
+        done = true;
+      }
+    }
+
+    this.log(`list updated: ${list.length} items.`);
+    this.list = list;
+    if (this.onupdated) {
+      this.onupdated(this.list);
+    }
+  }
+
+  // Add a new contact.
+  async add(contact) {
+    await this.ready();
+
+    try {
+      // Store the new contact.
+      let meta = await this.svc.createobj(
+        {
+          parent: this.container,
+          name: contact.name,
+          kind: this.lib.ResourceKind.LEAF,
+          tags: [],
+        },
+        "default",
+        new Blob([JSON.stringify(contact.asDefaultVariant())], {
+          type: CONTACTS_MIME_TYPE,
+        })
+      );
+      await this.update();
+      return meta.id;
+    } catch (e) {
+      this.error(`Failed to add contact: ${e}`);
     }
   }
 }

@@ -1,59 +1,72 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
-    />
-    <meta name="theme-color" content="#1b262c" />
-    <title data-l10n-id="page-title"></title>
+    <title data-l10n-id="title"></title>
+    <meta charset="utf8" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" href="icons/contacts.svg" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="style/main.css" />
 
     <meta name="defaultLanguage" content="en-US" />
     <meta name="availableLanguages" content="en-US" />
-    <link rel="icon" href="icons/contacts.svg" />
-    <link rel="localization" href="./locales/{locale}/main.ftl" />
-
-    <link rel="stylesheet" href="style/index.css" type="text/css" />
+    <link rel="localization" href="locales/{locale}/main.ftl" />
 
     <script src="js/config.js"></script>
-    <script src="js/bootstrap.js"></script>
+    <script src="js/dependencies.js"></script>
+    <script src="js/main.js"></script>
   </head>
   <body>
-    <div id="contacts"></div>
-    <div id="edit-dialog" class="hidden">
-      <div>
-        <h4 data-l10n-id="new-contact-title"></h4>
-        <label for="name-input" data-l10n-id="label-name"></label>
-        <input id="name-input" />
-        <label for="phone-input" data-l10n-id="label-phone"></label>
-        <input id="phone-input" />
-        <label for="email-input" data-l10n-id="label-email"></label>
-        <input id="email-input" />
-        <div class="button-container">
-          <button data-l10n-id="button-ok" id="button-ok"></button>
-          <button data-l10n-id="button-cancel" id="button-cancel"></button>
-        </div>
+    <div class="main">
+      <h2
+        id="main-title"
+        data-l10n-id="main-title"
+        data-l10n-args='{ "count": 0}'
+      ></h2>
+      <div id="contact-list"></div>
+      <div id="float-buttons">
+        <sl-button id="action-scan" variant="primary" pill>
+          <span data-l10n-id="btn-scan"></span>
+          <sl-icon name="qr-code" slot="suffix"></sl-icon>
+        </sl-button>
+        <sl-button id="action-add-contact" variant="primary" pill>
+          <span data-l10n-id="btn-add"></span>
+          <sl-icon name="plus" slot="suffix"></sl-icon>
+        </sl-button>
       </div>
     </div>
-    <div id="floating-menu">
-      <lucide-icon
-        id="edit-icon"
-        kind="edit"
-        size="1.5em"
-        class="on-selection"
-      ></lucide-icon>
-      <lucide-icon
-        id="trash-icon"
-        kind="trash-2"
-        size="1.5em"
-        class="on-selection"
-      ></lucide-icon>
-      <lucide-icon
-        id="create-icon"
-        kind="plus-circle"
-        size="1.5em"
-      ></lucide-icon>
-    </div>
+
+    <!-- The add contact panel -->
+    <template id="add-panel-tmpl">
+      <div class="drawer-content">
+        <h2 data-l10n-id="add-contact-title"></h2>
+        <sl-input
+          id="add-contact-name"
+          data-l10n-id="add-contact-name"
+          data-l10n-attrs="label"
+        ></sl-input>
+        <sl-input
+          id="add-contact-phone"
+          data-l10n-id="add-contact-phone"
+          data-l10n-attrs="label"
+        ></sl-input>
+        <sl-input
+          id="add-contact-email"
+          data-l10n-id="add-contact-email"
+          data-l10n-attrs="label"
+        ></sl-input>
+      </div>
+      <div slot="footer">
+        <sl-button
+          id="add-contact-cancel"
+          data-l10n-id="btn-cancel"
+        ></sl-button>
+        <sl-button
+          id="add-contact-ok"
+          variant="primary"
+          data-l10n-id="btn-ok"
+        ></sl-button>
+      </div>
+    </template>
   </body>
 </html>

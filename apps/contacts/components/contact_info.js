@@ -1,69 +1,79 @@
-// <contact-info> custom element.
-// A simple display of a contact's data.
+// Custom element for a <contact-info> element
 
-class ContactInfo extends HTMLElement {
-  constructor(contact, open = false) {
+export class ContactInfo extends LitElement {
+  constructor(contact) {
     super();
-
     this.contact = contact;
-    this.open = open;
-    if (open) {
-        this.classList.add("open");
+    this.log(`constructor: ${contact.id}`);
+    this.opened = false;
+  }
+
+  log(msg) {
+    console.log(`ContactInfo: ${msg}`);
+  }
+
+  static get properties() {
+    return {
+      contact: { state: true },
+    };
+  }
+
+  switchMode() {
+    let details = this.shadowRoot.querySelector(".details");
+    let actions = this.shadowRoot.querySelector(".actions");
+
+    this.opened = !this.opened;
+    if (this.opened) {
+      details.classList.remove("hidden");
+      actions.classList.remove("hidden");
+    } else {
+      details.classList.add("hidden");
+      actions.classList.add("hidden");
     }
+  }
 
-    let tel = "";
-    let telLink = "";
-    let smsLink = "";
-    let email = "";
-
-    if (contact.tel && contact.tel[0]) {
-      let value = contact.tel[0].value;
-      tel = (value != "") ? `<span>${value}</span>` : ``;
-      telLink = (value != "") ? `<a href="tel:${value}"><lucide-icon kind="phone"></lucide-icon><span>Call</span></a>` : ``;
-      smsLink = (value != "") ? `<a href="sms:${value}"><lucide-icon kind="message-circle"></lucide-icon><span>Send SMS</span></a>` : ``;
+  onAction(event) {
+    let action = event.target.dataset.action;
+    if (action === "delete") {
+      this.log(`About to delete contact ${this.contact.id}`);
+      this.dispatchEvent(new CustomEvent("delete-contact"));
+    } else {
+      this.log(`Unsupported action: '${action}'`);
     }
+  }
 
-    
-    if (contact.email && contact.email[0]) {
-      let value = contact.email[0].value;
-      email = (value != "") ? `<a href="mailto:${value}"><lucide-icon kind="mail"></lucide-icon><span>${value}</span></a>` : ``;
-    }
+  render() {
+    let initials = this.contact.name
+      .split(" ")
+      .map((s) => s[0])
+      .join("");
 
-    let shadow = this.attachShadow({ mode: "open" });
-    shadow.innerHTML = `
-      <link rel="stylesheet" href="components/contact_info.css">
-      <div class="contact">
-        <div class="header">${contact.name || "Unknown"}</div>
-        <div class="details">
-          ${tel}
-          ${telLink}
-          ${smsLink}
-          ${email}
+    return html`<link rel="stylesheet" href="components/contact_info.css" />
+      <div class="main" @click="${this.switchMode}">
+        <sl-avatar initials="${initials}"></sl-avatar>${this.contact.name}
+      </div>
+      <div class="details hidden">
+        <div>
+          ${this.contact.phone.map(
+            (phone) => html`<div class="comm-item"><sl-icon name="phone"></sl-icon><a href="tel://${phone}">${phone}</a></div>`
+          )}
+        </div>
+        <div>
+          ${this.contact.phone.map(
+            (phone) => html`<div class="comm-item"><sl-icon name="message-circle"></sl-icon><a href="sms://${phone}">${phone}</a></div>`
+          )}
+        </div>
+        <div>
+          ${this.contact.email.map(
+            (email) => html`<div class="comm-item"><sl-icon name="mail"></sl-icon><a href="mailto:${email}">${email}</a></div>`
+          )}
         </div>
       </div>
-      `;
-
-    this.setAttribute("id", `contact-${contact.id}`);
-    shadow.querySelector(".header").addEventListener("click", () => {
-      this.classList.toggle("open");
-      this.open = !this.open;
-      this.dispatchEvent(
-        new CustomEvent("contact-open", {
-          detail: { id: this.contact.id, open: this.open },
-          bubbles: true,
-        })
-      );
-    });
-  }
-
-  close() {
-    this.classList.remove("open");
-    this.open = false;
-  }
-
-  open() {
-    this.classList.add("open");
-    this.open = true;
+      <div class="actions hidden">
+        <sl-icon-button @click="${this.onAction}" data-action="edit" name="edit"></sl-icon-button>
+        <sl-icon-button @click="${this.onAction}" data-action="scan" name="qr-code"></sl-icon-button>
+        <sl-icon-button @click="${this.onAction}" data-action="delete" name="trash-2"></sl-icon-button>
+      </div> `;
   }
 }
 

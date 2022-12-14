@@ -1,0 +1,46 @@
+{
+  "name": "Oldcontacts",
+  "description": "Manage your contacts",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "/icons/contacts.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "developer": {
+      "name": "The Capyloon team"
+    },
+    "permissions": {
+      "contacts": { "access": "readwrite" }
+    },
+    "serviceworker": {
+      "script_url": "sw.js"
+    },
+    "activities": {
+      "new-contact": {
+        "filters": {
+          "name": { "required": true }
+        }
+      }
+    },
+    "skills": [
+      {
+        "description": "New Contact",
+        "trigger": "new contact {name:string} {number:phone}? {email:email}?",
+        "activity": "new-contact",
+        "pinnable": false
+      },
+      {
+        "description": "New Friend",
+        "trigger": "new friend {name:string} {number:phone}? {email:email}?",
+        "activity": "new-contact",
+        "pinnable": false
+      }
+    ]
+  },
+  "version": "1.0"
+}

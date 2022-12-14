@@ -1,0 +1,24 @@
+:host {
+  border-bottom: 2px solid var(--medium-color);
+  padding: 1em;
+}
+
+:host(:not(.open)) .details {
+  display: none;
+}
+
+:host .details a {
+  display: flex;
+  grid-gap: 0.5em;
+  align-items: center;
+  margin: 0.25em;
+  color: var(--light-color);
+  font-size: initial;
+}
+
+:host .header {
+  cursor: pointer;
+  text-transform: capitalize;
+  font-size: larger;
+  font-weight: bold;
+}
