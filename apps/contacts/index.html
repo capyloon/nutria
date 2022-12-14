@@ -34,12 +34,24 @@
           <sl-icon name="plus" slot="suffix"></sl-icon>
         </sl-button>
       </div>
+      <sl-dialog id="publish-dialog">
+        <span slot="label" data-l10n-id="publish-label"></span>
+        <sl-progress-bar id="publish-progress" indeterminate></sl-progress-bar>
+        <sl-qr-code id="publish-qr" class="hidden"></sl-qr-code>
+        <sl-button
+          id="publish-btn-ok"
+          slot="footer"
+          variant="primary"
+          data-l10n-id="btn-ok"
+        ></sl-button>
+      </sl-dialog>
     </div>
 
     <!-- The add contact panel -->
     <template id="add-panel-tmpl">
       <div class="drawer-content">
         <h2 data-l10n-id="add-contact-title"></h2>
+        <sl-avatar id="add-contact-avatar"></sl-avatar>
         <sl-input
           id="add-contact-name"
           data-l10n-id="add-contact-name"

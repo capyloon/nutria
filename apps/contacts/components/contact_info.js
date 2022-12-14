@@ -34,12 +34,7 @@ export class ContactInfo extends LitElement {
 
   onAction(event) {
     let action = event.target.dataset.action;
-    if (action === "delete") {
-      this.log(`About to delete contact ${this.contact.id}`);
-      this.dispatchEvent(new CustomEvent("delete-contact"));
-    } else {
-      this.log(`Unsupported action: '${action}'`);
-    }
+    this.dispatchEvent(new CustomEvent(`${action}-contact`));
   }
 
   render() {
@@ -50,29 +45,57 @@ export class ContactInfo extends LitElement {
 
     return html`<link rel="stylesheet" href="components/contact_info.css" />
       <div class="main" @click="${this.switchMode}">
-        <sl-avatar initials="${initials}"></sl-avatar>${this.contact.name}
+        <sl-avatar
+          initials="${initials}"
+          image="${this.contact.photoUrl}"
+        ></sl-avatar
+        >${this.contact.name}
       </div>
       <div class="details hidden">
         <div>
           ${this.contact.phone.map(
-            (phone) => html`<div class="comm-item"><sl-icon name="phone"></sl-icon><a href="tel://${phone}">${phone}</a></div>`
+            (phone) =>
+              html`<div class="comm-item">
+                <sl-icon name="phone"></sl-icon
+                ><a href="tel://${phone}">${phone}</a>
+              </div>`
           )}
         </div>
         <div>
           ${this.contact.phone.map(
-            (phone) => html`<div class="comm-item"><sl-icon name="message-circle"></sl-icon><a href="sms://${phone}">${phone}</a></div>`
+            (phone) =>
+              html`<div class="comm-item">
+                <sl-icon name="message-circle"></sl-icon
+                ><a href="sms://${phone}">${phone}</a>
+              </div>`
           )}
         </div>
         <div>
           ${this.contact.email.map(
-            (email) => html`<div class="comm-item"><sl-icon name="mail"></sl-icon><a href="mailto:${email}">${email}</a></div>`
+            (email) =>
+              html`<div class="comm-item">
+                <sl-icon name="mail"></sl-icon
+                ><a href="mailto:${email}">${email}</a>
+              </div>`
           )}
         </div>
       </div>
       <div class="actions hidden">
-        <sl-icon-button @click="${this.onAction}" data-action="edit" name="edit"></sl-icon-button>
-        <sl-icon-button @click="${this.onAction}" data-action="scan" name="qr-code"></sl-icon-button>
-        <sl-icon-button @click="${this.onAction}" data-action="delete" name="trash-2"></sl-icon-button>
+        <sl-icon-button
+          @click="${this.onAction}"
+          data-action="edit"
+          name="edit"
+        ></sl-icon-button>
+        <sl-icon-button
+          @click="${this.onAction}"
+          data-action="publish"
+          name="qr-code"
+        ></sl-icon-button>
+        <sl-icon-button
+          @click="${this.onAction}"
+          data-action="delete"
+          name="trash-2"
+        ></sl-icon-button>
       </div> `;
   }
 }

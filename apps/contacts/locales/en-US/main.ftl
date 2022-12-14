@@ -11,6 +11,7 @@ main-title = {$count ->
 }
 btn-add = New
 btn-scan = Scan
+publish-label = Export Contact
 
 # add contact panel
 add-contact-title = New Contact

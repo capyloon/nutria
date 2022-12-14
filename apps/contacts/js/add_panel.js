@@ -15,6 +15,8 @@ class AddContactPanel {
       this.init(event);
     });
     this.inputs = [];
+    this.photo = null;
+    this.photoUrl = null;
   }
 
   log(msg) {
@@ -38,12 +40,25 @@ class AddContactPanel {
       contact.name = this.inputs["name"].value;
       contact.phone = [this.inputs["phone"].value];
       contact.email = [this.inputs["email"].value];
+      contact.photo = this.photo;
       await this.contactsManager.add(contact);
       this.goToMainScreen();
+    } else if (event.target == this.avatar) {
+      // Trigger a 'pick image' activity.
+      let picker = new WebActivity("pick", { type: "image" });
+      try {
+        this.photo = await picker.start();
+        this.photoUrl = URL.createObjectURL(this.photo);
+        this.avatar.setAttribute("image", this.photoUrl);
+      } catch (e) {}
     }
   }
 
   clear() {
+    if (this.photoUrl) {
+      URL.revokeObjectURL(this.photoUrl);
+    }
+    this.avatar.removeAttribute("image");
     ALL_INPUTS.forEach((item) => {
       this.inputs[item].value = "";
     });
@@ -56,13 +71,15 @@ class AddContactPanel {
     }
 
     this.contactsManager = event.detail;
-    this.log(event.detail);
 
     this.btnOk = elem("ok");
     this.btnOk.addEventListener("click", this);
 
     this.btnCancel = elem("cancel");
     this.btnCancel.addEventListener("click", this);
+
+    this.avatar = elem("avatar");
+    this.avatar.addEventListener("click", this);
 
     ALL_INPUTS.forEach((item) => {
       this.inputs[item] = elem(item);

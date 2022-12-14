@@ -50,8 +50,6 @@ class PanelWrapper {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log(`Starting ftu`);
-
   await depGraphLoaded;
 
   graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
@@ -133,11 +131,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     false
   );
 
-  // Hook up the "New contact" button.
-  elem("action-add-contact").addEventListener("click", () => {
-    window.location.hash = `#add`;
-  });
-
   manageList(wrappers);
 });
 
@@ -158,14 +151,164 @@ async function manageList(wrappers) {
       el.addEventListener("delete-contact", () => {
         manager.deleteContact(contact);
       });
+
+      el.addEventListener("publish-contact", () => {
+        publishContact(contact);
+      });
     }
 
     document.body.classList.add("ready");
+  });
+
+  // Hook up the "New contact" button.
+  elem("action-add-contact").addEventListener("click", () => {
+    window.location.hash = `#add`;
+  });
+
+  // Hook up the "Scan" button.
+  elem("action-scan").addEventListener("click", () => {
+    importContact(manager);
   });
 
   await manager.init();
 
   for (let wrapper of wrappers.values()) {
     wrapper.setContactsManager(manager);
+  }
+}
+
+// TODO: move to /shared/ and re-use with system/js/ipfs_publisher.js
+class PasswordBasedSecret {
+  constructor(password) {
+    if (!password) {
+      // Generate a pseudo-random password.
+      password = "";
+      for (let i = 0; i < 32; i++) {
+        // random in a..z
+        password += String.fromCharCode(97 + Math.floor(Math.random() * 26));
+      }
+    }
+    this.password = password;
+  }
+
+  async getKeyMaterial() {
+    let enc = new TextEncoder();
+    return await window.crypto.subtle.importKey(
+      "raw",
+      enc.encode(this.password),
+      "PBKDF2",
+      false,
+      ["deriveBits", "deriveKey"]
+    );
+  }
+
+  async getSymKey() {
+    let keyMaterial = await this.getKeyMaterial(this.password);
+    let enc = new TextEncoder();
+    return await window.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: enc.encode("capyloon-salt"),
+        iterations: 400000,
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  async encrypt(plaintext) {
+    return await window.crypto.subtle.encrypt(
+      {
+        name: "AES-GCM",
+        iv: new Uint8Array(1),
+      },
+      await this.getSymKey(this.password),
+      plaintext
+    );
+  }
+
+  async decrypt(ciphertext) {
+    return await window.crypto.subtle.decrypt(
+      {
+        name: "AES-GCM",
+        iv: new Uint8Array(1),
+      },
+      await this.getSymKey(this.password),
+      ciphertext
+    );
+  }
+}
+
+async function publishContact(contact) {
+  let dialog = elem("publish-dialog");
+  let okBtn = elem("publish-btn-ok");
+  okBtn.onclick = () => {
+    dialog.hide();
+  };
+  let qrCode = elem("publish-qr");
+  qrCode.classList.add("hidden");
+  let progress = elem("publish-progress");
+  progress.classList.remove("hidden");
+  dialog.show();
+
+  let encrypter = new PasswordBasedSecret();
+  const postUrl = "ipfs://localhost/ipfs";
+  try {
+    let data = { contact: contact.asDefaultVariant() };
+    // If the contact has a photo, encrypt and publish it.
+    if (contact.photoUrl) {
+      let response = await fetch(contact.photoUrl);
+      let buffer = await response.arrayBuffer();
+      let encrypted = await encrypter.encrypt(buffer);
+
+      response = await fetch(postUrl, {
+        method: "POST",
+        body: encrypted,
+      });
+      data.photo = response.headers.get("location");
+    }
+
+    // Now publish the full data.
+    let blob = new Blob([JSON.stringify(data)]);
+    let buffer = await blob.arrayBuffer();
+    let encrypted = await encrypter.encrypt(buffer);
+    response = await fetch(postUrl, {
+      method: "POST",
+      body: encrypted,
+    });
+    let url = response.headers.get("location");
+    // Share the password and url in the qr code.
+    qrCode.value = JSON.stringify({ url, password: encrypter.password });
+    progress.classList.add("hidden");
+    qrCode.classList.remove("hidden");
+  } catch (e) {
+    // TODO: error management / UI.
+  }
+}
+
+async function importContact(manager) {
+  let qr = new WebActivity("scan-qr-code");
+  try {
+    let text = await qr.start();
+    let { url, password } = JSON.parse(text);
+    let decrypter = new PasswordBasedSecret(password);
+    let response = await fetch(url);
+    let buffer = await response.arrayBuffer();
+    let decoder = new TextDecoder();
+    clearText = decoder.decode(await decrypter.decrypt(buffer));
+    let data = JSON.parse(clearText);
+
+    let contact = data.contact;
+    if (data.photo) {
+      let response = await fetch(data.photo);
+      let buffer = await response.arrayBuffer();
+      contact.photo = new Blob([await decrypter.decrypt(buffer)]);
+    }
+    await manager.add(manager.newContact(contact));
+  } catch (e) {
+    console.error(`Failed to import contact: ${e}`);
   }
 }

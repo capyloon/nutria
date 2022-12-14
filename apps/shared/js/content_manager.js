@@ -1005,15 +1005,16 @@ class OpenSearchManager extends ContentManager {
 // Contact Wrapper.
 // These fields are indexed: { name: "...", phone: "[...]", email: "[...]" }
 class Contact {
-  constructor() {
+  constructor(init = null) {
     // The resource id.
     this.id = null;
 
     // Fields representing the contact.
-    this.name = null;
-    this.phone = [];
-    this.email = [];
-    this.did = [];
+    this.name = init?.name || null;
+    this.phone = init?.phone || [];
+    this.email = init?.email || [];
+    this.did = init?.did || [];
+    this.photo = init?.photo || null;
   }
 
   static fromJson(json, id) {
@@ -1052,8 +1053,8 @@ class ContactsManager extends ContentManager {
     }
   }
 
-  newContact() {
-    return new Contact();
+  newContact(init = null) {
+    return new Contact(init);
   }
 
   log(msg) {
@@ -1084,8 +1085,7 @@ class ContactsManager extends ContentManager {
   }
 
   async deleteContact(contact) {
-    let svc = await this.service;
-    await svc.delete(contact.id);
+    await this.svc.delete(contact.id);
   }
 
   async init() {
@@ -1109,9 +1109,17 @@ class ContactsManager extends ContentManager {
             let blob = await this.svc.getVariant(child.id, "default");
             if (blob.type === CONTACTS_MIME_TYPE) {
               let json = JSON.parse(await blob.text());
-              list.push(Contact.fromJson(json, child.id));
+              let contact = Contact.fromJson(json, child.id);
+
+              // Fetch the photo variant url if it's available.
+              let hasPhoto = child.variants.find((variant) => {
+                return variant.name == "photo";
+              });
+              if (hasPhoto) {
+                contact.photoUrl = `http://127.0.0.1:${window.config.port}/cmgr/${this.http_key}/${child.id}/photo`;
+              }
+              list.push(contact);
             }
-            // TODO: fetch the photo variant.
           }
         }
       } catch (e) {
@@ -1139,13 +1147,18 @@ class ContactsManager extends ContentManager {
           parent: this.container,
           name: contact.name,
           kind: this.lib.ResourceKind.LEAF,
-          tags: [],
+          tags: ["contact"],
         },
         "default",
         new Blob([JSON.stringify(contact.asDefaultVariant())], {
           type: CONTACTS_MIME_TYPE,
         })
       );
+      let resource = new ContentResource(this.svc, this.http_key, meta);
+      if (contact.photo) {
+        // this.log(`Adding photo: ${contact.photo}`);
+        await resource.update(contact.photo, "photo");
+      }
       await this.update();
       return meta.id;
     } catch (e) {
