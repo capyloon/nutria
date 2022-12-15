@@ -95,6 +95,8 @@ export class ContentManager {
           kind = "link";
         } else if (mimeType === MEDIA_MIME_TYPE) {
           kind = "video";
+        } else if (mimeType === CONTACTS_MIME_TYPE) {
+          kind = "contact";
         } else if (mimeType.startsWith("text/")) {
           kind = "file-text";
         } else if (mimeType.startsWith("image/")) {
