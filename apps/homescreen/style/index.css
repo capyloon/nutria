@@ -225,6 +225,10 @@ body {
   grid-gap: 0.5em;
 }
 
+.contact sl-avatar {
+  --size: 2rem;
+}
+
 .flex-fill {
   flex: 1;
 }

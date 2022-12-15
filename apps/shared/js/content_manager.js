@@ -534,6 +534,10 @@ export class ContentManager {
       callback
     );
   }
+
+  async searchContacts(query, maxCount, callback) {
+    return this.search(query, maxCount, "contact", true, ["photo"], callback);
+  }
 }
 
 // Wrapper class around a content manager resource.

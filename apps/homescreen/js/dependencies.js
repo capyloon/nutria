@@ -157,13 +157,13 @@ const kDeps = [
     name: "contacts engine",
     kind: "script",
     param: "js/search/contacts.js",
-    deps: ["search source", "contacts api"],
+    deps: ["search source", "shoelace-avatar"],
   },
   {
     name: "skills engine",
     kind: "script",
     param: "js/search/skills.js",
-    deps: ["search source", "apps manager", "contacts api"],
+    deps: ["search source", "apps manager"],
   },
   {
     name: "apps manager",
@@ -175,11 +175,6 @@ const kDeps = [
     name: "content manager",
     kind: "sharedWindowModule",
     param: ["js/content_manager.js", "contentManager", "ContentManager"],
-    deps: ["shared-api-daemon"],
-  },
-  {
-    name: "contacts api",
-    kind: "virtual",
     deps: ["shared-api-daemon"],
   },
   {

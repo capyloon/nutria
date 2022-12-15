@@ -10,7 +10,6 @@
       "name": "The Capyloon Team"
     },
     "permissions": {
-      "contacts": { "access": "readwrite" },
       "content-manager": {},
       "dweb": {},
       "settings": { "access": "readwrite" },
