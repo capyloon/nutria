@@ -11,8 +11,8 @@ class AddContactPanel {
     this.log("constructor");
     this.panel = document.getElementById("add-panel");
     this.ready = false;
-    this.panel.addEventListener("panel-ready", (event) => {
-      this.init(event);
+    this.panel.addEventListener("panel-ready", () => {
+      this.init();
     });
     this.panel.addEventListener("edit-contact", (event) => {
       this.editContact(event.detail);
@@ -20,6 +20,8 @@ class AddContactPanel {
     this.inputs = [];
     this.photo = null;
     this.photoUrl = null;
+
+    this.contactsManager = contentManager.getContactsManager();
   }
 
   log(msg) {
@@ -93,13 +95,11 @@ class AddContactPanel {
     elem("form").reset();
   }
 
-  async init(event) {
+  async init() {
     this.log("init");
     if (this.ready) {
       return;
     }
-
-    this.contactsManager = event.detail;
 
     this.btnOk = elem("ok");
     this.btnOk.addEventListener("click", this);

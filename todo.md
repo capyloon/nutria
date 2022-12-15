@@ -20,7 +20,7 @@ P1:
 P2:
 - improve color palette (https://github.com/lokesh/color-thief and https://complementary.arandomurl.com/)
 - redesign the siteinfo panel
-- Shoelace migration in apps: dialer, contacts
+- Shoelace migration in apps: dialer.
 - Page backup / save as (https://searchfox.org/mozilla-central/rev/efc480f2188fb43c9cccdfd2eef79749a19c20a3/browser/components/extensions/parent/ext-tabs.js#1296 and https://searchfox.org/mozilla-central/rev/efc480f2188fb43c9cccdfd2eef79749a19c20a3/toolkit/content/contentAreaUtils.js#105)
 - mobian images
 - git commit hooks (check Arti)
@@ -51,8 +51,10 @@ libp2p discovery
 
 Next Release items
 ==================
-- Homescreen Switcher
-- New "peers" app
+- Homescreen Switcher.
+- New "peers" app.
+- Better activity support.
+- New contacts app with contact sharing.
 
 Release Check List
 ==================

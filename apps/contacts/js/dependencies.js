@@ -12,6 +12,7 @@ const kDeps = [
       "shoelace-light-theme",
       "shoelace-setup",
       "contact info",
+      "activity manager",
     ],
   },
   {
@@ -36,6 +37,11 @@ const kDeps = [
     name: "lit element",
     kind: "sharedModule",
     param: ["components/lit.js", ["LitElement", "html", "css"]],
+  },
+  {
+    name: "activity manager",
+    kind: "sharedModule",
+    param: ["js/activity_manager.js", ["ActivityManager"]],
   },
   { name: "dummy", kind: "virtual", deps: ["shoelace-drawer"] },
 ];

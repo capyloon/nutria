@@ -19,20 +19,24 @@ class PanelWrapper {
     events.forEach((eventName) => this.panel.addEventListener(eventName, this));
   }
 
-  setContactsManager(manager) {
-    this.contactsManager = manager;
-  }
-
-  editContact(contact) {
+  sendByEvent(eventName, detail) {
     this.panel.addEventListener(
       "sl-after-show",
       () => {
-        this.panel.dispatchEvent(
-          new CustomEvent("edit-contact", { detail: contact })
-        );
+        this.panel.dispatchEvent(new CustomEvent(eventName, { detail }));
       },
       { once: true }
     );
+  }
+
+  editContact(contact) {
+    this.sendByEvent("edit-contact", contact);
+  }
+
+  fromContact(contact) {
+    // When contact.id is null, Edit mode turns into Add mode so
+    // we can reuse the same event.
+    this.sendByEvent("edit-contact", contact);
   }
 
   async handleEvent(event) {
@@ -44,9 +48,7 @@ class PanelWrapper {
       this.panel.append(template.content.cloneNode(true));
 
       this.loaded = true;
-      this.panel.dispatchEvent(
-        new CustomEvent("panel-ready", { detail: this.contactsManager })
-      );
+      this.panel.dispatchEvent(new CustomEvent("panel-ready"));
     }
 
     if (event.type === "sl-initial-focus") {
@@ -77,6 +79,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
 
   let wrappers = new Map();
+
+  // Configure activity handlers.
+  let activities = new ActivityManager({
+    "new-contact": (data) => {
+      onNewContact(wrappers, data);
+    },
+  });
 
   // Create the <sl-drawer> elements.
   let prev = null;
@@ -334,4 +343,18 @@ function editContact(wrappers, contact) {
   // Notify the panel to switch to Edit mode.
   let panel = wrappers.get("add");
   panel.editContact(contact);
+}
+
+function onNewContact(wrappers, data) {
+  window.location.hash = `#add`;
+  // Notify the panel to add initial data
+  let contact = { name: data.name, phone: [], email: [] };
+  if (data.phone) {
+    contact.phone = [data.phone];
+  }
+  if (data.email) {
+    contact.email = [data.email];
+  }
+  let panel = wrappers.get("add");
+  panel.fromContact(contact);
 }

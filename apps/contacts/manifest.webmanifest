@@ -18,7 +18,31 @@
     "permissions": {
       "content-manager": {},
       "dweb": {}
-    }
+    },
+    "serviceworker": {
+      "script_url": "sw.js"
+    },
+    "activities": {
+      "new-contact": {
+        "filters": {
+          "name": { "required": true }
+        }
+      }
+    },
+    "skills": [
+      {
+        "description": "New Contact",
+        "trigger": "new contact {name:string} {phone:phone}? {email:email}?",
+        "activity": "new-contact",
+        "pinnable": false
+      },
+      {
+        "description": "New Friend",
+        "trigger": "new friend {name:string} {phone:phone}? {email:email}?",
+        "activity": "new-contact",
+        "pinnable": false
+      }
+    ]
   },
   "version": "1.0"
 }
