@@ -39,6 +39,9 @@ const UAHelper = {
 };
 
 (async (exports) => {
+  const OPEN_ACTIVITYWINDOW = 16;
+  const OPEN_ATTENTIONWINDOW = 17;
+
   // Setup a promise that will resolve once we are done here.
   let defferedDone = null;
   exports.embedderSetupDone = new Promise((resolve) => {
@@ -73,10 +76,18 @@ const UAHelper = {
       aTriggeringPrincipal,
       aCsp
     ) {
-      log(`browserWindow::createContentWindow ${aURI}`);
+      log(`browserWindow::createContentWindow ${aURI} ${aWhere} ${aFlags}`);
+      let disposition = null;
+      if (aWhere == OPEN_ACTIVITYWINDOW) {
+        disposition = "inline";
+      } else if (aWhere == OPEN_ATTENTIONWINDOW) {
+        disposition = "attention";
+      }
+
       let webView = exports.wm.openFrame(aURI, {
         activate: true,
         openWindowInfo: aOpenWindowInfo,
+        disposition,
       });
       return webView;
     },
@@ -98,7 +109,9 @@ const UAHelper = {
 
     // Open a new tab in all cases.
     createContentWindowInFrame(aURI, aParams, aWhere, aFlags, aName) {
-      log(`browserWindow::createContentWindowInFrame ${aURI}`);
+      log(
+        `browserWindow::createContentWindowInFrame ${aURI} ${aParams} ${aWhere} ${aFlags} ${aName}`
+      );
 
       // Ci.nsIBrowserDOMWindow.OPEN_PRINT_BROWSER case
       let isPrinting = aWhere == 4;

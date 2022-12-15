@@ -255,6 +255,8 @@ class ContentWindow extends HTMLElement {
       <div class="overscroll hidden">
         <sl-icon name="refresh-cw"></sl-icon>
       </div>
+      <div class="inline-activity hidden">
+      </div>
       `;
 
     this.container = container;
@@ -266,6 +268,7 @@ class ContentWindow extends HTMLElement {
     this.loader = this.querySelector(".loader");
     this.contentCrash = this.querySelector(".content-crash");
     this.selectUiContainer = this.querySelector(".select-ui");
+    this.inlineActivity = this.querySelector(".inline-activity");
 
     this.querySelector("#scroll-top").onclick = this.scrollToTop.bind(this);
     this.querySelector("#scroll-bottom").onclick =
@@ -448,6 +451,26 @@ class ContentWindow extends HTMLElement {
     }
   }
 
+  addInlineActivity(contentWindow) {
+    this.inlineActivity.append(contentWindow);
+    this.inlineActivity.classList.remove("hidden");
+    contentWindow.config.opener = this;
+  }
+
+  closeInlineActivity() {
+    this.inlineActivity.classList.add("hidden");
+    this.inlineActivity.firstElementChild.remove();
+    this.activate();
+  }
+
+  hasInlineActivity() {
+    return !this.inlineActivity.classList.contains("hidden");
+  }
+
+  getInlineActivity() {
+    return this.inlineActivity.firstElementChild;
+  }
+
   handleOverscrollEvent(event) {
     if (!this.activated) {
       return;
@@ -559,6 +582,12 @@ class ContentWindow extends HTMLElement {
   }
 
   activate() {
+    // If an inline activity is opened, delegate activation to it.
+    if (this.hasInlineActivity()) {
+      this.getInlineActivity().activate();
+      return;
+    }
+
     if (this.activated) {
       return;
     }
@@ -601,6 +630,12 @@ class ContentWindow extends HTMLElement {
   }
 
   deactivate() {
+    // If an inline activity is opened, delegate activation to it.
+    if (this.hasInlineActivity()) {
+      this.getInlineActivity().deactivate();
+      return;
+    }
+
     if (!this.activated) {
       return;
     }
@@ -858,10 +893,14 @@ class ContentWindow extends HTMLElement {
         if (this.state.fromLockscreen && this.state.whenClosed) {
           await this.state.whenClosed();
         }
-        window.wm.closeFrame(
-          this.getAttribute("id"),
-          this.config.previousFrame
-        );
+        if (this.config.isInlineActivity) {
+          this.config.opener.closeInlineActivity();
+        } else {
+          window.wm.closeFrame(
+            this.getAttribute("id"),
+            this.config.previousFrame
+          );
+        }
         break;
       case "error":
         console.error(

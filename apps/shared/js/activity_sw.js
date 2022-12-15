@@ -41,7 +41,15 @@ async function getClient(activityName) {
   if (allClients.length > 0) {
     return allClients[0];
   } else {
-    let win = await clients.openWindow(`/index.html#activity-${activityName}`);
+    let disposition = "window";
+    try {
+      if (ACTIVITIES_DISPOSITION && ACTIVITIES_DISPOSITION[activityName]) {
+        disposition = ACTIVITIES_DISPOSITION[activityName];
+      }
+    } catch (e) {}
+    let win = await clients.openWindow(`/index.html#activity-${activityName}`, {
+      disposition,
+    });
     return win;
   }
 }

@@ -426,9 +426,22 @@ class WindowManager extends HTMLElement {
       this.captivePortalId = attrId;
     }
 
-    this.intersectionObserver.observe(contentWindow);
     config.id = attrId;
+
+    let isInlineActivity = config.disposition === "inline";
+    config.isInlineActivity = isInlineActivity;
+
     contentWindow.setConfig(config);
+
+    if (isInlineActivity) {
+      let current = this.frames[this.activeFrame];
+      current.deactivate();
+      current.addInlineActivity(contentWindow);
+      contentWindow.activate();
+      return contentWindow.webView;
+    }
+
+    this.intersectionObserver.observe(contentWindow);
 
     if (config?.insertAfter?.nextElementSibling) {
       this.windows.insertBefore(
