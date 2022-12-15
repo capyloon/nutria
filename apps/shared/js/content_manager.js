@@ -1080,7 +1080,7 @@ class ContactsManager extends ContentManager {
       change.kind == this.lib.ModificationKind.CHILD_CREATED ||
       change.kind == this.lib.ModificationKind.CHILD_DELETED
     ) {
-      await this.update();
+      await this.updateList();
     }
   }
 
@@ -1092,11 +1092,11 @@ class ContactsManager extends ContentManager {
     await this.ready();
 
     await this.svc.addObserver(this.container, this.onchange.bind(this));
-    await this.update();
+    await this.updateList();
   }
 
   // Refresh the list of contacts.
-  async update() {
+  async updateList() {
     let cursor = await this.svc.childrenOf(this.container);
 
     let list = [];
@@ -1159,10 +1159,23 @@ class ContactsManager extends ContentManager {
         // this.log(`Adding photo: ${contact.photo}`);
         await resource.update(contact.photo, "photo");
       }
-      await this.update();
+      await this.updateList();
       return meta.id;
     } catch (e) {
       this.error(`Failed to add contact: ${e}`);
     }
+  }
+
+  async update(id, contact) {
+    let resource = new ContentResource(this.svc, this.http_key, { id });
+    await resource.update(
+      new Blob([JSON.stringify(contact.asDefaultVariant())], {
+        type: CONTACTS_MIME_TYPE,
+      })
+    );
+    if (contact.photo) {
+      await resource.update(contact.photo, "photo");
+    }
+    await this.updateList();
   }
 }

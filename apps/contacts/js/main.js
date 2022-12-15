@@ -23,6 +23,18 @@ class PanelWrapper {
     this.contactsManager = manager;
   }
 
+  editContact(contact) {
+    this.panel.addEventListener(
+      "sl-after-show",
+      () => {
+        this.panel.dispatchEvent(
+          new CustomEvent("edit-contact", { detail: contact })
+        );
+      },
+      { once: true }
+    );
+  }
+
   async handleEvent(event) {
     // Load the template in the panel, and manage Ok / Back buttons.
     if (!this.loaded && event.type === "sl-show") {
@@ -154,6 +166,10 @@ async function manageList(wrappers) {
 
       el.addEventListener("publish-contact", () => {
         publishContact(contact);
+      });
+
+      el.addEventListener("edit-contact", () => {
+        editContact(wrappers, contact);
       });
     }
 
@@ -311,4 +327,11 @@ async function importContact(manager) {
   } catch (e) {
     console.error(`Failed to import contact: ${e}`);
   }
+}
+
+function editContact(wrappers, contact) {
+  window.location.hash = `#add`;
+  // Notify the panel to switch to Edit mode.
+  let panel = wrappers.get("add");
+  panel.editContact(contact);
 }

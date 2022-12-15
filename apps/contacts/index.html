@@ -52,21 +52,23 @@
       <div class="drawer-content">
         <h2 data-l10n-id="add-contact-title"></h2>
         <sl-avatar id="add-contact-avatar"></sl-avatar>
-        <sl-input
-          id="add-contact-name"
-          data-l10n-id="add-contact-name"
-          data-l10n-attrs="label"
-        ></sl-input>
-        <sl-input
-          id="add-contact-phone"
-          data-l10n-id="add-contact-phone"
-          data-l10n-attrs="label"
-        ></sl-input>
-        <sl-input
-          id="add-contact-email"
-          data-l10n-id="add-contact-email"
-          data-l10n-attrs="label"
-        ></sl-input>
+        <form id="add-contact-form">
+          <sl-input
+            id="add-contact-name"
+            data-l10n-id="add-contact-name"
+            data-l10n-attrs="label"
+          ></sl-input>
+          <sl-input
+            id="add-contact-phone"
+            data-l10n-id="add-contact-phone"
+            data-l10n-attrs="label"
+          ></sl-input>
+          <sl-input
+            id="add-contact-email"
+            data-l10n-id="add-contact-email"
+            data-l10n-attrs="label"
+          ></sl-input>
+        </form>
       </div>
       <div slot="footer">
         <sl-button

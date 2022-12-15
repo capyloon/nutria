@@ -14,7 +14,7 @@ btn-scan = Scan
 publish-label = Export Contact
 
 # add contact panel
-add-contact-title = New Contact
+add-contact-title = Contact Information
 add-contact-name =
   .label = Name
 add-contact-phone =

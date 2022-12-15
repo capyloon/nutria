@@ -14,6 +14,9 @@ class AddContactPanel {
     this.panel.addEventListener("panel-ready", (event) => {
       this.init(event);
     });
+    this.panel.addEventListener("edit-contact", (event) => {
+      this.editContact(event.detail);
+    });
     this.inputs = [];
     this.photo = null;
     this.photoUrl = null;
@@ -32,6 +35,28 @@ class AddContactPanel {
     history.back();
   }
 
+  async editContact(contact) {
+    this.contactId = contact.id;
+    this.inputs["name"].value = contact.name || "";
+    this.inputs["phone"].value = contact.phone[0] || "";
+    this.inputs["email"].value = contact.email[0] || "";
+    if (contact.photo) {
+      this.photo = contact.photo;
+      this.setAvatar();
+    } else if (contact.photoUrl) {
+      let response = await fetch(contact.photoUrl);
+      this.photo = await response.blob();
+      this.setAvatar();
+    }
+  }
+
+  setAvatar() {
+    if (this.photo) {
+      this.photoUrl = URL.createObjectURL(this.photo);
+      this.avatar.setAttribute("image", this.photoUrl);
+    }
+  }
+
   async handleEvent(event) {
     if (event.target == this.btnCancel) {
       this.goToMainScreen();
@@ -41,15 +66,18 @@ class AddContactPanel {
       contact.phone = [this.inputs["phone"].value];
       contact.email = [this.inputs["email"].value];
       contact.photo = this.photo;
-      await this.contactsManager.add(contact);
+      if (this.contactId) {
+        await this.contactsManager.update(this.contactId, contact);
+      } else {
+        await this.contactsManager.add(contact);
+      }
       this.goToMainScreen();
     } else if (event.target == this.avatar) {
       // Trigger a 'pick image' activity.
       let picker = new WebActivity("pick", { type: "image" });
       try {
         this.photo = await picker.start();
-        this.photoUrl = URL.createObjectURL(this.photo);
-        this.avatar.setAttribute("image", this.photoUrl);
+        this.setAvatar();
       } catch (e) {}
     }
   }
@@ -58,10 +86,11 @@ class AddContactPanel {
     if (this.photoUrl) {
       URL.revokeObjectURL(this.photoUrl);
     }
+    this.photo = null;
+    this.photoUrl = null;
+    this.contactId = null;
     this.avatar.removeAttribute("image");
-    ALL_INPUTS.forEach((item) => {
-      this.inputs[item].value = "";
-    });
+    elem("form").reset();
   }
 
   async init(event) {

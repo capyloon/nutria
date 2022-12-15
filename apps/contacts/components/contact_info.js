@@ -47,7 +47,7 @@ export class ContactInfo extends LitElement {
       <div class="main" @click="${this.switchMode}">
         <sl-avatar
           initials="${initials}"
-          image="${this.contact.photoUrl}"
+          image="${this.contact.photoUrl}?${Math.random()}"
         ></sl-avatar
         >${this.contact.name}
       </div>
