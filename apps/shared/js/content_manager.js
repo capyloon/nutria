@@ -97,7 +97,10 @@ export class ContentManager {
           kind = "video";
         } else if (mimeType === CONTACTS_MIME_TYPE) {
           kind = "contact";
-        } else if (mimeType.startsWith("text/")) {
+        } else if (
+          mimeType.startsWith("text/") ||
+          mimeType == "application/pdf"
+        ) {
           kind = "file-text";
         } else if (mimeType.startsWith("image/")) {
           kind = "image";
@@ -105,6 +108,8 @@ export class ContentManager {
           kind = "music";
         } else if (mimeType.startsWith("video/")) {
           kind = "video";
+        } else {
+          console.log(`No specific icon for ${mimeType}`);
         }
       }
     }
