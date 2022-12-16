@@ -2,7 +2,12 @@
 // Lock-free implementations
 
 // cfg(target_has_atomic_load_store = "ptr")
-#[cfg(not(portable_atomic_no_atomic_load_store))]
+#[cfg(not(any(
+    portable_atomic_no_atomic_load_store,
+    portable_atomic_unsafe_assume_single_core,
+    target_arch = "avr",
+    target_arch = "msp430",
+)))]
 #[cfg_attr(
     not(portable_atomic_no_cfg_target_has_atomic),
     cfg(not(all(
@@ -10,7 +15,6 @@
         not(target_has_atomic = "ptr")
     )))
 )]
-#[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
 mod core_atomic;
 
 // Miri and Sanitizer do not support inline assembly.
@@ -120,11 +124,7 @@ mod fallback;
     cfg(any(test, not(target_has_atomic = "ptr")))
 )]
 #[cfg(any(
-    portable_atomic_armv6m,
-    all(
-        target_arch = "arm",
-        not(any(target_feature = "v6", portable_atomic_target_feature = "v6"))
-    ),
+    target_arch = "arm",
     target_arch = "avr",
     target_arch = "msp430",
     target_arch = "riscv32",
@@ -133,40 +133,35 @@ mod fallback;
 mod interrupt;
 
 // -----------------------------------------------------------------------------
+// Atomic float implementations
+
+#[cfg(feature = "float")]
+pub(crate) mod float;
+
+// -----------------------------------------------------------------------------
 
 // Atomic{Isize,Usize,Bool,Ptr}, Atomic{I,U}{8,16}
-#[cfg_attr(
-    portable_atomic_no_cfg_target_has_atomic,
-    cfg(any(
-        not(portable_atomic_no_atomic_cas),
-        all(
-            not(portable_atomic_no_atomic_load_store),
-            not(portable_atomic_unsafe_assume_single_core)
-        )
-    ))
-)]
+#[cfg(not(any(
+    portable_atomic_no_atomic_load_store,
+    portable_atomic_unsafe_assume_single_core,
+    target_arch = "avr",
+    target_arch = "msp430",
+)))]
 #[cfg_attr(
     not(portable_atomic_no_cfg_target_has_atomic),
-    cfg(any(
-        target_has_atomic = "ptr",
-        all(
-            not(portable_atomic_no_atomic_load_store),
-            not(portable_atomic_unsafe_assume_single_core),
-            not(all(
-                any(target_arch = "riscv32", target_arch = "riscv64"),
-                not(target_has_atomic = "ptr")
-            ))
-        )
-    ))
+    cfg(not(all(
+        any(target_arch = "riscv32", target_arch = "riscv64"),
+        not(target_has_atomic = "ptr")
+    )))
 )]
 pub(crate) use self::core_atomic::{
     AtomicBool, AtomicI16, AtomicI8, AtomicIsize, AtomicPtr, AtomicU16, AtomicU8, AtomicUsize,
 };
 // RISC-V without A-extension
 #[cfg(not(portable_atomic_unsafe_assume_single_core))]
-#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 #[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(portable_atomic_no_atomic_cas))]
 #[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(not(target_has_atomic = "ptr")))]
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 pub(crate) use self::riscv::{
     AtomicBool, AtomicI16, AtomicI8, AtomicIsize, AtomicPtr, AtomicU16, AtomicU8, AtomicUsize,
 };
@@ -183,37 +178,25 @@ pub(crate) use self::interrupt::{
 };
 
 // Atomic{I,U}32
-#[cfg(not(target_pointer_width = "16"))]
-#[cfg_attr(
-    portable_atomic_no_cfg_target_has_atomic,
-    cfg(any(
-        not(portable_atomic_no_atomic_cas),
-        all(
-            not(portable_atomic_no_atomic_load_store),
-            not(portable_atomic_unsafe_assume_single_core)
-        )
-    ))
-)]
+#[cfg(not(any(
+    portable_atomic_no_atomic_load_store,
+    portable_atomic_unsafe_assume_single_core,
+    target_arch = "avr",
+    target_arch = "msp430",
+)))]
 #[cfg_attr(
     not(portable_atomic_no_cfg_target_has_atomic),
-    cfg(any(
-        target_has_atomic = "ptr",
-        all(
-            not(portable_atomic_no_atomic_load_store),
-            not(portable_atomic_unsafe_assume_single_core),
-            not(all(
-                any(target_arch = "riscv32", target_arch = "riscv64"),
-                not(target_has_atomic = "ptr")
-            ))
-        )
-    ))
+    cfg(not(all(
+        any(target_arch = "riscv32", target_arch = "riscv64"),
+        not(target_has_atomic = "ptr")
+    )))
 )]
 pub(crate) use self::core_atomic::{AtomicI32, AtomicU32};
 // RISC-V without A-extension
 #[cfg(not(portable_atomic_unsafe_assume_single_core))]
-#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 #[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(portable_atomic_no_atomic_cas))]
 #[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(not(target_has_atomic = "ptr")))]
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 pub(crate) use self::riscv::{AtomicI32, AtomicU32};
 // no core Atomic{I,U}32 & no CAS & assume single core => critical section based fallback
 #[cfg(any(not(target_pointer_width = "16"), feature = "fallback"))]
@@ -227,6 +210,10 @@ pub(crate) use self::riscv::{AtomicI32, AtomicU32};
 pub(crate) use self::interrupt::{AtomicI32, AtomicU32};
 
 // Atomic{I,U}64
+#[cfg(not(any(
+    portable_atomic_no_atomic_load_store,
+    portable_atomic_unsafe_assume_single_core,
+)))]
 #[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(not(portable_atomic_no_atomic_64)))]
 #[cfg_attr(
     not(portable_atomic_no_cfg_target_has_atomic),
@@ -234,8 +221,6 @@ pub(crate) use self::interrupt::{AtomicI32, AtomicU32};
         target_has_atomic = "64",
         all(
             not(any(target_pointer_width = "16", target_pointer_width = "32")),
-            not(portable_atomic_no_atomic_load_store),
-            not(portable_atomic_unsafe_assume_single_core),
             not(all(
                 any(target_arch = "riscv32", target_arch = "riscv64"),
                 not(target_has_atomic = "ptr")
@@ -246,16 +231,20 @@ pub(crate) use self::interrupt::{AtomicI32, AtomicU32};
 pub(crate) use self::core_atomic::{AtomicI64, AtomicU64};
 // RISC-V without A-extension
 #[cfg(not(portable_atomic_unsafe_assume_single_core))]
-#[cfg(target_arch = "riscv64")]
 #[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(portable_atomic_no_atomic_cas))]
 #[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(not(target_has_atomic = "ptr")))]
+#[cfg(target_arch = "riscv64")]
 pub(crate) use self::riscv::{AtomicI64, AtomicU64};
 // no core Atomic{I,U}64 & has CAS => use lock-base fallback
 #[cfg(feature = "fallback")]
-#[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(portable_atomic_no_atomic_64))]
-#[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(not(target_has_atomic = "64")))]
-#[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(not(portable_atomic_no_atomic_cas)))]
-#[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(target_has_atomic = "ptr"))]
+#[cfg_attr(
+    portable_atomic_no_cfg_target_has_atomic,
+    cfg(all(portable_atomic_no_atomic_64, not(portable_atomic_no_atomic_cas)))
+)]
+#[cfg_attr(
+    not(portable_atomic_no_cfg_target_has_atomic),
+    cfg(all(not(target_has_atomic = "64"), target_has_atomic = "ptr"))
+)]
 pub(crate) use self::fallback::{AtomicI64, AtomicU64};
 // no core Atomic{I,U}64 & no CAS & assume single core => critical section based fallback
 #[cfg(any(

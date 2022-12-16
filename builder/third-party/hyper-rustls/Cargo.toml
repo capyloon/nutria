@@ -12,8 +12,7 @@
 [package]
 edition = "2018"
 name = "hyper-rustls"
-version = "0.23.1"
-authors = ["Joseph Birr-Pixton <jpixton@gmail.com>"]
+version = "0.23.2"
 description = "Rustls+hyper integration for pure rust HTTPS"
 homepage = "https://github.com/ctz/hyper-rustls"
 readme = "README.md"

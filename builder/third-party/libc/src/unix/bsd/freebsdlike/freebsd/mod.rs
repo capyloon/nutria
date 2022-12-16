@@ -998,6 +998,15 @@ s! {
         pub alloc_policy: ::c_int,
         __pad: [::c_int; 10],
     }
+
+    pub struct memory_type {
+        __priva: [::uintptr_t; 32],
+        __privb: [::uintptr_t; 26],
+    }
+
+    pub struct memory_type_list {
+        __priv: [::uintptr_t; 2],
+    }
 }
 
 s_no_extra_traits! {
@@ -2379,6 +2388,10 @@ pub const PROC_PROTMAX_CTL: ::c_int = 15;
 pub const PROC_PROTMAX_STATUS: ::c_int = 16;
 pub const PROC_STACKGAP_CTL: ::c_int = 17;
 pub const PROC_STACKGAP_STATUS: ::c_int = 18;
+pub const PROC_NO_NEW_PRIVS_CTL: ::c_int = 19;
+pub const PROC_NO_NEW_PRIVS_STATUS: ::c_int = 20;
+pub const PROC_WXMAP_CTL: ::c_int = 21;
+pub const PROC_WXMAP_STATUS: ::c_int = 22;
 pub const PROC_PROCCTL_MD_MIN: ::c_int = 0x10000000;
 
 pub const PPROT_SET: ::c_int = 1;
@@ -2407,6 +2420,13 @@ pub const PROC_STACKGAP_ENABLE: ::c_int = 0x0001;
 pub const PROC_STACKGAP_DISABLE: ::c_int = 0x0002;
 pub const PROC_STACKGAP_ENABLE_EXEC: ::c_int = 0x0004;
 pub const PROC_STACKGAP_DISABLE_EXEC: ::c_int = 0x0008;
+
+pub const PROC_NO_NEW_PRIVS_ENABLE: ::c_int = 1;
+pub const PROC_NO_NEW_PRIVS_DISABLE: ::c_int = 2;
+
+pub const PROC_WX_MAPPINGS_PERMIT: ::c_int = 0x0001;
+pub const PROC_WX_MAPPINGS_DISALLOW_EXEC: ::c_int = 0x0002;
+pub const PROC_WXORX_ENFORCE: ::c_int = 0x80000000;
 
 pub const AF_SLOW: ::c_int = 33;
 pub const AF_SCLUSTER: ::c_int = 34;
@@ -3934,6 +3954,15 @@ extern "C" {
     pub fn aio_write(aiocbp: *mut aiocb) -> ::c_int;
     pub fn aio_writev(aiocbp: *mut ::aiocb) -> ::c_int;
 
+    pub fn copy_file_range(
+        infd: ::c_int,
+        inoffp: *mut ::off_t,
+        outfd: ::c_int,
+        outoffp: *mut ::off_t,
+        len: ::size_t,
+        flags: ::c_uint,
+    ) -> ::ssize_t;
+
     pub fn devname_r(
         dev: ::dev_t,
         mode: ::mode_t,
@@ -4272,8 +4301,13 @@ extern "C" {
     pub fn cpuset_setid(which: cpuwhich_t, id: ::id_t, setid: ::cpusetid_t) -> ::c_int;
     pub fn cap_enter() -> ::c_int;
     pub fn cap_getmode(modep: *mut ::c_uint) -> ::c_int;
+    pub fn cap_fcntls_get(fd: ::c_int, fcntlrightsp: *mut u32) -> ::c_int;
+    pub fn cap_fcntls_limit(fd: ::c_int, fcntlrights: u32) -> ::c_int;
+    pub fn cap_ioctls_get(fd: ::c_int, cmds: *mut u_long, maxcmds: usize) -> isize;
+    pub fn cap_ioctls_limit(fd: ::c_int, cmds: *const u_long, ncmds: usize) -> ::c_int;
     pub fn __cap_rights_init(version: ::c_int, rights: *mut cap_rights_t, ...)
         -> *mut cap_rights_t;
+    pub fn __cap_rights_get(version: ::c_int, fd: ::c_int, rightsp: *mut cap_rights_t) -> ::c_int;
     pub fn __cap_rights_set(rights: *mut cap_rights_t, ...) -> *mut cap_rights_t;
     pub fn __cap_rights_clear(rights: *mut cap_rights_t, ...) -> *mut cap_rights_t;
     pub fn __cap_rights_is_set(rights: *const cap_rights_t, ...) -> bool;
@@ -4283,6 +4317,7 @@ extern "C" {
     pub fn cap_rights_remove(dst: *mut cap_rights_t, src: *const cap_rights_t)
         -> *mut cap_rights_t;
     pub fn cap_rights_contains(big: *const cap_rights_t, little: *const cap_rights_t) -> bool;
+    pub fn cap_sandboxed() -> bool;
 
     pub fn reallocarray(ptr: *mut ::c_void, nmemb: ::size_t, size: ::size_t) -> *mut ::c_void;
 
@@ -4356,6 +4391,22 @@ extern "C" {
         uaddr: *mut ::c_void,
         uaddr2: *mut ::c_void,
     ) -> ::c_int;
+}
+
+#[link(name = "memstat")]
+extern "C" {
+    pub fn memstat_strerror(error: ::c_int) -> *const ::c_char;
+    pub fn memstat_mtl_alloc() -> *mut memory_type_list;
+    pub fn memstat_mtl_first(list: *mut memory_type_list) -> *mut memory_type;
+    pub fn memstat_mtl_next(mtp: *mut memory_type) -> *mut memory_type;
+    pub fn memstat_mtl_find(
+        list: *mut memory_type_list,
+        allocator: ::c_int,
+        name: *const ::c_char,
+    ) -> *mut memory_type;
+    pub fn memstat_mtl_free(list: *mut memory_type_list);
+    pub fn memstat_mtl_geterror(list: *mut memory_type_list) -> ::c_int;
+    pub fn memstat_get_name(mtp: *const memory_type) -> *const ::c_char;
 }
 
 #[link(name = "kvm")]

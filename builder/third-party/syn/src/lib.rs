@@ -250,7 +250,7 @@
 //!   dynamic library libproc_macro from rustc toolchain.
 
 // Syn types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/syn/1.0.103")]
+#![doc(html_root_url = "https://docs.rs/syn/1.0.105")]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![allow(non_camel_case_types)]
 #![allow(
@@ -265,8 +265,8 @@
     clippy::explicit_auto_deref,
     clippy::if_not_else,
     clippy::inherent_to_string,
+    clippy::items_after_statements,
     clippy::large_enum_variant,
-    clippy::let_underscore_drop,
     clippy::manual_assert,
     clippy::match_on_vec_items,
     clippy::match_same_arms,
@@ -429,6 +429,7 @@ pub use crate::path::{
 #[cfg(feature = "parsing")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "parsing")))]
 pub mod buffer;
+mod drops;
 #[cfg(feature = "parsing")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "parsing")))]
 pub mod ext;

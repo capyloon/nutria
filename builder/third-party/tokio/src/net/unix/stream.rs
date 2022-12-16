@@ -66,6 +66,12 @@ impl UnixStream {
     /// can be used to concurrently read / write to the same socket on a single
     /// task without splitting the socket.
     ///
+    /// The function may complete without the socket being ready. This is a
+    /// false-positive and attempting an operation will return with
+    /// `io::ErrorKind::WouldBlock`. The function can also return with an empty
+    /// [`Ready`] set, so you should always check the returned value and possibly
+    /// wait again if the requested states are not set.
+    ///
     /// # Cancel safety
     ///
     /// This method is cancel safe. Once a readiness event occurs, the method
@@ -661,7 +667,7 @@ impl UnixStream {
     /// Tries to read or write from the socket using a user-provided IO operation.
     ///
     /// If the socket is ready, the provided closure is called. The closure
-    /// should attempt to perform IO operation from the socket by manually
+    /// should attempt to perform IO operation on the socket by manually
     /// calling the appropriate syscall. If the operation fails because the
     /// socket is not actually ready, then the closure should return a
     /// `WouldBlock` error and the readiness flag is cleared. The return value
@@ -679,6 +685,11 @@ impl UnixStream {
     /// The closure should not perform the IO operation using any of the methods
     /// defined on the Tokio `UnixStream` type, as this will mess with the
     /// readiness flag and can cause the socket to behave incorrectly.
+    ///
+    /// This method is not intended to be used with combined interests.
+    /// The closure should perform only one type of IO operation, so it should not
+    /// require more than one ready state. This method may panic or sleep forever
+    /// if it is called with a combined interest.
     ///
     /// Usually, [`readable()`], [`writable()`] or [`ready()`] is used with this function.
     ///

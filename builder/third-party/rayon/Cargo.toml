@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.56"
 name = "rayon"
-version = "1.6.0"
+version = "1.6.1"
 authors = [
     "Niko Matsakis <niko@alum.mit.edu>",
     "Josh Stone <cuviper@gmail.com>",
@@ -37,9 +37,6 @@ keywords = [
 categories = ["concurrency"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rayon-rs/rayon"
-
-[dependencies.crossbeam-deque]
-version = "0.8.1"
 
 [dependencies.either]
 version = "1.0"

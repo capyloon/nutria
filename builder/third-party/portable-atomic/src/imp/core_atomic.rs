@@ -38,8 +38,13 @@ impl AtomicBool {
         crate::utils::assert_store_ordering(order); // for track_caller (compiler can omit double check)
         self.inner.store(val, order);
     }
-    #[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(not(portable_atomic_no_atomic_cas)))]
-    #[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(target_has_atomic = "ptr"))]
+}
+#[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(not(portable_atomic_no_atomic_cas)))]
+#[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(target_has_atomic = "ptr"))]
+no_fetch_ops_impl!(AtomicBool, bool);
+#[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(not(portable_atomic_no_atomic_cas)))]
+#[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(target_has_atomic = "ptr"))]
+impl AtomicBool {
     #[inline]
     #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
     pub(crate) fn compare_exchange(
@@ -50,12 +55,10 @@ impl AtomicBool {
         failure: Ordering,
     ) -> Result<bool, bool> {
         crate::utils::assert_compare_exchange_ordering(success, failure); // for track_caller (compiler can omit double check)
-        #[cfg(not(portable_atomic_stronger_failure_ordering))]
+        #[cfg(portable_atomic_no_stronger_failure_ordering)]
         let success = crate::utils::upgrade_success_ordering(success, failure);
         self.inner.compare_exchange(current, new, success, failure)
     }
-    #[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(not(portable_atomic_no_atomic_cas)))]
-    #[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(target_has_atomic = "ptr"))]
     #[inline]
     #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
     pub(crate) fn compare_exchange_weak(
@@ -66,7 +69,7 @@ impl AtomicBool {
         failure: Ordering,
     ) -> Result<bool, bool> {
         crate::utils::assert_compare_exchange_ordering(success, failure); // for track_caller (compiler can omit double check)
-        #[cfg(not(portable_atomic_stronger_failure_ordering))]
+        #[cfg(portable_atomic_no_stronger_failure_ordering)]
         let success = crate::utils::upgrade_success_ordering(success, failure);
         self.inner.compare_exchange_weak(current, new, success, failure)
     }
@@ -118,8 +121,10 @@ impl<T> AtomicPtr<T> {
         crate::utils::assert_store_ordering(order); // for track_caller (compiler can omit double check)
         self.inner.store(ptr, order);
     }
-    #[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(not(portable_atomic_no_atomic_cas)))]
-    #[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(target_has_atomic = "ptr"))]
+}
+#[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(not(portable_atomic_no_atomic_cas)))]
+#[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(target_has_atomic = "ptr"))]
+impl<T> AtomicPtr<T> {
     #[inline]
     #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
     pub(crate) fn compare_exchange(
@@ -130,12 +135,10 @@ impl<T> AtomicPtr<T> {
         failure: Ordering,
     ) -> Result<*mut T, *mut T> {
         crate::utils::assert_compare_exchange_ordering(success, failure); // for track_caller (compiler can omit double check)
-        #[cfg(not(portable_atomic_stronger_failure_ordering))]
+        #[cfg(portable_atomic_no_stronger_failure_ordering)]
         let success = crate::utils::upgrade_success_ordering(success, failure);
         self.inner.compare_exchange(current, new, success, failure)
     }
-    #[cfg_attr(portable_atomic_no_cfg_target_has_atomic, cfg(not(portable_atomic_no_atomic_cas)))]
-    #[cfg_attr(not(portable_atomic_no_cfg_target_has_atomic), cfg(target_has_atomic = "ptr"))]
     #[inline]
     #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
     pub(crate) fn compare_exchange_weak(
@@ -146,7 +149,7 @@ impl<T> AtomicPtr<T> {
         failure: Ordering,
     ) -> Result<*mut T, *mut T> {
         crate::utils::assert_compare_exchange_ordering(success, failure); // for track_caller (compiler can omit double check)
-        #[cfg(not(portable_atomic_stronger_failure_ordering))]
+        #[cfg(portable_atomic_no_stronger_failure_ordering)]
         let success = crate::utils::upgrade_success_ordering(success, failure);
         self.inner.compare_exchange_weak(current, new, success, failure)
     }
@@ -171,6 +174,15 @@ macro_rules! atomic_int {
         pub(crate) struct $atomic_type {
             inner: core::sync::atomic::$atomic_type,
         }
+        #[cfg_attr(
+            portable_atomic_no_cfg_target_has_atomic,
+            cfg(not(portable_atomic_no_atomic_cas))
+        )]
+        #[cfg_attr(
+            not(portable_atomic_no_cfg_target_has_atomic),
+            cfg(target_has_atomic = "ptr")
+        )]
+        no_fetch_ops_impl!($atomic_type, $int_type);
         impl $atomic_type {
             #[inline]
             pub(crate) const fn new(v: $int_type) -> Self {
@@ -200,14 +212,16 @@ macro_rules! atomic_int {
                 crate::utils::assert_store_ordering(order); // for track_caller (compiler can omit double check)
                 self.inner.store(val, order);
             }
-            #[cfg_attr(
-                portable_atomic_no_cfg_target_has_atomic,
-                cfg(not(portable_atomic_no_atomic_cas))
-            )]
-            #[cfg_attr(
-                not(portable_atomic_no_cfg_target_has_atomic),
-                cfg(target_has_atomic = "ptr")
-            )]
+        }
+        #[cfg_attr(
+            portable_atomic_no_cfg_target_has_atomic,
+            cfg(not(portable_atomic_no_atomic_cas))
+        )]
+        #[cfg_attr(
+            not(portable_atomic_no_cfg_target_has_atomic),
+            cfg(target_has_atomic = "ptr")
+        )]
+        impl $atomic_type {
             #[inline]
             #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
             pub(crate) fn compare_exchange(
@@ -218,18 +232,10 @@ macro_rules! atomic_int {
                 failure: Ordering,
             ) -> Result<$int_type, $int_type> {
                 crate::utils::assert_compare_exchange_ordering(success, failure); // for track_caller (compiler can omit double check)
-                #[cfg(not(portable_atomic_stronger_failure_ordering))]
+                #[cfg(portable_atomic_no_stronger_failure_ordering)]
                 let success = crate::utils::upgrade_success_ordering(success, failure);
                 self.inner.compare_exchange(current, new, success, failure)
             }
-            #[cfg_attr(
-                portable_atomic_no_cfg_target_has_atomic,
-                cfg(not(portable_atomic_no_atomic_cas))
-            )]
-            #[cfg_attr(
-                not(portable_atomic_no_cfg_target_has_atomic),
-                cfg(target_has_atomic = "ptr")
-            )]
             #[inline]
             #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
             pub(crate) fn compare_exchange_weak(
@@ -240,19 +246,11 @@ macro_rules! atomic_int {
                 failure: Ordering,
             ) -> Result<$int_type, $int_type> {
                 crate::utils::assert_compare_exchange_ordering(success, failure); // for track_caller (compiler can omit double check)
-                #[cfg(not(portable_atomic_stronger_failure_ordering))]
+                #[cfg(portable_atomic_no_stronger_failure_ordering)]
                 let success = crate::utils::upgrade_success_ordering(success, failure);
                 self.inner.compare_exchange_weak(current, new, success, failure)
             }
             #[cfg(portable_atomic_no_atomic_min_max)]
-            #[cfg_attr(
-                portable_atomic_no_cfg_target_has_atomic,
-                cfg(not(portable_atomic_no_atomic_cas))
-            )]
-            #[cfg_attr(
-                not(portable_atomic_no_cfg_target_has_atomic),
-                cfg(target_has_atomic = "ptr")
-            )]
             #[inline]
             fn fetch_update<F>(
                 &self,
@@ -272,14 +270,6 @@ macro_rules! atomic_int {
                 }
                 Err(prev)
             }
-            #[cfg_attr(
-                portable_atomic_no_cfg_target_has_atomic,
-                cfg(not(portable_atomic_no_atomic_cas))
-            )]
-            #[cfg_attr(
-                not(portable_atomic_no_cfg_target_has_atomic),
-                cfg(target_has_atomic = "ptr")
-            )]
             #[inline]
             pub(crate) fn fetch_max(&self, val: $int_type, order: Ordering) -> $int_type {
                 #[cfg(not(portable_atomic_no_atomic_min_max))]
@@ -330,14 +320,6 @@ macro_rules! atomic_int {
                     .unwrap()
                 }
             }
-            #[cfg_attr(
-                portable_atomic_no_cfg_target_has_atomic,
-                cfg(not(portable_atomic_no_atomic_cas))
-            )]
-            #[cfg_attr(
-                not(portable_atomic_no_cfg_target_has_atomic),
-                cfg(target_has_atomic = "ptr")
-            )]
             #[inline]
             pub(crate) fn fetch_min(&self, val: $int_type, order: Ordering) -> $int_type {
                 #[cfg(not(portable_atomic_no_atomic_min_max))]

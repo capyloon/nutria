@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/ipnet/2.5.1")]
+#![doc(html_root_url = "https://docs.rs/ipnet/2.7.0")]
 //! Types for IPv4 and IPv6 network addresses.
 //!
 //! This module provides types and useful methods for working with IPv4
@@ -86,10 +86,12 @@ extern crate schemars;
 pub use self::ipext::{IpAdd, IpSub, IpBitAnd, IpBitOr, IpAddrRange, Ipv4AddrRange, Ipv6AddrRange};
 pub use self::ipnet::{IpNet, Ipv4Net, Ipv6Net, PrefixLenError, IpSubnets, Ipv4Subnets, Ipv6Subnets};
 pub use self::parser::AddrParseError;
+pub use self::mask::{ip_mask_to_prefix, ipv4_mask_to_prefix, ipv6_mask_to_prefix};
 
 mod ipext;
 mod ipnet;
 mod parser;
+mod mask;
 #[cfg(feature = "serde")]
 mod ipnet_serde;
 #[cfg(feature = "schemars")]

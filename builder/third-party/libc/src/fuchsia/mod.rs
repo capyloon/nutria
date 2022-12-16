@@ -909,8 +909,8 @@ s_no_extra_traits! {
 
     pub struct sockaddr_storage {
         pub ss_family: sa_family_t,
+        __ss_pad2: [u8; 128 - 2 - 8],
         __ss_align: ::size_t,
-        __ss_pad2: [u8; 128 - 2 * 8],
     }
 
     pub struct utsname {
@@ -3780,7 +3780,7 @@ extern "C" {
     pub fn poll(fds: *mut pollfd, nfds: nfds_t, timeout: ::c_int) -> ::c_int;
     pub fn select(
         nfds: ::c_int,
-        readfs: *mut fd_set,
+        readfds: *mut fd_set,
         writefds: *mut fd_set,
         errorfds: *mut fd_set,
         timeout: *mut timeval,
@@ -3817,7 +3817,7 @@ extern "C" {
 
     pub fn pselect(
         nfds: ::c_int,
-        readfs: *mut fd_set,
+        readfds: *mut fd_set,
         writefds: *mut fd_set,
         errorfds: *mut fd_set,
         timeout: *const timespec,

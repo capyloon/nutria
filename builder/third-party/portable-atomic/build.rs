@@ -2,35 +2,22 @@
 
 #![warn(rust_2018_idioms, single_use_lifetimes)]
 
+#[path = "version.rs"]
+mod version;
+use version::{rustc_version, Version};
+
 use std::{env, str};
 
 include!("no_atomic.rs");
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=no_atomic.rs");
+    println!("cargo:rerun-if-changed=version.rs");
 
-    let target = match env::var("TARGET") {
-        Ok(target) => target,
-        Err(e) => {
-            println!(
-                "cargo:warning={}: unable to get TARGET environment variable: {}",
-                env!("CARGO_PKG_NAME"),
-                e
-            );
-            return;
-        }
-    };
-    let target_arch = match env::var("CARGO_CFG_TARGET_ARCH") {
-        Ok(target_arch) => target_arch,
-        Err(e) => {
-            println!(
-                "cargo:warning={}: unable to get CARGO_CFG_TARGET_ARCH environment variable: {}",
-                env!("CARGO_PKG_NAME"),
-                e
-            );
-            return;
-        }
-    };
+    let target = &*env::var("TARGET").expect("TARGET not set");
+    let target_arch = &*env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH not set");
+    let target_os = &*env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS not set");
     // HACK: If --target is specified, rustflags is not applied to the build
     // script itself, so the build script will not be rerun when these are changed.
     //
@@ -89,9 +76,8 @@ fn main() {
         println!("cargo:rustc-cfg=portable_atomic_no_aarch64_target_feature");
     }
     // https://github.com/rust-lang/rust/pull/98383 merged in Rust 1.64 (nightly-2022-07-19).
-    if version.probe(64, 2022, 7, 18) {
-        // TODO: invert cfg once Rust 1.64 became stable.
-        println!("cargo:rustc-cfg=portable_atomic_stronger_failure_ordering");
+    if !version.probe(64, 2022, 7, 18) {
+        println!("cargo:rustc-cfg=portable_atomic_no_stronger_failure_ordering");
     }
 
     // feature(cfg_target_has_atomic) stabilized in Rust 1.60 (nightly-2022-02-11): https://github.com/rust-lang/rust/pull/93824
@@ -102,18 +88,20 @@ fn main() {
             // nightly, which is older than nightly-2022-02-11.
             println!("cargo:rustc-cfg=portable_atomic_unstable_cfg_target_has_atomic");
         } else {
+            let target = &*convert_custom_linux_target(target);
             println!("cargo:rustc-cfg=portable_atomic_no_cfg_target_has_atomic");
-            if NO_ATOMIC_CAS.contains(&&*target) {
+            if NO_ATOMIC_CAS.contains(&target) {
                 println!("cargo:rustc-cfg=portable_atomic_no_atomic_cas");
             }
-            if NO_ATOMIC_64.contains(&&*target) {
+            if NO_ATOMIC_64.contains(&target) {
                 println!("cargo:rustc-cfg=portable_atomic_no_atomic_64");
             } else {
                 // Otherwise, assuming `"max-atomic-width" == 64` or `"max-atomic-width" == 128`.
             }
         }
     }
-    if NO_ATOMIC.contains(&&*target) {
+    // We don't need to use convert_custom_linux_target here because all linux targets have atomics.
+    if NO_ATOMIC.contains(&target) {
         println!("cargo:rustc-cfg=portable_atomic_no_atomic_load_store");
     }
 
@@ -127,6 +115,10 @@ fn main() {
         // https://github.com/rust-lang/rust/pull/96935 merged in Rust 1.64 (nightly-2022-07-07).
         if version.probe(64, 2022, 7, 6) {
             println!("cargo:rustc-cfg=portable_atomic_unstable_strict_provenance_atomic_ptr");
+        }
+        // feature(isa_attribute) stabilized in Rust 1.67 (nightly-2022-11-06): https://github.com/rust-lang/rust/pull/102458
+        if !version.probe(67, 2022, 11, 5) {
+            println!("cargo:rustc-cfg=portable_atomic_unstable_isa_attribute");
         }
 
         // `cfg(sanitize = "..")` is not stabilized.
@@ -150,13 +142,13 @@ fn main() {
         }
     }
 
-    match &*target_arch {
+    match target_arch {
         "x86_64" => {
             // x86_64 macos always support CMPXCHG16B: https://github.com/rust-lang/rust/blob/1.63.0/compiler/rustc_target/src/spec/x86_64_apple_darwin.rs#L7
-            let has_cmpxchg16b = target == "x86_64-apple-darwin";
-            if has_target_feature("cmpxchg16b", has_cmpxchg16b, &version, None, true) {
-                target_feature("cmpxchg16b");
-            }
+            let has_cmpxchg16b = target_os == "macos";
+            // LLVM recognizes this also as cx16 target feature: https://godbolt.org/z/o4Y8W1hcb
+            // It is unlikely that rustc will support that name, so we will ignore it for now.
+            target_feature_if("cmpxchg16b", has_cmpxchg16b, &version, None, true);
             if version.nightly
                 && cfg!(feature = "fallback")
                 && cfg!(feature = "outline-atomics")
@@ -167,36 +159,22 @@ fn main() {
         }
         "aarch64" => {
             // aarch64 macos always support FEAT_LSE and FEAT_LSE2 because it is armv8.6: https://github.com/rust-lang/rust/blob/1.63.0/compiler/rustc_target/src/spec/aarch64_apple_darwin.rs#L5
-            let is_aarch64_macos = target == "aarch64-apple-darwin";
+            let is_macos = target_os == "macos";
             // aarch64_target_feature stabilized in Rust 1.61.
-            if has_target_feature("lse", is_aarch64_macos, &version, Some(61), true) {
-                target_feature("lse");
-            }
+            target_feature_if("lse", is_macos, &version, Some(61), true);
             // As of rustc 1.63, target_feature "lse2" is not available on rustc side:
             // https://github.com/rust-lang/rust/blob/1.63.0/compiler/rustc_codegen_ssa/src/target_features.rs#L45
-            if has_target_feature("lse2", is_aarch64_macos, &version, None, false) {
-                target_feature("lse2");
-            }
+            target_feature_if("lse2", is_macos, &version, None, false);
         }
         "arm" => {
-            if target.starts_with("thumbv6m-") && target.contains("-none") {
-                println!("cargo:rustc-cfg=portable_atomic_armv6m");
-            }
             // #[cfg(target_feature = "v7")] and others don't work on stable.
             // armv7-unknown-linux-gnueabihf
             //    ^^
-            let mut subarch = if target.starts_with("arm") {
-                &target["arm".len()..]
-            } else if target.starts_with("thumb") {
-                &target["thumb".len()..]
-            } else {
-                unreachable!()
-            };
-            subarch = subarch.split('-').next().unwrap();
+            let mut subarch =
+                strip_prefix(target, "arm").or_else(|| strip_prefix(target, "thumb")).unwrap();
+            subarch = subarch.split('-').next().unwrap(); // ignore vender/os/env
             subarch = subarch.split('.').next().unwrap(); // ignore .base/.main suffix
-            if subarch.starts_with("eb") {
-                subarch = &target["eb".len()..]; // ignore endianness
-            }
+            subarch = strip_prefix(subarch, "eb").unwrap_or(subarch); // ignore endianness
             let mut known = true;
             // See https://github.com/taiki-e/atomic-maybe-uninit/blob/HEAD/build.rs for details
             match subarch {
@@ -228,30 +206,26 @@ fn main() {
             }
         }
         "powerpc64" => {
-            if version.nightly {
-                // powerpc64le is pwr8+ by default https://github.com/llvm/llvm-project/blob/llvmorg-15.0.0/llvm/lib/Target/PowerPC/PPC.td#L652
-                // See also https://github.com/rust-lang/rust/issues/59932
-                let mut has_quadword_atomics = target.starts_with("powerpc64le-"); // lqarx and stqcx.
-                if let Some(cpu) = target_cpu() {
-                    if cpu.starts_with("pwr") {
-                        let cpu_version = &cpu["pwr".len()..];
-                        if let Ok(cpu_version) = cpu_version.parse::<u32>() {
-                            // https://github.com/llvm/llvm-project/commit/549e118e93c666914a1045fde38a2cac33e1e445
-                            has_quadword_atomics = cpu_version >= 8;
-                        }
+            let target_endian =
+                env::var("CARGO_CFG_TARGET_ENDIAN").expect("CARGO_CFG_TARGET_ENDIAN not set");
+            // powerpc64le is pwr8+ by default https://github.com/llvm/llvm-project/blob/llvmorg-15.0.0/llvm/lib/Target/PowerPC/PPC.td#L652
+            // See also https://github.com/rust-lang/rust/issues/59932
+            let mut has_pwr8_features = target_endian == "little";
+            // https://github.com/llvm/llvm-project/commit/549e118e93c666914a1045fde38a2cac33e1e445
+            if let Some(cpu) = target_cpu().as_ref() {
+                if let Some(mut cpu_version) = strip_prefix(cpu, "pwr") {
+                    cpu_version = strip_suffix(cpu_version, "x").unwrap_or(cpu_version); // for pwr5x and pwr6x
+                    if let Ok(cpu_version) = cpu_version.parse::<u32>() {
+                        has_pwr8_features = cpu_version >= 8;
                     }
-                }
-                has_quadword_atomics = has_target_feature(
-                    "quadword-atomics",
-                    has_quadword_atomics,
-                    &version,
-                    None,
-                    false,
-                );
-                if has_quadword_atomics {
-                    target_feature("quadword-atomics");
+                } else {
+                    // https://github.com/llvm/llvm-project/blob/llvmorg-15.0.0/llvm/lib/Target/PowerPC/PPC.td#L652
+                    // https://github.com/llvm/llvm-project/blob/llvmorg-15.0.0/llvm/lib/Target/PowerPC/PPC.td#L434-L436
+                    has_pwr8_features = cpu == "ppc64le" || cpu == "future";
                 }
             }
+            // lqarx and stqcx.
+            target_feature_if("quadword-atomics", has_pwr8_features, &version, None, false);
         }
         _ => {}
     }
@@ -261,13 +235,13 @@ fn target_feature(name: &str) {
     println!("cargo:rustc-cfg=portable_atomic_target_feature=\"{}\"", name);
 }
 
-fn has_target_feature(
+fn target_feature_if(
     name: &str,
     mut has_target_feature: bool,
     version: &Version,
     stabilized: Option<u32>,
     is_in_rustc: bool,
-) -> bool {
+) {
     // HACK: Currently, it seems that the only way to handle unstable target
     // features on the stable is to parse the `-C target-feature` in RUSTFLAGS.
     //
@@ -281,16 +255,12 @@ fn has_target_feature(
     if is_in_rustc
         && (version.nightly || stabilized.map_or(false, |stabilized| version.minor >= stabilized))
     {
-        has_target_feature = env::var("CARGO_CFG_TARGET_FEATURE")
-            .ok()
-            .map_or(false, |s| s.split(',').any(|s| s == name));
+        // In this case, cfg(target_feature = "...") would work, so skip emitting our own target_feature cfg.
+        return;
     } else if let Some(rustflags) = env::var_os("CARGO_ENCODED_RUSTFLAGS") {
         for mut flag in rustflags.to_string_lossy().split('\x1f') {
-            if flag.starts_with("-C") {
-                flag = &flag["-C".len()..];
-            }
-            if flag.starts_with("target-feature=") {
-                flag = &flag["target-feature=".len()..];
+            flag = strip_prefix(flag, "-C").unwrap_or(flag);
+            if let Some(flag) = strip_prefix(flag, "target-feature=") {
                 for s in flag.split(',') {
                     // TODO: Handles cases where a specific target feature
                     // implicitly enables another target feature.
@@ -303,7 +273,9 @@ fn has_target_feature(
             }
         }
     }
-    has_target_feature
+    if has_target_feature {
+        target_feature(name);
+    }
 }
 
 fn target_cpu() -> Option<String> {
@@ -311,11 +283,8 @@ fn target_cpu() -> Option<String> {
     let rustflags = rustflags.to_string_lossy();
     let mut cpu = None;
     for mut flag in rustflags.split('\x1f') {
-        if flag.starts_with("-C") {
-            flag = &flag["-C".len()..];
-        }
-        if flag.starts_with("target-cpu=") {
-            flag = &flag["target-cpu=".len()..];
+        flag = strip_prefix(flag, "-C").unwrap_or(flag);
+        if let Some(flag) = strip_prefix(flag, "target-cpu=") {
             cpu = Some(flag);
         }
     }
@@ -325,11 +294,8 @@ fn target_cpu() -> Option<String> {
 fn is_allowed_feature(name: &str) -> bool {
     if let Some(rustflags) = env::var_os("CARGO_ENCODED_RUSTFLAGS") {
         for mut flag in rustflags.to_string_lossy().split('\x1f') {
-            if flag.starts_with("-Z") {
-                flag = &flag["-Z".len()..];
-            }
-            if flag.starts_with("allow-features=") {
-                flag = &flag["allow-features=".len()..];
+            flag = strip_prefix(flag, "-Z").unwrap_or(flag);
+            if let Some(flag) = strip_prefix(flag, "allow-features=") {
                 return flag.split(',').any(|allowed| allowed == name);
             }
         }
@@ -338,97 +304,37 @@ fn is_allowed_feature(name: &str) -> bool {
     true
 }
 
-mod version {
-    use std::{env, process::Command, str};
-
-    pub(crate) struct Version {
-        pub(crate) minor: u32,
-        pub(crate) nightly: bool,
-        commit_date: Date,
-        pub(crate) llvm: u32,
+// Adapted from https://github.com/crossbeam-rs/crossbeam/blob/crossbeam-utils-0.8.14/build-common.rs.
+//
+// The target triplets have the form of 'arch-vendor-system'.
+//
+// When building for Linux (e.g. the 'system' part is
+// 'linux-something'), replace the vendor with 'unknown'
+// so that mapping to rust standard targets happens correctly.
+fn convert_custom_linux_target(target: &str) -> String {
+    let mut parts: Vec<&str> = target.split('-').collect();
+    let system = parts.get(2);
+    if system == Some(&"linux") {
+        parts[1] = "unknown";
     }
+    parts.join("-")
+}
 
-    impl Version {
-        pub(crate) const LATEST: Self = Self::stable(63);
-
-        const fn stable(minor: u32) -> Self {
-            Self { minor, nightly: false, commit_date: Date::new(0, 0, 0), llvm: 0 }
-        }
-
-        pub(crate) fn probe(&self, minor: u32, year: u16, month: u8, day: u8) -> bool {
-            self.minor >= minor
-                && (!self.nightly || self.commit_date >= Date::new(year, month, day))
-        }
-    }
-
-    #[derive(PartialEq, Eq, PartialOrd, Ord)]
-    struct Date {
-        year: u16,
-        month: u8,
-        day: u8,
-    }
-
-    impl Date {
-        const fn new(year: u16, month: u8, day: u8) -> Self {
-            Self { year, month, day }
-        }
-    }
-
-    pub(crate) fn rustc_version() -> Option<Version> {
-        let rustc = env::var_os("RUSTC")?;
-        // Use verbose version output because the packagers add extra strings to the normal version output.
-        let output = Command::new(rustc).args(&["--version", "--verbose"]).output().ok()?;
-        let output = str::from_utf8(&output.stdout).ok()?;
-
-        let mut release = output
-            .lines()
-            .find(|line| line.starts_with("release: "))
-            .map(|line| &line["release: ".len()..])?
-            .splitn(2, '-');
-        let version = release.next().unwrap();
-        let channel = release.next().unwrap_or_default();
-        let mut digits = version.splitn(3, '.');
-        let major = digits.next()?.parse::<u32>().ok()?;
-        if major != 1 {
-            return None;
-        }
-        let minor = digits.next()?.parse::<u32>().ok()?;
-        let _patch = digits.next().unwrap_or("0").parse::<u32>().ok()?;
-        let nightly = channel == "nightly" || channel == "dev";
-
-        if nightly {
-            let llvm_major = (|| {
-                let version = output
-                    .lines()
-                    .find(|line| line.starts_with("LLVM version: "))
-                    .map(|line| &line["LLVM version: ".len()..])?;
-                let mut digits = version.splitn(3, '.');
-                let major = digits.next()?.parse::<u32>().ok()?;
-                let _minor = digits.next()?.parse::<u32>().ok()?;
-                let _patch = digits.next().unwrap_or("0").parse::<u32>().ok()?;
-                Some(major)
-            })();
-
-            let mut commit_date = output
-                .lines()
-                .find(|line| line.starts_with("commit-date: "))
-                .map(|line| &line["commit-date: ".len()..])?
-                .splitn(3, '-');
-            let year = commit_date.next()?.parse::<u16>().ok()?;
-            let month = commit_date.next()?.parse::<u8>().ok()?;
-            let day = commit_date.next()?.parse::<u8>().ok()?;
-            if month > 12 || day > 31 {
-                return None;
-            }
-            Some(Version {
-                minor,
-                nightly,
-                commit_date: Date::new(year, month, day),
-                llvm: llvm_major.unwrap_or(0),
-            })
-        } else {
-            Some(Version::stable(minor))
-        }
+// str::strip_prefix requires Rust 1.45
+#[must_use]
+fn strip_prefix<'a>(s: &'a str, pat: &str) -> Option<&'a str> {
+    if s.starts_with(pat) {
+        Some(&s[pat.len()..])
+    } else {
+        None
     }
 }
-use version::{rustc_version, Version};
+// str::strip_suffix requires Rust 1.45
+#[must_use]
+fn strip_suffix<'a>(s: &'a str, pat: &str) -> Option<&'a str> {
+    if s.ends_with(pat) {
+        Some(&s[..s.len() - pat.len()])
+    } else {
+        None
+    }
+}

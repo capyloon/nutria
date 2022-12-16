@@ -10,6 +10,33 @@ Note: In this file, do not use the hard wrap in the middle of a sentence for com
 
 ## [Unreleased]
 
+## [0.3.18] - 2022-12-15
+
+- Fix build error when not using `portable_atomic_unsafe_assume_single_core` cfg on AVR and MSP430 custom targets. ([#50](https://github.com/taiki-e/portable-atomic/pull/50))
+
+  Since 0.3.11, atomic CAS was supported without the cfg on AVR and MSP430 builtin targets, but that change was not applied to custom targets.
+
+## [0.3.17] - 2022-12-14
+
+- Optimize x86_64 128-bit atomic load/store on AMD CPU with AVX. ([#49](https://github.com/taiki-e/portable-atomic/pull/49))
+
+- Improve support for custom targets on old rustc.
+
+## [0.3.16] - 2022-12-09
+
+- Add `Atomic{I,U}*::{add,sub,and,or,xor}` and `AtomicBool::{and,or,xor}` methods. ([#47](https://github.com/taiki-e/portable-atomic/pull/47))
+
+  They are equivalent to the corresponding `fetch_*` methods, but do not return the previous value. They are intended for optimization on platforms that implement atomics using inline assembly, such as the MSP430.
+
+- Various improvements to `portable_atomic_unsafe_assume_single_core` cfg. ([#44](https://github.com/taiki-e/portable-atomic/pull/44), [#40](https://github.com/taiki-e/portable-atomic/pull/40))
+
+  - Support disabling FIQs on pre-v6 ARM under `portable_atomic_disable_fiq` cfg.
+  - Support RISC-V supervisor mode under `portable_atomic_s_mode` cfg.
+  - Optimize interrupt restore on AVR and MSP430. ([#40](https://github.com/taiki-e/portable-atomic/pull/40))
+  - Documentation improvements.
+
+  See [#44](https://github.com/taiki-e/portable-atomic/pull/44) for more.
+
 ## [0.3.15] - 2022-09-09
 
 - Implement workaround for std cpuid bug due to LLVM bug ([rust-lang/rust#101346](https://github.com/rust-lang/rust/issues/101346), [llvm/llvm-project#57550](https://github.com/llvm/llvm-project/issues/57550)).
@@ -49,7 +76,7 @@ Note: In this file, do not use the hard wrap in the middle of a sentence for com
 
   The previous behavior was inconsistent because we consider the pre-v6 ARM Linux's atomic operations provided in a similar way by the Linux kernel to be lock-free.
 
-- Respect `-Zallow-features`.
+- Respect `-Z allow-features`.
 
 ## [0.3.10] - 2022-08-03
 
@@ -180,7 +207,10 @@ Note: In this file, do not use the hard wrap in the middle of a sentence for com
 
 Initial release
 
-[Unreleased]: https://github.com/taiki-e/portable-atomic/compare/v0.3.15...HEAD
+[Unreleased]: https://github.com/taiki-e/portable-atomic/compare/v0.3.18...HEAD
+[0.3.18]: https://github.com/taiki-e/portable-atomic/compare/v0.3.17...v0.3.18
+[0.3.17]: https://github.com/taiki-e/portable-atomic/compare/v0.3.16...v0.3.17
+[0.3.16]: https://github.com/taiki-e/portable-atomic/compare/v0.3.15...v0.3.16
 [0.3.15]: https://github.com/taiki-e/portable-atomic/compare/v0.3.14...v0.3.15
 [0.3.14]: https://github.com/taiki-e/portable-atomic/compare/v0.3.13...v0.3.14
 [0.3.13]: https://github.com/taiki-e/portable-atomic/compare/v0.3.12...v0.3.13

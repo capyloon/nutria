@@ -2315,6 +2315,12 @@ pub const _REG_RFLAGS: ::c_int = 23;
 pub const _REG_RSP: ::c_int = 24;
 pub const _REG_SS: ::c_int = 25;
 
+// sys/xattr.h
+pub const XATTR_CREATE: ::c_int = 0x01;
+pub const XATTR_REPLACE: ::c_int = 0x02;
+// sys/extattr.h
+pub const EXTATTR_NAMESPACE_EMPTY: ::c_int = 0;
+
 const_fn! {
     {const} fn _ALIGN(p: usize) -> usize {
         (p + _ALIGNBYTES) & !_ALIGNBYTES
@@ -2453,6 +2459,24 @@ extern "C" {
         envp: *const *const ::c_char,
     ) -> ::c_int;
 
+    pub fn extattr_list_fd(
+        fd: ::c_int,
+        attrnamespace: ::c_int,
+        data: *mut ::c_void,
+        nbytes: ::size_t,
+    ) -> ::ssize_t;
+    pub fn extattr_list_file(
+        path: *const ::c_char,
+        attrnamespace: ::c_int,
+        data: *mut ::c_void,
+        nbytes: ::size_t,
+    ) -> ::ssize_t;
+    pub fn extattr_list_link(
+        path: *const ::c_char,
+        attrnamespace: ::c_int,
+        data: *mut ::c_void,
+        nbytes: ::size_t,
+    ) -> ::ssize_t;
     pub fn extattr_delete_fd(
         fd: ::c_int,
         attrnamespace: ::c_int,

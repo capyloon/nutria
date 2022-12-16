@@ -86,17 +86,21 @@ See [this list](https://github.com/taiki-e/portable-atomic/issues/10#issuecommen
   This cfg is `unsafe`, and note the following safety requirements:
   - Enabling this cfg for multi-core systems is always **unsound**.
   - This uses privileged instructions to disable interrupts, so it usually doesn't work on unprivileged mode.
-    Enabling this cfg in an environment where privileged instructions are not available is also usually considered **unsound**, although the details are system-dependent.
-  - On pre-v6 ARM, this currently disables only IRQs.
-    Enabling this cfg in an environment where FIQs must also be disabled is also considered **unsound**.
+    Enabling this cfg in an environment where privileged instructions are not available, or if the instructions used are not sufficient to disable interrupts in the system, it is also usually considered **unsound**, although the details are system-dependent.
+
+    The following are known cases:
+    - On pre-v6 ARM, this disables only IRQs by default. For many systems (e.g., GBA) this is enough. If the system need to disable both IRQs and FIQs, you need to pass the `--cfg portable_atomic_disable_fiq` together.
+    - On RISC-V without A-extension, this generates code for machine-mode (M-mode) by default. If you pass the `--cfg portable_atomic_s_mode` together, this generates code for supervisor-mode (S-mode). In particular, `qemu-system-riscv*` uses [OpenSBI](https://github.com/riscv-software-src/opensbi) as the default firmware.
+
+    See also [the `interrupt` module's readme](https://github.com/taiki-e/portable-atomic/blob/HEAD/src/imp/interrupt/README.md).
 
   This is intentionally not an optional feature. (If this is an optional feature, dependencies can implicitly enable the feature, resulting in the use of unsound code without the end-user being aware of it.)
-
-  Enabling this cfg for targets that have atomic CAS will result in a compile error.
 
   ARMv6-M (thumbv6m), pre-v6 ARM (e.g., thumbv4t, thumbv5te), RISC-V without A-extension are currently supported. See [#33] for support of multi-core systems.
 
   Since all MSP430 and AVR are single-core, we always provide atomic CAS for them without this cfg.
+
+  Enabling this cfg for targets that have atomic CAS will result in a compile error.
 
   Feel free to submit an issue if your target is not supported yet.
 
@@ -147,6 +151,7 @@ See [this list](https://github.com/taiki-e/portable-atomic/issues/10#issuecommen
     clippy::missing_inline_in_public_items,
 )]
 #![allow(
+    clippy::box_default,
     clippy::cast_lossless,
     clippy::doc_markdown,
     clippy::float_cmp,
@@ -200,17 +205,6 @@ See [this list](https://github.com/taiki-e/portable-atomic/issues/10#issuecommen
     ),
     feature(asm_experimental_arch)
 )]
-// non-Linux armv4t (tier 3)
-#![cfg_attr(
-    all(
-        portable_atomic_nightly,
-        target_arch = "arm",
-        not(target_has_atomic = "ptr"),
-        not(any(target_feature = "v6", portable_atomic_target_feature = "v6")),
-        any(test, portable_atomic_unsafe_assume_single_core)
-    ),
-    feature(isa_attribute)
-)]
 // Old nightly only
 // These features are already stable or have already been removed from compilers,
 // and can safely be enabled for old nightly as long as version detection works.
@@ -236,6 +230,17 @@ See [this list](https://github.com/taiki-e/portable-atomic/issues/10#issuecommen
 #![cfg_attr(
     all(any(target_arch = "avr", target_arch = "msp430"), portable_atomic_no_asm),
     feature(llvm_asm)
+)]
+// non-Linux armv4t (tier 3) on old nightly
+#![cfg_attr(
+    all(
+        portable_atomic_unstable_isa_attribute,
+        target_arch = "arm",
+        not(target_has_atomic = "ptr"),
+        not(any(target_feature = "v6", portable_atomic_target_feature = "v6")),
+        any(test, portable_atomic_unsafe_assume_single_core),
+    ),
+    feature(isa_attribute)
 )]
 // Miri and/or ThreadSanitizer only
 // They do not support inline assembly, so we need to use unstable features instead of it.
@@ -280,16 +285,11 @@ compile_error!(
     cfg(any(
         not(portable_atomic_no_atomic_cas),
         not(any(
-            portable_atomic_armv6m,
-            all(
-                target_arch = "arm",
-                not(any(target_feature = "v6", portable_atomic_target_feature = "v6"))
-            ),
-            all(
-                any(target_arch = "riscv32", target_arch = "riscv64"),
-                portable_atomic_no_atomic_cas
-            ),
-            target_pointer_width = "16"
+            target_arch = "arm",
+            target_arch = "avr",
+            target_arch = "msp430",
+            target_arch = "riscv32",
+            target_arch = "riscv64",
         ))
     ))
 )]
@@ -298,16 +298,11 @@ compile_error!(
     cfg(any(
         target_has_atomic = "ptr",
         not(any(
-            portable_atomic_armv6m,
-            all(
-                target_arch = "arm",
-                not(any(target_feature = "v6", portable_atomic_target_feature = "v6"))
-            ),
-            all(
-                any(target_arch = "riscv32", target_arch = "riscv64"),
-                not(target_has_atomic = "ptr")
-            ),
-            target_pointer_width = "16"
+            target_arch = "arm",
+            target_arch = "avr",
+            target_arch = "msp430",
+            target_arch = "riscv32",
+            target_arch = "riscv64",
         ))
     ))
 )]
@@ -315,6 +310,17 @@ compile_error!(
     "cfg(portable_atomic_unsafe_assume_single_core) does not compatible with this target; \
      if you need cfg(portable_atomic_unsafe_assume_single_core) support for this target, \
      please submit an issue at <https://github.com/taiki-e/portable-atomic>"
+);
+
+#[cfg(portable_atomic_disable_fiq)]
+#[cfg(not(portable_atomic_unsafe_assume_single_core))]
+compile_error!(
+    "cfg(portable_atomic_disable_fiq) may only be used together with cfg(portable_atomic_unsafe_assume_single_core)"
+);
+#[cfg(portable_atomic_s_mode)]
+#[cfg(not(portable_atomic_unsafe_assume_single_core))]
+compile_error!(
+    "cfg(portable_atomic_s_mode) may only be used together with cfg(portable_atomic_unsafe_assume_single_core)"
 );
 
 #[cfg(any(test, feature = "std"))]
@@ -812,6 +818,67 @@ impl AtomicBool {
         self.inner.fetch_and(val, order)
     }
 
+    /// Logical "and" with a boolean value.
+    ///
+    /// Performs a logical "and" operation on the current value and the argument `val`, and sets
+    /// the new value to the result.
+    ///
+    /// Unlike `fetch_and`, this does not return the previous value.
+    ///
+    /// `and` takes an [`Ordering`] argument which describes the memory ordering
+    /// of this operation. All ordering modes are possible. Note that using
+    /// [`Acquire`] makes the store part of this operation [`Relaxed`], and
+    /// using [`Release`] makes the load part [`Relaxed`].
+    ///
+    /// This function may generate more efficient code than `fetch_and` on some platforms.
+    ///
+    /// - x86: `lock and` instead of `cmpxchg` loop
+    /// - MSP430: `and` instead of disabling interrupts
+    ///
+    /// Note: On x86, the use of either function should not usually
+    /// affect the generated code, because LLVM can properly optimize the case
+    /// where the result is unused.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use portable_atomic::{AtomicBool, Ordering};
+    ///
+    /// let foo = AtomicBool::new(true);
+    /// foo.and(false, Ordering::SeqCst);
+    /// assert_eq!(foo.load(Ordering::SeqCst), false);
+    ///
+    /// let foo = AtomicBool::new(true);
+    /// foo.and(true, Ordering::SeqCst);
+    /// assert_eq!(foo.load(Ordering::SeqCst), true);
+    ///
+    /// let foo = AtomicBool::new(false);
+    /// foo.and(false, Ordering::SeqCst);
+    /// assert_eq!(foo.load(Ordering::SeqCst), false);
+    /// ```
+    #[cfg_attr(
+        portable_atomic_no_cfg_target_has_atomic,
+        cfg(any(
+            not(portable_atomic_no_atomic_cas),
+            portable_atomic_unsafe_assume_single_core,
+            target_arch = "avr",
+            target_arch = "msp430"
+        ))
+    )]
+    #[cfg_attr(
+        not(portable_atomic_no_cfg_target_has_atomic),
+        cfg(any(
+            target_has_atomic = "ptr",
+            portable_atomic_unsafe_assume_single_core,
+            target_arch = "avr",
+            target_arch = "msp430"
+        ))
+    )]
+    #[inline]
+    pub fn and(&self, val: bool, order: Ordering) {
+        self.inner.and(val, order);
+    }
+
     /// Logical "nand" with a boolean value.
     ///
     /// Performs a logical "nand" operation on the current value and the argument `val`, and sets
@@ -917,6 +984,67 @@ impl AtomicBool {
         self.inner.fetch_or(val, order)
     }
 
+    /// Logical "or" with a boolean value.
+    ///
+    /// Performs a logical "or" operation on the current value and the argument `val`, and sets the
+    /// new value to the result.
+    ///
+    /// Unlike `fetch_or`, this does not return the previous value.
+    ///
+    /// `or` takes an [`Ordering`] argument which describes the memory ordering
+    /// of this operation. All ordering modes are possible. Note that using
+    /// [`Acquire`] makes the store part of this operation [`Relaxed`], and
+    /// using [`Release`] makes the load part [`Relaxed`].
+    ///
+    /// This function may generate more efficient code than `fetch_or` on some platforms.
+    ///
+    /// - x86: `lock or` instead of `cmpxchg` loop
+    /// - MSP430: `bis` instead of disabling interrupts
+    ///
+    /// Note: On x86, the use of either function should not usually
+    /// affect the generated code, because LLVM can properly optimize the case
+    /// where the result is unused.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use portable_atomic::{AtomicBool, Ordering};
+    ///
+    /// let foo = AtomicBool::new(true);
+    /// foo.or(false, Ordering::SeqCst);
+    /// assert_eq!(foo.load(Ordering::SeqCst), true);
+    ///
+    /// let foo = AtomicBool::new(true);
+    /// foo.or(true, Ordering::SeqCst);
+    /// assert_eq!(foo.load(Ordering::SeqCst), true);
+    ///
+    /// let foo = AtomicBool::new(false);
+    /// foo.or(false, Ordering::SeqCst);
+    /// assert_eq!(foo.load(Ordering::SeqCst), false);
+    /// ```
+    #[cfg_attr(
+        portable_atomic_no_cfg_target_has_atomic,
+        cfg(any(
+            not(portable_atomic_no_atomic_cas),
+            portable_atomic_unsafe_assume_single_core,
+            target_arch = "avr",
+            target_arch = "msp430"
+        ))
+    )]
+    #[cfg_attr(
+        not(portable_atomic_no_cfg_target_has_atomic),
+        cfg(any(
+            target_has_atomic = "ptr",
+            portable_atomic_unsafe_assume_single_core,
+            target_arch = "avr",
+            target_arch = "msp430"
+        ))
+    )]
+    #[inline]
+    pub fn or(&self, val: bool, order: Ordering) {
+        self.inner.or(val, order);
+    }
+
     /// Logical "xor" with a boolean value.
     ///
     /// Performs a logical "xor" operation on the current value and the argument `val`, and sets
@@ -969,6 +1097,67 @@ impl AtomicBool {
         self.inner.fetch_xor(val, order)
     }
 
+    /// Logical "xor" with a boolean value.
+    ///
+    /// Performs a logical "xor" operation on the current value and the argument `val`, and sets
+    /// the new value to the result.
+    ///
+    /// Unlike `fetch_xor`, this does not return the previous value.
+    ///
+    /// `xor` takes an [`Ordering`] argument which describes the memory ordering
+    /// of this operation. All ordering modes are possible. Note that using
+    /// [`Acquire`] makes the store part of this operation [`Relaxed`], and
+    /// using [`Release`] makes the load part [`Relaxed`].
+    ///
+    /// This function may generate more efficient code than `fetch_xor` on some platforms.
+    ///
+    /// - x86: `lock xor` instead of `cmpxchg` loop
+    /// - MSP430: `xor` instead of disabling interrupts
+    ///
+    /// Note: On x86, the use of either function should not usually
+    /// affect the generated code, because LLVM can properly optimize the case
+    /// where the result is unused.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use portable_atomic::{AtomicBool, Ordering};
+    ///
+    /// let foo = AtomicBool::new(true);
+    /// foo.xor(false, Ordering::SeqCst);
+    /// assert_eq!(foo.load(Ordering::SeqCst), true);
+    ///
+    /// let foo = AtomicBool::new(true);
+    /// foo.xor(true, Ordering::SeqCst);
+    /// assert_eq!(foo.load(Ordering::SeqCst), false);
+    ///
+    /// let foo = AtomicBool::new(false);
+    /// foo.xor(false, Ordering::SeqCst);
+    /// assert_eq!(foo.load(Ordering::SeqCst), false);
+    /// ```
+    #[cfg_attr(
+        portable_atomic_no_cfg_target_has_atomic,
+        cfg(any(
+            not(portable_atomic_no_atomic_cas),
+            portable_atomic_unsafe_assume_single_core,
+            target_arch = "avr",
+            target_arch = "msp430"
+        ))
+    )]
+    #[cfg_attr(
+        not(portable_atomic_no_cfg_target_has_atomic),
+        cfg(any(
+            target_has_atomic = "ptr",
+            portable_atomic_unsafe_assume_single_core,
+            target_arch = "avr",
+            target_arch = "msp430"
+        ))
+    )]
+    #[inline]
+    pub fn xor(&self, val: bool, order: Ordering) {
+        self.inner.xor(val, order);
+    }
+
     /// Logical "not" with a boolean value.
     ///
     /// Performs a logical "not" operation on the current value, and sets
@@ -1017,6 +1206,63 @@ impl AtomicBool {
         self.fetch_xor(true, order)
     }
 
+    /// Logical "not" with a boolean value.
+    ///
+    /// Performs a logical "not" operation on the current value, and sets
+    /// the new value to the result.
+    ///
+    /// Unlike `fetch_not`, this does not return the previous value.
+    ///
+    /// `not` takes an [`Ordering`] argument which describes the memory ordering
+    /// of this operation. All ordering modes are possible. Note that using
+    /// [`Acquire`] makes the store part of this operation [`Relaxed`], and
+    /// using [`Release`] makes the load part [`Relaxed`].
+    ///
+    /// This function may generate more efficient code than `fetch_not` on some platforms.
+    ///
+    /// - x86: `lock xor` instead of `cmpxchg` loop
+    /// - MSP430: `xor` instead of disabling interrupts
+    ///
+    /// Note: On x86, the use of either function should not usually
+    /// affect the generated code, because LLVM can properly optimize the case
+    /// where the result is unused.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use portable_atomic::{AtomicBool, Ordering};
+    ///
+    /// let foo = AtomicBool::new(true);
+    /// assert_eq!(foo.fetch_not(Ordering::SeqCst), true);
+    /// assert_eq!(foo.load(Ordering::SeqCst), false);
+    ///
+    /// let foo = AtomicBool::new(false);
+    /// assert_eq!(foo.fetch_not(Ordering::SeqCst), false);
+    /// assert_eq!(foo.load(Ordering::SeqCst), true);
+    /// ```
+    #[cfg_attr(
+        portable_atomic_no_cfg_target_has_atomic,
+        cfg(any(
+            not(portable_atomic_no_atomic_cas),
+            portable_atomic_unsafe_assume_single_core,
+            target_arch = "avr",
+            target_arch = "msp430"
+        ))
+    )]
+    #[cfg_attr(
+        not(portable_atomic_no_cfg_target_has_atomic),
+        cfg(any(
+            target_has_atomic = "ptr",
+            portable_atomic_unsafe_assume_single_core,
+            target_arch = "avr",
+            target_arch = "msp430"
+        ))
+    )]
+    #[inline]
+    pub fn not(&self, order: Ordering) {
+        self.xor(true, order);
+    }
+
     // TODO: Add as_mut_ptr once it is stable on std atomic types.
     // https://github.com/rust-lang/rust/issues/66893
 
@@ -1033,12 +1279,21 @@ impl AtomicBool {
     /// ordering of this operation. The first describes the required ordering for
     /// when the operation finally succeeds while the second describes the
     /// required ordering for loads. These correspond to the success and failure
-    /// orderings of [`AtomicBool::compare_exchange`] respectively.
+    /// orderings of [`compare_exchange`](Self::compare_exchange) respectively.
     ///
     /// Using [`Acquire`] as success ordering makes the store part of this
     /// operation [`Relaxed`], and using [`Release`] makes the final successful
     /// load [`Relaxed`]. The (failed) load ordering can only be [`SeqCst`],
     /// [`Acquire`] or [`Relaxed`].
+    ///
+    /// # Considerations
+    ///
+    /// This method is not magic; it is not provided by the hardware.
+    /// It is implemented in terms of [`compare_exchange_weak`](Self::compare_exchange_weak),
+    /// and suffers from the same drawbacks.
+    /// In particular, this method will not circumvent the [ABA Problem].
+    ///
+    /// [ABA Problem]: https://en.wikipedia.org/wiki/ABA_problem
     ///
     /// # Panics
     ///
@@ -1489,7 +1744,7 @@ impl<T> AtomicPtr<T> {
     /// ordering of this operation. The first describes the required ordering for
     /// when the operation finally succeeds while the second describes the
     /// required ordering for loads. These correspond to the success and failure
-    /// orderings of [`AtomicPtr::compare_exchange`] respectively.
+    /// orderings of [`compare_exchange`](Self::compare_exchange) respectively.
     ///
     /// Using [`Acquire`] as success ordering makes the store part of this
     /// operation [`Relaxed`], and using [`Release`] makes the final successful
@@ -1499,6 +1754,15 @@ impl<T> AtomicPtr<T> {
     /// # Panics
     ///
     /// Panics if `fetch_order` is [`Release`], [`AcqRel`].
+    ///
+    /// # Considerations
+    ///
+    /// This method is not magic; it is not provided by the hardware.
+    /// It is implemented in terms of [`compare_exchange_weak`](Self::compare_exchange_weak),
+    /// and suffers from the same drawbacks.
+    /// In particular, this method will not circumvent the [ABA Problem].
+    ///
+    /// [ABA Problem]: https://en.wikipedia.org/wiki/ABA_problem
     ///
     /// # Examples
     ///
@@ -2516,6 +2780,55 @@ assert_eq!(foo.load(Ordering::SeqCst), 10);
             }
 
             doc_comment! {
+                concat!("Adds to the current value.
+
+This operation wraps around on overflow.
+
+Unlike `fetch_add`, this does not return the previous value.
+
+`add` takes an [`Ordering`] argument which describes the memory ordering
+of this operation. All ordering modes are possible. Note that using
+[`Acquire`] makes the store part of this operation [`Relaxed`], and
+using [`Release`] makes the load part [`Relaxed`].
+
+This function may generate more efficient code than `fetch_add` on some platforms.
+
+- MSP430: `add` instead of disabling interrupts
+
+# Examples
+
+```
+use portable_atomic::{", stringify!($atomic_type), ", Ordering};
+
+let foo = ", stringify!($atomic_type), "::new(0);
+foo.add(10, Ordering::SeqCst);
+assert_eq!(foo.load(Ordering::SeqCst), 10);
+```"),
+                #[cfg_attr(
+                    portable_atomic_no_cfg_target_has_atomic,
+                    cfg(any(
+                        not(portable_atomic_no_atomic_cas),
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[cfg_attr(
+                    not(portable_atomic_no_cfg_target_has_atomic),
+                    cfg(any(
+                        target_has_atomic = "ptr",
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[inline]
+                pub fn add(&self, val: $int_type, order: Ordering) {
+                    self.inner.add(val, order);
+                }
+            }
+
+            doc_comment! {
                 concat!("Subtracts from the current value, returning the previous value.
 
 This operation wraps around on overflow.
@@ -2555,6 +2868,55 @@ assert_eq!(foo.load(Ordering::SeqCst), 10);
                 #[inline]
                 pub fn fetch_sub(&self, val: $int_type, order: Ordering) -> $int_type {
                     self.inner.fetch_sub(val, order)
+                }
+            }
+
+            doc_comment! {
+                concat!("Subtracts from the current value.
+
+This operation wraps around on overflow.
+
+Unlike `fetch_sub`, this does not return the previous value.
+
+`sub` takes an [`Ordering`] argument which describes the memory ordering
+of this operation. All ordering modes are possible. Note that using
+[`Acquire`] makes the store part of this operation [`Relaxed`], and
+using [`Release`] makes the load part [`Relaxed`].
+
+This function may generate more efficient code than `fetch_sub` on some platforms.
+
+- MSP430: `sub` instead of disabling interrupts
+
+# Examples
+
+```
+use portable_atomic::{", stringify!($atomic_type), ", Ordering};
+
+let foo = ", stringify!($atomic_type), "::new(20);
+foo.sub(10, Ordering::SeqCst);
+assert_eq!(foo.load(Ordering::SeqCst), 10);
+```"),
+                #[cfg_attr(
+                    portable_atomic_no_cfg_target_has_atomic,
+                    cfg(any(
+                        not(portable_atomic_no_atomic_cas),
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[cfg_attr(
+                    not(portable_atomic_no_cfg_target_has_atomic),
+                    cfg(any(
+                        target_has_atomic = "ptr",
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[inline]
+                pub fn sub(&self, val: $int_type, order: Ordering) {
+                    self.inner.sub(val, order);
                 }
             }
 
@@ -2601,6 +2963,61 @@ assert_eq!(foo.load(Ordering::SeqCst), 0b100001);
                 #[inline]
                 pub fn fetch_and(&self, val: $int_type, order: Ordering) -> $int_type {
                     self.inner.fetch_and(val, order)
+                }
+            }
+
+            doc_comment! {
+                concat!("Bitwise \"and\" with the current value.
+
+Performs a bitwise \"and\" operation on the current value and the argument `val`, and
+sets the new value to the result.
+
+Unlike `fetch_and`, this does not return the previous value.
+
+`and` takes an [`Ordering`] argument which describes the memory ordering
+of this operation. All ordering modes are possible. Note that using
+[`Acquire`] makes the store part of this operation [`Relaxed`], and
+using [`Release`] makes the load part [`Relaxed`].
+
+This function may generate more efficient code than `fetch_and` on some platforms.
+
+- x86: `lock and` instead of `cmpxchg` loop
+- MSP430: `and` instead of disabling interrupts
+
+Note: On x86, the use of either function should not usually
+affect the generated code, because LLVM can properly optimize the case
+where the result is unused.
+
+# Examples
+
+```
+use portable_atomic::{", stringify!($atomic_type), ", Ordering};
+
+let foo = ", stringify!($atomic_type), "::new(0b101101);
+assert_eq!(foo.fetch_and(0b110011, Ordering::SeqCst), 0b101101);
+assert_eq!(foo.load(Ordering::SeqCst), 0b100001);
+```"),
+                #[cfg_attr(
+                    portable_atomic_no_cfg_target_has_atomic,
+                    cfg(any(
+                        not(portable_atomic_no_atomic_cas),
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[cfg_attr(
+                    not(portable_atomic_no_cfg_target_has_atomic),
+                    cfg(any(
+                        target_has_atomic = "ptr",
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[inline]
+                pub fn and(&self, val: $int_type, order: Ordering) {
+                    self.inner.and(val, order);
                 }
             }
 
@@ -2697,6 +3114,61 @@ assert_eq!(foo.load(Ordering::SeqCst), 0b111111);
             }
 
             doc_comment! {
+                concat!("Bitwise \"or\" with the current value.
+
+Performs a bitwise \"or\" operation on the current value and the argument `val`, and
+sets the new value to the result.
+
+Unlike `fetch_or`, this does not return the previous value.
+
+`or` takes an [`Ordering`] argument which describes the memory ordering
+of this operation. All ordering modes are possible. Note that using
+[`Acquire`] makes the store part of this operation [`Relaxed`], and
+using [`Release`] makes the load part [`Relaxed`].
+
+This function may generate more efficient code than `fetch_or` on some platforms.
+
+- x86: `lock or` instead of `cmpxchg` loop
+- MSP430: `or` instead of disabling interrupts
+
+Note: On x86, the use of either function should not usually
+affect the generated code, because LLVM can properly optimize the case
+where the result is unused.
+
+# Examples
+
+```
+use portable_atomic::{", stringify!($atomic_type), ", Ordering};
+
+let foo = ", stringify!($atomic_type), "::new(0b101101);
+assert_eq!(foo.fetch_or(0b110011, Ordering::SeqCst), 0b101101);
+assert_eq!(foo.load(Ordering::SeqCst), 0b111111);
+```"),
+                #[cfg_attr(
+                    portable_atomic_no_cfg_target_has_atomic,
+                    cfg(any(
+                        not(portable_atomic_no_atomic_cas),
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[cfg_attr(
+                    not(portable_atomic_no_cfg_target_has_atomic),
+                    cfg(any(
+                        target_has_atomic = "ptr",
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[inline]
+                pub fn or(&self, val: $int_type, order: Ordering) {
+                    self.inner.or(val, order);
+                }
+            }
+
+            doc_comment! {
                 concat!("Bitwise \"xor\" with the current value.
 
 Performs a bitwise \"xor\" operation on the current value and the argument `val`, and
@@ -2743,6 +3215,61 @@ assert_eq!(foo.load(Ordering::SeqCst), 0b011110);
             }
 
             doc_comment! {
+                concat!("Bitwise \"xor\" with the current value.
+
+Performs a bitwise \"xor\" operation on the current value and the argument `val`, and
+sets the new value to the result.
+
+Unlike `fetch_xor`, this does not return the previous value.
+
+`xor` takes an [`Ordering`] argument which describes the memory ordering
+of this operation. All ordering modes are possible. Note that using
+[`Acquire`] makes the store part of this operation [`Relaxed`], and
+using [`Release`] makes the load part [`Relaxed`].
+
+This function may generate more efficient code than `fetch_xor` on some platforms.
+
+- x86: `lock xor` instead of `cmpxchg` loop
+- MSP430: `xor` instead of disabling interrupts
+
+Note: On x86, the use of either function should not usually
+affect the generated code, because LLVM can properly optimize the case
+where the result is unused.
+
+# Examples
+
+```
+use portable_atomic::{", stringify!($atomic_type), ", Ordering};
+
+let foo = ", stringify!($atomic_type), "::new(0b101101);
+foo.xor(0b110011, Ordering::SeqCst);
+assert_eq!(foo.load(Ordering::SeqCst), 0b011110);
+```"),
+                #[cfg_attr(
+                    portable_atomic_no_cfg_target_has_atomic,
+                    cfg(any(
+                        not(portable_atomic_no_atomic_cas),
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[cfg_attr(
+                    not(portable_atomic_no_cfg_target_has_atomic),
+                    cfg(any(
+                        target_has_atomic = "ptr",
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[inline]
+                pub fn xor(&self, val: $int_type, order: Ordering) {
+                    self.inner.xor(val, order);
+                }
+            }
+
+            doc_comment! {
                 concat!("Fetches the value, and applies a function to it that returns an optional
 new value. Returns a `Result` of `Ok(previous_value)` if the function returned `Some(_)`, else
 `Err(previous_value)`.
@@ -2763,6 +3290,15 @@ of this operation [`Relaxed`], and using [`Release`] makes the final successful 
 # Panics
 
 Panics if `fetch_order` is [`Release`], [`AcqRel`].
+
+# Considerations
+
+This method is not magic; it is not provided by the hardware.
+It is implemented in terms of [`compare_exchange_weak`](Self::compare_exchange_weak),
+and suffers from the same drawbacks.
+In particular, this method will not circumvent the [ABA Problem].
+
+[ABA Problem]: https://en.wikipedia.org/wiki/ABA_problem
 
 # Examples
 
@@ -2951,9 +3487,11 @@ This type has the same in-memory representation as the underlying floating point
 "
             ),
             #[cfg_attr(docsrs, doc(cfg(feature = "float")))]
+            // We can use #[repr(transparent)] here, but #[repr(C, align(N))]
+            // will show clearer docs.
             #[repr(C, align($align))]
             pub struct $atomic_type {
-                v: core::cell::UnsafeCell<$float_type>,
+                inner: imp::float::$atomic_type,
             }
         }
 
@@ -2998,7 +3536,7 @@ This type has the same in-memory representation as the underlying floating point
             #[inline]
             #[must_use]
             pub const fn new(v: $float_type) -> Self {
-                Self { v: core::cell::UnsafeCell::new(v) }
+                Self { inner: imp::float::$atomic_type::new(v) }
             }
 
             /// Returns `true` if operations on values of this type are lock-free.
@@ -3009,7 +3547,7 @@ This type has the same in-memory representation as the underlying floating point
             #[inline]
             #[must_use]
             pub fn is_lock_free() -> bool {
-                crate::$atomic_int_type::is_lock_free()
+                <imp::float::$atomic_type>::is_lock_free()
             }
 
             /// Returns `true` if operations on values of this type are lock-free.
@@ -3023,7 +3561,7 @@ This type has the same in-memory representation as the underlying floating point
             #[inline]
             #[must_use]
             pub const fn is_always_lock_free() -> bool {
-                crate::$atomic_int_type::is_always_lock_free()
+                <imp::float::$atomic_type>::is_always_lock_free()
             }
 
             /// Returns a mutable reference to the underlying float.
@@ -3032,9 +3570,7 @@ This type has the same in-memory representation as the underlying floating point
             /// concurrently accessing the atomic data.
             #[inline]
             pub fn get_mut(&mut self) -> &mut $float_type {
-                // SAFETY: the mutable reference guarantees unique ownership.
-                // (UnsafeCell::get_mut requires Rust 1.50)
-                unsafe { &mut *self.v.get() }
+                self.inner.get_mut()
             }
 
             // TODO: Add from_mut once it is stable on std atomic types.
@@ -3046,7 +3582,7 @@ This type has the same in-memory representation as the underlying floating point
             /// concurrently accessing the atomic data.
             #[inline]
             pub fn into_inner(self) -> $float_type {
-                self.v.into_inner()
+                self.inner.into_inner()
             }
 
             /// Loads a value from the atomic float.
@@ -3060,7 +3596,7 @@ This type has the same in-memory representation as the underlying floating point
             #[inline]
             #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
             pub fn load(&self, order: Ordering) -> $float_type {
-                $float_type::from_bits(self.as_bits().load(order))
+                self.inner.load(order)
             }
 
             /// Stores a value into the atomic float.
@@ -3074,7 +3610,7 @@ This type has the same in-memory representation as the underlying floating point
             #[inline]
             #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
             pub fn store(&self, val: $float_type, order: Ordering) {
-                self.as_bits().store(val.to_bits(), order)
+                self.inner.store(val, order)
             }
 
             /// Stores a value into the atomic float, returning the previous value.
@@ -3103,7 +3639,7 @@ This type has the same in-memory representation as the underlying floating point
             )]
             #[inline]
             pub fn swap(&self, val: $float_type, order: Ordering) -> $float_type {
-                $float_type::from_bits(self.as_bits().swap(val.to_bits(), order))
+                self.inner.swap(val, order)
             }
 
             /// Stores a value into the atomic float if the current value is the same as
@@ -3152,15 +3688,7 @@ This type has the same in-memory representation as the underlying floating point
                 success: Ordering,
                 failure: Ordering,
             ) -> Result<$float_type, $float_type> {
-                match self.as_bits().compare_exchange(
-                    current.to_bits(),
-                    new.to_bits(),
-                    success,
-                    failure,
-                ) {
-                    Ok(v) => Ok($float_type::from_bits(v)),
-                    Err(v) => Err($float_type::from_bits(v)),
-                }
+                self.inner.compare_exchange(current, new, success, failure)
             }
 
             /// Stores a value into the atomic float if the current value is the same as
@@ -3210,15 +3738,7 @@ This type has the same in-memory representation as the underlying floating point
                 success: Ordering,
                 failure: Ordering,
             ) -> Result<$float_type, $float_type> {
-                match self.as_bits().compare_exchange_weak(
-                    current.to_bits(),
-                    new.to_bits(),
-                    success,
-                    failure,
-                ) {
-                    Ok(v) => Ok($float_type::from_bits(v)),
-                    Err(v) => Err($float_type::from_bits(v)),
-                }
+                self.inner.compare_exchange_weak(current, new, success, failure)
             }
 
             /// Adds to the current value, returning the previous value.
@@ -3249,10 +3769,7 @@ This type has the same in-memory representation as the underlying floating point
             )]
             #[inline]
             pub fn fetch_add(&self, val: $float_type, order: Ordering) -> $float_type {
-                self.fetch_update(order, crate::utils::strongest_failure_ordering(order), |x| {
-                    Some(x + val)
-                })
-                .unwrap()
+                self.inner.fetch_add(val, order)
             }
 
             /// Subtracts from the current value, returning the previous value.
@@ -3283,10 +3800,7 @@ This type has the same in-memory representation as the underlying floating point
             )]
             #[inline]
             pub fn fetch_sub(&self, val: $float_type, order: Ordering) -> $float_type {
-                self.fetch_update(order, crate::utils::strongest_failure_ordering(order), |x| {
-                    Some(x - val)
-                })
-                .unwrap()
+                self.inner.fetch_sub(val, order)
             }
 
             /// Fetches the value, and applies a function to it that returns an optional
@@ -3309,6 +3823,15 @@ This type has the same in-memory representation as the underlying floating point
             /// # Panics
             ///
             /// Panics if `fetch_order` is [`Release`], [`AcqRel`].
+            ///
+            /// # Considerations
+            ///
+            /// This method is not magic; it is not provided by the hardware.
+            /// It is implemented in terms of [`compare_exchange_weak`](Self::compare_exchange_weak),
+            /// and suffers from the same drawbacks.
+            /// In particular, this method will not circumvent the [ABA Problem].
+            ///
+            /// [ABA Problem]: https://en.wikipedia.org/wiki/ABA_problem
             #[cfg_attr(
                 portable_atomic_no_cfg_target_has_atomic,
                 cfg(any(
@@ -3379,10 +3902,7 @@ This type has the same in-memory representation as the underlying floating point
             )]
             #[inline]
             pub fn fetch_max(&self, val: $float_type, order: Ordering) -> $float_type {
-                self.fetch_update(order, crate::utils::strongest_failure_ordering(order), |x| {
-                    Some(x.max(val))
-                })
-                .unwrap()
+                self.inner.fetch_max(val, order)
             }
 
             /// Minimum with the current value.
@@ -3416,10 +3936,7 @@ This type has the same in-memory representation as the underlying floating point
             )]
             #[inline]
             pub fn fetch_min(&self, val: $float_type, order: Ordering) -> $float_type {
-                self.fetch_update(order, crate::utils::strongest_failure_ordering(order), |x| {
-                    Some(x.min(val))
-                })
-                .unwrap()
+                self.inner.fetch_min(val, order)
             }
 
             /// Computes the absolute value of the current value, and sets the
@@ -3451,8 +3968,7 @@ This type has the same in-memory representation as the underlying floating point
             )]
             #[inline]
             pub fn fetch_abs(&self, order: Ordering) -> $float_type {
-                const ABS_MASK: $int_type = !0 / 2;
-                $float_type::from_bits(self.as_bits().fetch_and(ABS_MASK, order))
+                self.inner.fetch_abs(order)
             }
 
             // TODO: Add as_mut_ptr once it is stable on std atomic types.
@@ -3465,9 +3981,7 @@ See [`", stringify!($float_type) ,"::from_bits`] for some discussion of the
 portability of this operation (there are almost no issues)."),
                 #[inline]
                 pub fn as_bits(&self) -> &crate::$atomic_int_type {
-                    // SAFETY: $atomic_type and $atomic_int_type have the same layout,
-                    // and there is no concurrent access to the value that does not go through this method.
-                    unsafe { &*(self as *const $atomic_type as *const crate::$atomic_int_type) }
+                    self.inner.as_bits()
                 }
             }
         }

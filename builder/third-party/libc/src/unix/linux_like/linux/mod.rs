@@ -618,6 +618,13 @@ s! {
        pub ifr6_prefixlen: u32,
        pub ifr6_ifindex: ::c_int,
    }
+
+    pub struct option {
+        pub name: *const ::c_char,
+        pub has_arg: ::c_int,
+        pub flag: *mut ::c_int,
+        pub val: ::c_int,
+    }
 }
 
 s_no_extra_traits! {
@@ -1593,6 +1600,7 @@ pub const POSIX_MADV_RANDOM: ::c_int = 1;
 pub const POSIX_MADV_SEQUENTIAL: ::c_int = 2;
 pub const POSIX_MADV_WILLNEED: ::c_int = 3;
 pub const POSIX_SPAWN_USEVFORK: ::c_int = 64;
+pub const POSIX_SPAWN_SETSID: ::c_int = 128;
 
 pub const S_IEXEC: mode_t = 64;
 pub const S_IWRITE: mode_t = 128;
@@ -3797,6 +3805,16 @@ extern "C" {
     pub fn rand() -> ::c_int;
     pub fn srand(seed: ::c_uint);
 
+    pub fn drand48() -> ::c_double;
+    pub fn erand48(xseed: *mut ::c_ushort) -> ::c_double;
+    pub fn lrand48() -> ::c_long;
+    pub fn nrand48(xseed: *mut ::c_ushort) -> ::c_long;
+    pub fn mrand48() -> ::c_long;
+    pub fn jrand48(xseed: *mut ::c_ushort) -> ::c_long;
+    pub fn srand48(seed: ::c_long);
+    pub fn seed48(xseed: *mut ::c_ushort) -> *mut ::c_ushort;
+    pub fn lcong48(p: *mut ::c_ushort);
+
     pub fn lutimes(file: *const ::c_char, times: *const ::timeval) -> ::c_int;
 
     pub fn setpwent();
@@ -4430,6 +4448,13 @@ extern "C" {
 
     pub fn pthread_getname_np(thread: ::pthread_t, name: *mut ::c_char, len: ::size_t) -> ::c_int;
     pub fn pthread_setname_np(thread: ::pthread_t, name: *const ::c_char) -> ::c_int;
+    pub fn getopt_long(
+        argc: ::c_int,
+        argv: *const *mut c_char,
+        optstring: *const c_char,
+        longopts: *const option,
+        longindex: *mut ::c_int,
+    ) -> ::c_int;
 }
 
 cfg_if! {

@@ -8,6 +8,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::option::Option::{Some, None};
 
 use crate::ipext::{IpAdd, IpSub, IpStep, IpAddrRange, Ipv4AddrRange, Ipv6AddrRange};
+use crate::mask::{ip_mask_to_prefix, ipv4_mask_to_prefix, ipv6_mask_to_prefix};
 
 /// An IP network address, either IPv4 or IPv6.
 ///
@@ -140,6 +141,25 @@ impl IpNet {
             IpAddr::V4(a) => Ipv4Net::new(a, prefix_len)?.into(),
             IpAddr::V6(a) => Ipv6Net::new(a, prefix_len)?.into(),
         })
+    }
+
+    /// Creates a new IP network address from an `IpAddr` and netmask.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::net::Ipv6Addr;
+    /// use ipnet::{IpNet, PrefixLenError};
+    ///
+    /// let net = IpNet::with_netmask(Ipv6Addr::LOCALHOST.into(), Ipv6Addr::from(0xffff_ffff_ffff_0000_0000_0000_0000_0000).into());
+    /// assert!(net.is_ok());
+    ///
+    /// let bad_prefix_len = IpNet::with_netmask(Ipv6Addr::LOCALHOST.into(), Ipv6Addr::from(0xffff_ffff_ffff_0000_0001_0000_0000_0000).into());
+    /// assert_eq!(bad_prefix_len, Err(PrefixLenError));
+    /// ```
+    pub fn with_netmask(ip: IpAddr, netmask: IpAddr) -> Result<IpNet, PrefixLenError> {
+        let prefix = ip_mask_to_prefix(netmask)?;
+        Self::new(ip, prefix)
     }
 
     /// Returns a copy of the network with the address truncated to the
@@ -558,11 +578,30 @@ impl Ipv4Net {
     /// let bad_prefix_len = Ipv4Net::new(Ipv4Addr::new(10, 1, 1, 0), 33);
     /// assert_eq!(bad_prefix_len, Err(PrefixLenError));
     /// ```
-    pub fn new(ip: Ipv4Addr, prefix_len: u8) -> Result<Ipv4Net, PrefixLenError> {
+    pub const fn new(ip: Ipv4Addr, prefix_len: u8) -> Result<Ipv4Net, PrefixLenError> {
         if prefix_len > 32 {
             return Err(PrefixLenError);
         }
         Ok(Ipv4Net { addr: ip, prefix_len: prefix_len })
+    }
+
+    /// Creates a new IPv4 network address from an `Ipv4Addr` and netmask.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::net::Ipv4Addr;
+    /// use ipnet::{Ipv4Net, PrefixLenError};
+    ///
+    /// let net = Ipv4Net::with_netmask(Ipv4Addr::new(10, 1, 1, 0), Ipv4Addr::new(255, 255, 255, 0));
+    /// assert!(net.is_ok());
+    ///
+    /// let bad_prefix_len = Ipv4Net::with_netmask(Ipv4Addr::new(10, 1, 1, 0), Ipv4Addr::new(255, 255, 0, 1));
+    /// assert_eq!(bad_prefix_len, Err(PrefixLenError));
+    /// ```
+    pub fn with_netmask(ip: Ipv4Addr, netmask: Ipv4Addr) -> Result<Ipv4Net, PrefixLenError> {
+        let prefix = ipv4_mask_to_prefix(netmask)?;
+        Self::new(ip, prefix)
     }
 
     /// Returns a copy of the network with the address truncated to the
@@ -583,17 +622,17 @@ impl Ipv4Net {
     }
 
     /// Returns the address.
-    pub fn addr(&self) -> Ipv4Addr {
+    pub const fn addr(&self) -> Ipv4Addr {
         self.addr
     }
 
     /// Returns the prefix length.
-    pub fn prefix_len(&self) -> u8 {
+    pub const fn prefix_len(&self) -> u8 {
         self.prefix_len
     }
 
     /// Returns the maximum valid prefix length.
-    pub fn max_prefix_len(&self) -> u8 {
+    pub const fn max_prefix_len(&self) -> u8 {
         32
     }
     
@@ -892,11 +931,30 @@ impl Ipv6Net {
     /// let bad_prefix_len = Ipv6Net::new(Ipv6Addr::new(0xfd, 0, 0, 0, 0, 0, 0, 0), 129);
     /// assert_eq!(bad_prefix_len, Err(PrefixLenError));
     /// ```
-    pub fn new(ip: Ipv6Addr, prefix_len: u8) -> Result<Ipv6Net, PrefixLenError> {
+    pub const fn new(ip: Ipv6Addr, prefix_len: u8) -> Result<Ipv6Net, PrefixLenError> {
         if prefix_len > 128 {
             return Err(PrefixLenError);
         }
         Ok(Ipv6Net { addr: ip, prefix_len: prefix_len })
+    }
+
+    /// Creates a new IPv6 network address from an `Ipv6Addr` and netmask.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::net::Ipv6Addr;
+    /// use ipnet::{Ipv6Net, PrefixLenError};
+    ///
+    /// let net = Ipv6Net::with_netmask(Ipv6Addr::new(0xfd, 0, 0, 0, 0, 0, 0, 0), Ipv6Addr::from(0xffff_ff00_0000_0000_0000_0000_0000_0000));
+    /// assert!(net.is_ok());
+    ///
+    /// let bad_prefix_len = Ipv6Net::with_netmask(Ipv6Addr::new(0xfd, 0, 0, 0, 0, 0, 0, 0), Ipv6Addr::from(0xffff_ff00_0000_0000_0001_0000_0000_0000));
+    /// assert_eq!(bad_prefix_len, Err(PrefixLenError));
+    /// ```
+    pub fn with_netmask(ip: Ipv6Addr, netmask: Ipv6Addr) -> Result<Ipv6Net, PrefixLenError> {
+        let prefix = ipv6_mask_to_prefix(netmask)?;
+        Self::new(ip, prefix)
     }
 
     /// Returns a copy of the network with the address truncated to the
@@ -917,17 +975,17 @@ impl Ipv6Net {
     }
     
     /// Returns the address.
-    pub fn addr(&self) -> Ipv6Addr {
+    pub const fn addr(&self) -> Ipv6Addr {
         self.addr
     }
 
     /// Returns the prefix length.
-    pub fn prefix_len(&self) -> u8 {
+    pub const fn prefix_len(&self) -> u8 {
         self.prefix_len
     }
     
     /// Returns the maximum valid prefix length.
-    pub fn max_prefix_len(&self) -> u8 {
+    pub const fn max_prefix_len(&self) -> u8 {
         128
     }
 

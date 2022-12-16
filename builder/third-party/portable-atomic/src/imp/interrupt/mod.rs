@@ -17,11 +17,14 @@
 // interrupts [^avr2] in atomic ops by default, is considered the latter.
 // MSP430 as well.
 //
+// See also README.md of this module.
+//
 // [^avr1]: https://github.com/llvm/llvm-project/blob/llvmorg-15.0.0/llvm/lib/Target/AVR/AVRExpandPseudoInsts.cpp#L1008
 // [^avr2]: https://github.com/llvm/llvm-project/blob/llvmorg-15.0.0/llvm/test/CodeGen/AVR/atomics/load16.ll#L5
 
 // On some platforms, atomic load/store can be implemented in a more efficient
-// way than disabling interrupts.
+// way than disabling interrupts. On MSP430, some RMWs that do not return the
+// previous value can also be optimized.
 //
 // Note: On single-core systems, it is okay to use critical session-based
 // CAS together with atomic load/store. The load/store will not be
@@ -30,11 +33,17 @@
 #[cfg(not(target_arch = "avr"))]
 use arch::atomic;
 
-#[cfg_attr(portable_atomic_armv6m, path = "armv6m.rs")]
 #[cfg_attr(
     all(
         target_arch = "arm",
-        not(any(target_feature = "v6", portable_atomic_target_feature = "v6"))
+        any(target_feature = "mclass", portable_atomic_target_feature = "mclass")
+    ),
+    path = "armv6m.rs"
+)]
+#[cfg_attr(
+    all(
+        target_arch = "arm",
+        not(any(target_feature = "mclass", portable_atomic_target_feature = "mclass"))
     ),
     path = "armv4t.rs"
 )]
@@ -238,6 +247,33 @@ impl AtomicBool {
     }
 }
 
+#[cfg(not(target_arch = "msp430"))]
+no_fetch_ops_impl!(AtomicBool, bool);
+#[cfg(target_arch = "msp430")]
+impl AtomicBool {
+    #[inline]
+    pub(crate) fn and(&self, val: bool, order: Ordering) {
+        // SAFETY: Self and atomic::AtomicBool have the same layout,
+        unsafe {
+            (*(self as *const Self as *const atomic::AtomicBool)).and(val, order);
+        }
+    }
+    #[inline]
+    pub(crate) fn or(&self, val: bool, order: Ordering) {
+        // SAFETY: Self and atomic::AtomicBool have the same layout,
+        unsafe {
+            (*(self as *const Self as *const atomic::AtomicBool)).or(val, order);
+        }
+    }
+    #[inline]
+    pub(crate) fn xor(&self, val: bool, order: Ordering) {
+        // SAFETY: Self and atomic::AtomicBool have the same layout,
+        unsafe {
+            (*(self as *const Self as *const atomic::AtomicBool)).xor(val, order);
+        }
+    }
+}
+
 #[cfg_attr(target_pointer_width = "16", repr(C, align(2)))]
 #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
 #[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
@@ -410,7 +446,7 @@ macro_rules! atomic_int {
     };
     (load_store_atomic, $atomic_type:ident, $int_type:ident, $align:expr) => {
         atomic_int!(base, $atomic_type, $int_type, $align);
-        atomic_int!(cas, $atomic_type, $int_type, $align);
+        atomic_int!(cas, $atomic_type, $int_type);
         impl $atomic_type {
             #[inline]
             #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
@@ -454,10 +490,52 @@ macro_rules! atomic_int {
                 }
             }
         }
+
+        #[cfg(not(target_arch = "msp430"))]
+        no_fetch_ops_impl!($atomic_type, $int_type);
+        #[cfg(target_arch = "msp430")]
+        impl $atomic_type {
+            #[inline]
+            pub(crate) fn add(&self, val: $int_type, order: Ordering) {
+                // SAFETY: Self and atomic::$atomic_type have the same layout,
+                unsafe {
+                    (*(self as *const Self as *const atomic::$atomic_type)).add(val, order);
+                }
+            }
+            #[inline]
+            pub(crate) fn sub(&self, val: $int_type, order: Ordering) {
+                // SAFETY: Self and atomic::$atomic_type have the same layout,
+                unsafe {
+                    (*(self as *const Self as *const atomic::$atomic_type)).sub(val, order);
+                }
+            }
+            #[inline]
+            pub(crate) fn and(&self, val: $int_type, order: Ordering) {
+                // SAFETY: Self and atomic::$atomic_type have the same layout,
+                unsafe {
+                    (*(self as *const Self as *const atomic::$atomic_type)).and(val, order);
+                }
+            }
+            #[inline]
+            pub(crate) fn or(&self, val: $int_type, order: Ordering) {
+                // SAFETY: Self and atomic::$atomic_type have the same layout,
+                unsafe {
+                    (*(self as *const Self as *const atomic::$atomic_type)).or(val, order);
+                }
+            }
+            #[inline]
+            pub(crate) fn xor(&self, val: $int_type, order: Ordering) {
+                // SAFETY: Self and atomic::$atomic_type have the same layout,
+                unsafe {
+                    (*(self as *const Self as *const atomic::$atomic_type)).xor(val, order);
+                }
+            }
+        }
     };
     (load_store_critical_session, $atomic_type:ident, $int_type:ident, $align:expr) => {
         atomic_int!(base, $atomic_type, $int_type, $align);
-        atomic_int!(cas, $atomic_type, $int_type, $align);
+        atomic_int!(cas, $atomic_type, $int_type);
+        no_fetch_ops_impl!($atomic_type, $int_type);
         impl $atomic_type {
             #[inline]
             #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
@@ -480,7 +558,7 @@ macro_rules! atomic_int {
             }
         }
     };
-    (cas, $atomic_type:ident, $int_type:ident, $align:expr) => {
+    (cas, $atomic_type:ident, $int_type:ident) => {
         impl $atomic_type {
             #[inline]
             pub(crate) fn swap(&self, val: $int_type, _order: Ordering) -> $int_type {

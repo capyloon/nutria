@@ -329,6 +329,8 @@ cfg_if! {
             cfg(target_feature = "crt-static"))]
         #[link(name = "gcc", kind = "static", modifiers = "-bundle",
             cfg(target_feature = "crt-static"))]
+        #[link(name = "c", kind = "static", modifiers = "-bundle",
+            cfg(target_feature = "crt-static"))]
         #[link(name = "util", cfg(not(target_feature = "crt-static")))]
         #[link(name = "rt", cfg(not(target_feature = "crt-static")))]
         #[link(name = "pthread", cfg(not(target_feature = "crt-static")))]
@@ -1304,7 +1306,7 @@ extern "C" {
     #[cfg_attr(target_os = "netbsd", link_name = "__select50")]
     pub fn select(
         nfds: ::c_int,
-        readfs: *mut fd_set,
+        readfds: *mut fd_set,
         writefds: *mut fd_set,
         errorfds: *mut fd_set,
         timeout: *mut timeval,
@@ -1356,7 +1358,7 @@ extern "C" {
     #[cfg_attr(target_os = "netbsd", link_name = "__pselect50")]
     pub fn pselect(
         nfds: ::c_int,
-        readfs: *mut fd_set,
+        readfds: *mut fd_set,
         writefds: *mut fd_set,
         errorfds: *mut fd_set,
         timeout: *const timespec,

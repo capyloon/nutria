@@ -2,8 +2,6 @@
 
 use core::{cell::UnsafeCell, ops, sync::atomic::Ordering};
 
-use crate::hint;
-
 #[cfg(not(portable_atomic_no_underscore_consts))]
 macro_rules! static_assert {
     ($cond:expr $(,)?) => {
@@ -186,6 +184,51 @@ macro_rules! ifunc {
         };
         func($($arg_pat),*)
     }};
+}
+
+// We do not provide `nand` because it cannot be optimized on neither x86 nor MSP430.
+// https://godbolt.org/z/x88voWGov
+macro_rules! no_fetch_ops_impl {
+    ($atomic_type:ident, bool) => {
+        impl $atomic_type {
+            #[inline]
+            pub(crate) fn and(&self, val: bool, order: Ordering) {
+                self.fetch_and(val, order);
+            }
+            #[inline]
+            pub(crate) fn or(&self, val: bool, order: Ordering) {
+                self.fetch_or(val, order);
+            }
+            #[inline]
+            pub(crate) fn xor(&self, val: bool, order: Ordering) {
+                self.fetch_xor(val, order);
+            }
+        }
+    };
+    ($atomic_type:ident, $value_type:ident) => {
+        impl $atomic_type {
+            #[inline]
+            pub(crate) fn add(&self, val: $value_type, order: Ordering) {
+                self.fetch_add(val, order);
+            }
+            #[inline]
+            pub(crate) fn sub(&self, val: $value_type, order: Ordering) {
+                self.fetch_sub(val, order);
+            }
+            #[inline]
+            pub(crate) fn and(&self, val: $value_type, order: Ordering) {
+                self.fetch_and(val, order);
+            }
+            #[inline]
+            pub(crate) fn or(&self, val: $value_type, order: Ordering) {
+                self.fetch_or(val, order);
+            }
+            #[inline]
+            pub(crate) fn xor(&self, val: $value_type, order: Ordering) {
+                self.fetch_xor(val, order);
+            }
+        }
+    };
 }
 
 pub(crate) struct NoRefUnwindSafe(UnsafeCell<()>);
@@ -384,13 +427,15 @@ impl Backoff {
     pub(crate) fn snooze(&mut self) {
         if self.step <= SPIN_LIMIT {
             for _ in 0..1 << self.step {
-                hint::spin_loop();
+                #[allow(deprecated)]
+                core::sync::atomic::spin_loop_hint();
             }
             self.step += 1;
         } else {
             #[cfg(not(feature = "std"))]
             for _ in 0..1 << self.step {
-                hint::spin_loop();
+                #[allow(deprecated)]
+                core::sync::atomic::spin_loop_hint();
             }
 
             #[cfg(feature = "std")]
