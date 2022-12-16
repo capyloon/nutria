@@ -67,11 +67,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   await depGraphLoaded;
 
   graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
-  await Promise.all(
-    ["shared-api-daemon", "shared-fluent", "intro"].map((dep) =>
-      graph.waitForDeps(dep)
-    )
-  );
+
+  const steps = ["shared-fluent", "setup", "intro"];
+  await Promise.all(steps.map((dep) => graph.waitForDeps(dep)));
 
   // Get the list of drawers based on the set of templates.
   let templates = Array.from(document.querySelectorAll("template")).map(
@@ -152,13 +150,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     false
   );
 
+  document.body.classList.add("ready");
+
+  await contentManager.as_superuser();
   manageList(wrappers);
 });
 
 async function manageList(wrappers) {
-  await contentManager.as_superuser();
-
-  let manager = contentManager.getContactsManager((contacts) => {
+  let manager = contentManager.getContactsManager(async (contacts) => {
+    await graph.waitForDeps("contact info");
     console.log(`Contacts list updated: ${contacts.length} contacts`);
     elem("main-title").setAttribute(
       "data-l10n-args",
@@ -181,8 +181,6 @@ async function manageList(wrappers) {
         editContact(wrappers, contact);
       });
     }
-
-    document.body.classList.add("ready");
   });
 
   // Hook up the "New contact" button.
@@ -196,10 +194,6 @@ async function manageList(wrappers) {
   });
 
   await manager.init();
-
-  for (let wrapper of wrappers.values()) {
-    wrapper.setContactsManager(manager);
-  }
 }
 
 // TODO: move to /shared/ and re-use with system/js/ipfs_publisher.js
@@ -268,6 +262,8 @@ class PasswordBasedSecret {
 }
 
 async function publishContact(contact) {
+  await graph.waitForDeps("qr dialog");
+
   let dialog = elem("publish-dialog");
   let okBtn = elem("publish-btn-ok");
   okBtn.onclick = () => {
@@ -277,6 +273,7 @@ async function publishContact(contact) {
   qrCode.classList.add("hidden");
   let progress = elem("publish-progress");
   progress.classList.remove("hidden");
+  dialog.classList.remove("hidden");
   dialog.show();
 
   let encrypter = new PasswordBasedSecret();

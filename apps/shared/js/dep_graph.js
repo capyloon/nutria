@@ -196,6 +196,7 @@ class ParallelGraphLoader {
           )
         );
 
+        console.log(`depGraph: will wait on ${promises.length} promises`);
         // Run dependencies sequentially
         // for (let i = 0; i < promises.length; i++) {
         //   await promises[i];

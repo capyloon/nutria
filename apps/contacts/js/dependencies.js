@@ -1,19 +1,23 @@
 const kDeps = [
   {
+    name: "setup",
+    kind: "virtual",
+    deps: ["content manager", "activity manager"],
+  },
+  {
     name: "intro",
     kind: "virtual",
     deps: [
-      "content manager",
       "shoelace-button",
       "shoelace-icon",
-      "shoelace-dialog",
-      "shoelace-qr-code",
-      "shoelace-progress-bar",
       "shoelace-light-theme",
       "shoelace-setup",
-      "contact info",
-      "activity manager",
     ],
+  },
+  {
+    name: "qr dialog",
+    kind: "virtual",
+    deps: ["shoelace-dialog", "shoelace-qr-code", "shoelace-progress-bar"],
   },
   {
     name: "contact info",
