@@ -462,7 +462,9 @@ class ContentWindow extends HTMLElement {
 
   closeInlineActivity() {
     this.inlineActivity.classList.add("hidden");
-    this.inlineActivity.querySelector("content-window").remove();
+    let activityWindow = this.inlineActivity.querySelector("content-window");
+    activityWindow.cleanup();
+    activityWindow.remove();
     this.activate();
   }
 
