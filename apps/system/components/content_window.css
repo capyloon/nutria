@@ -49,6 +49,13 @@ content-window .inline-activity content-window {
   height: 100%;
 }
 
+content-window .inline-activity sl-button {
+  position: absolute;
+  bottom: 3em;
+  right: 3em;
+
+}
+
 content-window .content-crash .message {
   margin-bottom: 1em;
 }

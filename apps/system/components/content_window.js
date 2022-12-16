@@ -256,6 +256,7 @@ class ContentWindow extends HTMLElement {
         <sl-icon name="refresh-cw"></sl-icon>
       </div>
       <div class="inline-activity hidden">
+        <sl-button variant="primary" circle><sl-icon name="x"></sl-icon></sl-button>
       </div>
       `;
 
@@ -269,6 +270,8 @@ class ContentWindow extends HTMLElement {
     this.contentCrash = this.querySelector(".content-crash");
     this.selectUiContainer = this.querySelector(".select-ui");
     this.inlineActivity = this.querySelector(".inline-activity");
+    this.inlineActivity.querySelector("sl-button").onclick =
+      this.closeInlineActivity.bind(this);
 
     this.querySelector("#scroll-top").onclick = this.scrollToTop.bind(this);
     this.querySelector("#scroll-bottom").onclick =
@@ -459,7 +462,7 @@ class ContentWindow extends HTMLElement {
 
   closeInlineActivity() {
     this.inlineActivity.classList.add("hidden");
-    this.inlineActivity.firstElementChild.remove();
+    this.inlineActivity.querySelector("content-window").remove();
     this.activate();
   }
 
