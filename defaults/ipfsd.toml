@@ -3,7 +3,7 @@
 gateway_uds_path = '/tmp/ipfsd.http'
 
 [gateway]
-http_resolvers = ['dweb.link']
+http_resolvers = ['4everland.io', 'storry.tv', 'dweb.link']
 cache = false
 denylist = false
 fetch = false
@@ -43,5 +43,5 @@ notify_handler_buffer_size = 256
 relay_client = true
 relay_server = true
 
-[rpc_client]
-gateway_addr = "grpc:///tmp/iroh-one-rpc"
+# [rpc_client]
+# gateway_addr = "grpc:///tmp/iroh-one-rpc"
