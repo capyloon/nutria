@@ -197,10 +197,6 @@ export class ImageRenderer extends LitElement {
     this.log(`Will render ${this.algorithms.length} algos`);
 
     return html`<link rel="stylesheet" href="components/image_renderer.css" />
-      <link
-        rel="stylesheet"
-        href="http://shared.localhost:${location.port}/style/elements.css"
-      />
       <img crossorigin="anonymous" src=${this.src} />
       <footer class="${this.editMode ? "" : "hidden"}">
         <div @click="${this.save}">

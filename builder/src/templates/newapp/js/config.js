@@ -31,9 +31,6 @@ function loadSharedScript(url) {
 // Load <link rel="stylesheet" href="style/{device|desktop}.css" />
 addLink(`/style/${isDevice ? "device" : "desktop"}.css`);
 
-// Load <link rel="stylesheet" href="http://shared.localhost/style/elements.css" />
-addLink(`http://shared.localhost:${location.port}/style/elements.css`);
-
 // Load the shared style.
 addLink(
   `http://shared.localhost:${window.config.port}/style/themes/default/theme.css`
