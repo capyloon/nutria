@@ -51,8 +51,8 @@
 
 :host .menu {
   position: absolute;
-  background-color: var(--dialog-background);
-  color: var(--dialog-text);
+  background-color: var(--sl-panel-background-color);
+  color: var(--sl-color-neutral-700);
   border-radius: 5px;
 
   display: flex;
@@ -65,7 +65,7 @@
 }
 
 :host .menu h4 {
-  border-bottom: 1px solid var(--dialog-text);
+  border-bottom: 1px solid var(--sl-color-neutral-700);
   padding-bottom: 0.25em;
   margin-bottom: 0;
   margin-top: 0;
