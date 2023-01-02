@@ -18,11 +18,6 @@
     --icon-background-inactive: lightslategray;
     --icon-color-inactive: lightgray;
 
-    --button-background-active: skyblue;
-    --button-color-active: rgb(50, 50, 50);
-    --button-background-inactive: lightslategray;
-    --button-color-inactive: lightgray;
-
     --keyboard-height: 180px;
     --statusbar-height: 2.5em;
 }

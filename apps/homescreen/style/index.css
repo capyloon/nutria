@@ -90,7 +90,7 @@ body {
   margin-left: 10%;
   font-size: 1rem;
   background-color: rgba(255, 255, 255, 0.25);
-  /* border-bottom: 1px solid var(--button-background-active); */
+  /* border-bottom: 1px solid var(--sl-color-primary-500); */
   color: lightgray;
   border-radius: 8px;
 }
@@ -134,7 +134,7 @@ body {
     rgba(255, 255, 255, 0.1) 0%,
     transparent 100%
   );
-  border-bottom: 2px solid var(--button-background-active);
+  border-bottom: 2px solid var(--sl-color-primary-500);
   margin-bottom: 0;
   margin-top: 0;
 }

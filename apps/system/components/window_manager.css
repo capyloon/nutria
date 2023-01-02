@@ -147,7 +147,7 @@ window-manager .carousel > div .head .favicon {
 
 window-manager .carousel .empty-carousel {
   text-align: center;
-  color: var(--button-background-active);
+  color: var(--sl-color-primary-500);
   text-shadow: black 1px 1px;
 }
 
