@@ -93,6 +93,7 @@ body {
   /* border-bottom: 1px solid var(--sl-color-primary-500); */
   color: lightgray;
   border-radius: 8px;
+  padding: 0.5em;
 }
 
 /* Desktop mode */
