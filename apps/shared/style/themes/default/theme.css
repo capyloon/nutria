@@ -2,8 +2,6 @@
 
 /* darkish theme */
 :root {
-    --default-text-color: darkslategray;
-
     --dialog-background: rgb(50, 50, 50);
     --dialog-text: lightgray;
 
