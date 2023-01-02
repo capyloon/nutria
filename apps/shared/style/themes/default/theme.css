@@ -2,9 +2,6 @@
 
 /* darkish theme */
 :root {
-    --dialog-background: rgb(50, 50, 50);
-    --dialog-text: lightgray;
-
     --loader-background: rgba(0,0,0,0.5);
     --loader-color: white;
 

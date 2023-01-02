@@ -123,8 +123,8 @@ window-manager .carousel > div .head {
 }
 
 window-manager .carousel > div .head .close-icon {
-  background-color: var(--dialog-background);
-  color: var(--dialog-text);
+  background-color: var(--sl-panel-background-color);
+  color: var(--sl-color-neutral-700);
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 40%;

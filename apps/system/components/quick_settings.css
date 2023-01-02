@@ -71,7 +71,7 @@
 :host .bars > div {
   width: 0.25em;
   margin-left: 0.15em;
-  background-color: var(--dialog-text);
+  background-color: var(--sl-color-neutral-700);
 }
 
 :host .bars > div.inactive {

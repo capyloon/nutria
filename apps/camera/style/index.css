@@ -8,7 +8,7 @@ body {
   user-select: none;
 
   background-color: black;
-  color: var(--dialog-text);
+  color: var(--sl-color-neutral-700);
 
   display: flex;
   justify-content: center;
