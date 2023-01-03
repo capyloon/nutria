@@ -374,6 +374,13 @@ const kDeps = [
     name: "apps list comp",
     kind: "module",
     param: ["./components/apps_list.js"],
-    deps: ["lit element", "apps manager"],
+    deps: [
+      "lit element",
+      "apps manager",
+      "shoelace-menu",
+      "shoelace-menu-item",
+      "shoelace-divider",
+      "shoelace-icon",
+    ],
   },
 ];

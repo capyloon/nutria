@@ -54,17 +54,6 @@
 
 :host .menu {
   position: absolute;
-  background-color: var(--sl-panel-background-color);
-  color: var(--sl-color-neutral-700);
-  border-radius: 5px;
-
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 0.5em;
-  border-radius: 5px;
-  font-size: larger;
 }
 
 :host .menu h4 {

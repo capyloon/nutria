@@ -147,19 +147,8 @@ class AppsList extends LitElement {
 
   openContextMenu(event, data) {
     let menu = this.shadowRoot.querySelector(".menu");
-    menu.querySelector("h4").textContent = data.title;
+    menu.querySelector("sl-menu-item[disabled]").textContent = data.title;
     menu.classList.add("hidden");
-
-    // Position the context menu over the target icon.
-    let targetRect = event.target.getBoundingClientRect();
-    let menuRect = menu.getBoundingClientRect();
-    let thisRect = this.getBoundingClientRect();
-
-    let left =
-      targetRect.x - thisRect.x + targetRect.width / 2 - menuRect.width / 2;
-    let top = targetRect.y - thisRect.y + targetRect.height / 2;
-    menu.style.left = `${left}px`;
-    menu.style.top = `${top}px`;
 
     menu.app = event.target.app;
     // console.log(menu.app);
@@ -174,6 +163,8 @@ class AppsList extends LitElement {
       showContextMenu = true;
     }
 
+    let targetRect = event.target.getBoundingClientRect();
+
     window.XacHomescreen.isAppInHomescreen(menu.app.manifestUrl.href).then(
       (result) => {
         if (result) {
@@ -185,6 +176,36 @@ class AppsList extends LitElement {
 
         if (showContextMenu) {
           menu.classList.remove("hidden");
+
+          // Position the context menu over the target icon.
+          let menuRect = menu.getBoundingClientRect();
+          let thisRect = this.getBoundingClientRect();
+
+          let left =
+            targetRect.x -
+            thisRect.x +
+            targetRect.width / 2 -
+            menuRect.width / 2;
+          let top = targetRect.y - thisRect.y + targetRect.height / 2;
+
+          if (left + menuRect.width > thisRect.width) {
+            left = thisRect.width - menuRect.width - 10;
+          }
+
+          if (left < thisRect.x) {
+            left = 10;
+          }
+
+          if (top + menuRect.height > thisRect.height) {
+            top = thisRect.height - menuRect.height - 10;
+          }
+
+          if (top < thisRect.y) {
+            top = 10;
+          }
+
+          menu.style.left = `${left}px`;
+          menu.style.top = `${top}px`;
 
           // Intercept pointerdown on the main container.
           let container = this.shadowRoot.querySelector(".container");
@@ -245,19 +266,18 @@ class AppsList extends LitElement {
 
     return html`<link rel="stylesheet" href="components/apps_list.css" />
       <div class="container">${this.appsNodes}</div>
-      <div class="menu hidden">
-        <h4>My app</h4>
-        <ul>
-          <li @click="${this.addToHome}" id="add-to-home-option">
-            <sl-icon name="home"></sl-icon>
-            <span data-l10n-id="apps-list-add-home"></span>
-          </li>
-          <li @click="${this.uninstall}" id="uninstall-option">
-            <sl-icon name="trash-2"></sl-icon>
-            <span data-l10n-id="apps-list-uninstall"></span>
-          </li>
-        </ul>
-      </div>`;
+      <sl-menu class="menu hidden">
+        <sl-menu-item disabled></sl-menu-item>
+        <sl-divider></sl-divider>
+        <sl-menu-item @click="${this.addToHome}" id="add-to-home-option">
+          <sl-icon slot="prefix" name="home"></sl-icon>
+          <span data-l10n-id="apps-list-add-home"></span>
+        </sl-menu-item>
+        <sl-menu-item @click="${this.uninstall}" id="uninstall-option">
+          <sl-icon slot="prefix" name="trash-2"></sl-icon>
+          <span data-l10n-id="apps-list-uninstall"></span>
+        </sl-menu-item>
+      </sl-menu>`;
   }
 }
 
