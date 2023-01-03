@@ -494,11 +494,11 @@ document.addEventListener(
     });
 
     window.XacHomescreen = {
-      toggleAppList: () => {
-        peer.send("homescreen.localhost", "toggleAppList");
+      isAppInHomescreen: (url) => {
+        return peer.send("homescreen.localhost", "isAppInHomescreen", url);
       },
       newTab: () => {
-        peer.send("homescreen.localhost", "newTab");
+        return peer.send("homescreen.localhost", "newTab");
       },
     };
   },

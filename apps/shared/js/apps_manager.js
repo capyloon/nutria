@@ -64,6 +64,10 @@ export class AppsManager extends EventTarget {
   async getSummary(app) {
     let summary = {};
     try {
+      if (!app.manifestUrl.href) {
+        app.manifestUrl = new URL(app.manifestUrl);
+      }
+
       let response = await fetch(app.manifestUrl);
       let manifest = await response.json();
 
@@ -75,7 +79,8 @@ export class AppsManager extends EventTarget {
         : app.manifestUrl;
       let url = new URL(manifest.start_url || "/", manifestUrl);
       url = url.href;
-      let icon = `http://branding.localhost:${location.port}/resources/logo.webp`;
+      let port = location.port || window.config.port;
+      let icon = `http://branding.localhost:${port}/resources/logo.webp`;
       if (manifest.icons && manifest.icons[0]) {
         let iconUrl = new URL(manifest.icons[0].src, manifestUrl);
         icon = iconUrl.href;
@@ -95,7 +100,7 @@ export class AppsManager extends EventTarget {
         summary.backgroundColor = manifest.theme_color;
       }
     } catch (e) {
-      console.error(`ZZZ AppsList: oops ${e}`);
+      console.error(`AppsManager: oops ${e}`);
     }
     return summary;
   }

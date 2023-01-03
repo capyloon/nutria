@@ -1,4 +1,56 @@
 // Components used for the apps list view.
+// The <action-bookmark> custom element.
+
+// Similar component to the homescreen's ActionBookmark.
+class AppIcon extends HTMLElement {
+  constructor(data) {
+    super();
+    this.init(data);
+  }
+
+  // data = { icon, title, url }
+  init(data) {
+    this.data = data;
+    this.icon =
+      typeof data.icon == "string" ||
+      Object.getPrototypeOf(data.icon) === URL.prototype
+        ? data.icon
+        : URL.createObjectURL(data.icon);
+  }
+
+  connectedCallback() {
+    let data = this.data;
+    let shadow = this.attachShadow({ mode: "open" });
+    shadow.innerHTML = `
+      <link rel="stylesheet" href="components/app_icon.css">
+      <img src="${this.icon}" alt="${data.title}"></img>
+      <span>${data.title}</span>
+      `;
+
+    this.onclick = () => {
+      this.dispatchEvent(new CustomEvent("open-bookmark", { bubbles: true }));
+      let details = {
+        title: data.title,
+        icon: this.icon,
+        backgroundColor: data.backgroundColor,
+      };
+
+      window.wm.openFrame(data.url, {
+        activate: true,
+        details,
+      });
+    };
+  }
+
+  disconnectedCallback() {
+    if (this.icon.startsWith("blob")) {
+      URL.revokeObjectURL(this.icon);
+    }
+  }
+}
+
+customElements.define("app-icon", AppIcon);
+
 class AppsList extends LitElement {
   constructor() {
     super();
@@ -25,16 +77,18 @@ class AppsList extends LitElement {
 
   open() {
     this.classList.add("open");
-    window["actions-panel"].classList.add("hide");
-    window["search-panel"].classList.add("hide");
+    // Hide the homescreen.
+    window.wm.homescreenFrame().style.opacity = 0;
     this.focus();
+    embedder.addSystemEventListener("keypress", this, true);
   }
 
   close() {
+    embedder.removeSystemEventListener("keypress", this, true);
     this.closeContextMenu();
     this.classList.remove("open");
-    window["actions-panel"].classList.remove("hide");
-    window["search-panel"].classList.remove("hide");
+    // Show the homescreen.
+    window.wm.homescreenFrame().style.opacity = 1;
   }
 
   toggle() {
@@ -59,6 +113,11 @@ class AppsList extends LitElement {
       case "app-uninstalled":
         await this.buildAppsNodes();
         break;
+      case "keypress":
+        if (event.key === "Escape") {
+          this.close();
+        }
+        break;
     }
   }
 
@@ -70,7 +129,7 @@ class AppsList extends LitElement {
         !summary.role ||
         !["system", "homescreen", "input"].includes(summary.role)
       ) {
-        let node = new ActionBookmark(summary);
+        let node = new AppIcon(summary);
         node.app = app;
         node.addEventListener("contextmenu", this);
         node.addEventListener("open-bookmark", this);
@@ -89,7 +148,7 @@ class AppsList extends LitElement {
   openContextMenu(event, data) {
     let menu = this.shadowRoot.querySelector(".menu");
     menu.querySelector("h4").textContent = data.title;
-    menu.classList.remove("hidden");
+    menu.classList.add("hidden");
 
     // Position the context menu over the target icon.
     let targetRect = event.target.getBoundingClientRect();
@@ -103,29 +162,40 @@ class AppsList extends LitElement {
     menu.style.top = `${top}px`;
 
     menu.app = event.target.app;
-
     // console.log(menu.app);
+
+    let showContextMenu = false;
+    this.contextMenuOpen = false;
 
     if (!menu.app.removable) {
       menu.querySelector("#uninstall-option").classList.add("hidden");
     } else {
       menu.querySelector("#uninstall-option").classList.remove("hidden");
+      showContextMenu = true;
     }
 
-    let actionsWall = document.querySelector("actions-wall");
-    if (actionsWall.store.getActionByManifestUrl(menu.app.manifestUrl)) {
-      menu.querySelector("#add-to-home-option").classList.add("hidden");
-    } else {
-      menu.querySelector("#add-to-home-option").classList.remove("hidden");
-    }
+    window.XacHomescreen.isAppInHomescreen(menu.app.manifestUrl.href).then(
+      (result) => {
+        if (result) {
+          menu.querySelector("#add-to-home-option").classList.add("hidden");
+        } else {
+          menu.querySelector("#add-to-home-option").classList.remove("hidden");
+          showContextMenu = true;
+        }
 
-    // Intercept pointerdown on the main container.
-    let container = this.shadowRoot.querySelector(".container");
-    container.addEventListener("click", this.contextMenuHandler, {
-      capture: true,
-    });
+        if (showContextMenu) {
+          menu.classList.remove("hidden");
 
-    this.contextMenuOpen = true;
+          // Intercept pointerdown on the main container.
+          let container = this.shadowRoot.querySelector(".container");
+          container.addEventListener("click", this.contextMenuHandler, {
+            capture: true,
+          });
+
+          this.contextMenuOpen = true;
+        }
+      }
+    );
   }
 
   closeContextMenu() {
@@ -148,9 +218,9 @@ class AppsList extends LitElement {
       return;
     }
 
-    let actionsWall = document.querySelector("actions-wall");
     let menu = this.shadowRoot.querySelector(".menu");
-    await actionsWall.addAppAction(menu.app);
+    let activity = new WebActivity("add-to-home", { app: menu.app });
+    await activity.start();
 
     this.closeContextMenu();
   }

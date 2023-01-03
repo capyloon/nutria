@@ -639,6 +639,14 @@ class WindowManager extends HTMLElement {
     this.frames[this.homescreenId].navigateTo("home", { url });
   }
 
+  homescreenFrame() {
+    if (!this.homescreenId) {
+      return null;
+    }
+
+    return this.frames[this.homescreenId];
+  }
+
   openCaptivePortal() {
     this.openFrame("http://example.com", {
       activate: true,

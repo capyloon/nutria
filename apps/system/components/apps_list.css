@@ -10,6 +10,9 @@
   left: 5vw;
   opacity: 0;
   transform: translateY(100%);
+
+  --action-box-width: 5em;
+  --action-box-height: 6em;
 }
 
 /* Desktop mode */

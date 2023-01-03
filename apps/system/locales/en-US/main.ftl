@@ -116,3 +116,7 @@ ucan-permission-vfs-search = Run queries on the resources database
 ucan-permission-history-read = Access your navigation history
 ucan-permission-history-write = Modify your navigation history
 ucan-button-grant = Grant
+
+# Apps List Context Menu
+apps-list-add-home = Add To Home
+apps-list-uninstall = Uninstall

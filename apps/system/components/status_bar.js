@@ -162,8 +162,7 @@ class StatusBar extends HTMLElement {
       if (this.isCarouselOpen) {
         actionsDispatcher.dispatch("close-carousel");
       }
-      await window.XacHomescreen.toggleAppList();
-      console.log(`XAC status bar: toggleAppList done!`);
+      document.getElementById("apps-list").toggle();
     };
 
     let leftText = this.getElem(`.left-text`);

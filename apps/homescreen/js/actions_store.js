@@ -173,6 +173,10 @@ class ActionsStore extends EventTarget {
   }
 
   async addAction(action) {
+    if (action.app && action.app.href) {
+      // Force switch from URL to string.
+      action.app = action.app.href;
+    }
     this.actions.push(action);
     return await this.updateAction(action);
   }

@@ -89,7 +89,7 @@ class ActionsWall extends HTMLElement {
       let box = this.createBox(action, new ActionWidget(action));
       box.classList.add(`widget-${action.size}`);
     } else {
-      this.error(`Unsupportd action kind: ${action.kind}`);
+      this.error(`Unsupported action kind: ${action.kind}`);
     }
   }
 

@@ -13,10 +13,6 @@ fend-converter-title = Universal Converter
 places-title = History
 media-title = Media
 
-# Apps List Context Menu
-apps-list-add-home = Add To Home
-apps-list-uninstall = Uninstall
-
 # QR Code result dialog
 qr-dialog-title =
     .label = QR Code Content

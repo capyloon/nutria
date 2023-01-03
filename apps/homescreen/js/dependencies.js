@@ -194,12 +194,6 @@ const kDeps = [
     deps: ["lit element", "content manager", "media engine", "places engine"],
   },
   {
-    name: "apps list comp",
-    kind: "module",
-    param: ["./components/apps_list.js"],
-    deps: ["lit element", "action bookmark", "apps manager"],
-  },
-  {
     name: "qr dialog comp",
     kind: "module",
     param: ["./components/qr_dialog.js"],

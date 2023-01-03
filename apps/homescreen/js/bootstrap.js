@@ -2,32 +2,6 @@
 
 var graph;
 
-class AppsListHelper {
-  constructor() {
-    this.ready = false;
-  }
-
-  async ensureReady() {
-    if (!this.ready) {
-      await graph.waitForDeps("apps list comp");
-      this.elem = window["apps-list"];
-    }
-    this.ready = true;
-  }
-
-  async toggle() {
-    await this.ensureReady();
-    this.elem.toggle();
-  }
-
-  async close() {
-    await this.ensureReady();
-    this.elem.close();
-  }
-}
-
-const appsList = new AppsListHelper();
-
 const kBindingsModifier = "Control";
 // Global key bindings for the homescreen.
 class KeyBindings {
@@ -42,18 +16,8 @@ class KeyBindings {
       this.isModifierDown = event.type === "keydown";
     }
 
-    // [Escape] closes the apps list view if it's open.
-    if (
-      !this.isModifierDown &&
-      event.type === "keydown" &&
-      event.key === "Escape"
-    ) {
-      appsList.close();
-    }
-
     // [Ctrl]+[l] opens the search box.
     if (this.isModifierDown && event.type === "keydown" && event.key === "l") {
-      appsList.close();
       openSearchBox();
     }
   }
@@ -179,14 +143,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
   };
 
-  window.requestIdleCallback(() => {
-    appsList.ensureReady();
-  });
-
   const HomescreenFns = {
-    toggleAppList: () => {
-      appsList.toggle();
-      return Promise.resolve();
+    isAppInHomescreen: (url) => {
+      let actionsWall = document.querySelector("actions-wall");
+      return Promise.resolve(!!actionsWall.store.getActionByManifestUrl(url));
     },
 
     newTab: openSearchBox,
@@ -194,7 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let xac = await import(`http://shared.localhost:${config.port}/xac/peer.js`);
   let peer = new xac.Peer(
-    [{ host: "system", fns: ["toggleAppList", "newTab"] }],
+    [{ host: "system", fns: ["isAppInHomescreen", "newTab"] }],
     HomescreenFns
   );
   peer.addEventListener("ready", () => {

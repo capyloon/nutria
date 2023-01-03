@@ -158,6 +158,7 @@ const kDeps = [
       "publish dialog comp",
       "ucan",
       "status icons comp",
+      "apps list comp",
     ],
   },
   {
@@ -368,5 +369,11 @@ const kDeps = [
       "shoelace-radio-button",
       "shoelace-input",
     ],
+  },
+  {
+    name: "apps list comp",
+    kind: "module",
+    param: ["./components/apps_list.js"],
+    deps: ["lit element", "apps manager"],
   },
 ];
