@@ -190,6 +190,8 @@ unsafe fn cmpxchg16b(
 //
 // This is based on the code generated for the first load in DW RMWs by LLVM,
 // but it is interesting that they generate code that does mixed-sized atomic access.
+//
+// See also atomic_update.
 #[inline]
 unsafe fn byte_wise_atomic_load(src: *mut u128) -> u128 {
     debug_assert!(src as usize % 16 == 0);
@@ -268,7 +270,7 @@ unsafe fn _atomic_store_vmovdqa(dst: *mut u128, val: u128, order: Ordering) {
                     options(nostack, preserves_flags),
                 );
             }
-            // If the function is not inlined, the compiler fails to remove panic: https://godbolt.org/z/M5s3fj46o
+            // If the function is not inlined, the compiler fails to remove panic: https://godbolt.org/z/aK44sq6es
             _ => unreachable_unchecked!("{:?}", order),
         }
     }
@@ -289,7 +291,7 @@ unsafe fn atomic_load(src: *mut u128, order: Ordering) -> u128 {
         // https://doc.rust-lang.org/nightly/rustc/platform-support/x86_64-unknown-none.html
         // Miri and Sanitizer do not support inline assembly.
         #[cfg(any(
-            not(feature = "outline-atomics"),
+            portable_atomic_no_outline_atomics,
             not(target_feature = "sse"),
             miri,
             portable_atomic_sanitize_thread
@@ -297,7 +299,7 @@ unsafe fn atomic_load(src: *mut u128, order: Ordering) -> u128 {
         // SAFETY: the caller must uphold the safety contract for `atomic_load`.
         () => unsafe { _atomic_load_cmpxchg16b(src, order) },
         #[cfg(not(any(
-            not(feature = "outline-atomics"),
+            portable_atomic_no_outline_atomics,
             not(target_feature = "sse"),
             miri,
             portable_atomic_sanitize_thread
@@ -334,7 +336,7 @@ unsafe fn atomic_store(dst: *mut u128, val: u128, order: Ordering) {
         // https://doc.rust-lang.org/nightly/rustc/platform-support/x86_64-unknown-none.html
         // Miri and Sanitizer do not support inline assembly.
         #[cfg(any(
-            not(feature = "outline-atomics"),
+            portable_atomic_no_outline_atomics,
             not(target_feature = "sse"),
             miri,
             portable_atomic_sanitize_thread
@@ -342,7 +344,7 @@ unsafe fn atomic_store(dst: *mut u128, val: u128, order: Ordering) {
         // SAFETY: the caller must uphold the safety contract for `atomic_store`.
         () => unsafe { _atomic_store_cmpxchg16b(dst, val, order) },
         #[cfg(not(any(
-            not(feature = "outline-atomics"),
+            portable_atomic_no_outline_atomics,
             not(target_feature = "sse"),
             miri,
             portable_atomic_sanitize_thread
@@ -428,11 +430,11 @@ fn is_lock_free() -> bool {
 }
 #[inline]
 const fn is_always_lock_free() -> bool {
-    cfg!(any(target_feature = "cmpxchg16b", portable_atomic_target_feature = "cmpxchg16b",))
+    cfg!(any(target_feature = "cmpxchg16b", portable_atomic_target_feature = "cmpxchg16b"))
 }
 
-atomic128!(AtomicI128, i128);
-atomic128!(AtomicU128, u128);
+atomic128!(int, AtomicI128, i128);
+atomic128!(uint, AtomicU128, u128);
 
 #[allow(clippy::undocumented_unsafe_blocks, clippy::wildcard_imports)]
 #[cfg(test)]
@@ -596,9 +598,10 @@ mod tests_no_cmpxchg16b {
     }
     use is_always_lock_free as is_lock_free;
 
-    atomic128!(AtomicI128, i128);
-    atomic128!(AtomicU128, u128);
+    atomic128!(int, AtomicI128, i128);
+    atomic128!(uint, AtomicU128, u128);
 
+    // Do not put this in the nested tests module due to glob imports refer to super::super::Atomic*.
     test_atomic_int!(i128);
     test_atomic_int!(u128);
 }

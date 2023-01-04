@@ -30,6 +30,7 @@ fn main() {
     let mut target_upper = target.replace(|c: char| c == '-' || c == '.', "_");
     target_upper.make_ascii_uppercase();
     println!("cargo:rerun-if-env-changed=CARGO_TARGET_{}_RUSTFLAGS", target_upper);
+    println!("cargo:rerun-if-env-changed=CARGO_CFG_PORTABLE_ATOMIC_NO_OUTLINE_ATOMICS");
 
     let version = match rustc_version() {
         Some(version) => version,
@@ -68,7 +69,22 @@ fn main() {
     }
     // asm stabilized in Rust 1.59 (nightly-2021-12-16): https://github.com/rust-lang/rust/pull/91728
     let no_asm = !version.probe(59, 2021, 12, 15);
+    let mut unstable_asm = false;
     if no_asm {
+        if version.nightly
+            && version.probe(46, 2020, 6, 20)
+            && (target_arch != "x86_64" || version.llvm >= 10)
+            && is_allowed_feature("asm")
+        {
+            // This feature was added in Rust 1.45 (nightly-2020-05-20), but
+            // concat! in asm! requires Rust 1.46 (nightly-2020-06-21).
+            // x86 intel syntax requires LLVM 10.
+            // The part of this feature we use has not been changed since nightly-2020-06-21
+            // until it was stabilized in nightly-2021-12-16, so it can be safely enabled in
+            // nightly, which is older than nightly-2021-12-16.
+            println!("cargo:rustc-cfg=portable_atomic_unstable_asm");
+            unstable_asm = true;
+        }
         println!("cargo:rustc-cfg=portable_atomic_no_asm");
     }
     // aarch64_target_feature stabilized in Rust 1.61 (nightly-2022-03-16): https://github.com/rust-lang/rust/pull/90621
@@ -82,8 +98,11 @@ fn main() {
 
     // feature(cfg_target_has_atomic) stabilized in Rust 1.60 (nightly-2022-02-11): https://github.com/rust-lang/rust/pull/93824
     if !version.probe(60, 2022, 2, 10) {
-        if version.nightly && is_allowed_feature("cfg_target_has_atomic") {
-            // This feature has not been changed since the change in nightly-2019-10-14
+        if version.nightly
+            && version.probe(40, 2019, 10, 13)
+            && is_allowed_feature("cfg_target_has_atomic")
+        {
+            // This feature has not been changed since the change in Rust 1.40 (nightly-2019-10-14)
             // until it was stabilized in nightly-2022-02-11, so it can be safely enabled in
             // nightly, which is older than nightly-2022-02-11.
             println!("cargo:rustc-cfg=portable_atomic_unstable_cfg_target_has_atomic");
@@ -150,8 +169,9 @@ fn main() {
             // It is unlikely that rustc will support that name, so we will ignore it for now.
             target_feature_if("cmpxchg16b", has_cmpxchg16b, &version, None, true);
             if version.nightly
+                && (!no_asm || unstable_asm)
                 && cfg!(feature = "fallback")
-                && cfg!(feature = "outline-atomics")
+                && env::var_os("CARGO_CFG_PORTABLE_ATOMIC_NO_OUTLINE_ATOMICS").is_none()
                 && is_allowed_feature("cmpxchg16b_target_feature")
             {
                 println!("cargo:rustc-cfg=portable_atomic_cmpxchg16b_dynamic");
@@ -172,15 +192,16 @@ fn main() {
             //    ^^
             let mut subarch =
                 strip_prefix(target, "arm").or_else(|| strip_prefix(target, "thumb")).unwrap();
+            subarch = strip_prefix(subarch, "eb").unwrap_or(subarch); // ignore endianness
             subarch = subarch.split('-').next().unwrap(); // ignore vender/os/env
             subarch = subarch.split('.').next().unwrap(); // ignore .base/.main suffix
-            subarch = strip_prefix(subarch, "eb").unwrap_or(subarch); // ignore endianness
             let mut known = true;
             // See https://github.com/taiki-e/atomic-maybe-uninit/blob/HEAD/build.rs for details
+            let mut is_mclass = false;
             match subarch {
-                "v7" | "v7a" | "v7neon" | "v7s" | "v7k" => target_feature("aclass"),
-                "v6m" | "v7em" | "v7m" | "v8m" => target_feature("mclass"),
-                "v7r" => target_feature("rclass"),
+                "v7" | "v7a" | "v7neon" | "v7s" | "v7k" | "v8a" => {} // aclass
+                "v6m" | "v7em" | "v7m" | "v8m" => is_mclass = true,
+                "v7r" | "v8r" => {} // rclass
                 // arm-linux-androideabi is v5te
                 // https://github.com/rust-lang/rust/blob/1.63.0/compiler/rustc_target/src/spec/arm_linux_androideabi.rs#L11-L12
                 _ if target == "arm-linux-androideabi" => subarch = "v5te",
@@ -197,13 +218,12 @@ fn main() {
                     );
                 }
             }
-            if known
+            target_feature_if("mclass", is_mclass, &version, None, true);
+            let v6 = known
                 && (subarch.starts_with("v6")
                     || subarch.starts_with("v7")
-                    || subarch.starts_with("v8"))
-            {
-                target_feature("v6");
-            }
+                    || subarch.starts_with("v8"));
+            target_feature_if("v6", v6, &version, None, true);
         }
         "powerpc64" => {
             let target_endian =
@@ -231,16 +251,12 @@ fn main() {
     }
 }
 
-fn target_feature(name: &str) {
-    println!("cargo:rustc-cfg=portable_atomic_target_feature=\"{}\"", name);
-}
-
 fn target_feature_if(
     name: &str,
     mut has_target_feature: bool,
     version: &Version,
     stabilized: Option<u32>,
-    is_in_rustc: bool,
+    is_rustc_target_feature: bool,
 ) {
     // HACK: Currently, it seems that the only way to handle unstable target
     // features on the stable is to parse the `-C target-feature` in RUSTFLAGS.
@@ -252,7 +268,7 @@ fn target_feature_if(
     // (e.g., https://godbolt.org/z/8Eh3z5Wzb), so this hack works properly on stable.
     //
     // [RFC2045]: https://rust-lang.github.io/rfcs/2045-target-feature.html#backend-compilation-options
-    if is_in_rustc
+    if is_rustc_target_feature
         && (version.nightly || stabilized.map_or(false, |stabilized| version.minor >= stabilized))
     {
         // In this case, cfg(target_feature = "...") would work, so skip emitting our own target_feature cfg.
@@ -274,7 +290,7 @@ fn target_feature_if(
         }
     }
     if has_target_feature {
-        target_feature(name);
+        println!("cargo:rustc-cfg=portable_atomic_target_feature=\"{}\"", name);
     }
 }
 
@@ -292,16 +308,18 @@ fn target_cpu() -> Option<String> {
 }
 
 fn is_allowed_feature(name: &str) -> bool {
+    // allowed by default
+    let mut allowed = true;
     if let Some(rustflags) = env::var_os("CARGO_ENCODED_RUSTFLAGS") {
         for mut flag in rustflags.to_string_lossy().split('\x1f') {
             flag = strip_prefix(flag, "-Z").unwrap_or(flag);
             if let Some(flag) = strip_prefix(flag, "allow-features=") {
-                return flag.split(',').any(|allowed| allowed == name);
+                // If it is specified multiple times, the last value will be preferred.
+                allowed = flag.split(',').any(|allowed| allowed == name);
             }
         }
     }
-    // allowed by default
-    true
+    allowed
 }
 
 // Adapted from https://github.com/crossbeam-rs/crossbeam/blob/crossbeam-utils-0.8.14/build-common.rs.

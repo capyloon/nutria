@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.31"
 name = "syn"
-version = "1.0.105"
+version = "1.0.107"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 include = [
     "/benches/**",
@@ -55,6 +55,9 @@ features = [
     "fold",
     "extra-traits",
 ]
+
+[lib]
+doc-scrape-examples = false
 
 [[bench]]
 name = "rust"

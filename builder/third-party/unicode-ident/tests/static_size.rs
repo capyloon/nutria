@@ -19,14 +19,13 @@ fn test_size() {
 #[test]
 fn test_xid_size() {
     #[deny(dead_code)]
-    #[allow(clippy::redundant_static_lifetimes)]
-    #[path = "../generate/src/ucd.rs"]
-    mod ucd;
+    #[path = "tables/mod.rs"]
+    mod tables;
 
-    let size = size_of_val(ucd::XID_START) + size_of_val(ucd::XID_CONTINUE);
+    let size = size_of_val(tables::XID_START) + size_of_val(tables::XID_CONTINUE);
     assert_eq!(11528, size);
 
-    let _ = ucd::BY_NAME;
+    let _ = tables::BY_NAME;
 }
 
 #[cfg(target_pointer_width = "64")]

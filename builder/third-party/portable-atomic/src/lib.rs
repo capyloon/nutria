@@ -3,7 +3,7 @@ Portable atomic types including support for 128-bit atomics, atomic float, etc.
 
 - Provide all atomic integer types (`Atomic{I,U}{8,16,32,64}`) for all targets that can use atomic CAS. (i.e., all targets that can use `std`, and most no-std targets)
 - Provide `AtomicI128` and `AtomicU128`.
-- Provide `AtomicF32` and `AtomicF64`. (optional)
+- Provide `AtomicF32` and `AtomicF64`. ([optional](#optional-features-float))
 <!-- - Provide generic `Atomic<T>` type. (optional) -->
 - Provide atomic load/store for targets where atomic is not available at all in the standard library. (RISC-V without A-extension, MSP430, AVR)
 - Provide atomic CAS for targets where atomic CAS is not available in the standard library. (thumbv6m, pre-v6 ARM, RISC-V without A-extension, MSP430, AVR) ([optional and single-core only](#optional-cfg) for ARM and RISC-V, always enabled for MSP430 and AVR)
@@ -34,7 +34,7 @@ portable-atomic = { version = "0.3", default-features = false }
 
 Native 128-bit atomic operations are available on x86_64 (Rust 1.59+), aarch64 (Rust 1.59+), powerpc64 (le or pwr8+, nightly only), and s390x (nightly only), otherwise the fallback implementation is used.
 
-On x86_64, when the `outline-atomics` optional feature is not enabled and `cmpxchg16b` target feature is not enabled at compile-time, this uses the fallback implementation. `cmpxchg16b` target feature is enabled by default only on macOS.
+On x86_64, even if `cmpxchg16b` is not available at compile time (note: `cmpxchg16b` target feature is enabled by default only on macOS), run-time detection checks whether `cmpxchg16b` is available. If `cmpxchg16b` is not available at either compile-time or run-time detection, the fallback implementation is used. See also [`portable_atomic_no_outline_atomics`](#optional-cfg-no-outline-atomics) cfg.
 
 They are usually implemented using inline assembly, and when using Miri or ThreadSanitizer that do not support inline assembly, core intrinsics are used instead of inline assembly if possible.
 
@@ -47,19 +47,7 @@ See [this list](https://github.com/taiki-e/portable-atomic/issues/10#issuecommen
 
   Disabling this allows only atomic types for which the platform natively supports atomic operations.
 
-- **`outline-atomics`**<br>
-  Enable run-time CPU feature detection.
-
-  This allows maintaining support for older CPUs while using features that are not supported on older CPUs, such as CMPXCHG16B (x86_64) and FEAT_LSE (aarch64).
-
-  Note:
-  - Dynamic detection is currently only enabled in Rust 1.61+ for aarch64, in 1.59+ (AVX) or nightly (CMPXCHG16B) for x86_64, and in nightly for other platforms, otherwise it works the same as the default.
-  - If the required target features are enabled at compile-time, the atomic operations are inlined.
-  - This is compatible with no-std (as with all features except `std`).
-
-  See also [this list](https://github.com/taiki-e/portable-atomic/issues/10#issuecomment-1159368067).
-
-- **`float`**<br>
+- <a name="optional-features-float"></a>**`float`**<br>
   Provide `AtomicF{32,64}`.
   Note that most of `fetch_*` operations of atomic floats are implemented using CAS loops, which can be slower than equivalent operations of atomic integers.
 
@@ -102,7 +90,22 @@ See [this list](https://github.com/taiki-e/portable-atomic/issues/10#issuecommen
 
   Enabling this cfg for targets that have atomic CAS will result in a compile error.
 
+  The cfg interface is kept between versions, so it is designed to prevent downstream builds from breaking when upgrade to semver-incompatible version unless the portable-atomic types are exposed in the library's API.
+
   Feel free to submit an issue if your target is not supported yet.
+
+- <a name="optional-cfg-no-outline-atomics"></a>**`--cfg portable_atomic_no_outline_atomics`**<br>
+  Disable dynamic dispatching by run-time CPU feature detection.
+
+  If dynamic dispatching by run-time CPU feature detection is enabled, it allows maintaining support for older CPUs while using features that are not supported on older CPUs, such as CMPXCHG16B (x86_64) and FEAT_LSE (aarch64).
+
+  Note:
+  - Dynamic detection is currently only enabled in Rust 1.61+ for aarch64, in 1.59+ (AVX) or nightly (CMPXCHG16B) for x86_64, and in nightly for other platforms, otherwise it works the same as when this cfg is set.
+  - If the required target features are enabled at compile-time, the atomic operations are inlined.
+  - This is compatible with no-std (as with all features except `std`).
+  - Some aarch64 targets enable LLVM's `outline-atomics` target feature by default, so if you set this cfg, you may want to disable that as well.
+
+  See also [this list](https://github.com/taiki-e/portable-atomic/issues/10#issuecomment-1159368067).
 
 ## Related Projects
 
@@ -206,44 +209,44 @@ See [this list](https://github.com/taiki-e/portable-atomic/issues/10#issuecommen
     feature(asm_experimental_arch)
 )]
 // Old nightly only
-// These features are already stable or have already been removed from compilers,
+// These features are already stabilized or have already been removed from compilers,
 // and can safely be enabled for old nightly as long as version detection works.
-// cfg(cfg_target_has_atomic) on old nightly
+// - cfg(target_has_atomic)
+// - asm! on ARM, AArch64, RISC-V, x86_64
+// - llvm_asm! on AVR (tier 3) and MSP430 (tier 3)
+// - #[instruction_set] on non-Linux pre-v6 ARM (tier 3)
 #![cfg_attr(portable_atomic_unstable_cfg_target_has_atomic, feature(cfg_target_has_atomic))]
-// asm on old nightly
 #![cfg_attr(
     all(
-        portable_atomic_nightly,
-        portable_atomic_no_asm,
+        portable_atomic_unstable_asm,
         any(
             all(
                 any(target_arch = "arm", target_arch = "riscv32", target_arch = "riscv64"),
                 not(target_has_atomic = "ptr")
             ),
             target_arch = "aarch64",
+            target_arch = "x86",
             target_arch = "x86_64",
         ),
     ),
     feature(asm)
 )]
-// llvm_asm on old nightly
 #![cfg_attr(
     all(any(target_arch = "avr", target_arch = "msp430"), portable_atomic_no_asm),
     feature(llvm_asm)
 )]
-// non-Linux armv4t (tier 3) on old nightly
 #![cfg_attr(
     all(
         portable_atomic_unstable_isa_attribute,
-        target_arch = "arm",
-        not(target_has_atomic = "ptr"),
-        not(any(target_feature = "v6", portable_atomic_target_feature = "v6")),
         any(test, portable_atomic_unsafe_assume_single_core),
+        target_arch = "arm",
+        not(any(target_feature = "v6", portable_atomic_target_feature = "v6")),
+        not(target_has_atomic = "ptr"),
     ),
     feature(isa_attribute)
 )]
 // Miri and/or ThreadSanitizer only
-// They do not support inline assembly, so we need to use unstable features instead of it.
+// They do not support inline assembly, so we need to use unstable features instead.
 // Since they require nightly compilers anyway, we can use the unstable features.
 #![cfg_attr(
     all(
@@ -267,6 +270,8 @@ See [this list](https://github.com/taiki-e/portable-atomic/issues/10#issuecommen
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 // There are currently no 8-bit, 128-bit, or higher builtin targets.
+// (Although some of our generic code is written with the future
+// addition of 128-bit targets in mind.)
 // Note that Rust (and C99) pointers must be at least 16-bits: https://github.com/rust-lang/rust/pull/49305
 #[cfg(not(any(
     target_pointer_width = "16",
@@ -311,6 +316,19 @@ compile_error!(
      if you need cfg(portable_atomic_unsafe_assume_single_core) support for this target, \
      please submit an issue at <https://github.com/taiki-e/portable-atomic>"
 );
+
+#[cfg(portable_atomic_no_outline_atomics)]
+#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+compile_error!("cfg(portable_atomic_no_outline_atomics) does not compatible with this target");
+#[cfg(portable_atomic_disable_fiq)]
+#[cfg(not(all(
+    target_arch = "arm",
+    not(any(target_feature = "mclass", portable_atomic_target_feature = "mclass"))
+)))]
+compile_error!("cfg(portable_atomic_disable_fiq) does not compatible with this target");
+#[cfg(portable_atomic_s_mode)]
+#[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
+compile_error!("cfg(portable_atomic_s_mode) does not compatible with this target");
 
 #[cfg(portable_atomic_disable_fiq)]
 #[cfg(not(portable_atomic_unsafe_assume_single_core))]
@@ -1233,11 +1251,11 @@ impl AtomicBool {
     /// use portable_atomic::{AtomicBool, Ordering};
     ///
     /// let foo = AtomicBool::new(true);
-    /// assert_eq!(foo.fetch_not(Ordering::SeqCst), true);
+    /// foo.not(Ordering::SeqCst);
     /// assert_eq!(foo.load(Ordering::SeqCst), false);
     ///
     /// let foo = AtomicBool::new(false);
-    /// assert_eq!(foo.fetch_not(Ordering::SeqCst), false);
+    /// foo.not(Ordering::SeqCst);
     /// assert_eq!(foo.load(Ordering::SeqCst), true);
     /// ```
     #[cfg_attr(
@@ -2307,22 +2325,34 @@ impl<T> AtomicPtr<T> {
 }
 
 macro_rules! atomic_int {
+    (AtomicU8, $int_type:ident, $align:expr) => {
+        atomic_int!(uint, AtomicU8, $int_type, $align);
+    };
+    (AtomicU16, $int_type:ident, $align:expr) => {
+        atomic_int!(uint, AtomicU16, $int_type, $align);
+    };
     (AtomicU32, $int_type:ident, $align:expr) => {
-        atomic_int!(@int, AtomicU32, $int_type, $align);
+        atomic_int!(uint, AtomicU32, $int_type, $align);
         #[cfg(feature = "float")]
-        atomic_int!(@float, AtomicF32, f32, AtomicU32, $int_type, $align);
+        atomic_int!(float, AtomicF32, f32, AtomicU32, $int_type, $align);
     };
     (AtomicU64, $int_type:ident, $align:expr) => {
-        atomic_int!(@int, AtomicU64, $int_type, $align);
+        atomic_int!(uint, AtomicU64, $int_type, $align);
         #[cfg(feature = "float")]
-        atomic_int!(@float, AtomicF64, f64, AtomicU64, $int_type, $align);
+        atomic_int!(float, AtomicF64, f64, AtomicU64, $int_type, $align);
+    };
+    (AtomicU128, $int_type:ident, $align:expr) => {
+        atomic_int!(uint, AtomicU128, $int_type, $align);
+    };
+    (AtomicUsize, $int_type:ident, $align:expr) => {
+        atomic_int!(uint, AtomicUsize, $int_type, $align);
     };
     ($atomic_type:ident, $int_type:ident, $align:expr) => {
-        atomic_int!(@int, $atomic_type, $int_type, $align);
+        atomic_int!(int, $atomic_type, $int_type, $align);
     };
 
     // Atomic{I,U}* impls
-    (@int,
+    (uint,
         $atomic_type:ident, $int_type:ident, $align:expr
     ) => {
         doc_comment! {
@@ -3470,13 +3500,207 @@ assert_eq!(min_foo, 12);
                 }
             }
 
+            doc_comment! {
+                concat!("Logical negates the current value, and sets the new value to the result.
+
+Returns the previous value.
+
+`fetch_not` takes an [`Ordering`] argument which describes the memory ordering
+of this operation. All ordering modes are possible. Note that using
+[`Acquire`] makes the store part of this operation [`Relaxed`], and
+using [`Release`] makes the load part [`Relaxed`].
+
+# Examples
+
+```
+use portable_atomic::{", stringify!($atomic_type), ", Ordering};
+
+let foo = ", stringify!($atomic_type), "::new(0);
+assert_eq!(foo.fetch_not(Ordering::Relaxed), 0);
+assert_eq!(foo.load(Ordering::Relaxed), !0);
+```"),
+                #[cfg_attr(
+                    portable_atomic_no_cfg_target_has_atomic,
+                    cfg(any(
+                        not(portable_atomic_no_atomic_cas),
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[cfg_attr(
+                    not(portable_atomic_no_cfg_target_has_atomic),
+                    cfg(any(
+                        target_has_atomic = "ptr",
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[inline]
+                pub fn fetch_not(&self, order: Ordering) -> $int_type {
+                    self.inner.fetch_not(order)
+                }
+
+                doc_comment! {
+                    concat!("Logical negates the current value, and sets the new value to the result.
+
+Unlike `fetch_not`, this does not return the previous value.
+
+`not` takes an [`Ordering`] argument which describes the memory ordering
+of this operation. All ordering modes are possible. Note that using
+[`Acquire`] makes the store part of this operation [`Relaxed`], and
+using [`Release`] makes the load part [`Relaxed`].
+
+This function may generate more efficient code than `fetch_not` on some platforms.
+
+- x86: `lock not` instead of `cmpxchg` loop
+- MSP430: `inv` instead of disabling interrupts
+
+# Examples
+
+```
+use portable_atomic::{", stringify!($atomic_type), ", Ordering};
+
+let foo = ", stringify!($atomic_type), "::new(0);
+foo.not(Ordering::Relaxed);
+assert_eq!(foo.load(Ordering::Relaxed), !0);
+```"),
+                    #[cfg_attr(
+                        portable_atomic_no_cfg_target_has_atomic,
+                        cfg(any(
+                            not(portable_atomic_no_atomic_cas),
+                            portable_atomic_unsafe_assume_single_core,
+                            target_arch = "avr",
+                            target_arch = "msp430"
+                        ))
+                    )]
+                    #[cfg_attr(
+                        not(portable_atomic_no_cfg_target_has_atomic),
+                        cfg(any(
+                            target_has_atomic = "ptr",
+                            portable_atomic_unsafe_assume_single_core,
+                            target_arch = "avr",
+                            target_arch = "msp430"
+                        ))
+                    )]
+                    #[inline]
+                    pub fn not(&self, order: Ordering) {
+                        self.inner.not(order);
+                    }
+                }
+            }
+
             // TODO: Add as_mut_ptr once it is stable on std atomic types.
             // https://github.com/rust-lang/rust/issues/66893
         }
     };
 
+    // AtomicI* impls
+    (int,
+        $atomic_type:ident, $int_type:ident, $align:expr
+    ) => {
+        atomic_int!(uint, $atomic_type, $int_type, $align);
+
+        impl $atomic_type {
+            doc_comment! {
+                concat!("Negates the current value, and sets the new value to the result.
+
+Returns the previous value.
+
+`fetch_neg` takes an [`Ordering`] argument which describes the memory ordering
+of this operation. All ordering modes are possible. Note that using
+[`Acquire`] makes the store part of this operation [`Relaxed`], and
+using [`Release`] makes the load part [`Relaxed`].
+
+# Examples
+
+```
+use portable_atomic::{", stringify!($atomic_type), ", Ordering};
+
+let foo = ", stringify!($atomic_type), "::new(5);
+assert_eq!(foo.fetch_neg(Ordering::Relaxed), 5);
+assert_eq!(foo.load(Ordering::Relaxed), -5);
+assert_eq!(foo.fetch_neg(Ordering::Relaxed), -5);
+assert_eq!(foo.load(Ordering::Relaxed), 5);
+```"),
+                #[cfg_attr(
+                    portable_atomic_no_cfg_target_has_atomic,
+                    cfg(any(
+                        not(portable_atomic_no_atomic_cas),
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[cfg_attr(
+                    not(portable_atomic_no_cfg_target_has_atomic),
+                    cfg(any(
+                        target_has_atomic = "ptr",
+                        portable_atomic_unsafe_assume_single_core,
+                        target_arch = "avr",
+                        target_arch = "msp430"
+                    ))
+                )]
+                #[inline]
+                pub fn fetch_neg(&self, order: Ordering) -> $int_type {
+                    self.inner.fetch_neg(order)
+                }
+
+                doc_comment! {
+                    concat!("Negates the current value, and sets the new value to the result.
+
+Unlike `fetch_neg`, this does not return the previous value.
+
+`neg` takes an [`Ordering`] argument which describes the memory ordering
+of this operation. All ordering modes are possible. Note that using
+[`Acquire`] makes the store part of this operation [`Relaxed`], and
+using [`Release`] makes the load part [`Relaxed`].
+
+This function may generate more efficient code than `fetch_neg` on some platforms.
+
+- x86: `lock neg` instead of `cmpxchg` loop
+
+# Examples
+
+```
+use portable_atomic::{", stringify!($atomic_type), ", Ordering};
+
+let foo = ", stringify!($atomic_type), "::new(5);
+foo.neg(Ordering::Relaxed);
+assert_eq!(foo.load(Ordering::Relaxed), -5);
+foo.neg(Ordering::Relaxed);
+assert_eq!(foo.load(Ordering::Relaxed), 5);
+```"),
+                    #[cfg_attr(
+                        portable_atomic_no_cfg_target_has_atomic,
+                        cfg(any(
+                            not(portable_atomic_no_atomic_cas),
+                            portable_atomic_unsafe_assume_single_core,
+                            target_arch = "avr",
+                            target_arch = "msp430"
+                        ))
+                    )]
+                    #[cfg_attr(
+                        not(portable_atomic_no_cfg_target_has_atomic),
+                        cfg(any(
+                            target_has_atomic = "ptr",
+                            portable_atomic_unsafe_assume_single_core,
+                            target_arch = "avr",
+                            target_arch = "msp430"
+                        ))
+                    )]
+                    #[inline]
+                    pub fn neg(&self, order: Ordering) {
+                        self.inner.neg(order);
+                    }
+                }
+            }
+        }
+    };
+
     // AtomicF* impls
-    (@float,
+    (float,
         $atomic_type:ident, $float_type:ident, $atomic_int_type:ident, $int_type:ident, $align:expr
     ) => {
         doc_comment! {
@@ -3939,6 +4163,37 @@ This type has the same in-memory representation as the underlying floating point
                 self.inner.fetch_min(val, order)
             }
 
+            /// Negates the current value, and sets the new value to the result.
+            ///
+            /// Returns the previous value.
+            ///
+            /// `fetch_neg` takes an [`Ordering`] argument which describes the memory ordering
+            /// of this operation. All ordering modes are possible. Note that using
+            /// [`Acquire`] makes the store part of this operation [`Relaxed`], and
+            /// using [`Release`] makes the load part [`Relaxed`].
+            #[cfg_attr(
+                portable_atomic_no_cfg_target_has_atomic,
+                cfg(any(
+                    not(portable_atomic_no_atomic_cas),
+                    portable_atomic_unsafe_assume_single_core,
+                    target_arch = "avr",
+                    target_arch = "msp430"
+                ))
+            )]
+            #[cfg_attr(
+                not(portable_atomic_no_cfg_target_has_atomic),
+                cfg(any(
+                    target_has_atomic = "ptr",
+                    portable_atomic_unsafe_assume_single_core,
+                    target_arch = "avr",
+                    target_arch = "msp430"
+                ))
+            )]
+            #[inline]
+            pub fn fetch_neg(&self, order: Ordering) -> $float_type {
+                self.inner.fetch_neg(order)
+            }
+
             /// Computes the absolute value of the current value, and sets the
             /// new value to the result.
             ///
@@ -4086,9 +4341,12 @@ atomic_int!(AtomicU64, u64, 8);
 #[cfg_attr(
     not(feature = "fallback"),
     cfg(any(
-        all(any(not(portable_atomic_no_asm), portable_atomic_nightly), target_arch = "aarch64"),
         all(
-            any(not(portable_atomic_no_asm), portable_atomic_nightly),
+            any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
+            target_arch = "aarch64"
+        ),
+        all(
+            any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
             any(
                 target_feature = "cmpxchg16b",
                 portable_atomic_target_feature = "cmpxchg16b",
@@ -4129,9 +4387,12 @@ atomic_int!(AtomicI128, i128, 16);
 #[cfg_attr(
     not(feature = "fallback"),
     cfg(any(
-        all(any(not(portable_atomic_no_asm), portable_atomic_nightly), target_arch = "aarch64"),
         all(
-            any(not(portable_atomic_no_asm), portable_atomic_nightly),
+            any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
+            target_arch = "aarch64"
+        ),
+        all(
+            any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
             any(
                 target_feature = "cmpxchg16b",
                 portable_atomic_target_feature = "cmpxchg16b",

@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.34"
 name = "portable-atomic"
-version = "0.3.18"
+version = "0.3.19"
 exclude = [
     "/.*",
     "/tools",
@@ -41,6 +41,8 @@ rustdoc-args = [
     "docsrs",
 ]
 targets = ["x86_64-unknown-linux-gnu"]
+
+[lib]
 
 [dependencies.serde]
 version = "1.0.103"

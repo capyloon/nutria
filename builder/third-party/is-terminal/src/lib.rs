@@ -32,6 +32,8 @@ use io_lifetimes::AsFilelike;
 #[cfg(windows)]
 use io_lifetimes::BorrowedHandle;
 #[cfg(windows)]
+use windows_sys::Win32::Foundation::HANDLE;
+#[cfg(windows)]
 use windows_sys::Win32::System::Console::STD_HANDLE;
 
 pub trait IsTerminal {
@@ -110,7 +112,10 @@ fn _is_terminal(stream: BorrowedHandle<'_>) -> bool {
 
     // Otherwise, we fall back to a very strange msys hack to see if we can
     // sneakily detect the presence of a tty.
-    unsafe { msys_tty_on(fd) }
+    // Safety: function has no invariants. an invalid handle id will cause
+    // GetFileInformationByHandleEx to return an error.
+    let handle = unsafe { GetStdHandle(fd) };
+    unsafe { msys_tty_on(handle) }
 }
 
 /// Returns true if any of the given fds are on a console.
@@ -130,12 +135,11 @@ unsafe fn console_on_any(fds: &[STD_HANDLE]) -> bool {
 
 /// Returns true if there is an MSYS tty on the given handle.
 #[cfg(windows)]
-unsafe fn msys_tty_on(fd: STD_HANDLE) -> bool {
+unsafe fn msys_tty_on(handle: HANDLE) -> bool {
     use std::ffi::c_void;
     use windows_sys::Win32::{
         Foundation::MAX_PATH,
         Storage::FileSystem::{FileNameInfo, GetFileInformationByHandleEx},
-        System::Console::GetStdHandle,
     };
 
     /// Mirrors windows_sys::Win32::Storage::FileSystem::FILE_NAME_INFO, giving
@@ -150,10 +154,7 @@ unsafe fn msys_tty_on(fd: STD_HANDLE) -> bool {
         FileNameLength: 0,
         FileName: [0; MAX_PATH as usize],
     };
-    // Safety: function has no invariants. an invalid handle id will cause
-    //         GetFileInformationByHandleEx to return an error
-    let handle = GetStdHandle(fd);
-    // Safety: handle is valid, and buffer length is fixed
+    // Safety: buffer length is fixed.
     let res = GetFileInformationByHandleEx(
         handle,
         FileNameInfo,
@@ -163,7 +164,8 @@ unsafe fn msys_tty_on(fd: STD_HANDLE) -> bool {
     if res == 0 {
         return false;
     }
-    let s = &name_info.FileName[..name_info.FileNameLength as usize];
+
+    let s = &name_info.FileName[..name_info.FileNameLength as usize / 2];
     let name = String::from_utf16_lossy(s);
     // This checks whether 'pty' exists in the file name, which indicates that
     // a pseudo-terminal is attached. To mitigate against false positives
@@ -350,5 +352,21 @@ mod tests {
                 rustix::io::stderr().is_terminal()
             )
         }
+    }
+
+    // Verify that the msys_tty_on function works with long path.
+    #[test]
+    #[cfg(windows)]
+    fn msys_tty_on_path_length() {
+        use std::{fs::File, os::windows::io::AsRawHandle};
+        use windows_sys::Win32::Foundation::MAX_PATH;
+
+        let dir = tempfile::tempdir().expect("Unable to create temporary directory");
+        let file_path = dir.path().join("ten_chars_".repeat(25));
+        // Ensure that the path is longer than MAX_PATH.
+        assert!(file_path.to_string_lossy().len() > MAX_PATH as usize);
+        let file = File::create(file_path).expect("Unable to create file");
+
+        assert!(!unsafe { crate::msys_tty_on(file.as_raw_handle() as isize) });
     }
 }

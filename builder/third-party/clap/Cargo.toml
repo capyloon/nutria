@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.60.0"
 name = "clap"
-version = "4.0.29"
+version = "4.0.32"
 include = [
     "build.rs",
     "src/**/*",
@@ -413,10 +413,10 @@ version = "0.4"
 version = "1.1.0"
 
 [dev-dependencies.trybuild]
-version = "1.0.71"
+version = "1.0.72"
 
 [dev-dependencies.trycmd]
-version = "0.14.3"
+version = "0.14.5"
 features = [
     "color-auto",
     "diff",

@@ -11,8 +11,9 @@
 
 [package]
 edition = "2018"
+rust-version = "1.48.0"
 name = "console"
-version = "0.15.2"
+version = "0.15.4"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 description = "A terminal and console abstraction for Rust"
 homepage = "https://github.com/console-rs/console"
@@ -40,9 +41,6 @@ features = ["std"]
 optional = true
 default-features = false
 
-[dependencies.terminal_size]
-version = "0.1.14"
-
 [dependencies.unicode-width]
 version = "0.1"
 optional = true
@@ -62,22 +60,16 @@ default = [
 windows-console-colors = [
     "ansi-parsing",
     "regex",
-    "winapi-util",
 ]
 
 [target."cfg(windows)".dependencies.encode_unicode]
 version = "0.3"
 
-[target."cfg(windows)".dependencies.winapi]
-version = "0.3"
+[target."cfg(windows)".dependencies.windows-sys]
+version = "0.42.0"
 features = [
-    "winbase",
-    "winuser",
-    "consoleapi",
-    "processenv",
-    "wincon",
+    "Win32_Foundation",
+    "Win32_System_Console",
+    "Win32_Storage_FileSystem",
+    "Win32_UI_Input_KeyboardAndMouse",
 ]
-
-[target."cfg(windows)".dependencies.winapi-util]
-version = "0.1.3"
-optional = true

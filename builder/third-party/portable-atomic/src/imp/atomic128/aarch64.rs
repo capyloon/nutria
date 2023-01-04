@@ -6,10 +6,10 @@
 // - CASP (DWCAS) added as FEAT_LSE (armv8.1-a)
 // - LDP/STP (DW load/store) if FEAT_LSE2 (armv8.4-a) is available
 //
-// If the `outline-atomics` feature is not enabled, we use CASP if
-// FEAT_LSE is enabled at compile-time, otherwise, use LDXP/STXP loop.
-// If the `outline-atomics` feature is enabled, we use CASP for
-// compare_exchange(_weak) if FEAT_LSE is available at run-time.
+// If outline-atomics is not enabled, we use CASP if FEAT_LSE is enabled at
+// compile-time, otherwise, use LDXP/STXP loop.
+// If outline-atomics is enabled, we use CASP for compare_exchange(_weak) if
+// FEAT_LSE is available at run-time.
 // If FEAT_LSE2 is available at compile-time, we use LDP/STP for load/store.
 //
 // Note: As of rustc 1.63, -C target-feature=+lse2 does not
@@ -27,6 +27,9 @@
 // - https://yarchive.net/comp/linux/cmpxchg_ll_sc_portability.html
 // - https://lists.llvm.org/pipermail/llvm-dev/2016-May/099490.html
 // - https://lists.llvm.org/pipermail/llvm-dev/2018-June/123993.html
+//
+// Note: On Miri and ThreadSanitizer which do not support inline assembly, we don't use
+// this module and use intrinsics.rs instead.
 //
 // Refs:
 // - ARM Compiler armasm User Guide
@@ -266,20 +269,22 @@ unsafe fn atomic_compare_exchange(
         () => unsafe { _compare_exchange_casp(dst, old, new, success) },
         #[cfg(not(all(
             not(portable_atomic_no_aarch64_target_feature),
-            feature = "outline-atomics",
-            // https://github.com/rust-lang/stdarch/blob/28335054b1f417175ab5005cf1d9cf7937737930/crates/std_detect/src/detect/mod.rs
+            not(portable_atomic_no_outline_atomics),
+            // https://github.com/rust-lang/stdarch/blob/a0c30f3e3c75adcd6ee7efc94014ebcead61c507/crates/std_detect/src/detect/mod.rs
+            // It is fine to use std for targets that we know can be linked to std.
             // Note: aarch64 freebsd is tier 3, so std may not be available.
-            any(feature = "std", target_os = "linux", target_os = "windows", /* target_os = "freebsd" */)
+            any(feature = "std", target_os = "linux", target_os = "android", target_os = "windows", /* target_os = "freebsd" */)
         )))]
         #[cfg(not(any(target_feature = "lse", portable_atomic_target_feature = "lse")))]
         // SAFETY: the caller must uphold the safety contract for `atomic_compare_exchange`.
         () => unsafe { _compare_exchange_ldxp_stxp(dst, old, new, success) },
         #[cfg(all(
             not(portable_atomic_no_aarch64_target_feature),
-            feature = "outline-atomics",
-            // https://github.com/rust-lang/stdarch/blob/28335054b1f417175ab5005cf1d9cf7937737930/crates/std_detect/src/detect/mod.rs
+            not(portable_atomic_no_outline_atomics),
+            // https://github.com/rust-lang/stdarch/blob/a0c30f3e3c75adcd6ee7efc94014ebcead61c507/crates/std_detect/src/detect/mod.rs
+            // It is fine to use std for targets that we know can be linked to std.
             // Note: aarch64 freebsd is tier 3, so std may not be available.
-            any(feature = "std", target_os = "linux", target_os = "windows", /* target_os = "freebsd" */)
+            any(feature = "std", target_os = "linux", target_os = "android", target_os = "windows", /* target_os = "freebsd" */)
         ))]
         #[cfg(not(any(target_feature = "lse", portable_atomic_target_feature = "lse")))]
         () => {
@@ -957,8 +962,8 @@ unsafe fn atomic_umin(dst: *mut u128, val: u128, order: Ordering) -> u128 {
     }
 }
 
-atomic128!(AtomicI128, i128, atomic_max, atomic_min);
-atomic128!(AtomicU128, u128, atomic_umax, atomic_umin);
+atomic128!(int, AtomicI128, i128, atomic_max, atomic_min);
+atomic128!(uint, AtomicU128, u128, atomic_umax, atomic_umin);
 
 #[cfg(test)]
 mod tests {
@@ -994,13 +999,10 @@ mod tests_no_outline_atomics {
     // so we always use strong CAS.
     use self::atomic_compare_exchange as atomic_compare_exchange_weak;
 
-    atomic128!(AtomicI128, i128, atomic_max, atomic_min);
-    atomic128!(AtomicU128, u128, atomic_umax, atomic_umin);
+    atomic128!(int, AtomicI128, i128, atomic_max, atomic_min);
+    atomic128!(uint, AtomicU128, u128, atomic_umax, atomic_umin);
 
-    mod tests {
-        use super::*;
-
-        test_atomic_int!(i128);
-        test_atomic_int!(u128);
-    }
+    // Do not put this in the nested tests module due to glob imports refer to super::super::Atomic*.
+    test_atomic_int!(i128);
+    test_atomic_int!(u128);
 }

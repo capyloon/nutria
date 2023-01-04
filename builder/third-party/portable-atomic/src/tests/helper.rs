@@ -55,8 +55,7 @@ macro_rules! __test_atomic_int_load_store {
             static VAR: $atomic_type = <$atomic_type>::new(10);
             test_load_ordering(|order| VAR.load(order));
             test_store_ordering(|order| VAR.store(10, order));
-            for (load_order, store_order) in load_orderings().iter().copied().zip(store_orderings())
-            {
+            for (&load_order, &store_order) in load_orderings().iter().zip(&store_orderings()) {
                 assert_eq!(VAR.load(load_order), 10);
                 VAR.store(5, store_order);
                 assert_eq!(VAR.load(load_order), 5);
@@ -75,7 +74,7 @@ macro_rules! __test_atomic_int_load_store {
         #[test]
         fn stress_load_store() {
             let iterations = if cfg!(miri) {
-                100
+                50
             } else if cfg!(valgrind) && cfg!(debug_assertions) {
                 5_000
             } else {
@@ -129,8 +128,7 @@ macro_rules! __test_atomic_float_load_store {
             static VAR: $atomic_type = <$atomic_type>::new(10.0);
             test_load_ordering(|order| VAR.load(order));
             test_store_ordering(|order| VAR.store(10.0, order));
-            for (load_order, store_order) in load_orderings().iter().copied().zip(store_orderings())
-            {
+            for (&load_order, &store_order) in load_orderings().iter().zip(&store_orderings()) {
                 assert_eq!(VAR.load(load_order), 10.0);
                 VAR.store(5.0, store_order);
                 assert_eq!(VAR.load(load_order), 5.0);
@@ -163,8 +161,7 @@ macro_rules! __test_atomic_bool_load_store {
             static VAR: $atomic_type = <$atomic_type>::new(false);
             test_load_ordering(|order| VAR.load(order));
             test_store_ordering(|order| VAR.store(false, order));
-            for (load_order, store_order) in load_orderings().iter().copied().zip(store_orderings())
-            {
+            for (&load_order, &store_order) in load_orderings().iter().zip(&store_orderings()) {
                 assert_eq!(VAR.load(load_order), false);
                 VAR.store(true, store_order);
                 assert_eq!(VAR.load(load_order), true);
@@ -201,8 +198,7 @@ macro_rules! __test_atomic_ptr_load_store {
             test_store_ordering(|order| VAR.store(ptr::null_mut(), order));
             let mut v = 1_u8;
             let p = &mut v as *mut u8;
-            for (load_order, store_order) in load_orderings().iter().copied().zip(store_orderings())
-            {
+            for (&load_order, &store_order) in load_orderings().iter().zip(&store_orderings()) {
                 assert_eq!(VAR.load(load_order), ptr::null_mut());
                 VAR.store(p, store_order);
                 assert_eq!(VAR.load(load_order), p);
@@ -221,13 +217,35 @@ macro_rules! __test_atomic_ptr_load_store {
 }
 
 macro_rules! __test_atomic_int {
+    ($atomic_type:ty, u8, single_thread) => {
+        __test_atomic_int!(uint, $atomic_type, u8, single_thread);
+    };
+    ($atomic_type:ty, u16, single_thread) => {
+        __test_atomic_int!(uint, $atomic_type, u16, single_thread);
+    };
+    ($atomic_type:ty, u32, single_thread) => {
+        __test_atomic_int!(uint, $atomic_type, u32, single_thread);
+    };
+    ($atomic_type:ty, u64, single_thread) => {
+        __test_atomic_int!(uint, $atomic_type, u64, single_thread);
+    };
+    ($atomic_type:ty, u128, single_thread) => {
+        __test_atomic_int!(uint, $atomic_type, u128, single_thread);
+    };
+    ($atomic_type:ty, usize, single_thread) => {
+        __test_atomic_int!(uint, $atomic_type, usize, single_thread);
+    };
     ($atomic_type:ty, $int_type:ident, single_thread) => {
+        __test_atomic_int!(int, $atomic_type, $int_type, single_thread);
+        __test_atomic_int!(uint, $atomic_type, $int_type, single_thread);
+    };
+    (uint, $atomic_type:ty, $int_type:ident, single_thread) => {
         use core::$int_type;
         #[test]
         fn swap() {
             let a = <$atomic_type>::new(5);
             test_swap_ordering(|order| a.swap(5, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 assert_eq!(a.swap(10, order), 5);
                 assert_eq!(a.swap(5, order), 10);
             }
@@ -238,7 +256,7 @@ macro_rules! __test_atomic_int {
             test_compare_exchange_ordering(|success, failure| {
                 a.compare_exchange(5, 5, success, failure)
             });
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(5);
                 assert_eq!(a.compare_exchange(5, 10, success, failure), Ok(5));
                 assert_eq!(a.load(Ordering::Relaxed), 10);
@@ -252,7 +270,7 @@ macro_rules! __test_atomic_int {
             test_compare_exchange_ordering(|success, failure| {
                 a.compare_exchange_weak(4, 4, success, failure)
             });
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(4);
                 assert_eq!(a.compare_exchange_weak(6, 8, success, failure), Err(4));
                 let mut old = a.load(Ordering::Relaxed);
@@ -270,7 +288,7 @@ macro_rules! __test_atomic_int {
         fn fetch_add() {
             let a = <$atomic_type>::new(0);
             test_swap_ordering(|order| a.fetch_add(0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(0);
                 assert_eq!(a.fetch_add(10, order), 0);
                 assert_eq!(a.load(Ordering::Relaxed), 10);
@@ -283,7 +301,7 @@ macro_rules! __test_atomic_int {
         fn add() {
             let a = <$atomic_type>::new(0);
             test_swap_ordering(|order| a.add(0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(0);
                 a.add(10, order);
                 assert_eq!(a.load(Ordering::Relaxed), 10);
@@ -296,7 +314,7 @@ macro_rules! __test_atomic_int {
         fn fetch_sub() {
             let a = <$atomic_type>::new(20);
             test_swap_ordering(|order| a.fetch_sub(0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(20);
                 assert_eq!(a.fetch_sub(10, order), 20);
                 assert_eq!(a.load(Ordering::Relaxed), 10);
@@ -309,7 +327,7 @@ macro_rules! __test_atomic_int {
         fn sub() {
             let a = <$atomic_type>::new(20);
             test_swap_ordering(|order| a.sub(0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(20);
                 a.sub(10, order);
                 assert_eq!(a.load(Ordering::Relaxed), 10);
@@ -322,7 +340,7 @@ macro_rules! __test_atomic_int {
         fn fetch_and() {
             let a = <$atomic_type>::new(0b101101);
             test_swap_ordering(|order| a.fetch_and(0b101101, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(0b101101);
                 assert_eq!(a.fetch_and(0b110011, order), 0b101101);
                 assert_eq!(a.load(Ordering::Relaxed), 0b100001);
@@ -332,7 +350,7 @@ macro_rules! __test_atomic_int {
         fn and() {
             let a = <$atomic_type>::new(0b101101);
             test_swap_ordering(|order| a.and(0b101101, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(0b101101);
                 a.and(0b110011, order);
                 assert_eq!(a.load(Ordering::Relaxed), 0b100001);
@@ -342,7 +360,7 @@ macro_rules! __test_atomic_int {
         fn fetch_nand() {
             let a = <$atomic_type>::new(0x13);
             test_swap_ordering(|order| a.fetch_nand(0x31, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(0x13);
                 assert_eq!(a.fetch_nand(0x31, order), 0x13);
                 assert_eq!(a.load(Ordering::Relaxed), !(0x13 & 0x31));
@@ -352,7 +370,7 @@ macro_rules! __test_atomic_int {
         fn fetch_or() {
             let a = <$atomic_type>::new(0b101101);
             test_swap_ordering(|order| a.fetch_or(0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(0b101101);
                 assert_eq!(a.fetch_or(0b110011, order), 0b101101);
                 assert_eq!(a.load(Ordering::Relaxed), 0b111111);
@@ -362,7 +380,7 @@ macro_rules! __test_atomic_int {
         fn or() {
             let a = <$atomic_type>::new(0b101101);
             test_swap_ordering(|order| a.or(0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(0b101101);
                 a.or(0b110011, order);
                 assert_eq!(a.load(Ordering::Relaxed), 0b111111);
@@ -372,7 +390,7 @@ macro_rules! __test_atomic_int {
         fn fetch_xor() {
             let a = <$atomic_type>::new(0b101101);
             test_swap_ordering(|order| a.fetch_xor(0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(0b101101);
                 assert_eq!(a.fetch_xor(0b110011, order), 0b101101);
                 assert_eq!(a.load(Ordering::Relaxed), 0b011110);
@@ -382,7 +400,7 @@ macro_rules! __test_atomic_int {
         fn xor() {
             let a = <$atomic_type>::new(0b101101);
             test_swap_ordering(|order| a.xor(0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(0b101101);
                 a.xor(0b110011, order);
                 assert_eq!(a.load(Ordering::Relaxed), 0b011110);
@@ -392,7 +410,7 @@ macro_rules! __test_atomic_int {
         fn fetch_max() {
             let a = <$atomic_type>::new(23);
             test_swap_ordering(|order| a.fetch_max(23, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(23);
                 assert_eq!(a.fetch_max(22, order), 23);
                 assert_eq!(a.load(Ordering::Relaxed), 23);
@@ -409,7 +427,7 @@ macro_rules! __test_atomic_int {
         fn fetch_min() {
             let a = <$atomic_type>::new(23);
             test_swap_ordering(|order| a.fetch_min(23, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(23);
                 assert_eq!(a.fetch_min(24, order), 23);
                 assert_eq!(a.load(Ordering::Relaxed), 23);
@@ -422,9 +440,29 @@ macro_rules! __test_atomic_int {
                 assert_eq!(a.load(Ordering::Relaxed), 0);
             }
         }
+        #[test]
+        fn fetch_not() {
+            let a = <$atomic_type>::new(1);
+            test_swap_ordering(|order| a.fetch_not(order));
+            for &order in &swap_orderings() {
+                let a = <$atomic_type>::new(1);
+                assert_eq!(a.fetch_not(order), 1);
+                assert_eq!(a.load(Ordering::Relaxed), !1);
+            }
+        }
+        #[test]
+        fn not() {
+            let a = <$atomic_type>::new(1);
+            test_swap_ordering(|order| a.not(order));
+            for &order in &swap_orderings() {
+                let a = <$atomic_type>::new(1);
+                a.not(order);
+                assert_eq!(a.load(Ordering::Relaxed), !1);
+            }
+        }
         ::quickcheck::quickcheck! {
             fn quickcheck_swap(x: $int_type, y: $int_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.swap(y, order), x);
                     assert_eq!(a.swap(x, order), y);
@@ -450,7 +488,7 @@ macro_rules! __test_atomic_int {
                         break z;
                     }
                 };
-                for (success, failure) in compare_exchange_orderings() {
+                for &(success, failure) in &compare_exchange_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.compare_exchange(x, y, success, failure).unwrap(), x);
                     assert_eq!(a.load(Ordering::Relaxed), y);
@@ -460,7 +498,7 @@ macro_rules! __test_atomic_int {
                 true
             }
             fn quickcheck_fetch_add(x: $int_type, y: $int_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.fetch_add(y, order), x);
                     assert_eq!(a.load(Ordering::Relaxed), x.wrapping_add(y));
@@ -470,8 +508,19 @@ macro_rules! __test_atomic_int {
                 }
                 true
             }
+            fn quickcheck_add(x: $int_type, y: $int_type) -> bool {
+                for &order in &swap_orderings() {
+                    let a = <$atomic_type>::new(x);
+                    a.add(y, order);
+                    assert_eq!(a.load(Ordering::Relaxed), x.wrapping_add(y));
+                    let a = <$atomic_type>::new(y);
+                    a.add(x, order);
+                    assert_eq!(a.load(Ordering::Relaxed), y.wrapping_add(x));
+                }
+                true
+            }
             fn quickcheck_fetch_sub(x: $int_type, y: $int_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.fetch_sub(y, order), x);
                     assert_eq!(a.load(Ordering::Relaxed), x.wrapping_sub(y));
@@ -481,8 +530,19 @@ macro_rules! __test_atomic_int {
                 }
                 true
             }
+            fn quickcheck_sub(x: $int_type, y: $int_type) -> bool {
+                for &order in &swap_orderings() {
+                    let a = <$atomic_type>::new(x);
+                    a.sub(y, order);
+                    assert_eq!(a.load(Ordering::Relaxed), x.wrapping_sub(y));
+                    let a = <$atomic_type>::new(y);
+                    a.sub(x, order);
+                    assert_eq!(a.load(Ordering::Relaxed), y.wrapping_sub(x));
+                }
+                true
+            }
             fn quickcheck_fetch_and(x: $int_type, y: $int_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.fetch_and(y, order), x);
                     assert_eq!(a.load(Ordering::Relaxed), x & y);
@@ -492,8 +552,19 @@ macro_rules! __test_atomic_int {
                 }
                 true
             }
+            fn quickcheck_and(x: $int_type, y: $int_type) -> bool {
+                for &order in &swap_orderings() {
+                    let a = <$atomic_type>::new(x);
+                    a.and(y, order);
+                    assert_eq!(a.load(Ordering::Relaxed), x & y);
+                    let a = <$atomic_type>::new(y);
+                    a.and(x, order);
+                    assert_eq!(a.load(Ordering::Relaxed), y & x);
+                }
+                true
+            }
             fn quickcheck_fetch_nand(x: $int_type, y: $int_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.fetch_nand(y, order), x);
                     assert_eq!(a.load(Ordering::Relaxed), !(x & y));
@@ -504,7 +575,7 @@ macro_rules! __test_atomic_int {
                 true
             }
             fn quickcheck_fetch_or(x: $int_type, y: $int_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.fetch_or(y, order), x);
                     assert_eq!(a.load(Ordering::Relaxed), x | y);
@@ -514,8 +585,19 @@ macro_rules! __test_atomic_int {
                 }
                 true
             }
+            fn quickcheck_or(x: $int_type, y: $int_type) -> bool {
+                for &order in &swap_orderings() {
+                    let a = <$atomic_type>::new(x);
+                    a.or(y, order);
+                    assert_eq!(a.load(Ordering::Relaxed), x | y);
+                    let a = <$atomic_type>::new(y);
+                    a.or(x, order);
+                    assert_eq!(a.load(Ordering::Relaxed), y | x);
+                }
+                true
+            }
             fn quickcheck_fetch_xor(x: $int_type, y: $int_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.fetch_xor(y, order), x);
                     assert_eq!(a.load(Ordering::Relaxed), x ^ y);
@@ -525,8 +607,19 @@ macro_rules! __test_atomic_int {
                 }
                 true
             }
+            fn quickcheck_xor(x: $int_type, y: $int_type) -> bool {
+                for &order in &swap_orderings() {
+                    let a = <$atomic_type>::new(x);
+                    a.xor(y, order);
+                    assert_eq!(a.load(Ordering::Relaxed), x ^ y);
+                    let a = <$atomic_type>::new(y);
+                    a.xor(x, order);
+                    assert_eq!(a.load(Ordering::Relaxed), y ^ x);
+                }
+                true
+            }
             fn quickcheck_fetch_max(x: $int_type, y: $int_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.fetch_max(y, order), x);
                     assert_eq!(a.load(Ordering::Relaxed), core::cmp::max(x, y));
@@ -537,13 +630,81 @@ macro_rules! __test_atomic_int {
                 true
             }
             fn quickcheck_fetch_min(x: $int_type, y: $int_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.fetch_min(y, order), x);
                     assert_eq!(a.load(Ordering::Relaxed), core::cmp::min(x, y));
                     let a = <$atomic_type>::new(y);
                     assert_eq!(a.fetch_min(x, order), y);
                     assert_eq!(a.load(Ordering::Relaxed), core::cmp::min(y, x));
+                }
+                true
+            }
+            fn quickcheck_fetch_not(x: $int_type) -> bool {
+                for &order in &swap_orderings() {
+                    let a = <$atomic_type>::new(x);
+                    assert_eq!(a.fetch_not(order), x);
+                    assert_eq!(a.load(Ordering::Relaxed), !x);
+                    assert_eq!(a.fetch_not(order), !x);
+                    assert_eq!(a.load(Ordering::Relaxed), x);
+                }
+                true
+            }
+            fn quickcheck_not(x: $int_type) -> bool {
+                for &order in &swap_orderings() {
+                    let a = <$atomic_type>::new(x);
+                    a.not(order);
+                    assert_eq!(a.load(Ordering::Relaxed), !x);
+                    a.not(order);
+                    assert_eq!(a.load(Ordering::Relaxed), x);
+                }
+                true
+            }
+        }
+    };
+    (int, $atomic_type:ty, $int_type:ident, single_thread) => {
+        #[test]
+        fn fetch_neg() {
+            let a = <$atomic_type>::new(5);
+            test_swap_ordering(|order| a.fetch_neg(order));
+            for &order in &swap_orderings() {
+                let a = <$atomic_type>::new(5);
+                assert_eq!(a.fetch_neg(order), 5);
+                assert_eq!(a.load(Ordering::Relaxed), -5);
+                assert_eq!(a.fetch_neg(order), -5);
+                assert_eq!(a.load(Ordering::Relaxed), 5);
+            }
+        }
+        #[test]
+        fn neg() {
+            let a = <$atomic_type>::new(5);
+            test_swap_ordering(|order| a.neg(order));
+            for &order in &swap_orderings() {
+                let a = <$atomic_type>::new(5);
+                a.neg(order);
+                assert_eq!(a.load(Ordering::Relaxed), -5);
+                a.neg(order);
+                assert_eq!(a.load(Ordering::Relaxed), 5);
+            }
+        }
+        ::quickcheck::quickcheck! {
+            fn quickcheck_fetch_neg(x: $int_type) -> bool {
+                for &order in &swap_orderings() {
+                    let a = <$atomic_type>::new(x);
+                    assert_eq!(a.fetch_neg(order), x);
+                    assert_eq!(a.load(Ordering::Relaxed), x.wrapping_neg());
+                    assert_eq!(a.fetch_neg(order), x.wrapping_neg());
+                    assert_eq!(a.load(Ordering::Relaxed), x);
+                }
+                true
+            }
+            fn quickcheck_neg(x: $int_type) -> bool {
+                for &order in &swap_orderings() {
+                    let a = <$atomic_type>::new(x);
+                    a.neg(order);
+                    assert_eq!(a.load(Ordering::Relaxed), x.wrapping_neg());
+                    a.neg(order);
+                    assert_eq!(a.load(Ordering::Relaxed), x);
                 }
                 true
             }
@@ -555,7 +716,7 @@ macro_rules! __test_atomic_int {
         #[test]
         fn stress_swap() {
             let iterations = if cfg!(miri) {
-                100
+                50
             } else if cfg!(valgrind) && cfg!(debug_assertions) {
                 5_000
             } else {
@@ -617,7 +778,7 @@ macro_rules! __test_atomic_int {
         #[test]
         fn stress_compare_exchange() {
             let iterations = if cfg!(miri) {
-                100
+                50
             } else if cfg!(valgrind) && cfg!(debug_assertions) {
                 5_000
             } else {
@@ -692,7 +853,7 @@ macro_rules! __test_atomic_float {
         fn swap() {
             let a = <$atomic_type>::new(5.0);
             test_swap_ordering(|order| a.swap(5.0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 assert_eq!(a.swap(10.0, order), 5.0);
                 assert_eq!(a.swap(5.0, order), 10.0);
             }
@@ -703,7 +864,7 @@ macro_rules! __test_atomic_float {
             test_compare_exchange_ordering(|success, failure| {
                 a.compare_exchange(5.0, 5.0, success, failure)
             });
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(5.0);
                 assert_eq!(a.compare_exchange(5.0, 10.0, success, failure), Ok(5.0));
                 assert_eq!(a.load(Ordering::Relaxed), 10.0);
@@ -717,7 +878,7 @@ macro_rules! __test_atomic_float {
             test_compare_exchange_ordering(|success, failure| {
                 a.compare_exchange_weak(4.0, 4.0, success, failure)
             });
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(4.0);
                 assert_eq!(a.compare_exchange_weak(6.0, 8.0, success, failure), Err(4.0));
                 let mut old = a.load(Ordering::Relaxed);
@@ -735,7 +896,7 @@ macro_rules! __test_atomic_float {
         fn fetch_add() {
             let a = <$atomic_type>::new(0.0);
             test_swap_ordering(|order| a.fetch_add(0.0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(0.0);
                 assert_eq!(a.fetch_add(10.0, order), 0.0);
                 assert_eq!(a.load(Ordering::Relaxed), 10.0);
@@ -748,7 +909,7 @@ macro_rules! __test_atomic_float {
         fn fetch_sub() {
             let a = <$atomic_type>::new(20.0);
             test_swap_ordering(|order| a.fetch_sub(0.0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(20.0);
                 assert_eq!(a.fetch_sub(10.0, order), 20.0);
                 assert_eq!(a.load(Ordering::Relaxed), 10.0);
@@ -761,7 +922,7 @@ macro_rules! __test_atomic_float {
         fn fetch_max() {
             let a = <$atomic_type>::new(23.0);
             test_swap_ordering(|order| a.fetch_max(23.0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(23.0);
                 assert_eq!(a.fetch_max(22.0, order), 23.0);
                 assert_eq!(a.load(Ordering::Relaxed), 23.0);
@@ -773,7 +934,7 @@ macro_rules! __test_atomic_float {
         fn fetch_min() {
             let a = <$atomic_type>::new(23.0);
             test_swap_ordering(|order| a.fetch_min(23.0, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(23.0);
                 assert_eq!(a.fetch_min(24.0, order), 23.0);
                 assert_eq!(a.load(Ordering::Relaxed), 23.0);
@@ -782,10 +943,22 @@ macro_rules! __test_atomic_float {
             }
         }
         #[test]
+        fn fetch_neg() {
+            let a = <$atomic_type>::new(5.0);
+            test_swap_ordering(|order| a.fetch_neg(order));
+            for &order in &swap_orderings() {
+                let a = <$atomic_type>::new(5.0);
+                assert_eq!(a.fetch_neg(order), 5.0);
+                assert_eq!(a.load(Ordering::Relaxed), -5.0);
+                assert_eq!(a.fetch_neg(order), -5.0);
+                assert_eq!(a.load(Ordering::Relaxed), 5.0);
+            }
+        }
+        #[test]
         fn fetch_abs() {
             let a = <$atomic_type>::new(23.0);
             test_swap_ordering(|order| a.fetch_abs(order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(-23.0);
                 assert_eq!(a.fetch_abs(order), -23.0);
                 assert_eq!(a.load(Ordering::Relaxed), 23.0);
@@ -795,7 +968,7 @@ macro_rules! __test_atomic_float {
         }
         ::quickcheck::quickcheck! {
             fn quickcheck_swap(x: $float_type, y: $float_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_float_op_eq!(a.swap(y, order), x);
                     assert_float_op_eq!(a.swap(x, order), y);
@@ -809,7 +982,7 @@ macro_rules! __test_atomic_float {
                         break z;
                     }
                 };
-                for (success, failure) in compare_exchange_orderings() {
+                for &(success, failure) in &compare_exchange_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_float_op_eq!(a.compare_exchange(x, y, success, failure).unwrap(), x);
                     assert_float_op_eq!(a.load(Ordering::Relaxed), y);
@@ -827,7 +1000,7 @@ macro_rules! __test_atomic_float {
                     // https://github.com/rust-lang/rust/issues/73288
                     return true;
                 }
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_float_op_eq!(a.fetch_add(y, order), x);
                     assert_float_op_eq!(a.load(Ordering::Relaxed), x + y);
@@ -843,7 +1016,7 @@ macro_rules! __test_atomic_float {
                     // https://github.com/rust-lang/rust/issues/73288
                     return true;
                 }
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_float_op_eq!(a.fetch_sub(y, order), x);
                     assert_float_op_eq!(a.load(Ordering::Relaxed), x - y);
@@ -854,7 +1027,7 @@ macro_rules! __test_atomic_float {
                 true
             }
             fn quickcheck_fetch_max(x: $float_type, y: $float_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_float_op_eq!(a.fetch_max(y, order), x);
                     assert_float_op_eq!(a.load(Ordering::Relaxed), x.max(y));
@@ -865,7 +1038,7 @@ macro_rules! __test_atomic_float {
                 true
             }
             fn quickcheck_fetch_min(x: $float_type, y: $float_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_float_op_eq!(a.fetch_min(y, order), x);
                     assert_float_op_eq!(a.load(Ordering::Relaxed), x.min(y));
@@ -875,8 +1048,18 @@ macro_rules! __test_atomic_float {
                 }
                 true
             }
+            fn quickcheck_fetch_neg(x: $float_type) -> bool {
+                for &order in &swap_orderings() {
+                    let a = <$atomic_type>::new(x);
+                    assert_float_op_eq!(a.fetch_neg(order), x);
+                    assert_float_op_eq!(a.load(Ordering::Relaxed), -x);
+                    assert_float_op_eq!(a.fetch_neg(order), -x);
+                    assert_float_op_eq!(a.load(Ordering::Relaxed), x);
+                }
+                true
+            }
             fn quickcheck_fetch_abs(x: $float_type) -> bool {
-                for order in swap_orderings() {
+                for &order in &swap_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_float_op_eq!(a.fetch_abs(order), x);
                     assert_float_op_eq!(a.fetch_abs(order), x.abs());
@@ -897,8 +1080,10 @@ macro_rules! __test_atomic_bool {
         fn swap() {
             let a = <$atomic_type>::new(true);
             test_swap_ordering(|order| a.swap(true, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
+                assert_eq!(a.swap(true, order), true);
                 assert_eq!(a.swap(false, order), true);
+                assert_eq!(a.swap(false, order), false);
                 assert_eq!(a.swap(true, order), false);
             }
         }
@@ -908,7 +1093,7 @@ macro_rules! __test_atomic_bool {
             test_compare_exchange_ordering(|success, failure| {
                 a.compare_exchange(true, true, success, failure)
             });
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(true);
                 assert_eq!(a.compare_exchange(true, false, success, failure), Ok(true));
                 assert_eq!(a.load(Ordering::Relaxed), false);
@@ -922,7 +1107,7 @@ macro_rules! __test_atomic_bool {
             test_compare_exchange_ordering(|success, failure| {
                 a.compare_exchange_weak(false, false, success, failure)
             });
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(false);
                 assert_eq!(a.compare_exchange_weak(true, true, success, failure), Err(false));
                 let mut old = a.load(Ordering::Relaxed);
@@ -940,7 +1125,7 @@ macro_rules! __test_atomic_bool {
         fn fetch_and() {
             let a = <$atomic_type>::new(true);
             test_swap_ordering(|order| assert_eq!(a.fetch_and(true, order), true));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(true);
                 assert_eq!(a.fetch_and(false, order), true);
                 assert_eq!(a.load(Ordering::Relaxed), false);
@@ -950,13 +1135,16 @@ macro_rules! __test_atomic_bool {
                 let a = <$atomic_type>::new(false);
                 assert_eq!(a.fetch_and(false, order), false);
                 assert_eq!(a.load(Ordering::Relaxed), false);
+                let a = <$atomic_type>::new(false);
+                assert_eq!(a.fetch_and(true, order), false);
+                assert_eq!(a.load(Ordering::Relaxed), false);
             }
         }
         #[test]
         fn and() {
             let a = <$atomic_type>::new(true);
             test_swap_ordering(|order| a.and(true, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(true);
                 a.and(false, order);
                 assert_eq!(a.load(Ordering::Relaxed), false);
@@ -966,13 +1154,16 @@ macro_rules! __test_atomic_bool {
                 let a = <$atomic_type>::new(false);
                 a.and(false, order);
                 assert_eq!(a.load(Ordering::Relaxed), false);
+                let a = <$atomic_type>::new(false);
+                a.and(true, order);
+                assert_eq!(a.load(Ordering::Relaxed), false);
             }
         }
         #[test]
         fn fetch_nand() {
             let a = <$atomic_type>::new(true);
             test_swap_ordering(|order| assert_eq!(a.fetch_nand(false, order), true));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(true);
                 assert_eq!(a.fetch_nand(false, order), true);
                 assert_eq!(a.load(Ordering::Relaxed), true);
@@ -983,13 +1174,16 @@ macro_rules! __test_atomic_bool {
                 let a = <$atomic_type>::new(false);
                 assert_eq!(a.fetch_nand(false, order), false);
                 assert_eq!(a.load(Ordering::Relaxed), true);
+                let a = <$atomic_type>::new(false);
+                assert_eq!(a.fetch_nand(true, order), false);
+                assert_eq!(a.load(Ordering::Relaxed), true);
             }
         }
         #[test]
         fn fetch_or() {
             let a = <$atomic_type>::new(true);
             test_swap_ordering(|order| assert_eq!(a.fetch_or(false, order), true));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(true);
                 assert_eq!(a.fetch_or(false, order), true);
                 assert_eq!(a.load(Ordering::Relaxed), true);
@@ -999,13 +1193,16 @@ macro_rules! __test_atomic_bool {
                 let a = <$atomic_type>::new(false);
                 assert_eq!(a.fetch_or(false, order), false);
                 assert_eq!(a.load(Ordering::Relaxed), false);
+                let a = <$atomic_type>::new(false);
+                assert_eq!(a.fetch_or(true, order), false);
+                assert_eq!(a.load(Ordering::Relaxed), true);
             }
         }
         #[test]
         fn or() {
             let a = <$atomic_type>::new(true);
             test_swap_ordering(|order| a.or(false, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(true);
                 a.or(false, order);
                 assert_eq!(a.load(Ordering::Relaxed), true);
@@ -1015,13 +1212,16 @@ macro_rules! __test_atomic_bool {
                 let a = <$atomic_type>::new(false);
                 a.or(false, order);
                 assert_eq!(a.load(Ordering::Relaxed), false);
+                let a = <$atomic_type>::new(false);
+                a.or(true, order);
+                assert_eq!(a.load(Ordering::Relaxed), true);
             }
         }
         #[test]
         fn fetch_xor() {
             let a = <$atomic_type>::new(true);
             test_swap_ordering(|order| assert_eq!(a.fetch_xor(false, order), true));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(true);
                 assert_eq!(a.fetch_xor(false, order), true);
                 assert_eq!(a.load(Ordering::Relaxed), true);
@@ -1031,13 +1231,16 @@ macro_rules! __test_atomic_bool {
                 let a = <$atomic_type>::new(false);
                 assert_eq!(a.fetch_xor(false, order), false);
                 assert_eq!(a.load(Ordering::Relaxed), false);
+                let a = <$atomic_type>::new(false);
+                assert_eq!(a.fetch_xor(true, order), false);
+                assert_eq!(a.load(Ordering::Relaxed), true);
             }
         }
         #[test]
         fn xor() {
             let a = <$atomic_type>::new(true);
             test_swap_ordering(|order| a.xor(false, order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(true);
                 a.xor(false, order);
                 assert_eq!(a.load(Ordering::Relaxed), true);
@@ -1047,69 +1250,20 @@ macro_rules! __test_atomic_bool {
                 let a = <$atomic_type>::new(false);
                 a.xor(false, order);
                 assert_eq!(a.load(Ordering::Relaxed), false);
+                let a = <$atomic_type>::new(false);
+                a.xor(true, order);
+                assert_eq!(a.load(Ordering::Relaxed), true);
             }
         }
         ::quickcheck::quickcheck! {
-            fn quickcheck_swap(x: bool, y: bool) -> bool {
-                for order in swap_orderings() {
-                    let a = <$atomic_type>::new(x);
-                    assert_eq!(a.swap(y, order), x);
-                    assert_eq!(a.swap(x, order), y);
-                }
-                true
-            }
             fn quickcheck_compare_exchange(x: bool, y: bool) -> bool {
                 let z = !y;
-                for (success, failure) in compare_exchange_orderings() {
+                for &(success, failure) in &compare_exchange_orderings() {
                     let a = <$atomic_type>::new(x);
                     assert_eq!(a.compare_exchange(x, y, success, failure).unwrap(), x);
                     assert_eq!(a.load(Ordering::Relaxed), y);
                     assert_eq!(a.compare_exchange(z, x, success, failure).unwrap_err(), y);
                     assert_eq!(a.load(Ordering::Relaxed), y);
-                }
-                true
-            }
-            fn quickcheck_fetch_and(x: bool, y: bool) -> bool {
-                for order in swap_orderings() {
-                    let a = <$atomic_type>::new(x);
-                    assert_eq!(a.fetch_and(y, order), x);
-                    assert_eq!(a.load(Ordering::Relaxed), x & y);
-                    let a = <$atomic_type>::new(y);
-                    assert_eq!(a.fetch_and(x, order), y);
-                    assert_eq!(a.load(Ordering::Relaxed), y & x);
-                }
-                true
-            }
-            fn quickcheck_fetch_nand(x: bool, y: bool) -> bool {
-                for order in swap_orderings() {
-                    let a = <$atomic_type>::new(x);
-                    assert_eq!(a.fetch_nand(y, order), x);
-                    assert_eq!(a.load(Ordering::Relaxed), !(x & y));
-                    let a = <$atomic_type>::new(y);
-                    assert_eq!(a.fetch_nand(x, order), y);
-                    assert_eq!(a.load(Ordering::Relaxed), !(y & x));
-                }
-                true
-            }
-            fn quickcheck_fetch_or(x: bool, y: bool) -> bool {
-                for order in swap_orderings() {
-                    let a = <$atomic_type>::new(x);
-                    assert_eq!(a.fetch_or(y, order), x);
-                    assert_eq!(a.load(Ordering::Relaxed), x | y);
-                    let a = <$atomic_type>::new(y);
-                    assert_eq!(a.fetch_or(x, order), y);
-                    assert_eq!(a.load(Ordering::Relaxed), y | x);
-                }
-                true
-            }
-            fn quickcheck_fetch_xor(x: bool, y: bool) -> bool {
-                for order in swap_orderings() {
-                    let a = <$atomic_type>::new(x);
-                    assert_eq!(a.fetch_xor(y, order), x);
-                    assert_eq!(a.load(Ordering::Relaxed), x ^ y);
-                    let a = <$atomic_type>::new(y);
-                    assert_eq!(a.fetch_xor(x, order), y);
-                    assert_eq!(a.load(Ordering::Relaxed), y ^ x);
                 }
                 true
             }
@@ -1127,7 +1281,7 @@ macro_rules! __test_atomic_ptr {
             let a = <$atomic_type>::new(ptr::null_mut());
             test_swap_ordering(|order| a.swap(ptr::null_mut(), order));
             let x = &mut 1;
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 assert_eq!(a.swap(x, order), ptr::null_mut());
                 assert_eq!(a.swap(ptr::null_mut(), order), x as _);
             }
@@ -1138,7 +1292,7 @@ macro_rules! __test_atomic_ptr {
             test_compare_exchange_ordering(|success, failure| {
                 a.compare_exchange(ptr::null_mut(), ptr::null_mut(), success, failure)
             });
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(ptr::null_mut());
                 let x = &mut 1;
                 assert_eq!(
@@ -1159,7 +1313,7 @@ macro_rules! __test_atomic_ptr {
             test_compare_exchange_ordering(|success, failure| {
                 a.compare_exchange_weak(ptr::null_mut(), ptr::null_mut(), success, failure)
             });
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(ptr::null_mut());
                 let x = &mut 1;
                 assert_eq!(a.compare_exchange_weak(x, x, success, failure), Err(ptr::null_mut()));
@@ -1198,7 +1352,7 @@ macro_rules! __test_atomic_int_pub {
         fn fetch_update() {
             let a = <$atomic_type>::new(7);
             test_compare_exchange_ordering(|set, fetch| a.fetch_update(set, fetch, |x| Some(x)));
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(7);
                 assert_eq!(a.fetch_update(success, failure, |_| None), Err(7));
                 assert_eq!(a.fetch_update(success, failure, |x| Some(x + 1)), Ok(7));
@@ -1215,7 +1369,7 @@ macro_rules! __test_atomic_float_pub {
         fn fetch_update() {
             let a = <$atomic_type>::new(7.0);
             test_compare_exchange_ordering(|set, fetch| a.fetch_update(set, fetch, |x| Some(x)));
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(7.0);
                 assert_eq!(a.fetch_update(success, failure, |_| None), Err(7.0));
                 assert_eq!(a.fetch_update(success, failure, |x| Some(x + 1.0)), Ok(7.0));
@@ -1239,7 +1393,7 @@ macro_rules! __test_atomic_bool_pub {
         fn fetch_not() {
             let a = <$atomic_type>::new(true);
             test_swap_ordering(|order| a.fetch_not(order));
-            for order in swap_orderings() {
+            for &order in &swap_orderings() {
                 let a = <$atomic_type>::new(true);
                 assert_eq!(a.fetch_not(order), true);
                 assert_eq!(a.load(Ordering::Relaxed), false);
@@ -1249,10 +1403,23 @@ macro_rules! __test_atomic_bool_pub {
             }
         }
         #[test]
+        fn not() {
+            let a = <$atomic_type>::new(true);
+            test_swap_ordering(|order| a.fetch_not(order));
+            for &order in &swap_orderings() {
+                let a = <$atomic_type>::new(true);
+                a.not(order);
+                assert_eq!(a.load(Ordering::Relaxed), false);
+                let a = <$atomic_type>::new(false);
+                a.not(order);
+                assert_eq!(a.load(Ordering::Relaxed), true);
+            }
+        }
+        #[test]
         fn fetch_update() {
             let a = <$atomic_type>::new(false);
             test_compare_exchange_ordering(|set, fetch| a.fetch_update(set, fetch, |x| Some(x)));
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(false);
                 assert_eq!(a.fetch_update(success, failure, |_| None), Err(false));
                 assert_eq!(a.fetch_update(success, failure, |x| Some(!x)), Ok(false));
@@ -1267,19 +1434,6 @@ macro_rules! __test_atomic_bool_pub {
             assert_eq!(a.load(Ordering::SeqCst), b.load(Ordering::SeqCst));
             assert_eq!(std::format!("{:?}", a), std::format!("{:?}", a.load(Ordering::SeqCst)));
         }
-        ::quickcheck::quickcheck! {
-            fn quickcheck_fetch_not(x: bool, y: bool) -> bool {
-                for order in swap_orderings() {
-                    let a = <$atomic_type>::new(x);
-                    assert_eq!(a.fetch_not(order), x);
-                    assert_eq!(a.load(Ordering::Relaxed), !x);
-                    let a = <$atomic_type>::new(y);
-                    assert_eq!(a.fetch_not(order), y);
-                    assert_eq!(a.load(Ordering::Relaxed), !y);
-                }
-                true
-            }
-        }
     };
 }
 macro_rules! __test_atomic_ptr_pub {
@@ -1290,7 +1444,7 @@ macro_rules! __test_atomic_ptr_pub {
         fn fetch_update() {
             let a = <$atomic_type>::new(ptr::null_mut());
             test_compare_exchange_ordering(|set, fetch| a.fetch_update(set, fetch, |x| Some(x)));
-            for (success, failure) in compare_exchange_orderings() {
+            for &(success, failure) in &compare_exchange_orderings() {
                 let a = <$atomic_type>::new(ptr::null_mut());
                 assert_eq!(a.fetch_update(success, failure, |_| None), Err(ptr::null_mut()));
                 assert_eq!(
@@ -1659,7 +1813,7 @@ impl FloatExt for f64 {
     }
 }
 
-#[track_caller]
+#[cfg_attr(not(portable_atomic_no_track_caller), track_caller)]
 pub(crate) fn assert_panic<T: std::fmt::Debug>(f: impl FnOnce() -> T) -> std::string::String {
     let backtrace = std::env::var_os("RUST_BACKTRACE");
     let hook = std::panic::take_hook();

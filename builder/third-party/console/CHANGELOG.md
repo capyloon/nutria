@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.15.4
+
+### Enhancements
+
+* Fix for regression where console size was misreported on windows. (#151)
+
+## 0.15.3
+
+### Enhancements
+
+* Dropped `terminal_size` dependency.
+
 ## 0.15.2
 
 ### Enhancements
@@ -17,7 +29,7 @@
 
 ### Enhancements
 
-* Addeed more key recognitions
+* Added more key recognitions
 * Exposed `pad_str_with` to public API
 * Added `ReadWritePair`
 * Support `color256` in `Style::from_dotted_str`
