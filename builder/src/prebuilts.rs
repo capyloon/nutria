@@ -139,14 +139,11 @@ impl Task for DownloadTask {
         };
         info!("About to download and unpack {}: {}", name, url.as_str());
 
-        let _ = fs::create_dir_all(&self.topdir.join(".cache"));
+        let _ = fs::create_dir_all(self.topdir.join(".cache"));
         let cache_path = self.topdir.join(".cache").join(package);
 
         // Check if we have an etag value for this resource.
-        let etag_path = self
-            .topdir
-            .join(".cache")
-            .join(&format!("{}.etag", package));
+        let etag_path = self.topdir.join(".cache").join(format!("{}.etag", package));
 
         let current_etag = match File::open(&etag_path) {
             Ok(mut file) => {
@@ -247,7 +244,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
         }
     };
 
-    let prebuilts_json = File::open(&json_path)?;
+    let prebuilts_json = File::open(json_path)?;
 
     let list: HashMap<String, PrebuiltsList> = serde_json::from_reader(prebuilts_json)?;
     let target = target.unwrap_or_else(host_target);
@@ -259,7 +256,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
         let _ = fs::remove_dir_all(&prebuilts);
         let _ = fs::create_dir_all(&prebuilts);
 
-        let mut env_file = File::create(&prebuilts.join("env"))?;
+        let mut env_file = File::create(prebuilts.join("env"))?;
 
         let _ = writeln!(
             env_file,

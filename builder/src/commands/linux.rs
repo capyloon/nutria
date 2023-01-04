@@ -181,7 +181,7 @@ fn push_app(path: &Path, app_name: &str, device: &Device) -> Result<(), LinuxErr
 
     // Copy the app to the temporary directory.
     let scp = ScpCommand::new();
-    let _ = scp.copy_recursive(
+    scp.copy_recursive(
         ScpLocation::Local(path.into()),
         ScpLocation::Remote("/tmp/b2g_app".into()),
     )?;

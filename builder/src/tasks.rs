@@ -164,7 +164,7 @@ impl ZipApp {
                 let mut f = File::open(path)?;
 
                 f.read_to_end(&mut buffer)?;
-                zip.write_all(&*buffer)?;
+                zip.write_all(&buffer)?;
                 buffer.clear();
             } else if !name.as_os_str().is_empty() {
                 // Only if not root! Avoids path spec / warning
@@ -205,11 +205,11 @@ impl Task for ZipApp {
         };
 
         if File::open(&output_dir).is_err() {
-            let _ = fs::create_dir_all(&output_dir)?;
+            fs::create_dir_all(&output_dir)?;
         }
 
         let dst_file = output_dir.join("application.zip");
-        let file = File::create(&dst_file)?;
+        let file = File::create(dst_file)?;
 
         let walkdir = WalkDir::new(&src_dir);
         let it = walkdir.into_iter();
@@ -344,7 +344,7 @@ impl Task for WebappsJson {
             self.output_path.join("webapps").join("webapps.json")
         };
         let json_file = File::create(json_path)?;
-        let _ = serde_json::to_writer_pretty(json_file, &apps)
+        serde_json::to_writer_pretty(json_file, &apps)
             .map_err(|_| io::Error::new(ErrorKind::Other, "Failed to write json!"))?;
         Ok(())
     }
@@ -378,7 +378,7 @@ impl Task for PrepareDaemon {
 
         // Create the daemon runtime directory.
         let runtime_dir = self.output_path.join("api-daemon");
-        fs::create_dir_all(&runtime_dir.join("http_root"))?;
+        fs::create_dir_all(runtime_dir.join("http_root"))?;
 
         // Clean the js client api directory if needed.
         let _ = fs::remove_dir_all(runtime_dir.join("http_root").join("api"));
@@ -398,7 +398,7 @@ impl Task for PrepareDaemon {
         // Write the daemon configuration file.
         let toml_config =
             toml::to_string(&daemon_config).expect("Failed to serialize daemon configuration");
-        let mut file = fs::File::create(&runtime_dir.join("config.toml"))?;
+        let mut file = fs::File::create(runtime_dir.join("config.toml"))?;
         file.write_all(toml_config.as_bytes())?;
 
         Ok(())

@@ -281,8 +281,8 @@ impl DebianCommand {
                 .parent()
                 .ok_or_else(|| DebianError::Other("No parent".to_owned()))?
                 .join("pref")
-                .join(&device_prefs);
-            let mut source = File::open(&source_path)?;
+                .join(device_prefs);
+            let mut source = File::open(source_path)?;
             let mut buf = Vec::new();
             source.read_to_end(&mut buf)?;
 
@@ -295,10 +295,10 @@ impl DebianCommand {
         // Add extra files if any.
         for (content, dest) in device.extra_files() {
             // Create the destination directory if needed.
-            if let Some(dir) = output.join(&dest).parent() {
-                let _ = create_dir_all(&dir);
+            if let Some(dir) = output.join(dest).parent() {
+                let _ = create_dir_all(dir);
             }
-            template!(&content, output.join(&dest), None);
+            template!(content, output.join(dest), None);
         }
 
         // b2ghald
@@ -343,7 +343,7 @@ impl DebianCommand {
         let status = {
             let _timer = Timer::start_with_message("Debian packaging", "Starting Debian packaging");
 
-            let package_path = default_output.join(&format!(
+            let package_path = default_output.join(format!(
                 "{}-{}_{}_{}.deb",
                 PACKAGE_NAME,
                 device,

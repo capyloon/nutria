@@ -85,7 +85,7 @@ impl BuildConfig {
         let _ = File::open(&self.apps_source_path)?;
 
         if File::open(&self.output_path).is_err() {
-            let _ = fs::create_dir_all(&self.output_path)?;
+            fs::create_dir_all(&self.output_path)?;
         }
 
         let _ = File::open(&self.daemon_path)?;

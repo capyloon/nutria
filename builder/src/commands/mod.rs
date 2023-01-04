@@ -54,11 +54,11 @@ where
 pub fn push(config: BuildConfig, requested_apps: &Option<String>) -> Result<(), DeviceError> {
     gonk_or_linux(
         || {
-            let _ = gonk::PushCommand::start(&config, requested_apps)?;
+            gonk::PushCommand::start(&config, requested_apps)?;
             Ok(())
         },
         || {
-            let _ = linux::push_apps(&config, requested_apps)?;
+            linux::push_apps(&config, requested_apps)?;
             Ok(())
         },
     )
@@ -67,11 +67,11 @@ pub fn push(config: BuildConfig, requested_apps: &Option<String>) -> Result<(), 
 pub fn restart() -> Result<(), DeviceError> {
     gonk_or_linux(
         || {
-            let _ = gonk::RestartCommand::start()?;
+            gonk::RestartCommand::start()?;
             Ok(())
         },
         || {
-            let _ = linux::restart()?;
+            linux::restart()?;
             Ok(())
         },
     )
@@ -80,11 +80,11 @@ pub fn restart() -> Result<(), DeviceError> {
 pub fn reset_data() -> Result<(), DeviceError> {
     gonk_or_linux(
         || {
-            let _ = gonk::ResetDataCommand::start()?;
+            gonk::ResetDataCommand::start()?;
             Ok(())
         },
         || {
-            let _ = linux::reset_data()?;
+            linux::reset_data()?;
             Ok(())
         },
     )
@@ -93,7 +93,7 @@ pub fn reset_data() -> Result<(), DeviceError> {
 pub fn clear_cache() -> Result<(), DeviceError> {
     gonk_or_linux(
         || {
-            let _ = gonk::ClearCacheCommand::start()?;
+            gonk::ClearCacheCommand::start()?;
             Ok(())
         },
         || {
@@ -106,11 +106,11 @@ pub fn clear_cache() -> Result<(), DeviceError> {
 pub fn reset_time() -> Result<(), DeviceError> {
     gonk_or_linux(
         || {
-            let _ = gonk::ResetTimeCommand::start()?;
+            gonk::ResetTimeCommand::start()?;
             Ok(())
         },
         || {
-            let _ = linux::reset_time()?;
+            linux::reset_time()?;
             Ok(())
         },
     )
