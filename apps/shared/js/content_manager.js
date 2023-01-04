@@ -68,19 +68,31 @@ export class ContentManager {
     }
   }
 
-  // Formats tthe given size with the appropriate unit.
+  // Formats the given size with the appropriate unit for the current locale.
   formatSize(size) {
-    // Exabytes should be enough.
-    let prefixes = ["EB", "PB", "TB", "GB", "MB", "KB", "B"];
-    let currentPrefix = prefixes.pop();
-    let max = 1024;
+    // Terabytes should be enough.
+    // See https://tc39.es/proposal-unified-intl-numberformat/section6/locales-currencies-tz_proposed_out.html#sec-issanctionedsimpleunitidentifier
+    let units = [
+      "petabyte",
+      "terabyte",
+      "gigabyte",
+      "megabyte",
+      "kilobyte",
+      "byte",
+    ];
+    let currentUnit = units.pop();
     let factor = 1;
-    while (size > max * factor) {
-      currentPrefix = prefixes.pop();
+    while (size > 1024 * factor) {
+      currentUnit = units.pop();
       factor *= 1024;
     }
 
-    return `${(size / factor).toFixed(2)}${currentPrefix}`;
+    return `${new Intl.NumberFormat(navigator.language, {
+      style: "unit",
+      unit: currentUnit,
+      unitDisplay: "short",
+      maximumFractionDigits: 2,
+    }).format(size / factor)}`;
   }
 
   iconFor(isFolder, mimeType) {
