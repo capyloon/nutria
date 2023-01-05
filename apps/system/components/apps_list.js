@@ -55,24 +55,24 @@ class AppsList extends LitElement {
   constructor() {
     super();
 
-    this.apps = [];
     this.appsNodes = [];
 
-    window.appsManager.getAll().then(async (apps) => {
-      this.apps = apps;
-      await this.buildAppsNodes();
-    });
     window.appsManager.addEventListener("app-installed", this);
     window.appsManager.addEventListener("app-uninstalled", this);
 
     this.contextMenuOpen = false;
     this.contextMenuHandler = this.captureContextMenuEvent.bind(this);
+    this.buildAppsNodes();
   }
 
   static get properties() {
     return {
       appsNodes: { state: true },
     };
+  }
+
+  log(msg) {
+    console.log(`AppsList: ${msg}`);
   }
 
   open() {
@@ -122,8 +122,9 @@ class AppsList extends LitElement {
   }
 
   async buildAppsNodes() {
+    let apps = await window.appsManager.getAll();
     let appsNodes = [];
-    for (let app of this.apps) {
+    for (let app of apps) {
       let summary = await window.appsManager.getSummary(app);
       if (
         !summary.role ||
@@ -262,7 +263,7 @@ class AppsList extends LitElement {
   }
 
   render() {
-    // console.log(`AppsList: ${this.apps.length} apps`);
+    // console.log(`AppsList: ${this.appsNodes.length} apps`);
 
     return html`<link rel="stylesheet" href="components/apps_list.css" />
       <div class="container">${this.appsNodes}</div>

@@ -12,6 +12,14 @@ export class AppsManager extends EventTarget {
     this.init();
   }
 
+  log(msg) {
+    console.log(`AppsManager: ${msg}`);
+  }
+
+  error(msg) {
+    console.error(`AppsManager: ${msg}`);
+  }
+
   async addApp(app) {
     let manifestUrl = app.manifestUrl;
     let index = this.apps.findIndex((item) => {
@@ -28,17 +36,22 @@ export class AppsManager extends EventTarget {
       this.apps.push(app);
       return true;
     } catch (e) {
-      console.log(`Failed to add app ${JSON.stringify(app)} : ${e}`);
+      this.log(`Failed to add app ${JSON.stringify(app)} : ${e}`);
     }
     return false;
   }
 
   removeApp(manifestUrl) {
+    if (manifestUrl.href) {
+      manifestUrl = manifestUrl.href;
+    }
     let index = this.apps.findIndex((app) => {
       return app.manifestUrl == manifestUrl;
     });
     if (index != -1) {
       this.apps.splice(index, 1);
+    } else {
+      this.error(`Failed to remove app ${manifestUrl}`);
     }
   }
 
@@ -52,9 +65,9 @@ export class AppsManager extends EventTarget {
 
     try {
       service.uninstall(manifestUrl);
-      console.log(`App ${manifestUrl} successfully uninstalled.`);
+      this.log(`App ${manifestUrl} successfully uninstalled.`);
     } catch (e) {
-      console.error(
+      this.error(
         `App ${manifestUrl} failed to uninstall: ${JSON.stringify(e)}.`
       );
     }
@@ -100,7 +113,7 @@ export class AppsManager extends EventTarget {
         summary.backgroundColor = manifest.theme_color;
       }
     } catch (e) {
-      console.error(`AppsManager: oops ${e}`);
+      this.error(`getSummary failed for ${app.manifestUrl} : ${e}`);
     }
     return summary;
   }
@@ -110,32 +123,26 @@ export class AppsManager extends EventTarget {
       let service = await this.appsManager;
 
       service.addEventListener(service.APP_INSTALLED_EVENT, async (app) => {
-        console.log(
-          `AppsManager::AppInstalled ${JSON.stringify(app)} installed`
-        );
+        this.log(`AppInstalled ${JSON.stringify(app)} installed`);
         if (await this.addApp(app)) {
           this.dispatchEvent(new CustomEvent("app-installed"));
         }
       });
       service.addEventListener(service.APP_UNINSTALLED_EVENT, (manifestUrl) => {
-        console.log(
-          `AppsManager::AppUninstalled ${JSON.stringify(
-            manifestUrl
-          )} uninstalled`
-        );
+        this.log(`AppUninstalled ${manifestUrl} uninstalled`);
         this.removeApp(manifestUrl);
         this.dispatchEvent(new CustomEvent("app-uninstalled"));
       });
 
       let apps = await service.getAll();
-      console.log(`AppsManager got ${apps.length} apps`);
+      this.log(`AppsManager got ${apps.length} apps`);
 
       // For each app get the manifest.
       for (let i = 0; i < apps.length; i++) {
         await this.addApp(apps[i]);
       }
     } catch (e) {
-      console.error(`AppsManager::loadApps error: ${e}`);
+      this.error(`loadApps error: ${e}`);
     }
     this.resolveReady();
   }
