@@ -127,11 +127,18 @@ class ActionsStore extends EventTarget {
       );
     }
 
-    // Save the icon as a variant.
+    // Save the icon as a variant, fetching it as a blob first if needed.
+    if (typeof action.icon === "string") {
+      try {
+        action.icon = await this.fetchAsBlob(action.icon);
+      } catch (e) {
+        this.error(`Failed to fetch icon: ${e}`);
+      }
+    }
     if (Object.getPrototypeOf(action.icon) === Blob.prototype) {
       this.log(`updating icon`);
       await entry.update(action.icon, "icon");
-      action.icon = `http://127.0.0.1:${window.config.port}/cmgr/${this.http_key}/${action.id}/icon`;
+      action.icon = `http://127.0.0.1:${window.config.port}/cmgr/${this.http_key}/${entry.meta.id}/icon`;
     }
 
     return action;
