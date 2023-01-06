@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
+    />
+    <meta id="theme-color" name="theme-color" content="black" />
+    <title>Media Center</title>
+
+    <meta name="defaultLanguage" content="en-US" />
+    <meta name="availableLanguages" content="en-US" />
+    <link rel="localization" href="./locales/{locale}/main.ftl" />
+    <link rel="stylesheet" href="style/index.css" type="text/css" />
+
+    <script src="js/config.js" defer></script>
+    <script src="js/dependencies.js"></script>
+    <script src="js/bootstrap.js"></script>
+  </head>
+  <body>
+    <div id="status-bar">
+      <span id="date-time"></span>
+      <sl-icon-button id="settings-button" name="settings"></sl-icon-button>
+      <sl-icon-button id="power-button" name="power"></sl-icon-button>
+    </div>
+    <div id="actions-panel">
+      <div id="apps-list" class="hidden list">
+        <h4 data-l10n-id="apps-title"></h4>
+        <div></div>
+      </div>
+
+      <div id="video-list" class="hidden list">
+        <h4 data-l10n-id="videos-title"></h4>
+        <div></div>
+      </div>
+    </div>
+    <!-- <section id="search-panel">
+      <div class="input no-blur">
+        <input data-l10n-id="search-box-placeholder" id="search-box" />
+        <sl-icon id="qr-code" name="qr-code"></sl-icon>
+        <sl-icon
+          id="clear-search"
+          name="x-circle"
+          class="hidden"
+        ></sl-icon>
+      </div>
+      <div id="search-results" class="hidden">
+        <default-results
+          id="default-search-results"
+          class="no-blur hidden"
+        ></default-results>
+      </div>
+    </section> -->
+  </body>
+</html>

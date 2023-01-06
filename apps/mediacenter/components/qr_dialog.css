@@ -1,0 +1,22 @@
+/* Style for <qr-dialog> */
+
+:host {
+  color: var(--sl-color-neutral-500);
+}
+
+:host sl-icon-button {
+  font-size: 2em;
+}
+
+:host sl-dialog div.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
+}
+
+:host .text {
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}

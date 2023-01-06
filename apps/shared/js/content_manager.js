@@ -4,8 +4,9 @@ const PLACES_MIME_TYPE = "application/x-places+json";
 const MEDIA_MIME_TYPE = "application/x-media+json";
 const CONTACTS_MIME_TYPE = "application/x-contact+json";
 
-export class ContentManager {
+export class ContentManager extends EventTarget {
   constructor() {
+    super();
     this.service = apiDaemon.getContentManager();
 
     this.placesQuery = new Map();
@@ -34,6 +35,10 @@ export class ContentManager {
 
   getContactsManager(callback) {
     return new ContactsManager(callback);
+  }
+
+  getContainerManager(name, variants) {
+    return new ContainerManager(name, variants);
   }
 
   log(msg) {
@@ -434,11 +439,11 @@ export class ContentManager {
     let lib = await this.lib();
     let done = false;
 
-    this.log(`IIII processCursor init ok: ${Date.now() - start}`);
+    this.log(`processCursor init ok: ${Date.now() - start}`);
     while (!done) {
       try {
         let children = await cursor.next();
-        this.log(`IIII processCursor cursor.next: ${Date.now() - start}`);
+        this.log(`processCursor cursor.next: ${Date.now() - start}`);
 
         let queue = [];
 
@@ -450,14 +455,19 @@ export class ContentManager {
               continue;
             }
             // Make sure that the default variant mime type is declared as JSON.
+            let defaultMime;
             const defaultVariant = child.variants.find((variant) => {
+              if (variant.name === "default") {
+                defaultMime = variant.mimeType;
+              }
+
               return (
                 variant.name === "default" && variant.mimeType.includes("json")
               );
             });
             if (!defaultVariant) {
               this.error(
-                `The default variant for ${child.name} is not in json format!`
+                `The default variant for ${child.name} is not in json format! (found ${defaultMime})`
               );
               queue.push(Promise.resolve(null));
               continue;
@@ -1200,5 +1210,92 @@ class ContactsManager extends ContentManager {
       await resource.update(contact.photo, "photo");
     }
     await this.updateList();
+  }
+}
+
+// Helper to abstract management of a given container.
+class ContainerManager extends ContentManager {
+  constructor(containerName, variants = []) {
+    super();
+    this.containerName = containerName;
+    this.variants = variants;
+    this.container = null;
+  }
+
+  log(msg) {
+    console.log(`ContainerManager: ${msg}`);
+  }
+
+  error(msg) {
+    console.error(`ContainerManager: ${msg}`);
+  }
+
+  async ready() {
+    if (!this.container) {
+      this.container = await this.ensureTopLevelContainer(this.containerName);
+      this.svc = await this.service;
+      this.lib = await this.lib();
+      await this.ensureHttpKey(this.svc);
+    }
+  }
+
+  onchange(change) {
+    // change format:
+    // {kind:3, id:"9eac49dd-9c9f-4346-8dae-70012a14a938", parent:"24941cb3-b30f-4753-8fb3-119716913de2"}
+    this.log(`list modified: ${JSON.stringify(change)}`);
+    if (change.kind == this.lib.ModificationKind.CHILD_CREATED) {
+      this.dispatchEvent(new CustomEvent("child-created", { detail: change }));
+    } else if (change.kind == this.lib.ModificationKind.CHILD_DELETED) {
+      this.dispatchEvent(new CustomEvent("child-deleted", { detail: change }));
+    }
+    return Promise.resolve();
+  }
+
+  async init() {
+    await this.ready();
+
+    await this.svc.addObserver(this.container, this.onchange.bind(this));
+    await this.updateList();
+  }
+
+  // Refresh the list of children.
+  async updateList() {
+    let cursor = await this.svc.childrenOf(this.container);
+
+    let list = [];
+    let done = false;
+    while (!done) {
+      try {
+        let children = await cursor.next();
+        for (let child of children) {
+          if (child.kind === this.lib.ResourceKind.LEAF) {
+            let blob = await this.svc.getVariant(child.id, "default");
+            let resource = new ContentResource(
+              this.svc,
+              this.http_key,
+              child,
+              blob,
+              "default"
+            );
+            for (let variant of this.variants) {
+              try {
+                let blob = await this.svc.getVariant(child.id, variant);
+                resource.update(blob, variant);
+              } catch (e) {
+                // no such variant: ignore error.
+              }
+            }
+            list.push(resource);
+          }
+        }
+      } catch (e) {
+        // cursor.next() rejects when no more items are available, so it's not
+        // a fatal error.
+        done = true;
+      }
+    }
+
+    this.log(`list updated: ${list.length} items.`);
+    this.dispatchEvent(new CustomEvent("full-list", { detail: list }));
   }
 }

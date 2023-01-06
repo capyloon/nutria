@@ -1,0 +1,110 @@
+const kDeps = [
+  {
+    name: "main",
+    kind: "virtual",
+    deps: [
+      "activity manager",
+      "shoelace-light-theme",
+      "shoelace-setup",
+      "shoelace-icon",
+      "shoelace-icon-button",
+      "favorites",
+      "spatial nav",
+    ],
+  },
+  {
+    name: "search",
+    kind: "virtual",
+    deps: ["search panel"],
+  },
+  {
+    name: "search panel",
+    kind: "module",
+    param: "/js/search_panel.js",
+    deps: [
+      "search source",
+      "top sites engine",
+      "places engine",
+      "opensearch engine",
+      "default results comp",
+    ],
+  },
+  {
+    name: "favorites",
+    kind: "script",
+    param: "js/favorites.js",
+    deps: ["content manager"],
+  },
+  {
+    name: "spatial nav",
+    kind: "script",
+    param: "js/spatial_navigation.js",
+  },
+  {
+    name: "opensearch engine",
+    kind: "script",
+    param: "js/search/opensearch.js",
+    deps: ["search source", "content manager"],
+  },
+  {
+    name: "places engine",
+    kind: "script",
+    param: "js/search/places.js",
+    deps: ["search source", "content manager"],
+  },
+  {
+    name: "top sites engine",
+    kind: "script",
+    param: "js/search/top_sites.js",
+    deps: ["search source", "top sites data"],
+  },
+  {
+    name: "top sites data",
+    kind: "script",
+    param: "resources/top_10k_sites.js",
+  },
+  {
+    name: "search source",
+    kind: "script",
+    param: "js/search/search_source.js",
+  },
+  {
+    name: "apps manager",
+    kind: "sharedWindowModule",
+    param: ["js/apps_manager.js", "appsManager", "AppsManager"],
+    deps: ["shared-api-daemon"],
+  },
+  {
+    name: "content manager",
+    kind: "sharedWindowModule",
+    param: ["js/content_manager.js", "contentManager", "ContentManager"],
+    deps: ["shared-api-daemon"],
+  },
+  {
+    name: "lit element",
+    kind: "sharedModule",
+    param: ["components/lit.js", ["LitElement", "html", "css"]],
+  },
+  {
+    name: "activity manager",
+    kind: "sharedModule",
+    param: ["js/activity_manager.js", ["ActivityManager"]],
+  },
+  {
+    name: "default results comp",
+    kind: "module",
+    param: ["./components/default_results.js"],
+    deps: ["lit element", "content manager", "media engine", "places engine"],
+  },
+  {
+    name: "qr dialog comp",
+    kind: "module",
+    param: ["./components/qr_dialog.js"],
+    deps: [
+      "lit element",
+      "shoelace-dialog",
+      "shoelace-button",
+      "shoelace-icon-button",
+    ],
+  },
+];
