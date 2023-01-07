@@ -8,6 +8,7 @@ const kDeps = [
       "shoelace-setup",
       "shoelace-icon",
       "shoelace-icon-button",
+      "shoelace-input",
       "favorites",
       "spatial nav",
     ],
@@ -94,17 +95,6 @@ const kDeps = [
     name: "default results comp",
     kind: "module",
     param: ["./components/default_results.js"],
-    deps: ["lit element", "content manager", "media engine", "places engine"],
-  },
-  {
-    name: "qr dialog comp",
-    kind: "module",
-    param: ["./components/qr_dialog.js"],
-    deps: [
-      "lit element",
-      "shoelace-dialog",
-      "shoelace-button",
-      "shoelace-icon-button",
-    ],
+    deps: ["lit element", "content manager", "places engine"],
   },
 ];

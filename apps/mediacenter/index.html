@@ -21,6 +21,7 @@
   <body>
     <div id="status-bar">
       <span id="date-time"></span>
+      <sl-icon-button id="search-button" name="search"></sl-icon-button>
       <sl-icon-button id="settings-button" name="settings"></sl-icon-button>
       <sl-icon-button id="power-button" name="power"></sl-icon-button>
     </div>
@@ -35,22 +36,21 @@
         <div></div>
       </div>
     </div>
-    <!-- <section id="search-panel">
+    <section id="search-panel" class="hidden">
       <div class="input no-blur">
-        <input data-l10n-id="search-box-placeholder" id="search-box" />
-        <sl-icon id="qr-code" name="qr-code"></sl-icon>
-        <sl-icon
-          id="clear-search"
-          name="x-circle"
-          class="hidden"
-        ></sl-icon>
+        <sl-input
+          clearable
+          data-l10n-attrs="placeholder"
+          data-l10n-id="search-box-placeholder"
+          id="search-box"
+        ></sl-input>
       </div>
       <div id="search-results" class="hidden">
         <default-results
           id="default-search-results"
-          class="no-blur hidden"
+          class="no-blur2 hidden"
         ></default-results>
       </div>
-    </section> -->
+    </section>
   </body>
 </html>

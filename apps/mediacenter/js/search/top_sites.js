@@ -16,9 +16,7 @@ class TopSites {
       i += 1;
     }
 
-    // Reverse result order to better fit the UI and display the first
-    // results closer to the keyboard.
-    return Promise.resolve(res.reverse());
+    return Promise.resolve(res);
   }
 }
 
@@ -29,6 +27,8 @@ class TopSitesSource extends SearchSource {
 
   domForResult(result) {
     let node = document.createElement("li");
+    node.tabIndex = 0;
+    node.classList.add("like-place");
     node.textContent = result;
     return node;
   }

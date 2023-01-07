@@ -24,12 +24,57 @@ class KeyBindings {
 }
 
 function openSearchBox() {
+  console.log(`openSearchBox`);
   let searchPanel = document.getElementById("search-panel");
   if (!searchPanel.classList.contains("open")) {
     let searchBox = document.getElementById("search-box");
     searchBox.focus();
+    console.log(`search-box.focus() called`);
   }
 }
+
+class SearchPanel {
+  constructor() {
+    this.graph = null;
+    this.panelManager = null;
+  }
+
+  init(graph) {
+    this.graph = graph;
+    this.actionsPanel = document.getElementById("actions-panel");
+    this.searchBox = document.getElementById("search-box");
+  }
+
+  async ensureLoaded() {
+    // Lazy loading of dependencies for the search panel.
+    if (this.panelManager) {
+      return;
+    }
+    let result = await this.graph.waitForDeps("search");
+    let module = result.get("search panel");
+    this.panelManager = new module.SearchPanel();
+    this.panelManager.init();
+  }
+
+  async open() {
+    await this.ensureLoaded();
+    this.panelManager.onOpen();
+    this.actionsPanel.classList.add("hidden");
+    this.searchBox.focus();
+  }
+
+  close() {
+    this.actionsPanel.classList.remove("hidden");
+    this.searchBox.value = "";
+    this.panelManager.onClose();
+  }
+
+  manager() {
+    return this.panelManager;
+  }
+}
+
+const gSearchPanel = new SearchPanel();
 
 document.addEventListener("DOMContentLoaded", async () => {
   await depGraphLoaded;
@@ -39,43 +84,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     ["shared-fluent", "main"].map((dep) => graph.waitForDeps(dep))
   );
 
-  let actionsPanel = document.getElementById("actions-panel");
+  gSearchPanel.init(graph);
+
   let searchBox = document.getElementById("search-box");
 
-  let panelManager = null;
-
-  async function ensurePanelManager() {
-    // Lazy loading of dependencies for the search panel.
-    if (panelManager) {
-      return;
-    }
-    let result = await graph.waitForDeps("search");
-    let module = result.get("search panel");
-    panelManager = new module.SearchPanel();
-    panelManager.init();
-  }
-
-  async function openSearchPanel() {
-    await ensurePanelManager();
-    panelManager.onOpen();
-    actionsPanel.classList.add("hide");
-  }
-
-  function closeSearchPanel() {
-    actionsPanel.classList.remove("hide");
-    searchBox.value = "";
-    panelManager.onClose();
-  }
-
   searchBox?.addEventListener("blur", () => {
-    // console.log("Search Box: blur");
-    closeSearchPanel();
-    panelManager.clearAllResults();
+    // console.log("Search Box: blur event");
+    // closeSearchPanel();
+    // panelManager.clearAllResults();
+    // window.setTimeout(() => {
+    //   console.log(
+    //     `After searchBox blur, active element=${document.activeElement.localName}`
+    //   );
+    // }, 1000);
   });
 
-  searchBox?.addEventListener("focus", () => {
-    // console.log("Search Box: focus");
-    openSearchPanel();
+  searchBox?.addEventListener("sl-focus", () => {
+    console.log("Search Box: focus event");
+    gSearchPanel.open();
   });
 
   searchBox?.addEventListener("keydown", (event) => {
@@ -83,10 +109,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       searchBox.blur();
     }
 
-    if (event.key === "Tab") {
-      document.getElementById("default-search-results").onTabKey(event);
-      event.preventDefault();
-    }
+    // if (event.key === "Tab") {
+    //   document.getElementById("default-search-results").onTabKey(event);
+    //   event.preventDefault();
+    // }
   });
 
   let opensearchEngine;
@@ -120,7 +146,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     "add-to-home": addToHome,
   });
 
-  let keyBindings = new KeyBindings();
+  // let keyBindings = new KeyBindings();
 
   const HomescreenFns = {
     isAppInHomescreen: (url) => {
@@ -157,6 +183,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
   });
 
+  document.getElementById("search-button").addEventListener("click", () => {
+    console.log(`search-button click`);
+    gSearchPanel.open();
+  });
+
   setupSpatialNavigation();
 
   let timer = new MinuteTimer();
@@ -174,12 +205,30 @@ function setupSpatialNavigation() {
     selector: "sl-icon-button",
   });
   SpatialNavigation.add("search", {
-    selector: "input",
+    selector: "sl-input, li.like-place",
   });
+
+  document
+    .getElementById("search-box")
+    .addEventListener("sn:willunfocus", (event) => {
+      let detail = event.detail;
+      console.log(
+        `${event.type} ${detail.direction} ${detail.nextSectionId} ${
+          detail.nextElement?.localName || "<no element>"
+        }`
+      );
+
+      // Back to the status-bar, close the search panel
+      if (detail.nextSectionId == "status-bar") {
+        gSearchPanel.close();
+      }
+    });
+
   // Make the *currently existing* navigable elements focusable.
   SpatialNavigation.makeFocusable("shortcuts");
   // Focus the first navigable element.
   SpatialNavigation.focus();
+
   document.addEventListener("keyup", (event) => {
     if (event.key == "Enter") {
       document.activeElement.click();
@@ -244,18 +293,6 @@ class MinuteTimer extends EventTarget {
     this.suspended = false;
     this.schedule();
   }
-}
-
-window.utils = {
-  // Helper to localize a single string.
-  l10n: async (id, args) => {
-    return await document.l10n.formatValue(id, args);
-  },
-};
-
-async function displayQRCodeResult(text) {
-  await graph.waitForDeps("qr dialog comp");
-  document.getElementById("qr-dialog").open(text);
 }
 
 // TODO: use the content manager for bookmarks?

@@ -6,29 +6,15 @@ export class SearchPanel {
     this.searchBox = document.getElementById("search-box");
     this.searchBox.addEventListener("input", this);
 
-    this.clearSearch = document.getElementById("clear-search");
-    this.clearSearch.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      this.searchBox.value = "";
-      this.clearAllResults();
-    });
-
     this.sources = [
-      new MediaSource("media"),
       new PlacesSource("places"),
-      new SkillsSource("skills"),
-      new ContactsSource("contacts"),
-      new AppsSource("apps"),
       new TopSitesSource("top-sites"),
-      new FendConverterSource("fend-converter"),
-      // new OpenSearchSource("suggestions"),
     ];
   }
 
   onOpen() {
     this.panel.classList.add("open");
-    this.clearSearch.classList.remove("hidden");
+    this.panel.classList.remove("hidden");
     document.getElementById("search-results").classList.remove("hidden");
     this.panel.addEventListener(
       "transitionend",
@@ -45,7 +31,7 @@ export class SearchPanel {
 
   onClose() {
     this.panel.classList.remove("open");
-    this.clearSearch.classList.add("hidden");
+    this.panel.classList.add("hidden");
     document.getElementById("search-results").classList.add("hidden");
     document
       .getElementById("theme-color")

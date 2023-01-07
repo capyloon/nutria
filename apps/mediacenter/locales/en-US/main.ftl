@@ -1,7 +1,11 @@
+# Search results
+top-sites-title = Top Sites
+places-title = History
+
 # Search box
 search-box-placeholder =
-    .placeholder = Browse, Search or Ask…
-    .aria-label = Browse, Search or Ask
+    .placeholder = Search…
+    .aria-label = Search
 
 # Sections titles
 apps-title = Apps

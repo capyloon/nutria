@@ -7,10 +7,10 @@ class SearchSource {
     this.engine = engine;
 
     // Add the UI for this source:
-    // <div id="contacts-results" class="no-blur"></div>
     // <h4 data-l10n-id="contacts-title"
     //     id="contacts-title"
     //    class="hidden no-blur"></h4>
+    // <div id="contacts-results" class="no-blur"></div>
 
     this.results = document.createElement("div");
     this.results.setAttribute("id", `${sourceName}-results`);
@@ -22,8 +22,8 @@ class SearchSource {
     this.title.classList.add("no-blur");
     this.title.classList.add("hidden");
 
-    window["search-results"].appendChild(this.results);
     window["search-results"].appendChild(this.title);
+    window["search-results"].appendChild(this.results);
   }
 
   static openURL(url, search = null) {

@@ -13,9 +13,7 @@ class Places {
       return true;
     });
 
-    // Reverse result order to better fit the UI and display the first
-    // results closer to the keyboard.
-    return results.reverse();
+    return results;
   }
 }
 
@@ -42,6 +40,28 @@ class PlacesItem extends LitElement {
     super();
     this.data = data;
     this.revokable = [];
+    this.addEventListener("blur", this);
+    // Make focusable by default.
+    this.tabIndex = 0;
+    [
+      "willmove",
+      "willunfocus",
+      "unfocused",
+      "willfocus",
+      "focused",
+      "navigatefailed",
+      "enter-down",
+      "enter-up",
+    ].forEach((name) => {
+      this.addEventListener(`sn:${name}`, this);
+    });
+  }
+
+  createRenderRoot1() {
+    return this.attachShadow({
+      mode: "open",
+      delegatesFocus: true,
+    });
   }
 
   static get properties() {
@@ -49,6 +69,27 @@ class PlacesItem extends LitElement {
       data: { state: true },
     };
   }
+
+  handleEvent(event) {
+    console.log(`PlacesItem: event ${event.type} ${this.data.meta.name}`);
+  }
+
+  // focus(options) {
+  //   console.log(`PlacesItem::focus(${options}) ${this.data.meta.name}`);
+  //   let target = this.shadowRoot.querySelector(".entry");
+  //   if (target) {
+  //     target.focus();
+  //   } else {
+  //     console.error(`No focusable target!!`);
+  //   }
+  //   // this.classList.add("selected");
+  // }
+
+  // blur() {
+  //   console.log(`PlacesItem::blur() ${this.data.meta.name}`);
+  //   // this.shadowRoot.querySelector(".entry")?.focus();
+  //   // this.classList.remove("selected");
+  // }
 
   variant(name = "default") {
     let variant = this.data.variants[name];
@@ -67,10 +108,9 @@ class PlacesItem extends LitElement {
     let content = this.data.variants.default;
     let iconSrc = this.variant("icon") || content.icon;
 
-    return html`
-      <link rel="stylesheet" href="style/search/places.css">
-      <div class="entry" title="${content.url}">
-        <img src=${iconSrc}/>
+    return html` <link rel="stylesheet" href="style/search/places.css" />
+      <div class="entry" title="${content.url}" tabindex1="0">
+        <img src=${iconSrc} />
         <div class="title">${content.title}</div>
       </div>`;
   }
