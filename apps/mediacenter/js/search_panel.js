@@ -26,7 +26,9 @@ export class SearchPanel {
       { once: true }
     );
 
-    this.getTopFrecencyResults();
+    if (this.searchBox.value.trim().length == 0) {
+      this.getTopFrecencyResults();
+    }
   }
 
   onClose() {
@@ -118,7 +120,6 @@ export class SearchPanel {
         node.addEventListener(
           "click",
           () => {
-            this.clearAllResults();
             // Make sure we will dismiss the virtual keyboard.
             SearchSource.closeSearch();
             source.activate(result);
@@ -127,6 +128,7 @@ export class SearchPanel {
         );
         nodes.push(node);
       });
+      source.updateSpatialNavigation(nodes);
       this.mergeDom(source.resultsNode, nodes);
     });
   }

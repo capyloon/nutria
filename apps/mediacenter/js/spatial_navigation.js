@@ -567,11 +567,11 @@
   }
 
   function getSectionNavigableElements(sectionId) {
-    console.log(`getSectionNavigableElements ${sectionId}`);
-    let res = parseSelector(_sections[sectionId].selector).filter(function (elem) {
+    let res = parseSelector(_sections[sectionId].selector).filter(function (
+      elem
+    ) {
       return isNavigable(elem, sectionId);
     });
-    console.log(res);
     return res;
   }
 
@@ -887,7 +887,6 @@
     ) {
       return;
     }
-    console.log(`keydown ${evt.key}`);
 
     var currentFocusedElement;
     var preventDefault = function () {
@@ -900,6 +899,12 @@
     if (!direction) {
       if (evt.keyCode == 13) {
         currentFocusedElement = getCurrentFocusedElement();
+        if (!currentFocusedElement) {
+          if (_lastSectionId) {
+            currentFocusedElement =
+              getSectionLastFocusedElement(_lastSectionId);
+          }
+        }
         if (currentFocusedElement && getSectionId(currentFocusedElement)) {
           if (!fireEvent(currentFocusedElement, "enter-down")) {
             return preventDefault();
@@ -910,9 +915,6 @@
     }
 
     currentFocusedElement = getCurrentFocusedElement();
-    console.log(
-      `focused: ${currentFocusedElement?.localName || "<no element>"}`
-    );
 
     if (!currentFocusedElement) {
       if (_lastSectionId) {
@@ -948,6 +950,11 @@
     }
     if (!_pause && _sectionCount && evt.keyCode == 13) {
       var currentFocusedElement = getCurrentFocusedElement();
+      if (!currentFocusedElement) {
+        if (_lastSectionId) {
+          currentFocusedElement = getSectionLastFocusedElement(_lastSectionId);
+        }
+      }
       if (currentFocusedElement && getSectionId(currentFocusedElement)) {
         if (!fireEvent(currentFocusedElement, "enter-up")) {
           evt.preventDefault();

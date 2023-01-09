@@ -10,6 +10,13 @@ class DefaultResults extends LitElement {
     SpatialNavigation.add("default-results-nav", {});
   }
 
+  createRenderRoot() {
+    return this.attachShadow({
+      mode: "open",
+      delegatesFocus: true,
+    });
+  }
+
   static get properties() {
     return {
       results: { state: true },
@@ -39,7 +46,6 @@ class DefaultResults extends LitElement {
     });
 
     // Update Spatial navigation.
-    console.log(`Adding ${itemTemplates.length} nodes to spatial navigation`);
     SpatialNavigation.set("default-results-nav", {
       selector: itemTemplates,
     });

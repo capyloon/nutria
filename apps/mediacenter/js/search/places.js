@@ -40,7 +40,6 @@ class PlacesItem extends LitElement {
     super();
     this.data = data;
     this.revokable = [];
-    this.addEventListener("blur", this);
     // Make focusable by default.
     this.tabIndex = 0;
     [
@@ -57,7 +56,7 @@ class PlacesItem extends LitElement {
     });
   }
 
-  createRenderRoot1() {
+  createRenderRoot() {
     return this.attachShadow({
       mode: "open",
       delegatesFocus: true,
@@ -72,24 +71,14 @@ class PlacesItem extends LitElement {
 
   handleEvent(event) {
     console.log(`PlacesItem: event ${event.type} ${this.data.meta.name}`);
+    if (event.type === "sn:focused" || event.type === "sn:navigatefailed") {
+      this.classList.add("focused");
+    } else if (event.type === "sn:willmove") {
+      this.classList.remove("focused");
+    } else if (event.type === "sn:enter-down") {
+      this.click();
+    }
   }
-
-  // focus(options) {
-  //   console.log(`PlacesItem::focus(${options}) ${this.data.meta.name}`);
-  //   let target = this.shadowRoot.querySelector(".entry");
-  //   if (target) {
-  //     target.focus();
-  //   } else {
-  //     console.error(`No focusable target!!`);
-  //   }
-  //   // this.classList.add("selected");
-  // }
-
-  // blur() {
-  //   console.log(`PlacesItem::blur() ${this.data.meta.name}`);
-  //   // this.shadowRoot.querySelector(".entry")?.focus();
-  //   // this.classList.remove("selected");
-  // }
 
   variant(name = "default") {
     let variant = this.data.variants[name];
@@ -109,7 +98,7 @@ class PlacesItem extends LitElement {
     let iconSrc = this.variant("icon") || content.icon;
 
     return html` <link rel="stylesheet" href="style/search/places.css" />
-      <div class="entry" title="${content.url}" tabindex1="0">
+      <div class="entry" title="${content.url}">
         <img src=${iconSrc} />
         <div class="title">${content.title}</div>
       </div>`;

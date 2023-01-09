@@ -15,7 +15,7 @@
 }
 
 :host(:hover),
-:host(.selected),
+:host(.focused),
 :host .entry:focus {
   background-color: rgba(255, 255, 255, 0.25);
   outline: none;

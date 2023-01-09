@@ -24,6 +24,16 @@ class SearchSource {
 
     window["search-results"].appendChild(this.title);
     window["search-results"].appendChild(this.results);
+
+    // Initialize this spatial navigation section.
+    SpatialNavigation.add(`${this.name}-results`, {});
+  }
+
+  updateSpatialNavigation(nodes) {
+    console.log(`updateSpatialNavigation ${this.name}: ${nodes.length} nodes`);
+    SpatialNavigation.set(`${this.name}-results`, {
+      selector: nodes,
+    });
   }
 
   static openURL(url, search = null) {

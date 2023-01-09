@@ -198,28 +198,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 function setupSpatialNavigation() {
   SpatialNavigation.init();
   // Define navigable elements
-  SpatialNavigation.add("shortcuts", {
-    selector: ".favorite",
-  });
-  SpatialNavigation.add("status-bar", {
-    selector: "sl-icon-button",
-  });
-  SpatialNavigation.add("search", {
-    selector: "sl-input, li.like-place",
-  });
+  SpatialNavigation.add("shortcuts", { selector: ".favorite" });
+  SpatialNavigation.add("status-bar", { selector: "sl-icon-button" });
+  SpatialNavigation.add("search", { selector: "sl-input" });
 
   document
     .getElementById("search-box")
     .addEventListener("sn:willunfocus", (event) => {
-      let detail = event.detail;
-      console.log(
-        `${event.type} ${detail.direction} ${detail.nextSectionId} ${
-          detail.nextElement?.localName || "<no element>"
-        }`
-      );
-
       // Back to the status-bar, close the search panel
-      if (detail.nextSectionId == "status-bar") {
+      if (event.detail.nextSectionId == "status-bar") {
         gSearchPanel.close();
       }
     });
