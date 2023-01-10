@@ -91,15 +91,6 @@ impl Default for DebianTarget {
 }
 
 impl DebianTarget {
-    fn arch(&self) -> String {
-        match &self {
-            DebianTarget::Desktop => "x86_64-unknown-linux-gnu".to_owned(),
-            DebianTarget::Pinephone | DebianTarget::Librem5 => {
-                "aarch64-unknown-linux-gnu".to_owned()
-            }
-        }
-    }
-
     fn deb_arch(&self) -> String {
         match &self {
             DebianTarget::Desktop => "amd64".to_owned(),
@@ -334,21 +325,27 @@ impl DebianCommand {
         template!(POSTINST, debian_dir.join("postinst"), Some(0o755));
 
         let control = CONTROL
-            .replace("${PKG_NAME}", PACKAGE_NAME)
+            .replace("${PKG_NAME}", &format!("{}-{}", PACKAGE_NAME, device))
             .replace("${VERSION}", PACKAGE_VERSION)
             .replace("${ARCH}", &device.deb_arch());
 
         template!(&control, debian_dir.join("control"), None);
 
         let status = {
+            use std::time::SystemTime;
             let _timer = Timer::start_with_message("Debian packaging", "Starting Debian packaging");
 
+            // Use the number of days since epoch as the release number.
+            let from_epoch = SystemTime::UNIX_EPOCH.elapsed().unwrap();
+            let release_number = from_epoch.as_secs() / (3600 * 24);
+
             let package_path = default_output.join(format!(
-                "{}-{}_{}_{}.deb",
+                "{}-{}_{}-{}_{}.deb",
                 PACKAGE_NAME,
                 device,
-                device.arch(),
-                PACKAGE_VERSION
+                PACKAGE_VERSION,
+                release_number,
+                device.deb_arch()
             ));
 
             // dpkg-deb -Zxz --build ${PATH} ${ARCHIVE_NAME}.deb

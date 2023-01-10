@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Capyloon
-Comment=Long Live The Web!
+Comment=Reclaim Your Web!
 Exec=/opt/capyloon/start.sh --type=session
 Icon=capyloon
 Type=Application

@@ -1,5 +1,9 @@
 # Releases
 
+## Version 2.7.1
+
+* Fix overflow in mask to prefix conversion #47
+
 ## Version 2.7.0
 
 * Allow to invoke some functions as const fn #43 

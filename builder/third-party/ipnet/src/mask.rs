@@ -20,7 +20,7 @@ pub fn ipv4_mask_to_prefix(mask: Ipv4Addr) -> Result<u8, PrefixLenError> {
     let mask = u32::from(mask);
 
     let prefix = mask.leading_ones();
-    if (mask << prefix) == 0 {
+    if mask.checked_shl(prefix).unwrap_or(0) == 0 {
         Ok(prefix as u8)
     } else {
         Err(PrefixLenError)
@@ -35,7 +35,7 @@ pub fn ipv6_mask_to_prefix(mask: Ipv6Addr) -> Result<u8, PrefixLenError> {
     let mask = u128::from(mask);
 
     let prefix = mask.leading_ones();
-    if (mask << prefix) == 0 {
+    if mask.checked_shl(prefix).unwrap_or(0) == 0 {
         Ok(prefix as u8)
     } else {
         Err(PrefixLenError)
@@ -52,6 +52,13 @@ mod tests {
         let mask = Ipv4Addr::new(255, 255, 255, 128);
         let prefix = ipv4_mask_to_prefix(mask);
         assert_eq!(prefix, Ok(25));
+    }
+
+    #[test]
+    fn v4_mask_to_prefix_max() {
+        let mask = Ipv4Addr::from(u32::MAX);
+        let prefix = ipv4_mask_to_prefix(mask);
+        assert_eq!(prefix, Ok(32));
     }
 
     #[test]
@@ -84,6 +91,13 @@ mod tests {
         let mask = Ipv6Addr::new(0xffff, 0xffff, 0xffff, 0, 0, 0, 0, 0);
         let prefix = ipv6_mask_to_prefix(mask);
         assert_eq!(prefix, Ok(48));
+    }
+
+    #[test]
+    fn v6_mask_to_prefix_max() {
+        let mask = Ipv6Addr::from(u128::MAX);
+        let prefix = ipv6_mask_to_prefix(mask);
+        assert_eq!(prefix, Ok(128));
     }
 
     #[test]

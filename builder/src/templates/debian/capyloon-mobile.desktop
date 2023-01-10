@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Capyloon - Mobile
-Comment=Long Live The Web!
+Comment=Reclaim Your Web!
 Exec=/opt/capyloon/start.sh
 Terminal=false
 Icon=capyloon

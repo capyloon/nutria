@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "rustls-pemfile"
-version = "1.0.1"
+version = "1.0.2"
 description = "Basic .pem file parser for keys and certificates"
 homepage = "https://github.com/rustls/pemfile"
 readme = "README.md"
@@ -28,7 +28,7 @@ name = "benchmark"
 harness = false
 
 [dependencies.base64]
-version = "0.13.0"
+version = "0.21"
 
-[dev-dependencies.criterion]
-version = "0.3"
+[dev-dependencies.bencher]
+version = "0.1.5"

@@ -1,7 +1,5 @@
 use std::io::{self, ErrorKind};
 
-use base64;
-
 /// The contents of a single recognised block in a PEM file.
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
@@ -96,7 +94,8 @@ pub fn read_one(rd: &mut dyn io::BufRead) -> Result<Option<Item>, io::Error> {
 
         if let Some((section_type, end_marker)) = section.as_ref() {
             if line.starts_with(end_marker) {
-                let der = base64::decode(&b64buf)
+                let der = base64::ENGINE
+                    .decode(&b64buf)
                     .map_err(|err| io::Error::new(ErrorKind::InvalidData, err))?;
 
                 if let Some(item) = Item::from_start_line(&section_type, der) {
@@ -132,3 +131,16 @@ pub fn read_all(rd: &mut dyn io::BufRead) -> Result<Vec<Item>, io::Error> {
         }
     }
 }
+
+mod base64 {
+    use base64::alphabet::STANDARD;
+    use base64::engine::general_purpose::{GeneralPurpose, GeneralPurposeConfig};
+    use base64::engine::DecodePaddingMode;
+    pub(super) use base64::engine::Engine;
+
+    pub(super) const ENGINE: GeneralPurpose = GeneralPurpose::new(
+        &STANDARD,
+        GeneralPurposeConfig::new().with_decode_padding_mode(DecodePaddingMode::Indifferent),
+    );
+}
+use self::base64::Engine;

@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.49"
 name = "tokio"
-version = "1.23.0"
+version = "1.24.1"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = """
 An event-driven, non-blocking I/O platform for writing asynchronous I/O
@@ -203,7 +203,7 @@ version = "1"
 version = "0.4"
 
 [target."cfg(target_os = \"freebsd\")".dev-dependencies.mio-aio]
-version = "0.6.0"
+version = "0.7.0"
 features = ["tokio"]
 
 [target."cfg(tokio_unstable)".dependencies.tracing]

@@ -1,9 +1,9 @@
 Package: ${PKG_NAME}
 Version: ${VERSION}
-Maintainer: Fabrice Desré <fabrice@desre.org>
+Maintainer: Fabrice Desré <fabrice@capyloon.org>
 Section: misc
 Priority: optional
 Standards-Version: 0.1
-Description: Long Live The Web!
+Description: Reclaim Your Web!
 Architecture: ${ARCH}
 Depends: weston

@@ -100,3 +100,20 @@ pub fn pkcs8_private_keys(rd: &mut dyn io::BufRead) -> Result<Vec<Vec<u8>>, io::
         };
     }
 }
+
+/// Extract all SEC1-encoded EC private keys from `rd`, and return a vec of
+/// byte vecs containing the der-format contents.
+///
+/// This function does not fail if there are no keys in the file -- it returns an
+/// empty vector.
+pub fn ec_private_keys(rd: &mut dyn io::BufRead) -> Result<Vec<Vec<u8>>, io::Error> {
+    let mut keys = Vec::<Vec<u8>>::new();
+
+    loop {
+        match read_one(rd)? {
+            None => return Ok(keys),
+            Some(Item::ECKey(key)) => keys.push(key),
+            _ => {}
+        };
+    }
+}

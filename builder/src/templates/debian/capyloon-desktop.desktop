@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Capyloon - Desktop
-Comment=Long Live The Web!
+Comment=Reclaim Your Web!
 Exec=/opt/capyloon/start.sh --type=desktop --size=800x600
 Terminal=false
 Icon=capyloon
