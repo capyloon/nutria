@@ -38,7 +38,7 @@ const kDeps = [
   },
   {
     name: "spatial nav",
-    kind: "script",
+    kind: "sharedScript",
     param: "js/spatial_navigation.js",
   },
   {
