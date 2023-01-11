@@ -88,17 +88,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let searchBox = document.getElementById("search-box");
 
-  searchBox?.addEventListener("blur", () => {
-    // console.log("Search Box: blur event");
-    // closeSearchPanel();
-    // panelManager.clearAllResults();
-    // window.setTimeout(() => {
-    //   console.log(
-    //     `After searchBox blur, active element=${document.activeElement.localName}`
-    //   );
-    // }, 1000);
-  });
-
   searchBox?.addEventListener("sl-focus", () => {
     console.log("Search Box: focus event");
     gSearchPanel.open();
@@ -108,11 +97,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (event.key === "Escape") {
       searchBox.blur();
     }
-
-    // if (event.key === "Tab") {
-    //   document.getElementById("default-search-results").onTabKey(event);
-    //   event.preventDefault();
-    // }
   });
 
   let opensearchEngine;
@@ -134,6 +118,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.setTimeout(() => {
       let input = searchBox.value.trim();
       searchBox.blur();
+      let panelManager = gSearchPanel.manager();
       if (!panelManager.openURL(input)) {
         // Keyword search, redirect to the current search engine.
         panelManager.openURL(opensearchEngine.getSearchUrlFor(input), input);

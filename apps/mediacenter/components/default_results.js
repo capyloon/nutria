@@ -84,6 +84,17 @@ class DefaultResults extends LitElement {
   clear() {
     this.results = [];
   }
+
+  // Returns whether we process the key event or not.
+  onEnterKey() {
+    if (!this.selectedItem) {
+      return false;
+    }
+
+    this.selectedItem.click();
+
+    return true;
+  }
 }
 
 customElements.define("default-results", DefaultResults);
