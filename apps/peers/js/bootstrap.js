@@ -1,4 +1,3 @@
-
 const kDeps = [
   {
     name: "main",
@@ -44,11 +43,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   log(`location hash: ${location.hash}`);
   if (location.hash == "") {
     log(`No activity...`);
-  } else {
-    document.getElementById("bye-bye").onclick = () => {
-      window.close();
-    };
+    document
+      .getElementById("description")
+      .setAttribute("data-l10n-id", "share-nothing");
+    document.getElementById("qr-code").value = "https://capyloon.org";
   }
+  document.getElementById("bye-bye").onclick = () => {
+    window.close();
+  };
 });
 
 // Share some content:
