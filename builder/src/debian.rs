@@ -47,6 +47,7 @@ use std::io::{self, Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::SystemTime;
 use thiserror::Error;
 
 static DESKTOP_DESKTOP: &str = include_str!("templates/debian/capyloon-desktop.desktop");
@@ -65,7 +66,7 @@ static IPFSD_MOBILE_CONFIG: &str = include_str!("templates/debian/ipfsd-mobile.t
 
 // TODO: Move to some configuration
 static PACKAGE_NAME: &str = "capyloon";
-static PACKAGE_VERSION: &str = "0.2";
+static PACKAGE_VERSION: &str = "0.3";
 
 #[derive(Error, Debug)]
 pub enum DebianError {
@@ -324,20 +325,20 @@ impl DebianCommand {
         template!(PREINST, debian_dir.join("preinst"), Some(0o755));
         template!(POSTINST, debian_dir.join("postinst"), Some(0o755));
 
+        // Use the number of days since epoch as the release number.
+        let from_epoch = SystemTime::UNIX_EPOCH.elapsed().unwrap();
+        let release_number = from_epoch.as_secs() / (3600 * 24);
+
         let control = CONTROL
             .replace("${PKG_NAME}", &format!("{}-{}", PACKAGE_NAME, device))
             .replace("${VERSION}", PACKAGE_VERSION)
+            .replace("${RELEASE_NUMBER}", &format!("{}", release_number))
             .replace("${ARCH}", &device.deb_arch());
 
         template!(&control, debian_dir.join("control"), None);
 
         let status = {
-            use std::time::SystemTime;
             let _timer = Timer::start_with_message("Debian packaging", "Starting Debian packaging");
-
-            // Use the number of days since epoch as the release number.
-            let from_epoch = SystemTime::UNIX_EPOCH.elapsed().unwrap();
-            let release_number = from_epoch.as_secs() / (3600 * 24);
 
             let package_path = default_output.join(format!(
                 "{}-{}_{}-{}_{}.deb",

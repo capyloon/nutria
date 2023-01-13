@@ -1,5 +1,5 @@
 Package: ${PKG_NAME}
-Version: ${VERSION}
+Version: ${VERSION}-${RELEASE_NUMBER}
 Maintainer: Fabrice Desré <fabrice@capyloon.org>
 Section: misc
 Priority: optional
