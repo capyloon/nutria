@@ -1,2 +1,5 @@
 /prebuilts
 /.cache
+pgp-key.*
+/apt-repo/**
+*.deb
