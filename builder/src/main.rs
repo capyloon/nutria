@@ -32,6 +32,9 @@ struct Cli {
 enum Commands {
     /// Desktop: runs without packaging apps.
     Dev {
+        /// The profile name. Defaults to `dev` if not set.
+        #[clap(long)]
+        profile: Option<String>,
         /// The type of device to emulate. Valid values are 'desktop' and 'mobile'.
         #[clap(long)]
         r#type: Option<String>,
@@ -181,11 +184,13 @@ fn main() {
             }
         }
         Commands::Dev {
+            profile,
             r#type,
             size,
             debug,
         } => {
-            if config.set_output_name("dev").is_ok() {
+            let profile = profile.clone().unwrap_or("dev".into());
+            if config.set_output_name(&profile).is_ok() {
                 DevCommand::start(config, r#type.clone(), size.clone(), *debug)
                     .map_err(|e| e.into())
             } else {
