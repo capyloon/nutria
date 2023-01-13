@@ -145,7 +145,8 @@ class Skill {
   }
 
   static async isContact(value) {
-    let contacts = await window.apiDaemon.getContactsManager();
+    // TODO: search with the contact manager.
+    // let contacts = await window.apiDaemon.getContactsManager();
   }
 
   // Simple parser for a request: outputs a an array of typed tokens.
