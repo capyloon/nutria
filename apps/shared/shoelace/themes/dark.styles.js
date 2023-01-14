@@ -425,7 +425,9 @@ export default css`
 
     --sl-input-help-text-color: var(--sl-color-neutral-500);
 
-    --sl-toggle-size: 1rem;
+    --sl-toggle-size-small: 0.875rem;
+    --sl-toggle-size-medium: 1.125rem;
+    --sl-toggle-size-large: 1.375rem;
 
     --sl-overlay-background-color: hsl(0 0% 0% / 43%);
 

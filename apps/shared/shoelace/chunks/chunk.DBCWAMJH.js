@@ -1,1 +1,0 @@
-import{a as l}from"./chunk.OAQCUA7X.js";function r(s,d){let o=l({waitUntilFirstUpdate:!1},d);return(e,p)=>{let{update:f}=e;if(s in e){let t=s;e.update=function(n){if(n.has(t)){let a=n.get(t),i=this[t];a!==i&&(!o.waitUntilFirstUpdate||this.hasUpdated)&&this[p](a,i)}f.call(this,n)}}}}export{r as a};

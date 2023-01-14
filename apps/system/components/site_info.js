@@ -42,9 +42,9 @@ class SiteInfo extends HTMLElement {
       <div class="utils">
         <sl-select hoist size="small" class="ua-chooser">
           <span slot="label" data-l10n-id="site-info-choose-ua"></span>
-          <sl-menu-item value="b2g" data-l10n-id="site-info-b2g-ua"></sl-menu-item>
-          <sl-menu-item value="android" data-l10n-id="site-info-android-ua"></sl-menu-item>
-          <sl-menu-item value="desktop" data-l10n-id="site-info-desktop-ua"></sl-menu-item>
+          <sl-option value="b2g" data-l10n-id="site-info-b2g-ua"></sl-option>
+          <sl-option value="android" data-l10n-id="site-info-android-ua"></sl-option>
+          <sl-option value="desktop" data-l10n-id="site-info-desktop-ua"></sl-option>
         </sl-select>
         <span class="flex-fill"></span>
       </div>

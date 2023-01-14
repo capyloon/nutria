@@ -145,6 +145,7 @@ class DatetimePanel {
           let fragment = document.createDocumentFragment();
           cities.forEach((city) => {
             let item = document.createElement("sl-menu-item");
+            item.setAttribute("type", "checkbox");
             let offset = city.offset.split(","); // [utcOffset, dstOffset]
             item.textContent =
               (city["name"] || city.city.replace(/_/g, " ")) + " " + offset[0];

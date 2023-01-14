@@ -23,10 +23,9 @@ class DisplayPanel {
     } else if (event.type === "sl-change") {
       this.updateChoice(event.target);
     } else if (event.type === "sl-select") {
-      // Check the new menu item.
+      // Uncheck the "old" menu item.
       this.homescreen?.removeAttribute("checked");
       this.homescreen = event.detail.item;
-      this.homescreen.setAttribute("checked", "true");
       // Set the new settings value.
       let setting = {
         name: "homescreen.manifestUrl",
@@ -83,6 +82,7 @@ class DisplayPanel {
       let manifest = await response.json();
       if (manifest.b2g_features?.role === "homescreen") {
         let item = document.createElement("sl-menu-item");
+        item.setAttribute("type", "checkbox");
         item.textContent = manifest.description || manifest.name;
         item.app = app;
         if (homescreenUrl === app.manifestUrl.href) {

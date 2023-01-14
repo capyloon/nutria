@@ -294,7 +294,7 @@ const kDeps = [
       "shoelace-select",
       "shoelace-dropdown",
       "shoelace-menu",
-      "shoelace-menu-item",
+      "shoelace-option",
       "content manager",
     ],
   },

@@ -391,6 +391,7 @@ const kValidShoelaceNames = new Set([
   "menu",
   "menu-item",
   "menu-label",
+  "option",
   "progress-bar",
   "progress-ring",
   "qr-code",

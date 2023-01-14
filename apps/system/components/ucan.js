@@ -63,6 +63,7 @@ class UcanDialog extends LitElement {
         items.push(
           html`<sl-menu-item
             class="capability"
+            type="checkbox"
             data-l10n-id="ucan-permission-${permission}"
             data-l10n-args="${args}"
             data-capability="${index}"
@@ -76,7 +77,7 @@ class UcanDialog extends LitElement {
       this.dids.forEach((did, index) => {
         if (did.name != "superuser") {
           dids.push(
-            html`<sl-menu-item value="did-${index}">${did.name}</sl-menu-item>`
+            html`<sl-option value="did-${index}">${did.name}</sl-option>`
           );
         }
       });
@@ -91,10 +92,10 @@ class UcanDialog extends LitElement {
       { l10n: "1month", seconds: 30 * 24 * 3600 },
     ].forEach((duration, index) => {
       durations.push(
-        html`<sl-menu-item
+        html`<sl-option
           value="duration-${duration.seconds}"
           data-l10n-id="ucan-duration-${duration.l10n}"
-        ></sl-menu-item>`
+        ></sl-option>`
       );
     });
 
@@ -117,7 +118,7 @@ class UcanDialog extends LitElement {
             data-l10n-id="ucan-select-did"
             >${dids}</sl-select
           >
-          <sl-menu @sl-select="${this.toggleCapability}">${items}</sl-menu>
+          <sl-menu>${items}</sl-menu>
 
           <sl-select
             hoist
@@ -153,11 +154,6 @@ class UcanDialog extends LitElement {
   close() {
     this.dialog.hide();
     this.reset();
-  }
-
-  toggleCapability(event) {
-    this.log(`toggleCapability`);
-    event.detail.item.checked = !event.detail.item.checked;
   }
 
   buttonClick(event) {

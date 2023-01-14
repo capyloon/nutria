@@ -33,6 +33,9 @@ P2:
 - investigate perf of l10n + custom elements (eg. <sl-select> in site_info.js)
 
 Mobian:
+
+https://github.com/capyloon/mobian-recipes
+
 all you need for a fully custom image is to create include/packages-capyloon.yaml and devices/sunxi/packages-capyloon.yaml (for the PP), then append -e capyloon to the build.sh command line (oh, and probably edit the apt repo setup part of course)
 
 Ledger

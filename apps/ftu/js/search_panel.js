@@ -36,7 +36,6 @@ class SearchPanel {
       item.value.addTag("enabled");
       this.enabled += 1;
     }
-    item.checked = !item.checked;
 
     this.okBtn.disabled = this.alert.open = this.enabled === 0;
   }
@@ -66,6 +65,7 @@ class SearchPanel {
         this.log(`Adding ${meta.name} ${meta.tags}`);
         let json = item.variant("default").OpenSearchDescription;
         let menuItem = document.createElement("sl-menu-item");
+        menuItem.setAttribute("type", "checkbox");
         menuItem.checked = meta.tags.includes("enabled");
         if (menuItem.checked) {
           this.enabled += 1;

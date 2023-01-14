@@ -57,6 +57,7 @@ class LanguagePanel {
       menu.addEventListener("sl-select", this);
       for (let lang in list) {
         let item = document.createElement("sl-menu-item");
+        item.setAttribute("type", "checkbox");
         item.textContent = list[lang];
         menu.append(item);
         item.value = lang;
