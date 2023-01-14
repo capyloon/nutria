@@ -9,20 +9,10 @@
   top: 5vh;
   left: 5vw;
   opacity: 0;
-  transform: translateY(100%);
+  transform: translateY(120%);
 
   --action-box-width: 5em;
   --action-box-height: 6em;
-}
-
-/* Desktop mode */
-@media (min-width: 800px) {
-  :host {
-    width: 70vw;
-    left: 15vw;
-    height: 90vh;
-    top: 10vh;
-  }
 }
 
 :host(.open) {
@@ -30,6 +20,20 @@
   transform: none;
   transition: all 0.3s;
   height: 90vh;
+}
+
+/* Desktop mode */
+@media (min-width: 800px) {
+  :host {
+    width: 70vw;
+    left: 15vw;
+    height: 80vh;
+    top: 10vh;
+  }
+
+  :host(.open) {
+    height: 80vh;
+  }
 }
 
 :host .container {
