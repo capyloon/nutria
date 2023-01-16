@@ -76,17 +76,13 @@ class SiteInfo extends HTMLElement {
 
     let uaChooser = shadow.querySelector(".ua-chooser");
 
-    let ignoreUAChange = true;
     l10nReady.then(() => {
       uaChooser.value = "b2g";
       uaChooser.addEventListener("sl-change", (event) => {
-        if (!ignoreUAChange) {
-          // TODO: persist the UA changes.
-          this.dispatchEvent(
-            new CustomEvent("change-ua", { detail: event.target.value })
-          );
-        }
-        ignoreUAChange = false;
+        // TODO: persist the UA changes.
+        this.dispatchEvent(
+          new CustomEvent("change-ua", { detail: event.target.value })
+        );
       });
     });
 
