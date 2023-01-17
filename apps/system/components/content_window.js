@@ -181,7 +181,7 @@ class ContentWindow extends HTMLElement {
 
   // Handles various events from the content-window UI and
   // from the site-info panel.
-  handleEvent(event) {
+  async handleEvent(event) {
     switch (event.type) {
       case "zoom-in":
         this.zoomIn();
@@ -202,10 +202,23 @@ class ContentWindow extends HTMLElement {
         this.webView.toggleReaderMode();
         break;
       case "change-ua":
-        this.webView.linkedBrowser.browsingContext.customUserAgent =
-          UAHelper.get(event.detail);
+        let url = this.webView.currentURI;
+        await window.uaStore.setUaFor(url, event.detail);
+        this.maybeSetUA(url);
         this.reload();
         break;
+    }
+  }
+
+  maybeSetUA(url) {
+    // Sets the custom UA if needed.
+    let ua = window.uaStore.getUaFor(url);
+    if (ua) {
+      this.webView.linkedBrowser.browsingContext.customUserAgent =
+        UAHelper.get(ua);
+      this.state.ua = ua;
+    } else {
+      this.state.ua = null;
     }
   }
 
@@ -265,6 +278,7 @@ class ContentWindow extends HTMLElement {
     this.webView = this.querySelector("web-view");
     this.webView.openWindowInfo = this.config.openWindowInfo || null;
     this.webView.src = src;
+    this.maybeSetUA(src);
 
     this.loader = this.querySelector(".loader");
     this.contentCrash = this.querySelector(".content-crash");
@@ -812,6 +826,8 @@ class ContentWindow extends HTMLElement {
           }
         }
 
+        this.maybeSetUA(detail.url);
+
         // console.log(`locationchange ${this.state.url} -> ${detail.url}`);
         // We don't reset the icon url until we get a new one.
         this.state.iconSize = 0;
@@ -872,6 +888,14 @@ class ContentWindow extends HTMLElement {
         ) {
           this.hideLoader();
         }
+        // try {
+        //   let result = await this.webView.executeScript(
+        //     "console.log(`ZZZ executeScript in ${location}`); `http://shared.locahost:${location.port}/js/spatial_navigation.js`",
+        //   );
+        //   console.log(`ZZZ executeScript success: ${result}`);
+        // } catch (e) {
+        //   console.log(`ZZZ executeScript failed! ${e}`);
+        // }
         break;
       case "iconchange":
         await this.iconchanged(detail);

@@ -79,7 +79,6 @@ class SiteInfo extends HTMLElement {
     l10nReady.then(() => {
       uaChooser.value = "b2g";
       uaChooser.addEventListener("sl-change", (event) => {
-        // TODO: persist the UA changes.
         this.dispatchEvent(
           new CustomEvent("change-ua", { detail: event.target.value })
         );
@@ -228,9 +227,17 @@ class SiteInfo extends HTMLElement {
     this.searchSection.classList.add("hidden");
   }
 
+  inShadowRoot(selector) {
+    return this.shadowRoot.querySelector(selector);
+  }
+
   updateState(_name, state) {
     // console.log(`SiteInfo::updateState() ${JSON.stringify(state)}`);
     this.state = state;
+
+    // Update the UA selector.
+    let uaChooser = this.inShadowRoot(".ua-chooser");
+    uaChooser.value = state.ua || "b2g";
 
     if (state.search) {
       this.showSearchEngines();
@@ -246,19 +253,19 @@ class SiteInfo extends HTMLElement {
 
     // Update the UI.
     this.zoomLevel.textContent = `${(this.state.zoom * 100).toFixed(0)}%`;
-    this.shadowRoot.querySelector(".title").textContent = this.state.title;
-    this.shadowRoot.querySelector(".url").textContent = this.state.url;
-    this.shadowRoot.querySelector(".favicon").src =
+    this.inShadowRoot(".title").textContent = this.state.title;
+    this.inShadowRoot(".url").textContent = this.state.url;
+    this.inShadowRoot(".favicon").src =
       this.state.icon || window.config.brandLogo;
 
-    let goForward = this.shadowRoot.querySelector(".nav-forward");
+    let goForward = this.inShadowRoot(".nav-forward");
     if (this.state.canGoForward) {
       goForward.classList.remove("disabled");
     } else {
       goForward.classList.add("disabled");
     }
 
-    let goBack = this.shadowRoot.querySelector(".nav-back");
+    let goBack = this.inShadowRoot(".nav-back");
     if (this.state.canGoBack) {
       goBack.classList.remove("disabled");
     } else {
@@ -281,7 +288,7 @@ class SiteInfo extends HTMLElement {
       }
     }
 
-    let splitScreen = this.shadowRoot.querySelector("sl-button.split-screen");
+    let splitScreen = this.inShadowRoot("sl-button.split-screen");
     if (state.splitScreen || embedder.sessionType === "mobile") {
       splitScreen.classList.add("hidden");
     } else {
@@ -300,7 +307,7 @@ class SiteInfo extends HTMLElement {
 
     ["nav-back", "nav-forward", "nav-reload", "zoom-in", "zoom-out"].forEach(
       (name) => {
-        this.shadowRoot.querySelector(`.${name}`).onclick = (event) => {
+        this.inShadowRoot(`.${name}`).onclick = (event) => {
           event.stopPropagation();
           event.preventDefault();
           this.dispatchEvent(new Event(name));
@@ -308,14 +315,14 @@ class SiteInfo extends HTMLElement {
       }
     );
 
-    this.shadowRoot.querySelector("sl-button.split-screen").onclick = () => {
+    this.inShadowRoot("sl-button.split-screen").onclick = () => {
       this.close();
       actionsDispatcher.dispatch("frame-split-screen");
     };
 
-    let button = this.shadowRoot.querySelector("sl-button.add-home");
+    let button = this.inShadowRoot("sl-button.add-home");
     button.classList.remove("hidden");
-    let pwaLogo = this.shadowRoot.querySelector("sl-button.add-home img");
+    let pwaLogo = this.inShadowRoot("sl-button.add-home img");
     if (this.state.manifestUrl && this.state.manifestUrl !== "") {
       pwaLogo.classList.remove("hidden");
     } else {

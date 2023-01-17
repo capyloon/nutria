@@ -136,6 +136,12 @@ const kDeps = [
     deps: ["content manager"],
   },
   {
+    name: "ua store",
+    kind: "module",
+    param: "./js/ua_store.js",
+    deps: ["content manager"],
+  },
+  {
     name: "various modules",
     kind: "virtual",
     deps: [
@@ -159,6 +165,7 @@ const kDeps = [
       "ucan",
       "status icons comp",
       "apps list comp",
+      "ua store",
     ],
   },
   {

@@ -247,6 +247,21 @@ export class ContentManager extends EventTarget {
     }
   }
 
+  // Returns the child by name in a given container.
+  // Specialized for json variants
+  async jsonChildByName(parent, name, variant = "default") {
+    let svc = await this.service;
+    try {
+      let meta = await svc.childByName(parent, name);
+      let json = await svc.getVariantJson(meta.id, variant);
+      await this.ensureHttpKey(svc);
+      return new ContentResource(svc, this.http_key, meta, json, variant);
+    } catch (e) {
+      this.error(`jsonChildByName failed: ${JSON.stringify(e)}`);
+      return null;
+    }
+  }
+
   // Checks if a child by this name exists, without fetching any variant.
   async hasChildByName(parent, name) {
     let svc = await this.service;
