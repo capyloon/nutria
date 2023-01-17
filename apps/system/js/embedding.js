@@ -217,6 +217,51 @@ const UAHelper = {
     },
   };
 
+  const EME_NOTIFICATION_SETTING = "eme-success-notification-displayed";
+  const eme = {
+    async show(details) {
+      if (details.successNotification) {
+        // Only show this notification once since it can be quite noisy.
+        let settings = await apiDaemon.getSettings();
+        try {
+          let result = await settings.get(EME_NOTIFICATION_SETTING);
+          if (result.value) {
+            return;
+          }
+        } catch (e) {}
+        await settings.set([{ name: EME_NOTIFICATION_SETTING, value: true }]);
+        log(`EME: successNotification!`);
+        window.toaster.show(await window.utils.l10n("drm-success-title"));
+        return;
+      }
+
+      let actions = null;
+      let id = details.notificationId;
+      if (id === "drm-content-disabled") {
+        actions = [
+          {
+            action: "enable",
+            title: await window.utils.l10n(`drm-button-title`),
+          },
+        ];
+      }
+
+      // Dummy callback used when there is no action to make sure
+      // the notification is not routed back to the alerts embedder.
+      let dummy = () => {};
+
+      let notification = {
+        id,
+        icon: "system-icon:toy-brick", // Some kind of "plugin" icon...
+        title: await window.utils.l10n(`${id}-title`),
+        text: await window.utils.l10n(`${id}-text`),
+        callback: details.callback || dummy,
+        actions,
+      };
+      notificationsManager().show(notification);
+    },
+  };
+
   const imeHandler = {
     focusChanged(detail) {
       window.actionsDispatcher.dispatch("ime-focus-changed", detail);
@@ -247,6 +292,7 @@ const UAHelper = {
     imeHandler,
     activityChooser,
     webExtensions,
+    eme,
   });
   embedder.addEventListener("runtime-ready", (e) => {
     embedder.isReady = true;

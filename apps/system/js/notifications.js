@@ -76,14 +76,20 @@ class NotificationWrapper {
   }
 
   click(action) {
-    embedder.systemAlerts.click({
-      id: this.notification.id,
-      action,
-    });
+    if (this.notification.callback) {
+      this.notification.callback(action);
+    } else {
+      embedder.systemAlerts.click({
+        id: this.notification.id,
+        action,
+      });
+    }
   }
 
   close() {
-    embedder.systemAlerts.close(this.notification.id);
+    if (!this.notification.callback) {
+      embedder.systemAlerts.close(this.notification.id);
+    }
   }
 
   remove() {

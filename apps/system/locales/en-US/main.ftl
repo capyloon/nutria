@@ -120,3 +120,11 @@ ucan-button-grant = Grant
 # Apps List Context Menu
 apps-list-add-home = Add To Home
 apps-list-uninstall = Uninstall
+
+# DRM notifications
+drm-success-title = DRM support successfully enabled
+drm-content-disabled-title = DRM Support
+drm-content-disabled-text = You must enable DRM to play some audio or video on this page
+drm-button-title = Enable
+drm-content-cdm-installing-title = DRM Installing
+drm-content-cdm-installing-text = Capyloon is installing components needed to play the audio or video on this page. Please try again later.
