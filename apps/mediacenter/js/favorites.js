@@ -135,7 +135,7 @@ class Apps extends Favorites {
   buildNodeFor(content, resource) {
     let node = document.createElement("div");
     node.setAttribute("tabindex", "0");
-    node.classList.add('app');
+    node.classList.add("app");
     node.onclick = () => {
       window.open(content.url, "_blank");
     };
