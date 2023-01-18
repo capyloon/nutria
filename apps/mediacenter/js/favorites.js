@@ -26,6 +26,27 @@ class Favorites {
     } catch (e) {
       console.error(e);
     }
+
+    var list = this.parentNode.querySelector("div");
+
+    // If user didn't scroll. We put this so we still have the overflow fade gradient mask.
+    list.classList.add("start");
+
+    list.onscroll = () => {
+      if (list.scrollLeft <= 1) {
+        list.classList.remove("end");
+        list.classList.remove("center");
+        list.classList.add("start");
+      } else if (list.scrollLeft >= (list.scrollWidth - list.offsetWidth - 1)) {
+        list.classList.remove("center");
+        list.classList.remove("start");
+        list.classList.add("end");
+      } else {
+        list.classList.remove("end");
+        list.classList.remove("start");
+        list.classList.add("center");
+      }
+    };
     this.log("init done");
   }
 
@@ -114,6 +135,7 @@ class Apps extends Favorites {
   buildNodeFor(content, resource) {
     let node = document.createElement("div");
     node.setAttribute("tabindex", "0");
+    node.classList.add('app');
     node.onclick = () => {
       window.open(content.url, "_blank");
     };
@@ -126,6 +148,13 @@ class Apps extends Favorites {
     bg.style.backgroundImage = `url(${resource.variantUrl("icon")})`;
 
     node.append(bg);
+
+    let icon = document.createElement("img");
+    icon.classList.add("icon");
+    icon.style.backgroundColor = content.backgroundColor;
+    icon.src = resource.variantUrl("icon");
+
+    node.append(icon);
 
     let title = document.createElement("div");
     title.textContent = content.title;
