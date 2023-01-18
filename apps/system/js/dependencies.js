@@ -105,7 +105,12 @@ const kDeps = [
     name: "content window",
     kind: "module",
     param: "./components/content_window.js",
-    deps: ["api daemon core", "content manager", "shoelace-icon"],
+    deps: ["api daemon core", "content manager", "shoelace-icon", "injected scripts"],
+  },
+  {
+    name: "injected scripts",
+    kind: "sharedScript",
+    param: "./js/injected.js",
   },
   {
     name: "api daemon core",

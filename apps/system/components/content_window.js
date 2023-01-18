@@ -888,14 +888,20 @@ class ContentWindow extends HTMLElement {
         ) {
           this.hideLoader();
         }
-        // try {
-        //   let result = await this.webView.executeScript(
-        //     "console.log(`ZZZ executeScript in ${location}`); `http://shared.locahost:${location.port}/js/spatial_navigation.js`",
-        //   );
-        //   console.log(`ZZZ executeScript success: ${result}`);
-        // } catch (e) {
-        //   console.log(`ZZZ executeScript failed! ${e}`);
-        // }
+
+        // Script injection.
+        let url = this.webView.currentURI;
+        if (url !== "about:blank") {
+          let origin = new URL(url).origin;
+          if (canInjectIn(origin)) {
+            try {
+              let script = await injectedScriptLoader(origin);
+              await this.webView.executeScript(script);
+            } catch (e) {
+              console.error(`Failed to inject script in ${origin} : ${e}`);
+            }
+          }
+        }
         break;
       case "iconchange":
         await this.iconchanged(detail);

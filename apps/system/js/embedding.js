@@ -29,8 +29,7 @@ const UAHelper = {
     let version = Services.appinfo.platformVersion;
     let ua;
     if (kind == "android") {
-      // ua = "Mozilla/5.0 (Android 11; Mobile; rv:92.0) Gecko/92.0 Firefox/92.0";
-      ua = `Mozilla/5.0 (Android 10; Mobile; rv:${version}) Gecko/${version} Firefox/${version}`;
+      ua = `Mozilla/5.0 (Android 12; Mobile; rv:${version}) Gecko/${version} Firefox/${version}`;
     } else if (kind == "desktop") {
       ua = `Mozilla/5.0 (X11; Linux x86_64; rv:${version}) Gecko/20100101 Firefox/${version}`;
     }
