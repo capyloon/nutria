@@ -107,6 +107,7 @@ body {
 #search-results li {
   padding-top: 0.25em;
   padding-bottom: 0.25em;
+  border-radius: 0.5em;
   cursor: pointer;
 }
 
