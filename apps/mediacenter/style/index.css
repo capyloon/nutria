@@ -8,7 +8,7 @@ body {
 }
 
 html {
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(51, 51, 51, 0.5);
 }
 
 body {
@@ -72,7 +72,7 @@ body {
 }
 
 #search-panel sl-input::part(base) {
-  border-radius: var(--sl-border-radius-large);
+  border-radius: var(--sl-border-radius-x-large);
 }
 
 #search-results {
@@ -107,6 +107,7 @@ body {
 #search-results li {
   padding-top: 0.25em;
   padding-bottom: 0.25em;
+  border-radius: 0.5em;
   cursor: pointer;
 }
 
@@ -135,15 +136,37 @@ body {
   flex: 1;
 }
 
+.list {
+  padding: 0 3em;
+}
+
+.list > h4 {
+  font-size: 2.75em;
+  font-weight: 500;
+  margin: 1em 0.5rem 0.25em;
+}
+
 .list > div {
   display: flex;
   overflow: scroll;
   gap: 1em;
 }
 
+.list > div.start {
+  mask-image: linear-gradient(to right, white 90%, transparent);
+}
+
+.list > div.end {
+  mask-image: linear-gradient(to left, white 90%, transparent);
+}
+
+.list > div.center {
+  mask-image: linear-gradient(to left, transparent, white 10%, white 90%, transparent);
+}
+
 .favorite {
   cursor: pointer;
-  min-width: 10em;
+  width: 20.625rem;
   padding: 0.25em;
   border: 1px solid transparent;
   border-radius: var(--sl-border-radius-x-large);
@@ -151,18 +174,21 @@ body {
 }
 
 .favorite:focus {
-  border: 1px solid var(--sl-color-primary-600);
-  background-color: var(--sl-color-primary-600);
   outline: none;
 }
 
+.favorite:focus > .background {
+  outline: 5px solid var(--sl-color-primary-600);
+}
+
 .favorite .background {
-  height: 5em;
-  border-radius: var(--sl-border-radius-large);
+  width: 20em;
+  border-radius: var(--sl-border-radius-x-large);
   background-repeat: no-repeat;
   background-size: contain;
   background-origin: content-box;
   padding: 0.5em;
+  aspect-ratio: 16 / 9;
 }
 
 .favorite .background-video {
@@ -177,24 +203,48 @@ body {
   width: 24px;
 }
 
+.favorite.app img.icon {
+  top: unset;
+  bottom: 0.75em;
+  left: 1em;
+  width: 50px;
+  height: 50px;
+  border-radius: 40%;
+  background-color: white;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
 .favorite .title {
   padding: 0.5em;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
+  width: 100%;
+}
+
+.favorite.app .title {
+  /* 1.25em (spacing near the card curve) + 3.125em (icon width, equivalent to 50px) + 0.25em (text left padding)  */
+  padding-left: 4.625em;
 }
 
 #status-bar {
   display: flex;
-  justify-content: end;
   align-items: center;
   gap: 0.5em;
-  padding: 0.5em;
+  padding: 1.5em 3em 0.5em;
   font-size: 1.5rem;
 }
 
+#status-bar > sl-icon-button {
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
 #date-time {
-  font-size: 1rem;
+  font-size: 1em;
+  flex: 1;
+  text-align: start;
 }
 
 .like-place {
