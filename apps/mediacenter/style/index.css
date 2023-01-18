@@ -223,6 +223,7 @@ body {
 }
 
 .favorite.app .title {
+  /* 1.25em (spacing near the card curve) + 3.125em (icon width, equivalent to 50px) + 0.25em (text left padding)  */
   padding-left: 4.625em;
 }
 
