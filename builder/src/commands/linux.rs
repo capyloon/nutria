@@ -230,10 +230,10 @@ pub fn push_apps(config: &BuildConfig, requested_apps: &Option<String>) -> Resul
         let _ = device.command("/opt/capyloon/b2ghald/b2ghalctl restart-service capyloon")?;
     } else if data.homescreen_update {
         let pids = device.command("pidof b2g")?;
-        let pids: Vec<&str> = pids.split(' ').collect();
+        let pids: Vec<&str> = pids.split_whitespace().collect();
         for pid in pids {
             let stat = device.command(&format!("cat /proc/{}/stat", pid))?;
-            let parts: Vec<&str> = stat.split(' ').collect();
+            let parts: Vec<&str> = stat.split_whitespace().collect();
             if parts.len() > 1 && parts[1] == "(homescreen)" {
                 info!("About to kill pid {} to restart homescreen...", pid);
                 let _ = device.command(&format!("kill -9 {}", pid))?;
