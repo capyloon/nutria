@@ -1,9 +1,7 @@
 // Search engine for contacts.
 
 class ContactsSearch {
-  constructor() {
-    this.service = window.apiDaemon.getContactsManager();
-  }
+  constructor() {}
 
   // Returns a Promise that resolves to a result set.
   async search(query, count) {
