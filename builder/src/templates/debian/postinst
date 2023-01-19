@@ -2,4 +2,5 @@
 
 systemctl daemon-reload || true
 systemctl enable b2ghald || true
+systemctl enable capyloon || true
 systemctl start b2ghald || true
