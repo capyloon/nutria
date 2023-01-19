@@ -85,14 +85,12 @@ body {
 }
 
 #search-results h4 {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    transparent 100%
-  );
-  border-bottom: 2px solid var(--sl-color-primary-500);
   margin-bottom: 0;
   margin-top: 0;
+  padding: 1em 0.25em 0.25em;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.25em;
+  font-weight: 500;
 }
 
 #search-results ul {
@@ -251,8 +249,29 @@ body {
   padding: 0.25em;
 }
 
-.like-place:hover,
-.like-place:focus {
+.like-place:hover {
   background-color: rgba(255, 255, 255, 0.25);
-  outline: none;
+}
+
+.like-place:focus {
+  outline: 5px solid var(--sl-color-primary-600);
+}
+
+#places-results,
+#top-sites-results {
+  /* Padding to avoid outline cut-off */
+  padding: 0 5px 5px;
+}
+
+#places-results places-item {
+  border-radius: 0.5em;
+}
+
+#places-results places-item.focused {
+  background: transparent;
+  outline: 5px solid var(--sl-color-primary-600);
+}
+
+#places-results places-item:hover {
+  background-color: rgba(255, 255, 255, 0.25);
 }
