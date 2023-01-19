@@ -53,31 +53,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 });
 
-// Share some content:
+// Share a blob content:
 // - POST it to the local ipfs node.
 // - Create a QR Code with the ipfs url.
-async function onShare(data) {
-  log(`onShare: ${JSON.stringify(data)}`);
-
-  if (data.blob) {
-    log(`onShare: ${data.blob.type} ${data.blob.size}`);
-  }
+async function shareBlob(blob, name = "") {
+  log(`shareBlob: ${blob.type} ${blob.size}`);
 
   let progress = document.getElementById("progress-bar");
 
   try {
     document
       .getElementById("description")
-      .setAttribute(
-        "data-l10n-args",
-        JSON.stringify({ name: data.name || "" })
-      );
+      .setAttribute("data-l10n-args", JSON.stringify({ name }));
     document.getElementById("share").classList.remove("hidden");
     progress.setAttribute("indeterminate", "");
     const url = "ipfs://localhost/ipfs";
     let response = await fetch(url, {
       method: "POST",
-      body: data.blob,
+      body: blob,
     });
     progress.removeAttribute("indeterminate");
     document.getElementById("qr-code").value = response.headers.get("location");
@@ -87,8 +80,22 @@ async function onShare(data) {
     progress.removeAttribute("indeterminate");
     log(e);
   }
+}
 
-  return new Promise(async (resolve, reject) => {
-    resolve();
-  });
+// Share activity main entry point.
+async function onShare(data) {
+  log(`onShare: ${JSON.stringify(data)}`);
+
+  if (data.blob) {
+    await shareBlob(data.blob, data.name);
+  } else if (data.url || data.text) {
+    let text = data.url || data.text;
+    document
+      .getElementById("description")
+      .setAttribute("data-l10n-args", JSON.stringify({ name: text }));
+    document.getElementById("share").classList.remove("hidden");
+    document.getElementById("qr-code").value = text;
+  } else {
+    log(`onShare: nothing to share`);
+  }
 }

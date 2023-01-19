@@ -53,6 +53,7 @@ class SiteInfo extends HTMLElement {
         <sl-icon class="nav-back" name="chevron-left"></sl-icon>
         <sl-icon class="nav-forward" name="chevron-right"></sl-icon>
         <span class="flex-fill"></span>
+        <sl-icon class="share" name="share-2"></sl-icon>
         <sl-icon class="zoom-out" name="zoom-out"></sl-icon>
         <span class="zoom-level">100%</span>
         <sl-icon class="zoom-in" name="zoom-in"></sl-icon>
@@ -314,6 +315,15 @@ class SiteInfo extends HTMLElement {
         };
       }
     );
+
+    this.inShadowRoot(".share").onclick = () => {
+      let shared = new WebActivity("share", {
+        type: "url",
+        url: this.state.url,
+      });
+      this.close();
+      shared.start();
+    };
 
     this.inShadowRoot("sl-button.split-screen").onclick = () => {
       this.close();
