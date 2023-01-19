@@ -34,9 +34,24 @@
 
 :host .results {
   overflow: scroll;
+  /* Padding to avoid outline cut-off */
+  padding: 5px;
 }
 
 :host .breadcrumb {
   font-weight: bolder;
   border-bottom: 1px solid currentColor;
+}
+
+:host places-item {
+  border-radius: 0.5em;
+}
+
+:host places-item.focused {
+  background: transparent;
+  outline: 5px solid var(--sl-color-primary-600);
+}
+
+:host places-item:hover {
+  background-color: rgba(255, 255, 255, 0.25);
 }
