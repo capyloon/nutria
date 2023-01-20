@@ -259,7 +259,7 @@ class WindowManager extends HTMLElement {
         }
       });
 
-      if (foundExpected) {
+      if (foundExpected && this.activeFrame != this.expectedActiveFrame) {
         let frame = this.frames[this.activeFrame];
         frame.deactivate();
         this.activeFrame = this.expectedActiveFrame;

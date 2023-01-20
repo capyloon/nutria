@@ -12,6 +12,9 @@ class ProcessManager {
   }
 
   setForeground(pid) {
+    if (pid == -1) {
+      return;
+    }
     console.log(`ProcessManager: setForeground ${pid}`);
     this.service.then((procmanager) => {
       let lib = window.apiDaemon.getLibraryFor("ProcManager");
@@ -28,6 +31,9 @@ class ProcessManager {
   }
 
   setBackground(pid, tryToKeep = false) {
+    if (pid == -1) {
+      return;
+    }
     console.log(`ProcessManager: setBackground ${pid} keep=${tryToKeep}`);
     this.service.then((procmanager) => {
       let lib = window.apiDaemon.getLibraryFor("ProcManager");
@@ -47,6 +53,9 @@ class ProcessManager {
   }
 
   remove(pid) {
+    if (pid == -1) {
+      return;
+    }
     console.log(`ProcessManager: remove ${pid}`);
     this.service.then((procmanager) => {
       procmanager
@@ -552,9 +561,7 @@ class ContentWindow extends HTMLElement {
   }
 
   disconnectedCallback() {
-    if (this.pid != -1) {
-      processManager.remove(this.pid);
-    }
+    processManager.remove(this.pid);
 
     this.uninitWebView();
     this.removeSiteInfoListeners();
@@ -611,6 +618,9 @@ class ContentWindow extends HTMLElement {
       return;
     }
 
+    // let path = new Error();
+    // console.log(`ZZZ activate ${this.config.startUrl} ${path.stack}`);
+
     // Always activate immediately, and cancel deactivation timer
     // if there is one running.
     if (this.deactivateTimer) {
@@ -623,9 +633,7 @@ class ContentWindow extends HTMLElement {
 
     this.webView.active = true;
     this.focus();
-    if (this.pid != -1) {
-      processManager.setForeground(this.pid);
-    }
+    processManager.setForeground(this.pid);
 
     this.dispatchStateUpdate();
 
@@ -659,6 +667,9 @@ class ContentWindow extends HTMLElement {
       return;
     }
 
+    // let path = new Error();
+    // console.log(`ZZZ deactivate ${this.config.startUrl} ${path.stack}`);
+
     this.activated = false;
     this.removeSiteInfoListeners();
 
@@ -666,7 +677,7 @@ class ContentWindow extends HTMLElement {
     actionsDispatcher.removeListener("keyboard-closing", this.closeKeyboard);
     actionsDispatcher.removeListener("navigate-to", this.navigateTo);
 
-    // Delay deactivation by 2s to prevent rapid switches.
+    // Delay deactivation by 3s to prevent rapid switches.
     // if a timer is already running, we don't restart it.
     if (this.deactivateTimer) {
       return;
@@ -676,9 +687,7 @@ class ContentWindow extends HTMLElement {
       () => {
         this.deactivateTimer = null;
         this.webView.active = false;
-        if (this.pid != -1) {
-          processManager.setBackground(this.pid, this.config.isHomescreen);
-        }
+        processManager.setBackground(this.pid, this.config.isHomescreen);
       },
       this.config.isHomescreen ? 3000 : 0
     );
