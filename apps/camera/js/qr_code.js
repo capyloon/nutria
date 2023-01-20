@@ -7,7 +7,8 @@ class ConsoleImpl {
   }
 
   consoleLog(msg) {
-    console.log(`${this.name}:`, msg);
+    // Silence noisy logs.
+    // console.log(`${this.name}:`, msg);
   }
 
   consoleError(msg) {
