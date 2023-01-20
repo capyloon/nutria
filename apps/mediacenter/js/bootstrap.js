@@ -76,6 +76,46 @@ class SearchPanel {
 
 const gSearchPanel = new SearchPanel();
 
+// Helper to decide how to process an window.open url parameter.
+// Returns true if window.open() was called, false otherwise.
+function maybeOpenURL(url, search = null) {
+  console.log(`maybeOpenURL ${url}`);
+  if (!url || url.length == 0) {
+    return false;
+  }
+
+  let isUrl = false;
+  try {
+    let a = new URL(url);
+    isUrl = true;
+  } catch (e) {}
+
+  const isFileUrl = url.startsWith("file://");
+
+  // No "." in the url that is not a file:// or ipfs:// one, return false since this
+  // is likely a keyword search.
+  if (!url.includes(".") && !isUrl) {
+    return false;
+  }
+
+  if (
+    !isFileUrl &&
+    !url.startsWith("http") &&
+    !url.startsWith("ipfs://") &&
+    !url.startsWith("ipns://")
+  ) {
+    url = `https://${url}`;
+  }
+
+  let details = {
+    search,
+  };
+  let encoded = encodeURIComponent(JSON.stringify(details));
+  window.open(url, "_blank", `details=${encoded}`);
+  console.log(`maybeOpenURL called window.open(...)`);
+  return true;
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   await depGraphLoaded;
 
@@ -111,19 +151,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    // Calling .blur() in the event handler triggers
-    // a bug that navigates the window to about:blank, so we
-    // use an immediate timeout.
-    // TODO: figure the gecko issue.
-    window.setTimeout(() => {
-      let input = searchBox.value.trim();
-      searchBox.blur();
-      let panelManager = gSearchPanel.manager();
-      if (!panelManager.openURL(input)) {
-        // Keyword search, redirect to the current search engine.
-        panelManager.openURL(opensearchEngine.getSearchUrlFor(input), input);
-      }
-    }, 0);
+    let input = searchBox.value.trim();
+    searchBox.blur();
+    if (!maybeOpenURL(input)) {
+      // Keyword search, redirect to the current search engine.
+      maybeOpenURL(opensearchEngine.getSearchUrlFor(input), input);
+    }
   });
 
   // Configure activity handlers.

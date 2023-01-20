@@ -34,6 +34,6 @@ class TopSitesSource extends SearchSource {
   }
 
   activate(result) {
-    SearchSource.openURL(result);
+    maybeOpenURL(result);
   }
 }

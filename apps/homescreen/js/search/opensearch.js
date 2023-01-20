@@ -114,7 +114,7 @@ class OpenSearchSource extends SearchSource {
   }
 
   activate(result) {
-    SearchSource.openURL(this.engine.getSearchUrlFor(result));
+    maybeOpenURL(this.engine.getSearchUrlFor(result));
   }
 
   domForResult(result) {

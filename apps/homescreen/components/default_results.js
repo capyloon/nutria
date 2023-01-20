@@ -263,7 +263,7 @@ class ContentManagerResource extends LitElement {
 
   openURL(url) {
     SearchSource.closeSearch();
-    SearchSource.openURL(url);
+    maybeOpenURL(url);
   }
 
   async activate() {

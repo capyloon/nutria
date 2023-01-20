@@ -31,6 +31,51 @@ function openSearchBox() {
   }
 }
 
+// Helper to decide how to process an window.open url parameter.
+// Returns true if window.open() was called, false otherwise.
+function maybeOpenURL(url, search = null) {
+  console.log(`maybeOpenURL ${url}`);
+  if (!url || url.length == 0) {
+    return false;
+  }
+
+  let isUrl = false;
+  try {
+    let a = new URL(url);
+    isUrl = true;
+  } catch (e) {}
+
+  const isFileUrl = url.startsWith("file://");
+  console.log(`maybeOpenURL isUrl=${isUrl} isFileUrl=${isFileUrl}`);
+
+  try {
+    // No "." in the url that is not a file:// or ipfs:// one, return false since this
+    // is likely a keyword search.
+    if (!url.includes(".") && !isUrl) {
+      return false;
+    }
+
+    if (
+      !isFileUrl &&
+      !url.startsWith("http") &&
+      !url.startsWith("ipfs://") &&
+      !url.startsWith("ipns://")
+    ) {
+      url = `https://${url}`;
+    }
+
+    let details = {
+      search,
+    };
+    let encoded = encodeURIComponent(JSON.stringify(details));
+    window.open(url, "_blank", `details=${encoded}`);
+    console.log(`maybeOpenURL called window.open(${url})`);
+  } catch (e) {
+    console.log(`maybeOpenUrl oops ${e}`);
+  }
+  return true;
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   await depGraphLoaded;
 
@@ -101,18 +146,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    // Calling .blur() in the event handler triggers
-    // a bug that navigates the window to about:blank, so we
-    // use an immediate timeout.
-    // TODO: figure the gecko issue.
-    window.setTimeout(() => {
-      let input = searchBox.value.trim();
-      searchBox.blur();
-      if (!panelManager.openURL(input)) {
-        // Keyword search, redirect to the current search engine.
-        panelManager.openURL(opensearchEngine.getSearchUrlFor(input), input);
-      }
-    }, 0);
+    let input = searchBox.value.trim();
+    searchBox.blur();
+    if (!maybeOpenURL(input)) {
+      // Keyword search, redirect to the current search engine.
+      maybeOpenURL(opensearchEngine.getSearchUrlFor(input), input);
+    }
   });
 
   // Configure activity handlers.
@@ -125,13 +164,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("qr-code").onclick = () => {
     let activity = new WebActivity("scan-qr-code");
     activity.start().then(
-      async (result) => {
-        await ensurePanelManager();
+      (result) => {
+        // await ensurePanelManager();
         // check that this is a proper url.
         console.log(`SCAN-QR-CODE: result is ${result}`);
         try {
           let url = new URL(result);
-          panelManager.openURL(url.href);
+          maybeOpenURL(url.href);
         } catch (e) {
           console.error(`SCAN-QR-CODE: result is not a URL: ${e}`);
           displayQRCodeResult(result);

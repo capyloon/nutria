@@ -31,7 +31,7 @@ class MediaSource extends SearchSource {
 
   activate(result) {
     let url = result.variants.default.url;
-    SearchSource.openURL(url);
+    maybeOpenURL(url);
     contentManager.visitMedia(url, true);
   }
 }
@@ -90,7 +90,7 @@ class MediaItem extends HTMLElement {
       () => {
         SearchSource.closeSearch();
         let url = this.data.variants.default.url;
-        SearchSource.openURL(url);
+        maybeOpenURL(url);
         contentManager.visitMedia(url, true);
       },
       { once: true }

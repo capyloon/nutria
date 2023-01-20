@@ -26,42 +26,6 @@ class SearchSource {
     window["search-results"].appendChild(this.title);
   }
 
-  static openURL(url, search = null) {
-    if (!url || url.length == 0) {
-      return false;
-    }
-
-    let isUrl = false;
-    try {
-      let a = new URL(url);
-      isUrl = true;
-    } catch (e) {}
-
-    const isFileUrl = url.startsWith("file://");
-
-    // No "." in the url that is not a file:// or ipfs:// one, return false since this
-    // is likely a keyword search.
-    if (!url.includes(".") && !isUrl) {
-      return false;
-    }
-
-    if (
-      !isFileUrl &&
-      !url.startsWith("http") &&
-      !url.startsWith("ipfs://") &&
-      !url.startsWith("ipns://")
-    ) {
-      url = `https://${url}`;
-    }
-
-    let details = {
-      search,
-    };
-    let encoded = encodeURIComponent(JSON.stringify(details));
-    window.open(url, "_blank", `details=${encoded}`);
-    return true;
-  }
-
   static closeSearch() {
     window["search-box"].blur();
   }

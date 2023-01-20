@@ -82,6 +82,6 @@ class AppsSource extends SearchSource {
   }
 
   activate(result) {
-    SearchSource.openURL(result.url.href);
+    maybeOpenURL(result.url.href);
   }
 }

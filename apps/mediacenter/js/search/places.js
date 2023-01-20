@@ -28,7 +28,7 @@ class PlacesSource extends SearchSource {
 
   activate(result) {
     let url = result.variants.default.url;
-    SearchSource.openURL(url);
+    maybeOpenURL(url);
     contentManager.visitPlace(url, true);
   }
 }
@@ -116,7 +116,7 @@ class PlacesItem extends LitElement {
       () => {
         SearchSource.closeSearch();
         let url = this.data.variants.default.url;
-        SearchSource.openURL(url);
+        maybeOpenURL(url);
         contentManager.visitPlace(url, true);
       },
       { once: true }
