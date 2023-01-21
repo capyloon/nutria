@@ -83,12 +83,20 @@ function sharedModuleLoader(url, props) {
 // Resolves the promise with the module.
 function windowModuleLoader(url, winProp, moduleProp) {
   return async () => {
-    try {
-      let imported = await import(new URL(url, location));
-      window[winProp] = new imported[moduleProp](window.config, window);
-      // console.log(`windowModuleLoader window.${winProp}=`, window[winProp]);
-    } catch (e) {
-      console.error(`windowModuleLoader failed:`, url, winProp, moduleProp, e);
+    if (!window[winProp]) {
+      try {
+        let imported = await import(new URL(url, location));
+        window[winProp] = new imported[moduleProp](window.config, window);
+        // console.log(`windowModuleLoader window.${winProp}=`, window[winProp]);
+      } catch (e) {
+        console.error(
+          `windowModuleLoader failed:`,
+          url,
+          winProp,
+          moduleProp,
+          e
+        );
+      }
     }
   };
 }

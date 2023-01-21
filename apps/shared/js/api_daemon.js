@@ -29,6 +29,7 @@ export class ApiDaemon {
     console.log(`ApiDaemon [${window.location.hostname}] constructor`);
     this.port = config.port;
     this.global = {};
+    this.inFlight = {};
 
     let coreScripts = [
       // `core`,
@@ -106,7 +107,7 @@ export class ApiDaemon {
 
   debug(msg) {
     if (this.isDebug) {
-      console.log(`ZZZ ApiDaemon: ${msg}`);
+      console.log(`ApiDaemon: ${msg}`);
     }
   }
 
@@ -145,7 +146,11 @@ export class ApiDaemon {
       return Promise.reject();
     }
 
-    return this.sessionReady.then(async () => {
+    if (this.inFlight[serviceName]) {
+      return this.inFlight[serviceName];
+    }
+
+    this.inFlight[serviceName] = this.sessionReady.then(async () => {
       // Fast path if we already have an instance available.
       if (service.instance) {
         return service.instance;
@@ -158,6 +163,7 @@ export class ApiDaemon {
             import(service.url),
             `import(${service.url})`
           );
+          service.loaded = true;
         } catch (e) {
           console.error(`ApiDaemon failed to load ${url}`);
           return Promise.reject();
@@ -170,6 +176,8 @@ export class ApiDaemon {
       );
       return service.instance;
     });
+
+    return this.inFlight[serviceName];
   }
 
   getSettings() {
