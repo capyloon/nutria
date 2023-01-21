@@ -39,5 +39,3 @@ addLink(
 let depGraphLoaded = new Promise((resolve) => {
   loadSharedScript("js/dep_graph.js").onload = resolve;
 });
-
-addStylesheet(`http://shared.localhost:${location.port}/style/fonts.css`);

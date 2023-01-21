@@ -39,6 +39,3 @@ addLink(
 let depGraphLoaded = new Promise((resolve) => {
   loadSharedScript("js/dep_graph.js").onload = resolve;
 });
-
-// Load the "Readex Pro" font
-addLink(`http://shared.localhost:${location.port}/style/fonts.css`);

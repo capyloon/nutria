@@ -1,6 +1,5 @@
 P0:
 - Fix UCAN bugs.
-- Rewrite contacts app.
 - wnfs in costaeres
 
 UCAN improvements:
@@ -54,10 +53,6 @@ libp2p discovery
 
 Next Release items
 ==================
-- Homescreen Switcher.
-- New "peers" app.
-- Better activity support.
-- New contacts app with contact sharing.
 
 Release Check List
 ==================

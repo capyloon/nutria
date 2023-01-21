@@ -8,6 +8,11 @@ const graph = new ParallelGraphLoader([
     kind: "sharedStyle",
     param: "shoelace/themes/dark.css",
   },
+  {
+    name: "Readex Pro Font",
+    kind: "sharedStyle",
+    param: "style/fonts.css",
+  },
 ]);
 
 async function updateDocumentTheme(isDarkMode) {
@@ -20,6 +25,7 @@ async function updateDocumentTheme(isDarkMode) {
 }
 
 async function initShoelace() {
+  await graph.waitForDeps("Readex Pro Font");
   const { registerIconLibrary } = await import(
     `http://shared.localhost:${config.port}/shoelace/utilities/icon-library.js`
   );
