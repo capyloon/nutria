@@ -1,0 +1,12 @@
+{
+  "name": "theme-teal",
+  "description": "Teal Theme",
+  "b2g_features": {
+    "core": true,
+    "role": "theme",
+    "developer": {
+      "name": "The capyloon team"
+    }
+  },
+  "version": "1.0"
+}

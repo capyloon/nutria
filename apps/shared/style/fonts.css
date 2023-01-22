@@ -9,6 +9,7 @@
   --sl-tooltip-font-family: var(--sl-font-sans);
 }
 
-html, body {
+html,
+body {
   font-family: var(--sl-font-sans);
 }

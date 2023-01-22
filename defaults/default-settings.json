@@ -10,6 +10,7 @@
   "geolocation.enabled": true,
   "geolocation.debugging.enabled": true,
   "nutria.branding": "branding-capyloon",
+  "nutria.theme": "theme-capyloon",
   "tor.enabled": false,
   "privacy.trackingprotection.enabled": true,
   "ftu.done": false,

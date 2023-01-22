@@ -23,15 +23,31 @@ class DisplayPanel {
     } else if (event.type === "sl-change") {
       this.updateChoice(event.target);
     } else if (event.type === "sl-select") {
-      // Uncheck the "old" menu item.
-      this.homescreen?.removeAttribute("checked");
-      this.homescreen = event.detail.item;
-      // Set the new settings value.
-      let setting = {
-        name: "homescreen.manifestUrl",
-        value: this.homescreen.app.manifestUrl.href,
-      };
-      await this.settings.set([setting]);
+      console.log(`nutria.theme ${event.target.getAttribute("id")}`);
+      let kind = event.target.getAttribute("id");
+
+      if (kind == "homescreens") {
+        // Uncheck the "old" menu item.
+        this.homescreen?.removeAttribute("checked");
+        this.homescreen = event.detail.item;
+        // Set the new settings value.
+        let setting = {
+          name: "homescreen.manifestUrl",
+          value: this.homescreen.app.manifestUrl.href,
+        };
+        await this.settings.set([setting]);
+      } else if (kind == "themes") {
+        // Uncheck the "old" menu item.
+        this.theme?.removeAttribute("checked");
+        this.theme = event.detail.item;
+        // Set the new settings value.
+        console.log(`nutria.theme: will switch to ${event.detail.item.dataset.theme}`);
+        let setting = {
+          name: "nutria.theme",
+          value: event.detail.item.dataset.theme,
+        };
+        await this.settings.set([setting]);
+      }
     }
   }
 
@@ -72,8 +88,17 @@ class DisplayPanel {
       homescreenUrl = result.value.replace("$PORT", port);
     } catch (e) {}
 
-    // Get the list of homescreen apps and populate the menu.
+    // Get the manifest url of the current theme from the setting.
+    let themeUrl;
+    try {
+      let result = await this.settings.get("nutria.theme");
+      themeUrl = `http://${result.value}.localhost${port}/manifest.webmanifest`;
+    } catch (e) {}
+
+    // Get the list of homescreen and theme apps and populate the menus.
     let homescreens = document.getElementById("homescreens");
+    let themes = document.getElementById("themes");
+
     let appsManager = await apiDaemon.getAppsManager();
     let apps = await appsManager.getAll();
     for (let app of apps) {
@@ -90,9 +115,20 @@ class DisplayPanel {
           this.homescreen = item;
         }
         homescreens.append(item);
+      } else if (manifest.b2g_features?.role === "theme") {
+        let item = document.createElement("sl-menu-item");
+        item.setAttribute("type", "checkbox");
+        item.textContent = manifest.description || manifest.name;
+        item.dataset.theme = app.manifestUrl.host.split(".")[0];
+        if (themeUrl === app.manifestUrl.href) {
+          item.setAttribute("checked", "true");
+          this.theme = item;
+        }
+        themes.append(item);
       }
     }
     homescreens.addEventListener("sl-select", this);
+    themes.addEventListener("sl-select", this);
 
     this.ready = true;
   }
