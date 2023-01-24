@@ -27,6 +27,10 @@ class DisplayPanel {
       let kind = event.target.getAttribute("id");
 
       if (kind == "homescreens") {
+        if (this.homescreen === event.detail.item) {
+          this.homescreen.checked = true;
+          return;
+        }
         // Uncheck the "old" menu item.
         this.homescreen?.removeAttribute("checked");
         this.homescreen = event.detail.item;
@@ -37,6 +41,10 @@ class DisplayPanel {
         };
         await this.settings.set([setting]);
       } else if (kind == "themes") {
+        if (this.theme === event.detail.item) {
+          this.theme.checked = true;
+          return;
+        }
         // Uncheck the "old" menu item.
         this.theme?.removeAttribute("checked");
         this.theme = event.detail.item;
