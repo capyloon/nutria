@@ -13,6 +13,9 @@
     "core": true,
     "developer": {
       "name": "The Capyloon team"
+    },
+    "permissions": {
+      "themeable": {}
     }
   },
   "version": "1.0"

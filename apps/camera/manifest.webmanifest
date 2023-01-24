@@ -17,7 +17,8 @@
     "permissions": {
       "camera": {},
       "content-manager": {},
-      "dweb": {}
+      "dweb": {},
+      "themeable": {}
     },
     "serviceworker": {
       "script_url": "sw.js"

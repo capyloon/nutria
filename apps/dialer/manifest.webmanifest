@@ -18,7 +18,8 @@
       "audio-channel-telephony": {},
       "contacts": { "access": "read" },
       "desktop-notification": {},
-      "telephony": {}
+      "telephony": {},
+      "themeable": {}
     }
   },
   "version": "1.0"

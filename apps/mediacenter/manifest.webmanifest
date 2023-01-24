@@ -14,6 +14,7 @@
       "dweb": {},
       "settings": { "access": "readwrite" },
       "systemXHR": {},
+      "themeable": {},
       "webapps-manage": {},
       "web-view": {}
     },

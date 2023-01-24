@@ -9,7 +9,8 @@
       "name": "The Capyloon team"
     },
     "permissions": {
-      "input": {}
+      "input": {},
+      "themeable": {}
     }
   },
   "version": "1.0"

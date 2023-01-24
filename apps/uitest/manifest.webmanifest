@@ -16,6 +16,7 @@
       },
       "desktop-notification": {},
       "systemXHR": {},
+      "themeable": {},
       "web-view": {}
     },
     "serviceworker": {

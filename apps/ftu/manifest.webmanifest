@@ -20,6 +20,7 @@
       "dweb": {},
       "settings": { "access": "readwrite" },
       "system-time": { "access": "readwrite" },
+      "themeable": {},
       "wifi-manage": {}
     }
   },

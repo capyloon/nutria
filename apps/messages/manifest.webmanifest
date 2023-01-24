@@ -17,7 +17,8 @@
     "permissions": {
       "contacts": { "access": "read" },
       "desktop-notification": {},
-      "sms": {}
+      "sms": {},
+      "themeable": {}
     },
     "activities": {
       "new": {
