@@ -30,7 +30,6 @@ export class SwitchAndSetting extends EventTarget {
       try {
         let setting = { name: this.name, value: this.element.checked };
         await settings.set([setting]);
-        this.dispatchEvent(new CustomEvent("change", { detail: setting }));
       } catch (e) {
         this.error(
           `Failed to mirror ${this.name} switch -> setting (value is ${this.element.checked})`
