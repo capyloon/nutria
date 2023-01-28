@@ -190,7 +190,7 @@ class QuickSettings extends HTMLElement {
   }
 
   initFlashlight() {
-    let flIcon = this.shadowRoot.querySelector(".flashlight-icon");
+    let flIcon = this.shadowRoot.querySelector(".flashlight-icon").parentElement;
     if (!navigator.b2g?.getFlashlightManager) {
       flIcon.remove();
       return;
