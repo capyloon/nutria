@@ -39,7 +39,7 @@
 <feOffset dy="-1"/>
 <feGaussianBlur stdDeviation="1"/>
 <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
-<feColorMatrix type="matrix" values="0 0 0 0 0.501961 0 0 0 0 1 0 0 0 0 0.376471 0 0 0 0.5 0"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0.866667 0 0 0 0 1 0 0 0 0.5 0"/>
 <feBlend mode="normal" in2="effect3_innerShadow_1_2" result="effect4_innerShadow_1_2"/>
 </filter>
 <filter id="filter1_f_1_2" x="4.05383" y="10" width="3.69617" height="3.75" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
@@ -48,8 +48,8 @@
 <feGaussianBlur stdDeviation="0.375" result="effect1_foregroundBlur_1_2"/>
 </filter>
 <linearGradient id="paint0_linear_1_2" x1="0" y1="0" x2="0" y2="16" gradientUnits="userSpaceOnUse">
-<stop stop-color="#80FF60"/>
-<stop offset="1" stop-color="#408020"/>
+<stop stop-color="#00A0E8"/>
+<stop offset="1" stop-color="#0061E0"/>
 </linearGradient>
 <clipPath id="clip0_1_2">
 <rect width="16" height="16" fill="white"/>
