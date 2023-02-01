@@ -20,9 +20,9 @@ class Webrtc {
     });
 
     // This promise resolves when the local description is ready.
-    this._localDescriptionReady = null;
-    this.localDescriptionReady = new Promise((resolve) => {
-      this._localDescriptionReady = resolve;
+    this._iceGatheringDone = null;
+    this.iceGatheringReady = new Promise((resolve) => {
+      this._iceGatheringDone = resolve;
     });
 
     [
@@ -54,7 +54,7 @@ class Webrtc {
         `dweb webrtc: gatheringState is ${this.pc.iceGatheringState}`
       );
       if (this.pc.iceGatheringState === "complete") {
-        this._localDescriptionReady();
+        this._iceGatheringDone();
       }
     }
   }
@@ -62,14 +62,15 @@ class Webrtc {
   async offer() {
     let offer = await this.pc.createOffer();
     this.pc.setLocalDescription(offer);
-    await this.localDescriptionReady;
+    await this.iceGatheringReady;
     return this.pc.localDescription;
   }
 
   async answer() {
     let answer = await this.pc.createAnswer();
     this.pc.setLocalDescription(answer);
-    return answer;
+    await this.iceGatheringReady;
+    return pc.localDescription;
   }
 
   setRemoteDescription(answer) {
