@@ -272,6 +272,11 @@
         </header>
         <section>
           <h2 data-l10n-id="systeminfo-system-section"></h2>
+          <sl-input
+            id="systeminfo-device-desc"
+            data-l10n-id="systeminfo-device-desc"
+            data-l10n-attrs="label"
+          ></sl-input>
           <table class="sl-box" id="systeminfo-system-table"></table>
         </section>
         <sl-divider></sl-divider>
@@ -343,7 +348,15 @@
         </section>
         <sl-divider></sl-divider>
         <section>
-          <h2 data-l10n-id="dweb-ipfsd-section"></h2>
+          <h2 data-l10n-id="dweb-p2p-section"></h2>
+          <header>
+            <span data-l10n-id="dweb-p2p-discovery-label"></span>
+            <sl-switch id="dweb-p2p-discovery-switch"></sl-switch>
+          </header>
+          <header>
+            <span data-l10n-id="dweb-p2p-remote-label"></span>
+            <sl-switch id="dweb-p2p-remote-switch"></sl-switch>
+          </header>
         </section>
       </div>
     </template>

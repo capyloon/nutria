@@ -21,13 +21,15 @@ image-section-title = Image
 image-set-wallpaper = Set As wallpaper
 image-download = Download
 image-share = Share…
-image-new-tab = Open Image In New Tab
+image-new-tab = Open In New Tab
 link-section-title = Link
-link-new-tab = Open Link In New Tab
+link-new-tab = Open In New Tab
+link-share = Share…
 page-section-title = Page
 page-save-as-pdf = Save As PDF
 selection-section-title = Selected Text
 selection-copy = Copy
+selection-share = Share…
 selection-search = Search ”{$query}”
 
 # Site Info Panel
@@ -57,6 +59,8 @@ screenshot-saved-error = Failed to Save Screenshot: {$error}
 
 # Quick Settings Panel
 emergency-calls-only = Emergency Calls Only
+connect-peer = Connect
+peer-paired = Paired
 
 # Download notifications
 download-notification-title-downloading = Download Ongoing
@@ -128,3 +132,29 @@ drm-content-disabled-text = You must enable DRM to play some audio or video on t
 drm-button-title = Enable
 drm-content-cdm-installing-title = DRM Installing
 drm-content-cdm-installing-text = Capyloon is installing components needed to play the audio or video on this page. Please try again later.
+
+# P2P discovery and pairing
+p2p-enable-discovery-success = Peer discovery enabled
+p2p-enable-discovery-failure = Failed to enable peer discovery
+p2p-disable-discovery-success = Peer discovery disabled
+p2p-disable-discovery-failure = Failed to disable peer discovery
+p2p-peer-found = New peer found: {$name}
+p2p-connect-error-not-connected = Can't reach {$desc} : not connected
+p2p-connect-error-not-paired = Can't reach {$desc} : not paired
+p2p-connect-error-denied = {$desc} rejected the connection
+p2p-connect-error-other = Error connecting to {$desc}
+p2p-connect-success = Connected to {$desc}
+p2p-connect-request-title = Peer Connection Request
+p2p-connect-request-text = Do you accept the connection request from {$desc}?
+p2p-connect-request-accept = Accept
+p2p-connect-request-reject = Reject
+p2p-open-url-title = Do you want to open the link sent by {$did} on {$device}?
+p2p-open-url-accept = Open
+p2p-open-url-reject = Close
+p2p-copy-text-title = Do you want to copy the text sent by {$did} on {$device}?
+p2p-copy-text-accept = Copy
+p2p-copy-text-reject = Close
+p2p-download-title = Do you want to download this file offered by {$did} on {$device}?
+p2p-download-text = {$name}: {$size} bytes
+p2p-download-accept = Download
+p2p-download-reject = Close

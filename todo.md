@@ -61,3 +61,70 @@ Release Check List
 3. Publish desktop, pinephone and librem5 debs.
 4. Update /releases.html and /releases.xml
 5. tweet and toot
+
+
+Theme install / permission model
+================================
+
+While the theme infrastructure works, there are 2 areas of improvement needed:
+
+- [DONE] Using the automatic theme selection currently require the page to be granted the settings:read permission. This is undesirable since the only setting used is "nutria.theme". Instead, we should use a theme specific permission, like "themeable".
+
+- Installing themes: the active theme name is used to select the app providing the theme. That means themes need to be vetted to be installed. It's a high bar in general since only the OS vendor can sign apps until we have a more flexible trust model. Developers can sideload themes, but distribution is still difficult. One option is to make themes a json file that contains the theme description and a link to the CSS. Since themes need to work offline, these resources will be downloaded and installed as a locally generated app.
+
+Peer discovery
+==============
+
+Each user is identified by its set of DIDs. A user can own several devices, each with its own device ID.
+
+Peering is done between device on behalf of users. That means that if Alice wants to connect with Bob, Alice should not know which of Bob's device to connect to. This should be handled by the peering mechanism.
+
+TODO:
+- Contacts app: Include DIDs in contacts.
+- Contacts app: Create a "Me, myself and I" contact with locally configured DIDs.
+- Settings app: In the Identity panel, add a way to import and export identities with QR Codes.
+
+[Done] Local network discovery: when discoverable, a Capyloon device advertises itself using mDNS with the _capyloon.tcp.local service name. It exposes its public DID in a txt record, and a service endpoint url.
+
+Other devices discovering a peer by mDNS can filter out if this is one of their contacts based on the DID. Note that this does not provide any access control: this is done through the handshake protocol when connecting to the endpoint url. The handshake will end up with an offer / answer exchange to setup a WebRTC connection.
+
+Remote discovery: a device can also decide to advertise its availability to a rendez-vous server. To do so, it needs to prove it owns the DID by signing a payload made random data provided by the server and the list of peers DIDs that can discover it.
+
+On the discovery side, you can request presence notifications by registering a web push endpoint with a signed payload containing the list of DIDs you want to observe. The server will take care of only delivering notifications that are allowed.
+
+Once 2 devices want to communicate using the rendez vous server, the first one will send a connection request to the server, which will relay it to the other peer (using web push) with the endpoint id and a TTL. Both devices can then do an offer / answer exchange to setup a WebRTC connection.
+
+JS API: we should expose a unified api for the local & remote cases.
+
+Use cases:
+- basic data transfert: text, urls, files.
+- Remote access to data & apis from another device (eg. SMS on your laptop).
+- Media player on 2nd screen.
+- Casual gaming.
+- remote activities
+
+
+"Guest mode" needed: how to connect to a previously unknown peer, like a TV.
+- TV shows a QR code with its DID + device id.
+- Guest adds the TV to its address book and initiates the connection.
+
+Predefined actions:
+- Sending text.
+- Sending a URL.
+- Sharing a file.
+- Co-launch an app.
+
+In an app, the page gets a JS api that gives access to the offer or answer to re-create a webrtc connection between the peers if needed.
+
+
+MDNS / RDV-SERVER:
+
+pairWith(remote_peer)
+Initiator    Remotee
+   (peer desc) ->
+    <- (peer desc)
+
+setupForWebrtc(remote_peer, action, offer)
+Initiator    Remotee
+   (offer) ->
+   <- (answer)

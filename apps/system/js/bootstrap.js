@@ -501,6 +501,9 @@ document.addEventListener(
         return peer.send("homescreen.localhost", "newTab");
       },
     };
+
+    // Load dependencies that are not in the critical launch path.
+    graph.waitForDeps("late start");
   },
   { once: true }
 );

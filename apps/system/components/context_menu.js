@@ -66,6 +66,7 @@ class ContextMenu extends HTMLElement {
         <sl-menu-label class="when-selection"><sl-icon name="type"></sl-icon><span data-l10n-id="selection-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-selection" data-l10n-id="selection-copy"></sl-menu-item>
         <sl-menu-item class="when-selection" data-l10n-id="selection-search"></sl-menu-item>
+        <sl-menu-item class="when-selection" data-l10n-id="selection-share"></sl-menu-item>
         <sl-divider class="when-image-or-link"></sl-divider>
         <sl-menu-label class="when-image"><sl-icon name="image"></sl-icon><span data-l10n-id="image-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-image" data-l10n-id="image-set-wallpaper"></sl-menu-item>
@@ -75,6 +76,7 @@ class ContextMenu extends HTMLElement {
         <sl-divider class="when-image-and-link"></sl-divider>
         <sl-menu-label class="when-link"><sl-icon name="link"></sl-icon><span data-l10n-id="link-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-link" data-l10n-id="link-new-tab"></sl-menu-item>
+        <sl-menu-item class="when-link" data-l10n-id="link-share"></sl-menu-item>
       </sl-menu>
     </sl-dialog>`;
 
@@ -108,6 +110,11 @@ class ContextMenu extends HTMLElement {
         this.openUrlInNewTab(this.linkUrl);
       };
 
+    shadow.querySelector("sl-menu-item[data-l10n-id=link-share]").onclick =
+      () => {
+        this.shareLink(this.linkUrl);
+      };
+
     shadow.querySelector(
       "sl-menu-item[data-l10n-id=page-save-as-pdf]"
     ).onclick = () => {
@@ -132,6 +139,25 @@ class ContextMenu extends HTMLElement {
       );
       this.close();
     };
+
+    shadow.querySelector("sl-menu-item[data-l10n-id=selection-share]").onclick =
+      (event) => {
+        this.dialog.addEventListener(
+          "sl-after-hide",
+          () => {
+            try {
+              let activity = new WebActivity("share", {
+                text: this.selectedText,
+              });
+              activity.start();
+            } catch (e) {
+              console.error(e);
+            }
+          },
+          { once: true }
+        );
+        this.close();
+      };
 
     shadow.querySelector("sl-menu-item[data-l10n-id=selection-copy]").onclick =
       async (event) => {
@@ -174,6 +200,24 @@ class ContextMenu extends HTMLElement {
             type: blob.type.split("/")[0],
             blob,
             name: uri.pathname.split("/").reverse()[0],
+          });
+          activity.start();
+        } catch (e) {
+          console.error(e);
+        }
+      },
+      { once: true }
+    );
+    this.close();
+  }
+
+  async shareLink(url) {
+    this.dialog.addEventListener(
+      "sl-after-hide",
+      () => {
+        try {
+          let activity = new WebActivity("share", {
+            url,
           });
           activity.start();
         } catch (e) {

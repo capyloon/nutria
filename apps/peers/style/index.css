@@ -28,3 +28,7 @@ body {
   background-color: white;
   padding: 2em;
 }
+
+#peers-section:not(.open) {
+  display: none;
+}
