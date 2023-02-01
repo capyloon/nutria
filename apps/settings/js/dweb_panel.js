@@ -39,6 +39,24 @@ class DwebPanel {
     } catch (e) {}
   }
 
+  async addSwitchBinding(id, name, handler) {
+    let binding = new SwitchAndSetting(
+      document.getElementById(`dweb-p2p-${id}-switch`),
+      name
+    );
+    binding.addEventListener("change", handler.bind(this));
+    await binding.init();
+  }
+
+  // Disable the "local only" switch when the discovery is globally disabled.
+  p2pDiscovery(event) {
+    let enabled = event.detail.value;
+    this.log(`p2pDiscovery -> ${enabled}`);
+
+    let remoteSwitch = document.getElementById("dweb-p2p-remote-switch");
+    remoteSwitch.disabled = !enabled;
+  }
+
   async init() {
     if (this.ready) {
       return;
@@ -46,6 +64,14 @@ class DwebPanel {
 
     this.settings = await apiDaemon.getSettings();
     await this.manageEstuary();
+
+    await this.addSwitchBinding(
+      "discovery",
+      "p2p.discovery.enabled",
+      this.p2pDiscovery
+    );
+
+    await this.addSwitchBinding("remote", "p2p.discovery.local-only", () => {});
 
     this.ready = true;
   }

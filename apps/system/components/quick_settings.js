@@ -32,6 +32,7 @@ class QuickSettings extends HTMLElement {
         <sl-range id="brightness" name="brightness" min="0" max="100" value="100"></sl-range>
       </section>
       <section class="notifications"></section>
+      <section class="peers"></section>
       <section class="browser-actions"></section>
     </div>
     `;
@@ -190,7 +191,8 @@ class QuickSettings extends HTMLElement {
   }
 
   initFlashlight() {
-    let flIcon = this.shadowRoot.querySelector(".flashlight-icon").parentElement;
+    let flIcon =
+      this.shadowRoot.querySelector(".flashlight-icon").parentElement;
     if (!navigator.b2g?.getFlashlightManager) {
       flIcon.remove();
       return;
@@ -260,6 +262,35 @@ class QuickSettings extends HTMLElement {
   async removeNotification(notification) {
     let unique = await notification.id;
     let existing = this.shadowRoot.querySelector(`#notification-${unique}`);
+    if (existing) {
+      existing.remove();
+    }
+  }
+
+  async addPeer(peer, handler) {
+    let node = document.createElement("div");
+    node.classList.add("peer");
+    let desc = document.createElement("span");
+    desc.textContent = peer.deviceDesc;
+    node.append(desc);
+    let button = document.createElement("sl-button");
+    button.setAttribute("data-l10n-id", "connect-peer");
+    button.onclick = () => {
+      this.drawer.hide();
+      handler(peer);
+    }
+    node.append(button);
+    let id = `peer-${peer.did}-${peer.deviceId}`.replaceAll(":", "-");
+    node.setAttribute("id", id);
+
+    document.l10n.translateFragment(node);
+
+    this.shadowRoot.querySelector(".peers").appendChild(node);
+  }
+
+  async removePeer(peer) {
+    let id = `#peer-${peer.did}-${peer.deviceId}`.replaceAll(":", "-");
+    let existing = this.shadowRoot.querySelector(id);
     if (existing) {
       existing.remove();
     }

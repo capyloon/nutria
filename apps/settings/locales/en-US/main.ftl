@@ -93,7 +93,9 @@ code-check-error = Unmatched Lock Codes
 # Decentralized web panel
 dweb-title = Decentralized Web
 dweb-estuary-section = Estuary API key
-dweb-ipfsd-section = IPFS light node
+dweb-p2p-section = Peers Discovery
+dweb-p2p-discovery-label = Allow discovery
+dweb-p2p-remote-label = Allow discovery outside of the local network
 
 # Telephony panel
 telephony-title = Telephony

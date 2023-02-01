@@ -57,6 +57,10 @@ screenshot-saved-error = Failed to Save Screenshot: {$error}
 
 # Quick Settings Panel
 emergency-calls-only = Emergency Calls Only
+connect-peer = Connect
+connect-error-not-connected = Can't reach {$desc} : not connected
+connect-error-denied = {$desc} rejected the connection
+connect-error-other = Error connecting to {$desc}
 
 # Download notifications
 download-notification-title-downloading = Download Ongoing
@@ -128,3 +132,10 @@ drm-content-disabled-text = You must enable DRM to play some audio or video on t
 drm-button-title = Enable
 drm-content-cdm-installing-title = DRM Installing
 drm-content-cdm-installing-text = Capyloon is installing components needed to play the audio or video on this page. Please try again later.
+
+# P2P discovery and pairing
+p2p-enable-discovery-success = Peer discovery enabled
+p2p-enable-discovery-failure = Failed to enable peer discovery
+p2p-disable-discovery-success = Peer discovery disabled
+p2p-disable-discovery-failure = Failed to disable peer discovery
+p2p-peer-found = New peer found: {$name}

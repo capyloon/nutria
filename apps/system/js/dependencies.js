@@ -63,10 +63,17 @@ const kDeps = [
     deps: [
       "hide logo",
       "various modules",
-      "swproxy",
-      "activity handler",
       "content manager",
     ],
+  },
+  {
+    name: "late start",
+    kind: "virtual",
+    deps: [
+      "swproxy",
+      "activity handler",
+      "p2p",
+    ]
   },
   {
     name: "swproxy",
@@ -77,6 +84,12 @@ const kDeps = [
     name: "activity handler",
     kind: "script",
     param: ["./js/activity_handler.js"],
+  },
+  {
+    name: "p2p",
+    kind: "script",
+    param: ["./js/p2p.js"],
+    deps: ["api daemon core"]
   },
   {
     name: "hide logo",

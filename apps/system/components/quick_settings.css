@@ -28,14 +28,16 @@
   margin-right: 0.5em;
 }
 
-:host section.notifications:not(:empty) {
+:host section.notifications:not(:empty),
+:host section.peers:not(:empty) {
   padding-top: 0.5em;
   padding-bottom: 0.5em;
   max-height: 40vh;
   overflow-y: scroll;
 }
 
-:host section.notifications:not(:empty) > * {
+:host section.notifications:not(:empty) > *,
+:host section.peers:not(:empty) > * {
   padding-bottom: 0.5em;
 }
 
@@ -129,4 +131,12 @@
   cursor: pointer;
   border-radius: 40%;
   box-shadow: 2px 2px 3px black;
+}
+
+:host .peer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
 }
