@@ -23,7 +23,7 @@ class QuickSettings extends HTMLElement {
         <sl-badge pill variant="neutral"><sl-icon class="flashlight-icon inactive" name="flashlight-off"></sl-icon></sl-badge>
         <div class="flex-fill"></div>
         <sl-badge pill variant="neutral" id="tor-icon"><img src="./resources/tor.ico"></sl-badge>
-        <sl-icon name="settings" id="settings-icon"></sl-icon>
+        <img id="settings-icon" src="http://settings.localhost:${config.port}/icons/settings.svg"/>
         <sl-icon name="log-out" id="logout-icon"></sl-icon>
         <sl-icon name="lock" id="lock-icon"></sl-icon>
       </section>
