@@ -140,3 +140,7 @@ p2p-connect-error-not-connected = Can't reach {$desc} : not connected
 p2p-connect-error-denied = {$desc} rejected the connection
 p2p-connect-error-other = Error connecting to {$desc}
 p2p-connect-success = Connected to {$desc}
+p2p-connect-request-title = Peer Connection Request
+p2p-connect-request-text = Do you accept the connection request from {$desc}?
+p2p-connect-request-accept = Accept
+p2p-connect-request-reject = Reject

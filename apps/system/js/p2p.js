@@ -8,6 +8,7 @@
 class Webrtc {
   constructor() {
     this.pc = null;
+    this.channel = null;
   }
 
   ensurePeerConnection() {
@@ -79,7 +80,9 @@ class Webrtc {
 
   async offer() {
     this.ensurePeerConnection();
-    this.setupChannel(this.pc.createDataChannel("one-two"));
+    if (!this.channel) {
+      this.setupChannel(this.pc.createDataChannel("capyloon-p2p"));
+    }
 
     let offer = await this.pc.createOffer();
     this.pc.setLocalDescription(offer);
@@ -159,9 +162,27 @@ class P2pDiscovery {
         console.log(`p2p: dweb: WebrtcProvider: ${msg}`);
       }
 
-      hello(peer) {
+      async hello(peer) {
         this.log(`Hello from ${JSON.stringify(peer)}`);
-        return Promise.resolve(true);
+        let dialog = document.querySelector("confirm-dialog");
+
+        const [title, text, accept, reject] = await document.l10n.formatValues([
+          "p2p-connect-request-title",
+          { id: "p2p-connect-request-text", args: { desc: peer.did } },
+          "p2p-connect-request-accept",
+          "p2p-connect-request-reject",
+        ]);
+
+        let result = await dialog.open({
+          title,
+          text,
+          buttons: [
+            { id: "accept", label: accept, variant: "success" },
+            { id: "reject", label: reject, variant: "danger" },
+          ],
+        });
+
+        return Promise.resolve(result == "accept");
       }
 
       async provideAnswer(peer, offer) {

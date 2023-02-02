@@ -15,5 +15,7 @@
   "privacy.trackingprotection.enabled": true,
   "ftu.done": false,
   "ipfs.estuary.api-token": "ESTb4ae60f8-7cf5-4834-b735-1edcf98b0f0bARY",
-  "homescreen.manifestUrl": "http://homescreen.localhost$PORT/manifest.webmanifest"
+  "homescreen.manifestUrl": "http://homescreen.localhost$PORT/manifest.webmanifest",
+  "p2p.discovery.enabled": false,
+  "p2p.discovery.local-only": true
 }
