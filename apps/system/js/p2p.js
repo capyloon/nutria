@@ -33,8 +33,10 @@ class Webrtc {
       "track",
       "datachannel",
     ].forEach((event) => this.pc.addEventListener(event, this));
+  }
 
-    this.channel = this.pc.createDataChannel("one-two");
+  setupChannel(channel) {
+    this.channel = channel;
     this.channel.binaryType = "arraybuffer";
     ["message", "open", "close", "error"].forEach((event) =>
       this.channel.addEventListener(event, this)
@@ -57,9 +59,19 @@ class Webrtc {
         this._iceGatheringDone();
       }
     }
+
+    if (event.type === "datachannel") {
+      this.setupChannel(event.channel);
+    }
+
+    if (event.type === "open") {
+      this.channel.send("HELLO WORLD!");
+    }
   }
 
   async offer() {
+    this.setupChannel(this.pc.createDataChannel("one-two"));
+
     let offer = await this.pc.createOffer();
     this.pc.setLocalDescription(offer);
     await this.iceGatheringReady;
@@ -70,7 +82,7 @@ class Webrtc {
     let answer = await this.pc.createAnswer();
     this.pc.setLocalDescription(answer);
     await this.iceGatheringReady;
-    return pc.localDescription;
+    return this.pc.localDescription;
   }
 
   setRemoteDescription(answer) {
@@ -93,7 +105,7 @@ class P2pDiscovery {
 
     this.deviceDesc = `Capyloon: ${embedder.sessionType}`;
     this.deviceId = null;
-    this.did = "did:key:01234566789";
+    this.did = `did:key:${Math.round(Math.random() * 1000000)}`;
 
     this.init().then(() => {
       this.log(`ready, device is ${embedder.sessionType}`);
@@ -102,7 +114,7 @@ class P2pDiscovery {
   }
 
   log(msg) {
-    console.log(`p2p: ${msg}`);
+    console.log(`p2p: dweb: ${msg}`);
   }
 
   async getSetting(name, defaultValue) {
@@ -127,15 +139,24 @@ class P2pDiscovery {
         this.webrtc = webrtc;
       }
 
+      log(msg) {
+        console.log(`p2p: dweb: WebrtcProvider: ${msg}`);
+      }
+
       hello(desc) {
         this.log(`Hello from ${desc}`);
         return Promise.resolve(true);
       }
 
       async provideAnswer(offer) {
-        this.log(`offer: ${offer}`);
-        this.webrtc.setRemoteDescription(offer);
-        return await this.webrtc.answer();
+        try {
+          this.log(`provideAnswer, offer: ${offer.substring(0, 80)}`);
+          this.webrtc.setRemoteDescription(JSON.parse(offer));
+          let answer = await this.webrtc.answer();
+          return JSON.stringify(answer);
+        } catch (e) {
+          this.log(e);
+        }
       }
     }
 
@@ -212,11 +233,14 @@ class P2pDiscovery {
       this.log(`dweb offer is ${JSON.stringify(offer)}`);
       let answer = await this.dweb.connect(peer, JSON.stringify(offer));
       this.webrtc.setRemoteDescription(JSON.parse(answer));
+      await this.toasterMessage(`p2p-connect-success`, true, {
+        desc: peer.deviceDesc,
+      });
     } catch (e) {
       this.log(`dweb connect failed: ${JSON.stringify(e)}`);
       let errorKind = e.value.kind;
       await this.toasterMessage(
-        `connect-error-${CONNECT_ERROR_KIND[errorKind]}`,
+        `p2p-connect-error-${CONNECT_ERROR_KIND[errorKind]}`,
         false,
         { desc: peer.deviceDesc }
       );
@@ -228,7 +252,7 @@ class P2pDiscovery {
     document.querySelector("quick-settings").removePeer(peer);
   }
 
-  async toasterMessage(msg, success = true, params = null) {
+  async toasterMessage(msg, success = true, params = {}) {
     try {
       window.toaster.show(
         await window.utils.l10n(msg, params),
