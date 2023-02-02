@@ -7,6 +7,14 @@
 
 class Webrtc {
   constructor() {
+    this.pc = null;
+  }
+
+  ensurePeerConnection() {
+    if (this.pc !== null) {
+      return;
+    }
+
     this.pc = new RTCPeerConnection({
       iceServers: [
         {
@@ -70,6 +78,7 @@ class Webrtc {
   }
 
   async offer() {
+    this.ensurePeerConnection();
     this.setupChannel(this.pc.createDataChannel("one-two"));
 
     let offer = await this.pc.createOffer();
@@ -79,6 +88,7 @@ class Webrtc {
   }
 
   async answer() {
+    this.ensurePeerConnection();
     let answer = await this.pc.createAnswer();
     this.pc.setLocalDescription(answer);
     await this.iceGatheringReady;
@@ -86,12 +96,17 @@ class Webrtc {
   }
 
   setRemoteDescription(answer) {
+    this.ensurePeerConnection();
     this.pc.setRemoteDescription(answer);
   }
 }
 
 // Mapping of ConnectErrorKind to strings usable in l10n contexts.
 const CONNECT_ERROR_KIND = ["not-connected", "denied", "other"];
+
+function peerKey(peer) {
+  return `${peer.did}-${peer.deviceId}`;
+}
 
 class P2pDiscovery {
   constructor() {
@@ -106,6 +121,8 @@ class P2pDiscovery {
     this.deviceDesc = `Capyloon: ${embedder.sessionType}`;
     this.deviceId = null;
     this.did = `did:key:${Math.round(Math.random() * 1000000)}`;
+
+    this.webrtcManagers = new Map(); // Maps peer -> Webrtc instance.
 
     this.init().then(() => {
       this.log(`ready, device is ${embedder.sessionType}`);
@@ -131,12 +148,11 @@ class P2pDiscovery {
     this.settings = await apiDaemon.getSettings();
 
     let lib = apiDaemon.getLibraryFor("DwebService");
-    this.webrtc = new Webrtc();
 
     class WebrtcProvider extends lib.WebrtcProviderBase {
-      constructor(webrtc, serviceId, session) {
+      constructor(webrtcManagers, serviceId, session) {
         super(serviceId, session);
-        this.webrtc = webrtc;
+        this.webrtcManagers = webrtcManagers;
       }
 
       log(msg) {
@@ -156,8 +172,9 @@ class P2pDiscovery {
               80
             )}`
           );
-          this.webrtc.setRemoteDescription(JSON.parse(offer));
-          let answer = await this.webrtc.answer();
+          let webrtc = this.webrtcManagers.get(peerKey(peer));
+          webrtc.setRemoteDescription(JSON.parse(offer));
+          let answer = await webrtc.answer();
           return JSON.stringify(answer);
         } catch (e) {
           this.log(e);
@@ -166,7 +183,11 @@ class P2pDiscovery {
     }
 
     await this.dweb.setWebrtcProvider(
-      new WebrtcProvider(this.webrtc, this.dweb.service_id, this.dweb.session)
+      new WebrtcProvider(
+        this.webrtcManagers,
+        this.dweb.service_id,
+        this.dweb.session
+      )
     );
 
     // Get the initial settings values.
@@ -222,6 +243,7 @@ class P2pDiscovery {
       return;
     }
     this.log(`peer found: ${JSON.stringify(peer)}`);
+    this.webrtcManagers.set(peerKey(peer), new Webrtc());
     let msg = await window.utils.l10n("p2p-peer-found", {
       name: peer.deviceDesc,
     });
@@ -234,10 +256,11 @@ class P2pDiscovery {
 
   async initiateConnection(peer) {
     try {
-      let offer = await this.webrtc.offer();
+      let webrtc = this.webrtcManagers.get(peerKey(peer));
+      let offer = await webrtc.offer();
       this.log(`dweb offer is ${JSON.stringify(offer)}`);
       let answer = await this.dweb.pairWith(peer, JSON.stringify(offer));
-      this.webrtc.setRemoteDescription(JSON.parse(answer));
+      webrtc.setRemoteDescription(JSON.parse(answer));
       await this.toasterMessage(`p2p-connect-success`, true, {
         desc: peer.deviceDesc,
       });
@@ -254,6 +277,7 @@ class P2pDiscovery {
 
   async onPeerLost(peer) {
     this.log(`peer lost: ${JSON.stringify(peer)}`);
+    this.webrtcManagers.delete(peerKey(peer));
     document.querySelector("quick-settings").removePeer(peer);
   }
 
