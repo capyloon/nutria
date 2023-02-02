@@ -143,14 +143,19 @@ class P2pDiscovery {
         console.log(`p2p: dweb: WebrtcProvider: ${msg}`);
       }
 
-      hello(desc) {
-        this.log(`Hello from ${desc}`);
+      hello(peer) {
+        this.log(`Hello from ${JSON.stringify(peer)}`);
         return Promise.resolve(true);
       }
 
-      async provideAnswer(offer) {
+      async provideAnswer(peer, offer) {
         try {
-          this.log(`provideAnswer, offer: ${offer.substring(0, 80)}`);
+          this.log(
+            `provideAnswer to ${JSON.stringify(peer)}, offer: ${offer.substring(
+              0,
+              80
+            )}`
+          );
           this.webrtc.setRemoteDescription(JSON.parse(offer));
           let answer = await this.webrtc.answer();
           return JSON.stringify(answer);
@@ -231,7 +236,7 @@ class P2pDiscovery {
     try {
       let offer = await this.webrtc.offer();
       this.log(`dweb offer is ${JSON.stringify(offer)}`);
-      let answer = await this.dweb.connect(peer, JSON.stringify(offer));
+      let answer = await this.dweb.pairWith(peer, JSON.stringify(offer));
       this.webrtc.setRemoteDescription(JSON.parse(answer));
       await this.toasterMessage(`p2p-connect-success`, true, {
         desc: peer.deviceDesc,
@@ -272,12 +277,11 @@ class P2pDiscovery {
     if (this.enabled) {
       this.log(`Enabling discovery`);
       try {
-        this.dweb.enableDiscovery(
-          this.localOnly,
-          this.did,
-          this.deviceId,
-          this.deviceDesc
-        );
+        this.dweb.enableDiscovery(this.localOnly, {
+          did: this.did,
+          deviceId: this.deviceId,
+          deviceDesc: this.deviceDesc,
+        });
         await this.toasterMessage("p2p-enable-discovery-success");
       } catch (e) {
         await this.toasterMessage("p2p-enable-discovery-failure", false);
