@@ -5,105 +5,8 @@
 // - p2p.device.id
 // - p2p.device.desc
 
-class Webrtc {
-  constructor(peer, dweb) {
-    this.peer = peer; // The remote peer.
-    this.dweb = dweb;
-    this.pc = null;
-    this.channel = null;
-  }
-
-  ensurePeerConnection() {
-    if (this.pc !== null) {
-      return;
-    }
-
-    this.pc = new RTCPeerConnection({
-      iceServers: [
-        {
-          urls: [
-            "stun:stun.l.google.com:19302",
-            "stun:global.stun.twilio.com:3478",
-          ],
-        },
-      ],
-      sdpSemantics: "unified-plan",
-    });
-
-    // This promise resolves when the local description is ready.
-    this._iceGatheringDone = null;
-    this.iceGatheringReady = new Promise((resolve) => {
-      this._iceGatheringDone = resolve;
-    });
-
-    [
-      // "iceconnectionstatechange",
-      "icegatheringstatechange",
-      // "signalingstatechange",
-      // "icecandidate",
-      "track",
-      "datachannel",
-    ].forEach((event) => this.pc.addEventListener(event, this));
-  }
-
-  setupChannel(channel) {
-    this.channel = channel;
-    this.channel.binaryType = "arraybuffer";
-    ["message", "open", "close", "error"].forEach((event) =>
-      this.channel.addEventListener(event, this)
-    );
-  }
-
-  async handleEvent(event) {
-    console.log(`dweb webrtc: event ${event.type}`);
-
-    // if (event.type === "signalingstatechange") {
-    //   console.log(`dweb webrtc: signalingState is ${this.pc.signalingState}`);
-    //   console.log(`dweb ${JSON.stringify(this.pc.localDescription)}`);
-    // }
-
-    if (event.type === "icegatheringstatechange") {
-      console.log(
-        `dweb webrtc: gatheringState is ${this.pc.iceGatheringState}`
-      );
-      if (this.pc.iceGatheringState === "complete") {
-        this._iceGatheringDone();
-      }
-    } else if (event.type === "datachannel") {
-      this.setupChannel(event.channel);
-    } else if (event.type === "open") {
-      this.channel.send("HELLO WORLD!");
-    }
-  }
-
-  async offer() {
-    this.ensurePeerConnection();
-    if (!this.channel) {
-      this.setupChannel(this.pc.createDataChannel("capyloon-p2p"));
-    }
-
-    let offer = await this.pc.createOffer();
-    this.pc.setLocalDescription(offer);
-    await this.iceGatheringReady;
-    return this.pc.localDescription;
-  }
-
-  async answer() {
-    this.ensurePeerConnection();
-    let answer = await this.pc.createAnswer();
-    this.pc.setLocalDescription(answer);
-    await this.iceGatheringReady;
-    return this.pc.localDescription;
-  }
-
-  setRemoteDescription(answer) {
-    this.ensurePeerConnection();
-    this.pc.setRemoteDescription(answer);
-  }
-}
-
 // Mapping of ConnectErrorKind to strings usable in l10n contexts.
-const CONNECT_ERROR_KIND = ["not-connected", "denied", "other"];
+const CONNECT_ERROR_KIND = ["not-connected", "not-paired", "denied", "other"];
 
 function peerKey(peer) {
   return `${peer.did}-${peer.deviceId}`;
@@ -122,8 +25,6 @@ class P2pDiscovery {
     this.deviceDesc = `Capyloon: ${embedder.sessionType}`;
     this.deviceId = null;
     this.did = `did:key:${Math.round(Math.random() * 1000000)}`;
-
-    this.webrtcManagers = new Map(); // Maps peer -> Webrtc instance.
 
     this.init().then(() => {
       this.log(`ready, device is ${embedder.sessionType}`);
@@ -151,9 +52,8 @@ class P2pDiscovery {
     let lib = apiDaemon.getLibraryFor("DwebService");
 
     class WebrtcProvider extends lib.P2pProviderBase {
-      constructor(webrtcManagers, serviceId, session) {
+      constructor(serviceId, session) {
         super(serviceId, session);
-        this.webrtcManagers = webrtcManagers;
       }
 
       log(msg) {
@@ -183,30 +83,28 @@ class P2pDiscovery {
         return Promise.resolve(result == "accept");
       }
 
-      async provideAnswer(peer, action, offer) {
-        try {
-          this.log(
-            `provideAnswer to ${JSON.stringify(peer)}, offer: ${offer.substring(
-              0,
-              80
-            )}`
-          );
-          let webrtc = this.webrtcManagers.get(peerKey(peer));
-          webrtc.setRemoteDescription(JSON.parse(offer));
-          let answer = await webrtc.answer();
-          return JSON.stringify(answer);
-        } catch (e) {
-          this.log(e);
-        }
+      provideAnswer(peer, action, offer) {
+        this.log(`provideAnswer for ${action} on ${JSON.stringify(peer)}`);
+        return Promise.reject();
+        // try {
+        //   this.log(
+        //     `provideAnswer to ${JSON.stringify(peer)}, offer: ${offer.substring(
+        //       0,
+        //       80
+        //     )}`
+        //   );
+        //   let webrtc = this.webrtcManagers.get(peerKey(peer));
+        //   webrtc.setRemoteDescription(JSON.parse(offer));
+        //   let answer = await webrtc.answer();
+        //   return JSON.stringify(answer);
+        // } catch (e) {
+        //   this.log(e);
+        // }
       }
     }
 
     await this.dweb.setP2pProvider(
-      new WebrtcProvider(
-        this.webrtcManagers,
-        this.dweb.service_id,
-        this.dweb.session
-      )
+      new WebrtcProvider(this.dweb.service_id, this.dweb.session)
     );
 
     // Get the initial settings values.
@@ -255,6 +153,7 @@ class P2pDiscovery {
     );
     this.dweb.addEventListener(this.dweb.SESSIONADDED_EVENT, (session) => {
       this.log(`SESSIONADDED_EVENT: ${JSON.stringify(session)}`);
+      this.quickSettings().peerPaired(session.peer);
     });
     this.dweb.addEventListener(this.dweb.SESSIONREMOVED_EVENT, (sessionId) => {
       this.log(`SESSIONREMOVED_EVENT: ${sessionId}`);
@@ -263,29 +162,36 @@ class P2pDiscovery {
     await this.updateDiscovery();
   }
 
+  quickSettings() {
+    if (!this._qsettings) {
+      this._qsettings = document.querySelector("quick-settings");
+    }
+    return this._qsettings;
+  }
+
   async onPeerFound(peer) {
     if (peer.did == this.did) {
       return;
     }
     this.log(`peer found: ${JSON.stringify(peer)}`);
-    // this.webrtcManagers.set(peerKey(peer), new Webrtc(peer, this.dweb));
     let msg = await window.utils.l10n("p2p-peer-found", {
       name: peer.deviceDesc,
     });
     window.toaster.show(msg);
-    document.querySelector("quick-settings").addPeer(peer, () => {
+    this.quickSettings().addPeer(peer, () => {
       this.log(`dweb Will connect to ${JSON.stringify(peer)}`);
       this.initiateConnection(peer);
     });
   }
 
+  onPeerLost(peer) {
+    this.log(`peer lost: ${JSON.stringify(peer)}`);
+    this.quickSettings().removePeer(peer);
+  }
+
   async initiateConnection(peer) {
     try {
-      // let webrtc = this.webrtcManagers.get(peerKey(peer));
-      // let offer = await webrtc.offer();
-      // this.log(`dweb offer is ${JSON.stringify(offer)}`);
-      let answer = await this.dweb.pairWith(peer);
-      // webrtc.setRemoteDescription(JSON.parse(answer));
+      let _session = await this.dweb.pairWith(peer);
       await this.toasterMessage(`p2p-connect-success`, true, {
         desc: peer.deviceDesc,
       });
@@ -298,12 +204,6 @@ class P2pDiscovery {
         { desc: peer.deviceDesc }
       );
     }
-  }
-
-  async onPeerLost(peer) {
-    this.log(`peer lost: ${JSON.stringify(peer)}`);
-    // this.webrtcManagers.delete(peerKey(peer));
-    document.querySelector("quick-settings").removePeer(peer);
   }
 
   async toasterMessage(msg, success = true, params = {}) {

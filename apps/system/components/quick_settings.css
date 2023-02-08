@@ -140,3 +140,15 @@
   padding-left: 0.5em;
   padding-right: 0.5em;
 }
+
+:host .peer > sl-tag {
+  display: none;
+}
+
+:host .peer.paired > sl-tag {
+  display: initial;
+}
+
+:host .peer.paired > sl-button {
+  display: none;
+}

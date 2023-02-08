@@ -273,13 +273,21 @@ class QuickSettings extends HTMLElement {
     let desc = document.createElement("span");
     desc.textContent = peer.deviceDesc;
     node.append(desc);
+
+    let tag = document.createElement("sl-tag");
+    tag.dataset.l10nId = "peer-paired";
+    tag.setAttribute("variant", "success");
+    tag.setAttribute("pill", "true");
+    node.append(tag);
+
     let button = document.createElement("sl-button");
     button.setAttribute("data-l10n-id", "connect-peer");
     button.onclick = () => {
       this.drawer.hide();
       handler(peer);
-    }
+    };
     node.append(button);
+
     let id = `peer-${peer.did}-${peer.deviceId}`.replaceAll(":", "-");
     node.setAttribute("id", id);
 
@@ -288,12 +296,17 @@ class QuickSettings extends HTMLElement {
     this.shadowRoot.querySelector(".peers").appendChild(node);
   }
 
-  async removePeer(peer) {
+  removePeer(peer) {
     let id = `#peer-${peer.did}-${peer.deviceId}`.replaceAll(":", "-");
     let existing = this.shadowRoot.querySelector(id);
     if (existing) {
       existing.remove();
     }
+  }
+
+  peerPaired(peer) {
+    let id = `#peer-${peer.did}-${peer.deviceId}`.replaceAll(":", "-");
+    this.shadowRoot.querySelector(id)?.classList.add("paired");
   }
 
   handleEvent(event) {

@@ -58,6 +58,7 @@ screenshot-saved-error = Failed to Save Screenshot: {$error}
 # Quick Settings Panel
 emergency-calls-only = Emergency Calls Only
 connect-peer = Connect
+peer-paired = Paired
 
 # Download notifications
 download-notification-title-downloading = Download Ongoing
@@ -137,6 +138,7 @@ p2p-disable-discovery-success = Peer discovery disabled
 p2p-disable-discovery-failure = Failed to disable peer discovery
 p2p-peer-found = New peer found: {$name}
 p2p-connect-error-not-connected = Can't reach {$desc} : not connected
+p2p-connect-error-not-paired = Can't reach {$desc} : not paired
 p2p-connect-error-denied = {$desc} rejected the connection
 p2p-connect-error-other = Error connecting to {$desc}
 p2p-connect-success = Connected to {$desc}

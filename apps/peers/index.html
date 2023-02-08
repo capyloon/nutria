@@ -21,10 +21,18 @@
   </head>
   <body>
     <div id="share" class="hidden">
-        <h2 id="description" data-l10n-id="share-description"></h2>
-        <sl-progress-bar id="progress-bar"></sl-progress-bar>
-        <sl-qr-code id="qr-code"></sl-qr-code>
-        <sl-button variant="primary" id="bye-bye" data-l10n-id="button-close"></sl-button>
+      <h2 id="description" data-l10n-id="share-description"></h2>
+      <sl-progress-bar id="progress-bar"></sl-progress-bar>
+      <sl-qr-code id="qr-code"></sl-qr-code>
+      <div id="peers-section">
+        <h2 data-l10n-id="peers-section-title"></h2>
+        <sl-menu id="peers"></sl-menu>
+      </div>
+      <sl-button
+        variant="primary"
+        id="bye-bye"
+        data-l10n-id="button-close"
+      ></sl-button>
     </div>
   </body>
 </html>
