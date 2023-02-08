@@ -100,7 +100,7 @@ async function sendToPeer(dweb, sessionId, data) {
       webrtc.channel.addEventListener("message", (event) => {
         log(`webrtc message: ${event.data}`);
       });
-      webrtc.channel.send(data.url);
+      webrtc.channel.send(data.url || data.text);
     });
     webrtc.addEventListener("channel-error", () => {
       log(`channel error!`);
@@ -115,7 +115,7 @@ async function sendToPeer(dweb, sessionId, data) {
     let lib = apiDaemon.getLibraryFor("DwebService");
     let answer = await dweb.setupWebrtcFor(
       session,
-      lib.PeerAction.URL,
+      data.url ? lib.PeerAction.URL : lib.PeerAction.TEXT,
       JSON.stringify(offer)
     );
     webrtc.setRemoteDescription(JSON.parse(answer));
