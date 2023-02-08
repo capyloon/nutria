@@ -83,23 +83,20 @@ class P2pDiscovery {
         return Promise.resolve(result == "accept");
       }
 
-      provideAnswer(peer, action, offer) {
+      async provideAnswer(peer, action, offer) {
         this.log(`provideAnswer for ${action} on ${JSON.stringify(peer)}`);
-        return Promise.reject();
-        // try {
-        //   this.log(
-        //     `provideAnswer to ${JSON.stringify(peer)}, offer: ${offer.substring(
-        //       0,
-        //       80
-        //     )}`
-        //   );
-        //   let webrtc = this.webrtcManagers.get(peerKey(peer));
-        //   webrtc.setRemoteDescription(JSON.parse(offer));
-        //   let answer = await webrtc.answer();
-        //   return JSON.stringify(answer);
-        // } catch (e) {
-        //   this.log(e);
-        // }
+        this.log(`offer is ${offer}`);
+
+        try {
+          let webrtc = new Webrtc(peer);
+          webrtc.setRemoteDescription(JSON.parse(offer));
+          let answer = JSON.stringify(await webrtc.answer());
+
+          this.log(`got answer: ${answer.substring(0, 80)}`)
+          return answer;
+        } catch (e) {
+          this.log(e);
+        }
       }
     }
 

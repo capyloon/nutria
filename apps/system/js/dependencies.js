@@ -60,20 +60,12 @@ const kDeps = [
   {
     name: "launch",
     kind: "virtual",
-    deps: [
-      "hide logo",
-      "various modules",
-      "content manager",
-    ],
+    deps: ["hide logo", "various modules", "content manager"],
   },
   {
     name: "late start",
     kind: "virtual",
-    deps: [
-      "swproxy",
-      "activity handler",
-      "p2p",
-    ]
+    deps: ["swproxy", "activity handler", "p2p"],
   },
   {
     name: "swproxy",
@@ -89,7 +81,12 @@ const kDeps = [
     name: "p2p",
     kind: "script",
     param: ["./js/p2p.js"],
-    deps: ["api daemon core"]
+    deps: ["api daemon core", "webrtc"],
+  },
+  {
+    name: "webrtc",
+    kind: "sharedScript",
+    param: ["js/webrtc.js"],
   },
   {
     name: "hide logo",
@@ -118,7 +115,12 @@ const kDeps = [
     name: "content window",
     kind: "module",
     param: "./components/content_window.js",
-    deps: ["api daemon core", "content manager", "shoelace-icon", "injected scripts"],
+    deps: [
+      "api daemon core",
+      "content manager",
+      "shoelace-icon",
+      "injected scripts",
+    ],
   },
   {
     name: "injected scripts",
