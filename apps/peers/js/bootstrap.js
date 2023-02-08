@@ -97,6 +97,10 @@ async function sendToPeer(dweb, sessionId, data) {
     let webrtc = new Webrtc(session.peer);
     webrtc.addEventListener("channel-open", () => {
       log(`channel open! ${webrtc.channel}`);
+      webrtc.channel.addEventListener("message", (event) => {
+        log(`webrtc message: ${event.data}`);
+      });
+      webrtc.channel.send(data.url);
     });
     webrtc.addEventListener("channel-error", () => {
       log(`channel error!`);
@@ -114,7 +118,7 @@ async function sendToPeer(dweb, sessionId, data) {
       lib.PeerAction.URL,
       JSON.stringify(offer)
     );
-    webrtc.setRemoteDescription(answer);
+    webrtc.setRemoteDescription(JSON.parse(answer));
   } catch (e) {
     console.error(e);
     log(`Oops ${JSON.stringify(e)}`);

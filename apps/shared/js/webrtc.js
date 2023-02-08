@@ -44,18 +44,15 @@ class Webrtc extends EventTarget {
   setupChannel(channel) {
     this.channel = channel;
     this.channel.binaryType = "arraybuffer";
-    ["message", "open", "close", "error"].forEach((event) =>
-      this.channel.addEventListener(event, this)
+    ["open", "close", "error"].forEach((event) =>
+      this.channel.addEventListener(event, (event) => {
+        this.dispatchEvent(new CustomEvent(`channel-${event.type}`));
+      })
     );
   }
 
   async handleEvent(event) {
-    console.log(`dweb webrtc: event ${event.type}`);
-
-    // if (event.type === "signalingstatechange") {
-    //   console.log(`dweb webrtc: signalingState is ${this.pc.signalingState}`);
-    //   console.log(`dweb ${JSON.stringify(this.pc.localDescription)}`);
-    // }
+    console.log(`webrtc: event ${event.type}`);
 
     if (event.type === "icegatheringstatechange") {
       console.log(
@@ -66,13 +63,6 @@ class Webrtc extends EventTarget {
       }
     } else if (event.type === "datachannel") {
       this.setupChannel(event.channel);
-    } else if (event.type === "open") {
-      this.dispatchEvent("channel-open");
-    } else if (event.type === "error") {
-      this.dispatchEvent("channel-error");
-    } else if (event.type === "close") {
-      this.channel = null;
-      this.dispatchEvent("channel-close");
     }
   }
 
