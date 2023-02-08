@@ -3,7 +3,7 @@
 // - p2p.discovery.enabled
 // - p2p.discovery.local-only
 // - p2p.device.id
-// - p2p.device.desc
+// - device.name
 
 // Mapping of ConnectErrorKind to strings usable in l10n contexts.
 const CONNECT_ERROR_KIND = ["not-connected", "not-paired", "denied", "other"];
@@ -92,7 +92,16 @@ class P2pDiscovery {
           webrtc.setRemoteDescription(JSON.parse(offer));
           let answer = JSON.stringify(await webrtc.answer());
 
-          this.log(`got answer: ${answer.substring(0, 80)}`)
+          this.log(`got answer: ${answer.substring(0, 80)}`);
+
+          webrtc.addEventListener("channel-open", () => {
+            this.log(`channel open!`);
+            webrtc.channel.addEventListener("message", (event) => {
+              this.log(`channel message: ${event.data}`);
+              window.wm.openFrame(event.data, { activate: true });
+            });
+          });
+
           return answer;
         } catch (e) {
           this.log(e);
@@ -107,7 +116,7 @@ class P2pDiscovery {
     // Get the initial settings values.
     this.enabled = await this.getSetting("p2p.discovery.enabled", false);
     this.localOnly = await this.getSetting("p2p.discovery.local-only", true);
-    this.deviceDesc = await this.getSetting("p2p.device.desc", this.deviceDesc);
+    this.deviceDesc = await this.getSetting("device.name", this.deviceDesc);
 
     try {
       let setting = await this.settings.get("p2p.device.id");
