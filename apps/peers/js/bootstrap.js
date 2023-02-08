@@ -20,7 +20,7 @@ const kDeps = [
   },
   {
     name: "webrtc",
-    kind: "shareScript",
+    kind: "sharedScript",
     param: ["js/webrtc.js"],
   },
 ];
@@ -108,10 +108,16 @@ async function sendToPeer(dweb, sessionId, data) {
     // Get the local offer.
     let offer = await webrtc.offer();
     // Get the anwser.
-    let answer = await dweb.setupWebrtcFor(session, dweb.PeerAction.URL, offer);
+    let lib = apiDaemon.getLibraryFor("DwebService");
+    let answer = await dweb.setupWebrtcFor(
+      session,
+      lib.PeerAction.URL,
+      JSON.stringify(offer)
+    );
     webrtc.setRemoteDescription(answer);
   } catch (e) {
-    log(e);
+    console.error(e);
+    log(`Oops ${JSON.stringify(e)}`);
   }
 }
 
