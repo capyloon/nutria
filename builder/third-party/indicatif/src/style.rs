@@ -63,7 +63,7 @@ fn width(c: &[Box<str>]) -> usize {
 
 impl ProgressStyle {
     /// Returns the default progress bar style for bars
-    pub fn default_bar() -> ProgressStyle {
+    pub fn default_bar() -> Self {
         Self::new(Template::from_str("{wide_bar} {pos}/{len}").unwrap())
     }
 
@@ -104,7 +104,7 @@ impl ProgressStyle {
     ///
     /// Note that the last character is used as the [final tick string][Self::get_final_tick_str()].
     /// At least two characters are required to provide a non-final and final state.
-    pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
+    pub fn tick_chars(mut self, s: &str) -> Self {
         self.tick_strings = s.chars().map(|c| c.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
         // with a message explicitly informing of the problem
@@ -119,7 +119,7 @@ impl ProgressStyle {
     ///
     /// Note that the last string is used as the [final tick string][Self::get_final_tick_str()].
     /// At least two strings are required to provide a non-final and final state.
-    pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
+    pub fn tick_strings(mut self, s: &[&str]) -> Self {
         self.tick_strings = s.iter().map(|s| s.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
         // with a message explicitly informing of the problem
@@ -134,7 +134,7 @@ impl ProgressStyle {
     ///
     /// You can pass more than three for a more detailed display.
     /// All passed grapheme clusters need to be of equal width.
-    pub fn progress_chars(mut self, s: &str) -> ProgressStyle {
+    pub fn progress_chars(mut self, s: &str) -> Self {
         self.progress_chars = segment(s);
         // Format bar will panic with some potentially confusing message, better to panic here
         // with a message explicitly informing of the problem
@@ -147,11 +147,7 @@ impl ProgressStyle {
     }
 
     /// Adds a custom key that owns a [`ProgressTracker`] to the template
-    pub fn with_key<S: ProgressTracker + 'static>(
-        mut self,
-        key: &'static str,
-        f: S,
-    ) -> ProgressStyle {
+    pub fn with_key<S: ProgressTracker + 'static>(mut self, key: &'static str, f: S) -> Self {
         self.format_map.insert(key, Box::new(f));
         self
     }
@@ -159,7 +155,7 @@ impl ProgressStyle {
     /// Sets the template string for the progress bar
     ///
     /// Review the [list of template keys](../index.html#templates) for more information.
-    pub fn template(mut self, s: &str) -> Result<ProgressStyle, TemplateError> {
+    pub fn template(mut self, s: &str) -> Result<Self, TemplateError> {
         self.template = Template::from_str(s)?;
         Ok(self)
     }
@@ -274,18 +270,18 @@ impl ProgressStyle {
                             "prefix" => buf.push_str(state.prefix.expanded()),
                             "pos" => buf.write_fmt(format_args!("{}", pos)).unwrap(),
                             "human_pos" => {
-                                buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap()
+                                buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap();
                             }
                             "len" => buf.write_fmt(format_args!("{}", len)).unwrap(),
                             "human_len" => {
-                                buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap()
+                                buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
                             }
                             "percent" => buf
                                 .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
                                 .unwrap(),
                             "bytes" => buf.write_fmt(format_args!("{}", HumanBytes(pos))).unwrap(),
                             "total_bytes" => {
-                                buf.write_fmt(format_args!("{}", HumanBytes(len))).unwrap()
+                                buf.write_fmt(format_args!("{}", HumanBytes(len))).unwrap();
                             }
                             "decimal_bytes" => buf
                                 .write_fmt(format_args!("{}", DecimalBytes(pos)))
@@ -294,10 +290,10 @@ impl ProgressStyle {
                                 .write_fmt(format_args!("{}", DecimalBytes(len)))
                                 .unwrap(),
                             "binary_bytes" => {
-                                buf.write_fmt(format_args!("{}", BinaryBytes(pos))).unwrap()
+                                buf.write_fmt(format_args!("{}", BinaryBytes(pos))).unwrap();
                             }
                             "binary_total_bytes" => {
-                                buf.write_fmt(format_args!("{}", BinaryBytes(len))).unwrap()
+                                buf.write_fmt(format_args!("{}", BinaryBytes(len))).unwrap();
                             }
                             "elapsed_precise" => buf
                                 .write_fmt(format_args!("{}", FormattedDuration(state.elapsed())))
@@ -356,7 +352,7 @@ impl ProgressStyle {
                 }
                 TemplatePart::Literal(s) => cur.push_str(s.expanded()),
                 TemplatePart::NewLine => {
-                    self.push_line(lines, &mut cur, state, &mut buf, target_width, &wide)
+                    self.push_line(lines, &mut cur, state, &mut buf, target_width, &wide);
                 }
             }
         }
@@ -478,7 +474,7 @@ impl Template {
                 (Literal, c) => (Literal, Some(c)),
                 (DoubleClose, '}') => (Literal, None),
                 (MaybeOpen, '{') => (Literal, Some('{')),
-                (MaybeOpen, c) | (Key, c) if c.is_ascii_whitespace() => {
+                (MaybeOpen | Key, c) if c.is_ascii_whitespace() => {
                     // If we find whitespace where the variable key is supposed to go,
                     // backtrack and act as if this was a literal.
                     buf.push(c);
@@ -519,7 +515,7 @@ impl Template {
                     (Width, None)
                 }
                 (Align, c @ '0'..='9') => (Width, Some(c)),
-                (Align, '!') | (Width, '!') => {
+                (Align | Width, '!') => {
                     if let Some(TemplatePart::Placeholder { truncate, .. }) = parts.last_mut() {
                         *truncate = true;
                     }
@@ -542,7 +538,7 @@ impl Template {
                 (MaybeOpen, Key) if !buf.is_empty() => parts.push(TemplatePart::Literal(
                     TabExpandedString::new(mem::take(&mut buf).into(), tab_width),
                 )),
-                (Key, Align) | (Key, Literal) if !buf.is_empty() => {
+                (Key, Align | Literal) if !buf.is_empty() => {
                     parts.push(TemplatePart::Placeholder {
                         key: mem::take(&mut buf),
                         align: Alignment::Left,
@@ -550,15 +546,15 @@ impl Template {
                         truncate: false,
                         style: None,
                         alt_style: None,
-                    })
+                    });
                 }
-                (Width, FirstStyle) | (Width, Literal) if !buf.is_empty() => {
+                (Width, FirstStyle | Literal) if !buf.is_empty() => {
                     if let Some(TemplatePart::Placeholder { width, .. }) = parts.last_mut() {
                         *width = Some(buf.parse().unwrap());
                         buf.clear();
                     }
                 }
-                (FirstStyle, AltStyle) | (FirstStyle, Literal) if !buf.is_empty() => {
+                (FirstStyle, AltStyle | Literal) if !buf.is_empty() => {
                     if let Some(TemplatePart::Placeholder { style, .. }) = parts.last_mut() {
                         *style = Some(Style::from_dotted_str(&buf));
                         buf.clear();
@@ -594,9 +590,9 @@ impl Template {
     }
 
     fn set_tab_width(&mut self, new_tab_width: usize) {
-        for part in self.parts.iter_mut() {
+        for part in &mut self.parts {
             if let TemplatePart::Literal(s) = part {
-                s.set_tab_width(new_tab_width)
+                s.set_tab_width(new_tab_width);
             }
         }
     }
@@ -761,7 +757,7 @@ where
     fn reset(&mut self, _: &ProgressState, _: Instant) {}
 
     fn write(&self, state: &ProgressState, w: &mut dyn fmt::Write) {
-        (self)(state, w)
+        (self)(state, w);
     }
 }
 
@@ -795,7 +791,7 @@ mod tests {
             }
 
             fn write(&self, _state: &ProgressState, w: &mut dyn fmt::Write) {
-                w.write_str(self.0.lock().unwrap().as_str()).unwrap()
+                w.write_str(self.0.lock().unwrap().as_str()).unwrap();
             }
         }
 

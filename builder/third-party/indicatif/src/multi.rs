@@ -14,8 +14,8 @@ pub struct MultiProgress {
 }
 
 impl Default for MultiProgress {
-    fn default() -> MultiProgress {
-        MultiProgress::with_draw_target(ProgressDrawTarget::stderr())
+    fn default() -> Self {
+        Self::with_draw_target(ProgressDrawTarget::stderr())
     }
 }
 
@@ -25,13 +25,13 @@ impl MultiProgress {
     /// Progress bars added to this object by default draw directly to stderr, and refresh
     /// a maximum of 15 times a second. To change the refresh rate set the draw target to
     /// one with a different refresh rate.
-    pub fn new() -> MultiProgress {
-        MultiProgress::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Creates a new multi progress object with the given draw target.
-    pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
-        MultiProgress {
+    pub fn with_draw_target(draw_target: ProgressDrawTarget) -> Self {
+        Self {
             state: Arc::new(RwLock::new(MultiState::new(draw_target))),
         }
     }
@@ -199,7 +199,7 @@ impl MultiState {
             ordering: vec![],
             draw_target,
             move_cursor: false,
-            alignment: Default::default(),
+            alignment: MultiProgressAlignment::default(),
             orphan_lines: Vec::new(),
             zombie_lines_count: 0,
         }
@@ -251,7 +251,7 @@ impl MultiState {
 
         // Reap all consecutive 'zombie' progress bars from head of the list.
         let mut adjust = 0;
-        for &index in self.ordering.iter() {
+        for &index in &self.ordering {
             let member = &self.members[index];
             if !member.is_zombie {
                 break;
@@ -299,7 +299,7 @@ impl MultiState {
         // Add lines from `ProgressBar::println` call.
         draw_state.lines.append(&mut self.orphan_lines);
 
-        for index in self.ordering.iter() {
+        for index in &self.ordering {
             let member = &self.members[*index];
             if let Some(state) = &member.draw_state {
                 draw_state.lines.extend_from_slice(&state.lines[..]);
@@ -309,7 +309,7 @@ impl MultiState {
         drop(draw_state);
         let drawable = drawable.draw();
 
-        for index in reap_indices.drain(..) {
+        for index in reap_indices {
             self.remove_idx(index);
         }
 
@@ -362,15 +362,12 @@ impl MultiState {
     }
 
     fn insert(&mut self, location: InsertLocation) -> usize {
-        let idx = match self.free_set.pop() {
-            Some(idx) => {
-                self.members[idx] = MultiStateMember::default();
-                idx
-            }
-            None => {
-                self.members.push(MultiStateMember::default());
-                self.members.len() - 1
-            }
+        let idx = if let Some(idx) = self.free_set.pop() {
+            self.members[idx] = MultiStateMember::default();
+            idx
+        } else {
+            self.members.push(MultiStateMember::default());
+            self.members.len() - 1
         };
 
         match location {

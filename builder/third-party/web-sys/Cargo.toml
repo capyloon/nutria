@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "web-sys"
-version = "0.3.60"
+version = "0.3.61"
 authors = ["The wasm-bindgen Developers"]
 description = """
 Bindings for all Web APIs, a procedurally generated crate from WebIDL
@@ -32,10 +32,10 @@ test = false
 doctest = false
 
 [dependencies.js-sys]
-version = "0.3.60"
+version = "0.3.61"
 
 [dependencies.wasm-bindgen]
-version = "0.2.83"
+version = "0.2.84"
 
 [features]
 AbortController = []
@@ -253,6 +253,7 @@ CloseEvent = ["Event"]
 CloseEventInit = []
 CodecState = []
 CollectedClientData = []
+ColorSpaceConversion = []
 Comment = [
     "CharacterData",
     "EventTarget",
@@ -476,6 +477,7 @@ ExtFragDepth = []
 ExtSRgb = []
 ExtShaderTextureLod = []
 ExtTextureFilterAnisotropic = []
+ExtTextureNorm16 = []
 ExtendableEvent = ["Event"]
 ExtendableEventInit = []
 ExtendableMessageEvent = [
@@ -512,6 +514,7 @@ FileSystemFlags = []
 FillMode = []
 FlashClassification = []
 FlexLineGrowthState = []
+FlowControlType = []
 FocusEvent = [
     "Event",
     "UiEvent",
@@ -578,6 +581,7 @@ GpuBufferBinding = []
 GpuBufferBindingLayout = []
 GpuBufferBindingType = []
 GpuBufferDescriptor = []
+GpuBufferMapState = []
 GpuCanvasAlphaMode = []
 GpuCanvasConfiguration = []
 GpuCanvasContext = []
@@ -619,6 +623,7 @@ GpuImageCopyTexture = []
 GpuImageCopyTextureTagged = []
 GpuImageDataLayout = []
 GpuIndexFormat = []
+GpuInternalError = ["GpuError"]
 GpuLoadOp = []
 GpuMipmapFilterMode = []
 GpuMultisampleState = []
@@ -1190,6 +1195,7 @@ IirFilterNode = [
 IirFilterOptions = []
 ImageBitmap = []
 ImageBitmapFormat = []
+ImageBitmapOptions = []
 ImageBitmapRenderingContext = []
 ImageCapture = []
 ImageCaptureError = []
@@ -1200,6 +1206,7 @@ ImageDecodeOptions = []
 ImageDecodeResult = []
 ImageDecoder = []
 ImageDecoderInit = []
+ImageOrientation = []
 ImageTrack = ["EventTarget"]
 ImageTrackList = []
 InputEvent = [
@@ -1427,6 +1434,7 @@ PannerNode = [
 ]
 PannerOptions = []
 PanningModelType = []
+ParityType = []
 Path2d = []
 PaymentAddress = []
 PaymentComplete = []
@@ -1487,6 +1495,7 @@ Position = []
 PositionAlignSetting = []
 PositionError = []
 PositionOptions = []
+PremultiplyAlpha = []
 Presentation = []
 PresentationAvailability = ["EventTarget"]
 PresentationConnection = ["EventTarget"]
@@ -1578,6 +1587,7 @@ ResizeObserverBoxOptions = []
 ResizeObserverEntry = []
 ResizeObserverOptions = []
 ResizeObserverSize = []
+ResizeQuality = []
 Response = []
 ResponseInit = []
 ResponseType = []
@@ -1686,6 +1696,14 @@ SecurityPolicyViolationEvent = ["Event"]
 SecurityPolicyViolationEventDisposition = []
 SecurityPolicyViolationEventInit = []
 Selection = []
+Serial = ["EventTarget"]
+SerialInputSignals = []
+SerialOptions = []
+SerialOutputSignals = []
+SerialPort = ["EventTarget"]
+SerialPortFilter = []
+SerialPortInfo = []
+SerialPortRequestOptions = []
 ServerSocketOptions = []
 ServiceWorker = ["EventTarget"]
 ServiceWorkerContainer = ["EventTarget"]
@@ -2518,6 +2536,8 @@ XrBoundedReferenceSpace = [
 ]
 XrEye = []
 XrFrame = []
+XrHand = ["XrHandJoint"]
+XrHandJoint = []
 XrHandedness = []
 XrInputSource = []
 XrInputSourceArray = []
@@ -2525,6 +2545,8 @@ XrInputSourceEvent = ["Event"]
 XrInputSourceEventInit = []
 XrInputSourcesChangeEvent = ["Event"]
 XrInputSourcesChangeEventInit = []
+XrJointPose = []
+XrJointSpace = []
 XrLayer = ["EventTarget"]
 XrPermissionDescriptor = []
 XrPermissionStatus = [
@@ -2570,7 +2592,7 @@ gpu_shader_stage = []
 gpu_texture_usage = []
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-futures]
-version = "0.4.33"
+version = "0.4.34"
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-test]
-version = "0.3.33"
+version = "0.3.34"

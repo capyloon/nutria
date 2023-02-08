@@ -224,7 +224,9 @@
 //! ```
 //!
 //! # Examples
-//! `tlsserver` and `tlsclient` are full worked examples.  These both use mio.
+//! [`tlsserver`](https://github.com/rustls/rustls/blob/main/examples/src/bin/tlsserver-mio.rs)
+//! and [`tlsclient`](https://github.com/rustls/rustls/blob/main/examples/src/bin/tlsclient-mio.rs)
+//! are full worked examples.  These both use mio.
 //!
 //! # Crate features
 //! Here's a list of what features are exposed by the rustls crate and what
@@ -265,7 +267,7 @@
     trivial_casts,
     trivial_numeric_casts,
     missing_docs,
-    //unreachable_pub, https://github.com/rust-lang/rust/issues/102352
+    unreachable_pub,
     unused_import_braces,
     unused_extern_crates,
     unused_qualifications
@@ -400,7 +402,6 @@ pub mod client {
 
     pub use builder::{WantsClientCert, WantsTransparencyPolicyOrClientCert};
     #[cfg(feature = "quic")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "quic")))]
     pub use client_conn::ClientQuicExt;
     pub use client_conn::InvalidDnsNameError;
     pub use client_conn::ResolvesClientCert;
@@ -410,13 +411,11 @@ pub mod client {
     pub use handy::{ClientSessionMemoryCache, NoClientSessionStorage};
 
     #[cfg(feature = "dangerous_configuration")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "dangerous_configuration")))]
     pub use crate::verify::{
         CertificateTransparencyPolicy, HandshakeSignatureValid, ServerCertVerified,
         ServerCertVerifier, WebPkiVerifier,
     };
     #[cfg(feature = "dangerous_configuration")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "dangerous_configuration")))]
     pub use client_conn::danger::DangerousClientConfig;
 }
 
@@ -440,7 +439,6 @@ pub mod server {
     pub use handy::ResolvesServerCertUsingSni;
     pub use handy::{NoServerSessionStorage, ServerSessionMemoryCache};
     #[cfg(feature = "quic")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "quic")))]
     pub use server_conn::ServerQuicExt;
     pub use server_conn::StoresServerSessions;
     pub use server_conn::{
@@ -449,7 +447,6 @@ pub mod server {
     pub use server_conn::{ClientHello, ProducesTickets, ResolvesServerCert};
 
     #[cfg(feature = "dangerous_configuration")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "dangerous_configuration")))]
     pub use crate::verify::{ClientCertVerified, ClientCertVerifier, DnsName};
 }
 
@@ -513,7 +510,6 @@ pub mod manual;
 pub type ResolvesServerCertUsingSNI = server::ResolvesServerCertUsingSni;
 #[allow(clippy::upper_case_acronyms)]
 #[cfg(feature = "dangerous_configuration")]
-#[cfg_attr(docsrs, doc(cfg(feature = "dangerous_configuration")))]
 #[doc(hidden)]
 #[deprecated(since = "0.20.0", note = "Use client::WebPkiVerifier")]
 pub type WebPKIVerifier = client::WebPkiVerifier;

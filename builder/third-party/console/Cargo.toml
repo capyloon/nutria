@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.48.0"
 name = "console"
-version = "0.15.4"
+version = "0.15.5"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 description = "A terminal and console abstraction for Rust"
 homepage = "https://github.com/console-rs/console"
@@ -35,12 +35,6 @@ version = "1.4.0"
 [dependencies.libc]
 version = "0.2.30"
 
-[dependencies.regex]
-version = "1.4.2"
-features = ["std"]
-optional = true
-default-features = false
-
 [dependencies.unicode-width]
 version = "0.1"
 optional = true
@@ -57,10 +51,7 @@ default = [
     "unicode-width",
     "ansi-parsing",
 ]
-windows-console-colors = [
-    "ansi-parsing",
-    "regex",
-]
+windows-console-colors = ["ansi-parsing"]
 
 [target."cfg(windows)".dependencies.encode_unicode]
 version = "0.3"

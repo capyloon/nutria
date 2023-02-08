@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "hermit-abi"
-version = "0.2.6"
+version = "0.3.0"
 authors = ["Stefan Lankes"]
 description = """
 hermit-abi is small interface to call functions from the unikernel RustyHermit.
@@ -25,7 +25,7 @@ keywords = [
     "libos",
 ]
 categories = ["os"]
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/hermitcore/rusty-hermit"
 resolver = "1"
 
@@ -47,10 +47,6 @@ version = "1.0.0"
 optional = true
 package = "rustc-std-workspace-core"
 
-[dependencies.libc]
-version = "0.2"
-default-features = false
-
 [features]
 default = []
 docs = []
@@ -58,5 +54,4 @@ rustc-dep-of-std = [
     "core",
     "alloc",
     "compiler_builtins/rustc-dep-of-std",
-    "libc/rustc-dep-of-std",
 ]

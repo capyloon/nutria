@@ -95,6 +95,23 @@ macro_rules! methods {
     ($(($name:ident, $variant:ident($($contents:tt)*)),)*) => {
         $(methods!(@method $name, $variant($($contents)*));)*
 
+        fn enforce_used(self) -> Result<(), Diagnostic> {
+            // Account for the fact this method was called
+            ATTRS.with(|state| state.checks.set(state.checks.get() + 1));
+
+            let mut errors = Vec::new();
+            for (used, attr) in self.attrs.iter() {
+                if used.get() {
+                    continue
+                }
+                let span = match attr {
+                    $(BindgenAttr::$variant(span, ..) => span,)*
+                };
+                errors.push(Diagnostic::span_error(*span, "unused wasm_bindgen attribute"));
+            }
+            Diagnostic::from_vec(errors)
+        }
+
         fn check_used(self) {
             // Account for the fact this method was called
             ATTRS.with(|state| {
@@ -745,6 +762,7 @@ impl ConvertToAst<BindgenAttrs> for syn::ItemFn {
     fn convert(self, attrs: BindgenAttrs) -> Result<Self::Target, Diagnostic> {
         match self.vis {
             syn::Visibility::Public(_) => {}
+            _ if attrs.start().is_some() => {}
             _ => bail_span!(self, "can only #[wasm_bindgen] public functions"),
         }
         if self.sig.constness.is_some() {
@@ -928,6 +946,10 @@ impl<'a> MacroParse<(Option<BindgenAttrs>, &'a mut TokenStream)> for syn::Item {
                     _ => {}
                 }
                 let comments = extract_doc_comments(&f.attrs);
+                // If the function isn't used for anything other than being exported to JS,
+                // it'll be unused when not building for the wasm target and produce a
+                // `dead_code` warning. So, add `#[allow(dead_code)]` before it to avoid that.
+                tokens.extend(quote::quote! { #[allow(dead_code)] });
                 f.to_tokens(tokens);
                 let opts = opts.unwrap_or_default();
                 if opts.start().is_some() {
@@ -1356,39 +1378,15 @@ impl MacroParse<BindgenAttrs> for syn::ItemConst {
 impl MacroParse<BindgenAttrs> for syn::ItemForeignMod {
     fn macro_parse(self, program: &mut ast::Program, opts: BindgenAttrs) -> Result<(), Diagnostic> {
         let mut errors = Vec::new();
-        match self.abi.name {
-            Some(ref l) if l.value() == "C" => {}
-            None => {}
-            Some(ref other) => {
-                errors.push(err_span!(
-                    other,
-                    "only foreign mods with the `C` ABI are allowed"
-                ));
-            }
+        if let Some(other) = self.abi.name.filter(|l| l.value() != "C") {
+            errors.push(err_span!(
+                other,
+                "only foreign mods with the `C` ABI are allowed"
+            ));
         }
-        let module = if let Some((name, span)) = opts.module() {
-            if opts.inline_js().is_some() {
-                let msg = "cannot specify both `module` and `inline_js`";
-                errors.push(Diagnostic::span_error(span, msg));
-            }
-            if opts.raw_module().is_some() {
-                let msg = "cannot specify both `module` and `raw_module`";
-                errors.push(Diagnostic::span_error(span, msg));
-            }
-            Some(ast::ImportModule::Named(name.to_string(), span))
-        } else if let Some((name, span)) = opts.raw_module() {
-            if opts.inline_js().is_some() {
-                let msg = "cannot specify both `raw_module` and `inline_js`";
-                errors.push(Diagnostic::span_error(span, msg));
-            }
-            Some(ast::ImportModule::RawNamed(name.to_string(), span))
-        } else if let Some((js, span)) = opts.inline_js() {
-            let i = program.inline_js.len();
-            program.inline_js.push(js.to_string());
-            Some(ast::ImportModule::Inline(i, span))
-        } else {
-            None
-        };
+        let module = module_from_opts(program, &opts)
+            .map_err(|e| errors.push(e))
+            .unwrap_or_default();
         for item in self.items.into_iter() {
             if let Err(e) = item.macro_parse(program, module.clone()) {
                 errors.push(e);
@@ -1431,6 +1429,38 @@ impl MacroParse<Option<ast::ImportModule>> for syn::ForeignItem {
 
         Ok(())
     }
+}
+
+pub fn module_from_opts(
+    program: &mut ast::Program,
+    opts: &BindgenAttrs,
+) -> Result<Option<ast::ImportModule>, Diagnostic> {
+    let mut errors = Vec::new();
+    let module = if let Some((name, span)) = opts.module() {
+        if opts.inline_js().is_some() {
+            let msg = "cannot specify both `module` and `inline_js`";
+            errors.push(Diagnostic::span_error(span, msg));
+        }
+        if opts.raw_module().is_some() {
+            let msg = "cannot specify both `module` and `raw_module`";
+            errors.push(Diagnostic::span_error(span, msg));
+        }
+        Some(ast::ImportModule::Named(name.to_string(), span))
+    } else if let Some((name, span)) = opts.raw_module() {
+        if opts.inline_js().is_some() {
+            let msg = "cannot specify both `raw_module` and `inline_js`";
+            errors.push(Diagnostic::span_error(span, msg));
+        }
+        Some(ast::ImportModule::RawNamed(name.to_string(), span))
+    } else if let Some((js, span)) = opts.inline_js() {
+        let i = program.inline_js.len();
+        program.inline_js.push(js.to_string());
+        Some(ast::ImportModule::Inline(i, span))
+    } else {
+        None
+    };
+    Diagnostic::from_vec(errors)?;
+    Ok(module)
 }
 
 /// Get the first type parameter of a generic type, errors on incorrect input.
@@ -1648,4 +1678,22 @@ fn operation_kind(opts: &BindgenAttrs) -> ast::OperationKind {
         operation_kind = ast::OperationKind::IndexingDeleter;
     }
     operation_kind
+}
+
+pub fn link_to(opts: BindgenAttrs) -> Result<ast::LinkToModule, Diagnostic> {
+    let mut program = ast::Program::default();
+    let module = module_from_opts(&mut program, &opts)?.ok_or_else(|| {
+        Diagnostic::span_error(Span::call_site(), "`link_to!` requires a module.")
+    })?;
+    if let ast::ImportModule::Named(p, s) | ast::ImportModule::RawNamed(p, s) = &module {
+        if !p.starts_with("./") && !p.starts_with("../") && !p.starts_with("/") {
+            return Err(Diagnostic::span_error(
+                *s,
+                "`link_to!` does not support module paths.",
+            ));
+        }
+    }
+    opts.enforce_used()?;
+    program.linked_modules.push(module);
+    Ok(ast::LinkToModule(program))
 }

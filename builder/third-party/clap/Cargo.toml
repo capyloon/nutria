@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.60.0"
+rust-version = "1.64.0"
 name = "clap"
-version = "4.0.32"
+version = "4.1.4"
 include = [
     "build.rs",
     "src/**/*",
@@ -363,7 +363,7 @@ optional = true
 version = "1.2"
 
 [dependencies.clap_derive]
-version = "=4.0.21"
+version = "=4.1.0"
 optional = true
 
 [dependencies.clap_lex]
@@ -413,10 +413,10 @@ version = "0.4"
 version = "1.1.0"
 
 [dev-dependencies.trybuild]
-version = "1.0.72"
+version = "1.0.73"
 
 [dev-dependencies.trycmd]
-version = "0.14.5"
+version = "0.14.9"
 features = [
     "color-auto",
     "diff",
@@ -471,7 +471,6 @@ unstable-doc = [
     "unicode",
     "string",
     "unstable-replace",
-    "unstable-grouped",
 ]
 unstable-grouped = []
 unstable-replace = []

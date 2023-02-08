@@ -11,9 +11,9 @@
 
 [package]
 edition = "2018"
-rust-version = "1.49"
+rust-version = "1.48"
 name = "windows-sys"
-version = "0.42.0"
+version = "0.45.0"
 authors = ["Microsoft"]
 description = "Rust for Windows"
 readme = "readme.md"
@@ -27,10 +27,6 @@ all-features = true
 
 [features]
 Win32 = []
-Win32_AI = ["Win32"]
-Win32_AI_MachineLearning = ["Win32_AI"]
-Win32_AI_MachineLearning_DirectML = ["Win32_AI_MachineLearning"]
-Win32_AI_MachineLearning_WinML = ["Win32_AI_MachineLearning"]
 Win32_Data = ["Win32"]
 Win32_Data_HtmlHelp = ["Win32_Data"]
 Win32_Data_RightsManagement = ["Win32_Data"]
@@ -65,30 +61,9 @@ Win32_Foundation = ["Win32"]
 Win32_Gaming = ["Win32"]
 Win32_Globalization = ["Win32"]
 Win32_Graphics = ["Win32"]
-Win32_Graphics_CompositionSwapchain = ["Win32_Graphics"]
-Win32_Graphics_DXCore = ["Win32_Graphics"]
-Win32_Graphics_Direct2D = ["Win32_Graphics"]
-Win32_Graphics_Direct2D_Common = ["Win32_Graphics_Direct2D"]
-Win32_Graphics_Direct3D = ["Win32_Graphics"]
-Win32_Graphics_Direct3D10 = ["Win32_Graphics"]
-Win32_Graphics_Direct3D11 = ["Win32_Graphics"]
-Win32_Graphics_Direct3D11on12 = ["Win32_Graphics"]
-Win32_Graphics_Direct3D12 = ["Win32_Graphics"]
-Win32_Graphics_Direct3D9 = ["Win32_Graphics"]
-Win32_Graphics_Direct3D9on12 = ["Win32_Graphics"]
-Win32_Graphics_Direct3D_Dxc = ["Win32_Graphics_Direct3D"]
-Win32_Graphics_Direct3D_Fxc = ["Win32_Graphics_Direct3D"]
-Win32_Graphics_DirectComposition = ["Win32_Graphics"]
-Win32_Graphics_DirectDraw = ["Win32_Graphics"]
-Win32_Graphics_DirectManipulation = ["Win32_Graphics"]
-Win32_Graphics_DirectWrite = ["Win32_Graphics"]
 Win32_Graphics_Dwm = ["Win32_Graphics"]
-Win32_Graphics_Dxgi = ["Win32_Graphics"]
-Win32_Graphics_Dxgi_Common = ["Win32_Graphics_Dxgi"]
 Win32_Graphics_Gdi = ["Win32_Graphics"]
 Win32_Graphics_Hlsl = ["Win32_Graphics"]
-Win32_Graphics_Imaging = ["Win32_Graphics"]
-Win32_Graphics_Imaging_D2D = ["Win32_Graphics_Imaging"]
 Win32_Graphics_OpenGL = ["Win32_Graphics"]
 Win32_Graphics_Printing = ["Win32_Graphics"]
 Win32_Graphics_Printing_PrintTicket = ["Win32_Graphics_Printing"]
@@ -98,19 +73,14 @@ Win32_Media = ["Win32"]
 Win32_Media_Audio = ["Win32_Media"]
 Win32_Media_Audio_Apo = ["Win32_Media_Audio"]
 Win32_Media_Audio_DirectMusic = ["Win32_Media_Audio"]
-Win32_Media_Audio_DirectSound = ["Win32_Media_Audio"]
 Win32_Media_Audio_Endpoints = ["Win32_Media_Audio"]
 Win32_Media_Audio_XAudio2 = ["Win32_Media_Audio"]
 Win32_Media_DeviceManager = ["Win32_Media"]
-Win32_Media_DirectShow = ["Win32_Media"]
-Win32_Media_DirectShow_Xml = ["Win32_Media_DirectShow"]
 Win32_Media_DxMediaObjects = ["Win32_Media"]
 Win32_Media_KernelStreaming = ["Win32_Media"]
 Win32_Media_LibrarySharingServices = ["Win32_Media"]
-Win32_Media_MediaFoundation = ["Win32_Media"]
 Win32_Media_MediaPlayer = ["Win32_Media"]
 Win32_Media_Multimedia = ["Win32_Media"]
-Win32_Media_PictureAcquisition = ["Win32_Media"]
 Win32_Media_Speech = ["Win32_Media"]
 Win32_Media_Streaming = ["Win32_Media"]
 Win32_Media_WindowsMediaFormat = ["Win32_Media"]
@@ -281,7 +251,6 @@ Win32_System_Services = ["Win32_System"]
 Win32_System_SettingsManagementInfrastructure = ["Win32_System"]
 Win32_System_SetupAndMigration = ["Win32_System"]
 Win32_System_Shutdown = ["Win32_System"]
-Win32_System_SideShow = ["Win32_System"]
 Win32_System_StationsAndDesktops = ["Win32_System"]
 Win32_System_SubsystemForLinux = ["Win32_System"]
 Win32_System_SystemInformation = ["Win32_System"]
@@ -290,29 +259,10 @@ Win32_System_TaskScheduler = ["Win32_System"]
 Win32_System_Threading = ["Win32_System"]
 Win32_System_Time = ["Win32_System"]
 Win32_System_TpmBaseServices = ["Win32_System"]
-Win32_System_TransactionServer = ["Win32_System"]
 Win32_System_UpdateAgent = ["Win32_System"]
 Win32_System_UpdateAssessment = ["Win32_System"]
 Win32_System_UserAccessLogging = ["Win32_System"]
 Win32_System_VirtualDosMachines = ["Win32_System"]
-Win32_System_WinRT = ["Win32_System"]
-Win32_System_WinRT_AllJoyn = ["Win32_System_WinRT"]
-Win32_System_WinRT_Composition = ["Win32_System_WinRT"]
-Win32_System_WinRT_CoreInputView = ["Win32_System_WinRT"]
-Win32_System_WinRT_Direct3D11 = ["Win32_System_WinRT"]
-Win32_System_WinRT_Display = ["Win32_System_WinRT"]
-Win32_System_WinRT_Graphics = ["Win32_System_WinRT"]
-Win32_System_WinRT_Graphics_Capture = ["Win32_System_WinRT_Graphics"]
-Win32_System_WinRT_Graphics_Direct2D = ["Win32_System_WinRT_Graphics"]
-Win32_System_WinRT_Graphics_Imaging = ["Win32_System_WinRT_Graphics"]
-Win32_System_WinRT_Holographic = ["Win32_System_WinRT"]
-Win32_System_WinRT_Isolation = ["Win32_System_WinRT"]
-Win32_System_WinRT_ML = ["Win32_System_WinRT"]
-Win32_System_WinRT_Media = ["Win32_System_WinRT"]
-Win32_System_WinRT_Pdf = ["Win32_System_WinRT"]
-Win32_System_WinRT_Printing = ["Win32_System_WinRT"]
-Win32_System_WinRT_Shell = ["Win32_System_WinRT"]
-Win32_System_WinRT_Storage = ["Win32_System_WinRT"]
 Win32_System_WindowsProgramming = ["Win32_System"]
 Win32_System_WindowsSync = ["Win32_System"]
 Win32_System_Wmi = ["Win32_System"]
@@ -344,43 +294,7 @@ Win32_UI_TabletPC = ["Win32_UI"]
 Win32_UI_TextServices = ["Win32_UI"]
 Win32_UI_WindowsAndMessaging = ["Win32_UI"]
 Win32_UI_Wpf = ["Win32_UI"]
-Win32_UI_Xaml = ["Win32_UI"]
-Win32_UI_Xaml_Diagnostics = ["Win32_UI_Xaml"]
 default = []
-deprecated = []
 
-[target.aarch64-pc-windows-gnullvm.dependencies.windows_aarch64_gnullvm]
-version = "0.42.0"
-
-[target.aarch64-pc-windows-msvc.dependencies.windows_aarch64_msvc]
-version = "0.42.0"
-
-[target.aarch64-uwp-windows-msvc.dependencies.windows_aarch64_msvc]
-version = "0.42.0"
-
-[target.i686-pc-windows-gnu.dependencies.windows_i686_gnu]
-version = "0.42.0"
-
-[target.i686-pc-windows-msvc.dependencies.windows_i686_msvc]
-version = "0.42.0"
-
-[target.i686-uwp-windows-gnu.dependencies.windows_i686_gnu]
-version = "0.42.0"
-
-[target.i686-uwp-windows-msvc.dependencies.windows_i686_msvc]
-version = "0.42.0"
-
-[target.x86_64-pc-windows-gnu.dependencies.windows_x86_64_gnu]
-version = "0.42.0"
-
-[target.x86_64-pc-windows-gnullvm.dependencies.windows_x86_64_gnullvm]
-version = "0.42.0"
-
-[target.x86_64-pc-windows-msvc.dependencies.windows_x86_64_msvc]
-version = "0.42.0"
-
-[target.x86_64-uwp-windows-gnu.dependencies.windows_x86_64_gnu]
-version = "0.42.0"
-
-[target.x86_64-uwp-windows-msvc.dependencies.windows_x86_64_msvc]
-version = "0.42.0"
+[target."cfg(not(windows_raw_dylib))".dependencies.windows-targets]
+version = "0.42.1"

@@ -84,6 +84,21 @@ impl<W: Write,
     }
 }
 
+#[cfg(feature="std")]
+impl<W: Write,
+     BufferType : SliceWrapperMut<u8>,
+     AllocU8 : Allocator<u8>,
+     AllocU32 : Allocator<u32>,
+     AllocHC : Allocator<HuffmanCode> > DecompressorWriterCustomAlloc<W,
+                                                                         BufferType,
+                                                                         AllocU8,
+                                                                         AllocU32,
+                                                                         AllocHC> {
+    pub fn close(&mut self) -> Result<(), Error>{
+        self.0.close()
+    }
+}
+
 
 #[cfg(not(any(feature="unsafe", not(feature="std"))))]
 pub struct DecompressorWriter<W: Write>(DecompressorWriterCustomAlloc<W,
@@ -167,7 +182,12 @@ impl<W: Write> DecompressorWriter<W> {
   }
 }
 
-
+#[cfg(feature="std")]
+impl<W: Write> DecompressorWriter<W> {
+    pub fn close(&mut self) -> Result<(), Error>{
+        self.0.close()
+    }
+}
 #[cfg(feature="std")]
 impl<W: Write> Write for DecompressorWriter<W> {
   	fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
@@ -234,7 +254,7 @@ impl<ErrType,
             error_if_invalid_data : Some(invalid_data_error_type),
         }
     }
-    fn close(&mut self) -> Result<(), ErrType>{
+    pub fn close(&mut self) -> Result<(), ErrType>{
         loop {
             let mut avail_in : usize = 0;
             let mut input_offset : usize = 0;
@@ -249,15 +269,21 @@ impl<ErrType,
                 self.output_buffer.slice_mut(),                
                 &mut self.total_out,
                 &mut self.state);
+          // already closed.
+          if self.error_if_invalid_data.is_none() {
+              return Ok(());
+          }
           match write_all(self.output.as_mut().unwrap(), &self.output_buffer.slice_mut()[..output_offset]) {
             Ok(_) => {},
             Err(e) => return Err(e),
            }
            match ret {
-           BrotliResult::NeedsMoreInput => return Err(self.error_if_invalid_data.take().unwrap()),
+           BrotliResult::NeedsMoreInput => return self.error_if_invalid_data.take().map(|e|Err(e)).unwrap_or(Ok(())),
            BrotliResult::NeedsMoreOutput => {},
-           BrotliResult::ResultSuccess => return Ok(()),
-           BrotliResult::ResultFailure => return Err(self.error_if_invalid_data.take().unwrap()),
+           BrotliResult::ResultSuccess => {
+               return Ok(());
+           },
+           BrotliResult::ResultFailure => return self.error_if_invalid_data.take().map(|e|Err(e)).unwrap_or(Ok(()))
            }
         }
     }
@@ -329,9 +355,16 @@ impl<ErrType,
          match op_result {
           BrotliResult::NeedsMoreInput => assert_eq!(avail_in, 0),
           BrotliResult::NeedsMoreOutput => continue,
-          BrotliResult::ResultSuccess => return Ok((buf.len())),
-          BrotliResult::ResultFailure => return Err(self.error_if_invalid_data.take().unwrap()),
-        }
+          BrotliResult::ResultSuccess => {
+              if input_offset != buf.len() {
+                  // Did not utilize the full buffer; return error.
+                  return self.error_if_invalid_data.take().map(
+                      |e|Err(e)).unwrap_or(Ok(0));
+              }
+              return Ok((buf.len()));
+          }
+          BrotliResult::ResultFailure => return self.error_if_invalid_data.take().map(|e|Err(e)).unwrap_or(Ok(0)),
+       }
         if avail_in == 0 {
            break
         }
@@ -342,4 +375,3 @@ impl<ErrType,
        self.output.as_mut().unwrap().flush()
     }
 }
-

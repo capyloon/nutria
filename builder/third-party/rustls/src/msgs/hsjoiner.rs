@@ -19,57 +19,41 @@ const MAX_HANDSHAKE_SIZE: u32 = 0xffff;
 /// TLS messages output from this layer contain precisely
 /// one handshake payload.
 pub struct HandshakeJoiner {
-    /// Completed handshake frames for output.
-    pub frames: VecDeque<Message>,
-
-    /// The message payload we're currently accumulating.
+    /// The message payload(s) we're currently accumulating.
     buf: Vec<u8>,
-}
 
-impl Default for HandshakeJoiner {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+    /// Sizes of messages currently in the buffer.
+    ///
+    /// The buffer can be larger than the sum of the sizes in this queue, because it might contain
+    /// the start of a message that hasn't fully been received yet as its suffix.
+    sizes: VecDeque<usize>,
 
-enum BufferState {
-    /// Buffer contains a header that introduces a message that is too long.
-    MessageTooLarge,
-
-    /// Buffer contains a full header and body.
-    OneMessage,
-
-    /// We need more data to see a header and complete body.
-    NeedsMoreData,
+    /// Version of the protocol we're currently parsing.
+    version: ProtocolVersion,
 }
 
 impl HandshakeJoiner {
     /// Make a new HandshakeJoiner.
     pub fn new() -> Self {
         Self {
-            frames: VecDeque::new(),
             buf: Vec::new(),
+            sizes: VecDeque::new(),
+            version: ProtocolVersion::TLSv1_2,
         }
     }
 
-    /// Do we want to process this message?
-    pub fn want_message(&self, msg: &PlainMessage) -> bool {
-        msg.typ == ContentType::Handshake
-    }
-
-    /// Do we have any buffered data?
-    pub fn is_empty(&self) -> bool {
-        self.buf.is_empty()
-    }
-
     /// Take the message, and join/split it as needed.
-    /// Return the number of new messages added to the
-    /// output deque as a result of this message.
     ///
-    /// Returns None if msg or a preceding message was corrupt.
-    /// You cannot recover from this situation.  Otherwise returns
-    /// a count of how many messages we queued.
-    pub fn take_message(&mut self, msg: PlainMessage) -> Option<usize> {
+    /// Returns `Err(JoinerError::Unwanted(msg))` if `msg`'s type is not `ContentType::Handshake` or
+    /// `JoinerError::Decode` if a received payload has an advertised size larger than we accept.
+    ///
+    /// Otherwise, yields a `bool` to indicate whether the handshake is "aligned": if the buffer currently
+    /// only contains complete payloads (that is, no incomplete message in the suffix).
+    pub fn push(&mut self, msg: PlainMessage) -> Result<bool, JoinerError> {
+        if msg.typ != ContentType::Handshake {
+            return Err(JoinerError::Unwanted(msg));
+        }
+
         // The vast majority of the time `self.buf` will be empty since most
         // handshake messages arrive in a single fragment. Avoid allocating and
         // copying in that common case.
@@ -80,66 +64,80 @@ impl HandshakeJoiner {
                 .extend_from_slice(&msg.payload.0[..]);
         }
 
-        let mut count = 0;
-        loop {
-            match self.buf_contains_message() {
-                BufferState::MessageTooLarge => return None,
-                BufferState::NeedsMoreData => break,
-                BufferState::OneMessage => {
-                    if !self.deframe_one(msg.version) {
-                        return None;
-                    }
-
-                    count += 1;
-                }
-            }
+        if msg.version == ProtocolVersion::TLSv1_3 {
+            self.version = msg.version;
         }
 
-        Some(count)
+        // Check the suffix of the buffer that hasn't been covered by `sizes` so far
+        // for complete messages. If we find any, update `self.sizes` and `complete`.
+        let mut complete = self.sizes.iter().copied().sum();
+        while let Some(size) = payload_size(&self.buf[complete..])? {
+            self.sizes.push_back(size);
+            complete += size;
+        }
+
+        // Use the value of `complete` to determine if the buffer currently contains any
+        // incomplete messages. If not, an incoming message is said to be "aligned".
+        Ok(complete == self.buf.len())
     }
 
-    /// Does our `buf` contain a full handshake payload?  It does if it is big
-    /// enough to contain a header, and that header has a length which falls
-    /// within `buf`.
-    fn buf_contains_message(&self) -> BufferState {
-        if self.buf.len() < HEADER_SIZE {
-            return BufferState::NeedsMoreData;
-        }
-
-        let (header, rest) = self.buf.split_at(HEADER_SIZE);
-        match codec::u24::decode(&header[1..]) {
-            Some(len) if len.0 > MAX_HANDSHAKE_SIZE => BufferState::MessageTooLarge,
-            Some(len) if rest.get(..len.into()).is_some() => BufferState::OneMessage,
-            _ => BufferState::NeedsMoreData,
-        }
-    }
-
-    /// Take a TLS handshake payload off the front of `buf`, and put it onto
-    /// the back of our `frames` deque inside a normal `Message`.
+    /// Parse the first received message out of the buffer.
     ///
-    /// Returns false if the stream is desynchronised beyond repair.
-    fn deframe_one(&mut self, version: ProtocolVersion) -> bool {
-        let used = {
-            let mut rd = codec::Reader::init(&self.buf);
-            let parsed = match HandshakeMessagePayload::read_version(&mut rd, version) {
-                Some(p) => p,
-                None => return false,
-            };
-
-            let m = Message {
-                version,
-                payload: MessagePayload::Handshake {
-                    parsed,
-                    encoded: Payload::new(&self.buf[..rd.used()]),
-                },
-            };
-
-            self.frames.push_back(m);
-            rd.used()
+    /// Returns `Ok(None)` if we don't have a complete message in the buffer, or `Err` if we
+    /// fail to parse the first message in the buffer.
+    pub fn pop(&mut self) -> Result<Option<Message>, JoinerError> {
+        let len = match self.sizes.pop_front() {
+            Some(len) => len,
+            None => return Ok(None),
         };
-        self.buf = self.buf.split_off(used);
-        true
+
+        // Parse the first part of the buffer as a handshake buffer.
+        // If we get `None` back, we've failed to parse the message.
+        // If we succeed, drain the relevant bytes from the buffer.
+
+        let buf = &self.buf[..len];
+        let mut rd = codec::Reader::init(buf);
+        let parsed = match HandshakeMessagePayload::read_version(&mut rd, self.version) {
+            Some(p) => p,
+            None => return Err(JoinerError::Decode),
+        };
+
+        let message = Message {
+            version: self.version,
+            payload: MessagePayload::Handshake {
+                parsed,
+                encoded: Payload::new(buf),
+            },
+        };
+
+        self.buf.drain(..len);
+        Ok(Some(message))
     }
+}
+
+/// Does `buf` contain a full handshake payload?
+///
+/// Returns `Ok(Some(_))` with the length of the payload (including header) if it does,
+/// `Ok(None)` if the buffer is too small to contain a message with the length advertised in the
+/// header, or `Err` if the advertised length is larger than what we want to accept
+/// (`MAX_HANDSHAKE_SIZE`).
+fn payload_size(buf: &[u8]) -> Result<Option<usize>, JoinerError> {
+    if buf.len() < HEADER_SIZE {
+        return Ok(None);
+    }
+
+    let (header, rest) = buf.split_at(HEADER_SIZE);
+    match codec::u24::decode(&header[1..]) {
+        Some(len) if len.0 > MAX_HANDSHAKE_SIZE => Err(JoinerError::Decode),
+        Some(len) if rest.get(..len.into()).is_some() => Ok(Some(HEADER_SIZE + usize::from(len))),
+        _ => Ok(None),
+    }
+}
+
+#[derive(Debug)]
+pub enum JoinerError {
+    Unwanted(PlainMessage),
+    Decode,
 }
 
 #[cfg(test)]
@@ -154,13 +152,11 @@ mod tests {
 
     #[test]
     fn want() {
-        let hj = HandshakeJoiner::new();
-        assert!(hj.is_empty());
-
+        let mut hj = HandshakeJoiner::new();
         let wanted = PlainMessage {
             typ: ContentType::Handshake,
             version: ProtocolVersion::TLSv1_2,
-            payload: Payload::new(b"hello world".to_vec()),
+            payload: Payload::new(b"\x00\x00\x00\x00".to_vec()),
         };
 
         let unwanted = PlainMessage {
@@ -169,12 +165,12 @@ mod tests {
             payload: Payload::new(b"ponytown".to_vec()),
         };
 
-        assert!(hj.want_message(&wanted));
-        assert!(!hj.want_message(&unwanted));
+        hj.push(wanted).unwrap();
+        hj.push(unwanted).unwrap_err();
     }
 
     fn pop_eq(expect: &PlainMessage, hj: &mut HandshakeJoiner) {
-        let got = hj.frames.pop_front().unwrap();
+        let got = hj.pop().unwrap().unwrap();
         assert_eq!(got.payload.content_type(), expect.typ);
         assert_eq!(got.version, expect.version);
 
@@ -191,15 +187,13 @@ mod tests {
         let mut hj = HandshakeJoiner::new();
 
         // two HelloRequests
-        let msg = PlainMessage {
-            typ: ContentType::Handshake,
-            version: ProtocolVersion::TLSv1_2,
-            payload: Payload::new(b"\x00\x00\x00\x00\x00\x00\x00\x00".to_vec()),
-        };
-
-        assert!(hj.want_message(&msg));
-        assert_eq!(hj.take_message(msg), Some(2));
-        assert!(hj.is_empty());
+        assert!(hj
+            .push(PlainMessage {
+                typ: ContentType::Handshake,
+                version: ProtocolVersion::TLSv1_2,
+                payload: Payload::new(b"\x00\x00\x00\x00\x00\x00\x00\x00".to_vec()),
+            })
+            .unwrap());
 
         let expect = Message {
             version: ProtocolVersion::TLSv1_2,
@@ -220,54 +214,46 @@ mod tests {
         let mut hj = HandshakeJoiner::new();
 
         // short ClientHello
-        let msg = PlainMessage {
+        hj.push(PlainMessage {
             typ: ContentType::Handshake,
             version: ProtocolVersion::TLSv1_2,
             payload: Payload::new(b"\x01\x00\x00\x02\xff\xff".to_vec()),
-        };
+        })
+        .unwrap();
 
-        assert!(hj.want_message(&msg));
-        assert_eq!(hj.take_message(msg), None);
+        hj.pop().unwrap_err();
     }
 
     #[test]
     fn join() {
         // Check we join one handshake message split over two PDUs.
         let mut hj = HandshakeJoiner::new();
-        assert!(hj.is_empty());
 
         // Introduce Finished of 16 bytes, providing 4.
-        let mut msg = PlainMessage {
+        hj.push(PlainMessage {
             typ: ContentType::Handshake,
             version: ProtocolVersion::TLSv1_2,
             payload: Payload::new(b"\x14\x00\x00\x10\x00\x01\x02\x03\x04".to_vec()),
-        };
-
-        assert!(hj.want_message(&msg));
-        assert_eq!(hj.take_message(msg), Some(0));
-        assert!(!hj.is_empty());
+        })
+        .unwrap();
 
         // 11 more bytes.
-        msg = PlainMessage {
-            typ: ContentType::Handshake,
-            version: ProtocolVersion::TLSv1_2,
-            payload: Payload::new(b"\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e".to_vec()),
-        };
-
-        assert!(hj.want_message(&msg));
-        assert_eq!(hj.take_message(msg), Some(0));
-        assert!(!hj.is_empty());
+        assert!(!hj
+            .push(PlainMessage {
+                typ: ContentType::Handshake,
+                version: ProtocolVersion::TLSv1_2,
+                payload: Payload::new(b"\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e".to_vec()),
+            })
+            .unwrap());
 
         // Final 1 byte.
-        msg = PlainMessage {
-            typ: ContentType::Handshake,
-            version: ProtocolVersion::TLSv1_2,
-            payload: Payload::new(b"\x0f".to_vec()),
-        };
-
-        assert!(hj.want_message(&msg));
-        assert_eq!(hj.take_message(msg), Some(1));
-        assert!(hj.is_empty());
+        assert!(hj
+            .push(PlainMessage {
+                typ: ContentType::Handshake,
+                version: ProtocolVersion::TLSv1_2,
+                payload: Payload::new(b"\x0f".to_vec()),
+            })
+            .unwrap());
 
         let payload = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f".to_vec();
         let expect = Message {
@@ -285,14 +271,11 @@ mod tests {
     #[test]
     fn test_rejects_giant_certs() {
         let mut hj = HandshakeJoiner::new();
-        let msg = PlainMessage {
+        hj.push(PlainMessage {
             typ: ContentType::Handshake,
             version: ProtocolVersion::TLSv1_2,
             payload: Payload::new(b"\x0b\x01\x00\x04\x01\x00\x01\x00\xff\xfe".to_vec()),
-        };
-
-        assert!(hj.want_message(&msg));
-        assert_eq!(hj.take_message(msg), None);
-        assert!(!hj.is_empty());
+        })
+        .unwrap_err();
     }
 }

@@ -4,10 +4,9 @@ use std::cmp::Ordering;
 // Internal
 use crate::builder::Command;
 
-/// Produces multiple strings from a given list of possible values which are similar
-/// to the passed in value `v` within a certain confidence by least confidence.
-/// Thus in a list of possible values like ["foo", "bar"], the value "fop" will yield
-/// `Some("foo")`, whereas "blark" would yield `None`.
+/// Find strings from an iterable of `possible_values` similar to a given value `v`
+/// Returns a Vec of all possible values that exceed a similarity threshold
+/// sorted by ascending similarity, most similar comes last
 #[cfg(feature = "suggestions")]
 pub(crate) fn did_you_mean<T, I>(v: &str, possible_values: I) -> Vec<String>
 where
@@ -16,8 +15,11 @@ where
 {
     let mut candidates: Vec<(f64, String)> = possible_values
         .into_iter()
-        .map(|pv| (strsim::jaro_winkler(v, pv.as_ref()), pv.as_ref().to_owned()))
-        .filter(|(confidence, _)| *confidence > 0.8)
+        // GH #4660: using `jaro` because `jaro_winkler` implementation in `strsim-rs` is wrong
+        // causing strings with common prefix >=10 to be considered perfectly similar
+        .map(|pv| (strsim::jaro(v, pv.as_ref()), pv.as_ref().to_owned()))
+        // Confidence of 0.7 so that bar -> baz is suggested
+        .filter(|(confidence, _)| *confidence > 0.7)
         .collect();
     candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
     candidates.into_iter().map(|(_, pv)| pv).collect()
@@ -72,34 +74,94 @@ where
     }
 }
 
-#[cfg(all(test, features = "suggestions"))]
+#[cfg(all(test, feature = "suggestions"))]
 mod test {
     use super::*;
 
     #[test]
-    fn possible_values_match() {
+    fn missing_letter() {
         let p_vals = ["test", "possible", "values"];
-        assert_eq!(did_you_mean("tst", p_vals.iter()), Some("test"));
+        assert_eq!(did_you_mean("tst", p_vals.iter()), vec!["test"]);
     }
 
     #[test]
-    fn possible_values_match() {
-        let p_vals = ["test", "temp"];
-        assert_eq!(did_you_mean("te", p_vals.iter()), Some("test"));
+    fn ambiguous() {
+        let p_vals = ["test", "temp", "possible", "values"];
+        assert_eq!(did_you_mean("te", p_vals.iter()), vec!["test", "temp"]);
     }
 
     #[test]
-    fn possible_values_nomatch() {
-        let p_vals = ["test", "possible", "values"];
-        assert!(did_you_mean("hahaahahah", p_vals.iter()).is_none());
-    }
-
-    #[test]
-    fn flag() {
+    fn unrelated() {
         let p_vals = ["test", "possible", "values"];
         assert_eq!(
-            did_you_mean_flag("tst", p_vals.iter(), []),
-            Some(("test", None))
+            did_you_mean("hahaahahah", p_vals.iter()),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn best_fit() {
+        let p_vals = [
+            "test",
+            "possible",
+            "values",
+            "alignmentStart",
+            "alignmentScore",
+        ];
+        assert_eq!(
+            did_you_mean("alignmentScorr", p_vals.iter()),
+            vec!["alignmentStart", "alignmentScore"]
+        );
+    }
+
+    #[test]
+    fn best_fit_long_common_prefix_issue_4660() {
+        let p_vals = ["alignmentScore", "alignmentStart"];
+        assert_eq!(
+            did_you_mean("alignmentScorr", p_vals.iter()),
+            vec!["alignmentStart", "alignmentScore"]
+        );
+    }
+
+    #[test]
+    fn flag_missing_letter() {
+        let p_vals = ["test", "possible", "values"];
+        assert_eq!(
+            did_you_mean_flag("tst", &[], p_vals.iter(), []),
+            Some(("test".to_owned(), None))
+        );
+    }
+
+    #[test]
+    fn flag_ambiguous() {
+        let p_vals = ["test", "temp", "possible", "values"];
+        assert_eq!(
+            did_you_mean_flag("te", &[], p_vals.iter(), []),
+            Some(("temp".to_owned(), None))
+        );
+    }
+
+    #[test]
+    fn flag_unrelated() {
+        let p_vals = ["test", "possible", "values"];
+        assert_eq!(
+            did_you_mean_flag("hahaahahah", &[], p_vals.iter(), []),
+            None
+        );
+    }
+
+    #[test]
+    fn flag_best_fit() {
+        let p_vals = [
+            "test",
+            "possible",
+            "values",
+            "alignmentStart",
+            "alignmentScore",
+        ];
+        assert_eq!(
+            did_you_mean_flag("alignmentScorr", &[], p_vals.iter(), []),
+            Some(("alignmentScore".to_owned(), None))
         );
     }
 }

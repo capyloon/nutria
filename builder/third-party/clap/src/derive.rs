@@ -69,7 +69,7 @@ use std::ffi::OsString;
 /// impl From<ArgMatches> for Context {
 ///     fn from(m: ArgMatches) -> Self {
 ///         Context {
-///             verbose: *m.get_one::<bool>("verbose").expect("defaulted_by_clap"),
+///             verbose: m.get_flag("verbose"),
 ///             name: m.get_one::<String>("name").cloned(),
 ///         }
 ///     }
@@ -201,7 +201,7 @@ pub trait FromArgMatches: Sized {
     ///    fn from(m: ArgMatches) -> Self {
     ///        Context {
     ///            name: m.get_one::<String>("name").unwrap().clone(),
-    ///            debug: *m.get_one::<bool>("debug").expect("defaulted by clap"),
+    ///            debug: m.get_flag("debug"),
     ///        }
     ///    }
     /// }
@@ -235,7 +235,7 @@ pub trait FromArgMatches: Sized {
     ///    fn from(m: ArgMatches) -> Self {
     ///        Context {
     ///            name: m.get_one::<String>("name").unwrap().to_string(),
-    ///            debug: *m.get_one::<bool>("debug").expect("defaulted by clap"),
+    ///            debug: m.get_flag("debug"),
     ///        }
     ///    }
     /// }
@@ -278,7 +278,7 @@ pub trait FromArgMatches: Sized {
 /// #[derive(clap::Args)]
 /// struct LogArgs {
 ///     #[arg(long, short = 'v', action = clap::ArgAction::Count)]
-///     verbose: i8,
+///     verbose: u8,
 /// }
 /// ```
 pub trait Args: FromArgMatches + Sized {
@@ -385,7 +385,7 @@ pub trait ValueEnum: Sized + Clone {
                     .matches(input, ignore_case)
             })
             .cloned()
-            .ok_or_else(|| format!("Invalid variant: {}", input))
+            .ok_or_else(|| format!("invalid variant: {}", input))
     }
 
     /// The canonical argument value.

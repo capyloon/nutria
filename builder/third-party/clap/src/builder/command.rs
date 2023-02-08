@@ -449,7 +449,7 @@ impl Command {
     ///
     /// fn main() {
     ///     let m = cmd().get_matches_from(vec!["foo", "-b"]);
-    ///     println!("{}", *m.get_one::<bool>("bar").expect("defaulted by clap"));
+    ///     println!("{}", m.get_flag("bar"));
     /// }
     /// ```
     pub fn debug_assert(mut self) {
@@ -963,7 +963,7 @@ impl Command {
     /// assert!(r.is_ok(), "unexpected error: {:?}", r);
     /// let m = r.unwrap();
     /// assert_eq!(m.get_one::<String>("config").unwrap(), "file");
-    /// assert!(*m.get_one::<bool>("f").expect("defaulted"));
+    /// assert!(m.get_flag("f"));
     /// assert_eq!(m.get_one::<String>("stuff"), None);
     /// ```
     #[inline]
@@ -1760,7 +1760,7 @@ impl Command {
     ///   * `{options}`             - Help for options.
     ///   * `{positionals}`         - Help for positional arguments.
     ///   * `{subcommands}`         - Help for subcommands.
-    ///   * `{tag}`                 - Standard tab sized used within clap
+    ///   * `{tab}`                 - Standard tab sized used within clap
     ///   * `{after-help}`          - Help from [`Command::after_help`] or [`Command::after_long_help`].
     ///   * `{before-help}`         - Help from [`Command::before_help`] or [`Command::before_long_help`].
     ///
@@ -1943,8 +1943,8 @@ impl Command {
     ///     .replace("--save-all", &["--save-context", "--save-runtime"])
     ///     .get_matches_from(vec!["cmd", "--save-all"]);
     ///
-    /// assert!(*m.get_one::<bool>("save-context").expect("defaulted by clap"));
-    /// assert!(*m.get_one::<bool>("save-runtime").expect("defaulted by clap"));
+    /// assert!(m.get_flag("save-context"));
+    /// assert!(m.get_flag("save-runtime"));
     /// ```
     ///
     /// This can also be used with options, for example if our application with
@@ -1969,8 +1969,8 @@ impl Command {
     ///     .replace("--save-all", &["--save-context", "--save-runtime", "--format=json"])
     ///     .get_matches_from(vec!["cmd", "--save-all"]);
     ///
-    /// assert!(*m.get_one::<bool>("save-context").expect("defaulted by clap"));
-    /// assert!(*m.get_one::<bool>("save-runtime").expect("defaulted by clap"));
+    /// assert!(m.get_flag("save-context"));
+    /// assert!(m.get_flag("save-runtime"));
     /// assert_eq!(m.get_one::<String>("format").unwrap(), "json");
     /// ```
     ///
@@ -2191,7 +2191,7 @@ impl Command {
     ///
     /// assert_eq!(matches.subcommand_name().unwrap(), "sync");
     /// let sync_matches = matches.subcommand_matches("sync").unwrap();
-    /// assert!(*sync_matches.get_one::<bool>("search").expect("defaulted by clap"));
+    /// assert!(sync_matches.get_flag("search"));
     /// ```
     /// [`Arg::short`]: Arg::short()
     #[must_use]
@@ -2228,7 +2228,7 @@ impl Command {
     ///
     /// assert_eq!(matches.subcommand_name().unwrap(), "sync");
     /// let sync_matches = matches.subcommand_matches("sync").unwrap();
-    /// assert!(*sync_matches.get_one::<bool>("search").expect("defaulted by clap"));
+    /// assert!(sync_matches.get_flag("search"));
     /// ```
     ///
     /// [`Arg::long`]: Arg::long()
@@ -2641,8 +2641,8 @@ impl Command {
     ///     alpha   Some help and text
     ///
     /// Options:
-    ///     -h, --help       Print help information
-    ///     -V, --version    Print version information
+    ///     -h, --help       Print help
+    ///     -V, --version    Print version
     /// ```
     #[inline]
     #[must_use]
@@ -3105,8 +3105,8 @@ impl Command {
     ///     sub1
     ///
     /// Options:
-    ///     -h, --help       Print help information
-    ///     -V, --version    Print version information
+    ///     -h, --help       Print help
+    ///     -V, --version    Print version
     /// ```
     ///
     /// but usage of `subcommand_value_name`
@@ -3132,8 +3132,8 @@ impl Command {
     ///     sub1
     ///
     /// Options:
-    ///     -h, --help       Print help information
-    ///     -V, --version    Print version information
+    ///     -h, --help       Print help
+    ///     -V, --version    Print version
     /// ```
     #[must_use]
     pub fn subcommand_value_name(mut self, value_name: impl IntoResettable<Str>) -> Self {
@@ -3169,8 +3169,8 @@ impl Command {
     ///     sub1
     ///
     /// Options:
-    ///     -h, --help       Print help information
-    ///     -V, --version    Print version information
+    ///     -h, --help       Print help
+    ///     -V, --version    Print version
     /// ```
     ///
     /// but usage of `subcommand_help_heading`
@@ -3196,8 +3196,8 @@ impl Command {
     ///     sub1
     ///
     /// Options:
-    ///     -h, --help       Print help information
-    ///     -V, --version    Print version information
+    ///     -h, --help       Print help
+    ///     -V, --version    Print version
     /// ```
     #[must_use]
     pub fn subcommand_help_heading(mut self, heading: impl IntoResettable<Str>) -> Self {
@@ -4243,10 +4243,10 @@ impl Command {
                 .action(ArgAction::Help);
             if self.long_help_exists {
                 arg = arg
-                    .help("Print help information (use `--help` for more detail)")
-                    .long_help("Print help information (use `-h` for a summary)");
+                    .help("Print help (see more with '--help')")
+                    .long_help("Print help (see a summary with '-h')");
             } else {
-                arg = arg.help("Print help information");
+                arg = arg.help("Print help");
             }
             // Avoiding `arg_internal` to not be sensitive to `next_help_heading` /
             // `next_display_order`
@@ -4258,7 +4258,7 @@ impl Command {
                 .short('V')
                 .long("version")
                 .action(ArgAction::Version)
-                .help("Print version information");
+                .help("Print version");
             // Avoiding `arg_internal` to not be sensitive to `next_help_heading` /
             // `next_display_order`
             self.args.push(arg);

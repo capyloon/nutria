@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "reqwest"
-version = "0.11.13"
+version = "0.11.14"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 autotests = true
 description = "higher level HTTP client library"
@@ -27,7 +27,7 @@ categories = [
     "web-programming::http-client",
     "wasm",
 ]
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/seanmonstar/reqwest"
 
 [package.metadata.docs.rs]
@@ -108,10 +108,18 @@ path = "tests/multipart.rs"
 required-features = ["multipart"]
 
 [dependencies.base64]
-version = "0.13"
+version = "0.21"
 
 [dependencies.bytes]
 version = "1.0"
+
+[dependencies.futures-core]
+version = "0.3.0"
+default-features = false
+
+[dependencies.futures-util]
+version = "0.3.0"
+default-features = false
 
 [dependencies.http]
 version = "0.2"
@@ -160,7 +168,6 @@ brotli = [
 cookies = [
     "cookie_crate",
     "cookie_store",
-    "proc-macro-hack",
 ]
 default = ["default-tls"]
 default-tls = [
@@ -204,6 +211,7 @@ socks = ["tokio-socks"]
 stream = [
     "tokio/fs",
     "tokio-util",
+    "wasm-streams",
 ]
 trust-dns = ["trust-dns-resolver"]
 
@@ -224,14 +232,6 @@ optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.encoding_rs]
 version = "0.8"
-
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.futures-core]
-version = "0.3.0"
-default-features = false
-
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.futures-util]
-version = "0.3.0"
-default-features = false
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.h2]
 version = "0.3.10"
@@ -281,10 +281,6 @@ version = "2.1"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.pin-project-lite]
 version = "0.2.0"
-
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.proc-macro-hack]
-version = "0.5.19"
-optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.rustls]
 version = "0.20"
@@ -386,6 +382,10 @@ version = "0.2.68"
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 version = "0.4.18"
 
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-streams]
+version = "0.2"
+optional = true
+
 [target."cfg(target_arch = \"wasm32\")".dependencies.web-sys]
 version = "0.3.25"
 features = [
@@ -401,6 +401,7 @@ features = [
     "ServiceWorkerGlobalScope",
     "RequestCredentials",
     "File",
+    "ReadableStream",
 ]
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen]

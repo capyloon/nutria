@@ -32,11 +32,13 @@ pub mod intrinsics;
 pub mod js_keywords;
 pub mod js_objects;
 pub mod jscast;
+pub mod link_to;
 pub mod math;
 pub mod no_shims;
 pub mod node;
 pub mod option;
 pub mod optional_primitives;
+pub mod owned;
 pub mod result;
 pub mod result_jserror;
 pub mod rethrow;
@@ -51,6 +53,6 @@ pub mod vendor_prefix;
 
 // should not be executed
 #[wasm_bindgen(start)]
-pub fn start() {
+fn start() {
     panic!();
 }

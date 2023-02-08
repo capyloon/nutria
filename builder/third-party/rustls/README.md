@@ -22,6 +22,13 @@ If you'd like to help out, please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 * Next release
   - Planned: removal of unused signature verification schemes at link-time.
+* 0.20.8 (2023-01-12)
+  - Yield an error from `ConnectionCommon::read_tls()` if buffers are full.
+    Both a full deframer buffer and a full incoming plaintext buffer will
+    now cause an error to be returned. Callers should call `process_new_packets()`
+    and read out the plaintext data from `reader()` after each successful call to `read_tls()`.
+  - The minimum supported Rust version is now 1.57.0 due to some dependencies
+    requiring it.
 * 0.20.7 (2022-10-18)
   - Expose secret extraction API under the `secret_extraction` cargo feature.
     This is designed to enable switching from rustls to kTLS (kernel TLS
@@ -147,9 +154,9 @@ There are two example programs which use
 [mio](https://github.com/carllerche/mio) to do asynchronous IO.
 
 ## Client example program
-The client example program is named `tlsclient`.  The interface looks like:
+The client example program is named `tlsclient-mio`.  The interface looks like:
 
-```tlsclient
+```tlsclient-mio
 Connects to the TLS server at hostname:PORT.  The default PORT
 is 443.  By default, this reads a request from stdin (to EOF)
 before making the connection.  --http replaces this with a
@@ -159,9 +166,9 @@ If --cafile is not supplied, a built-in set of CA certificates
 are used from the webpki-roots crate.
 
 Usage:
-  tlsclient [options] [--suite SUITE ...] [--proto PROTO ...] <hostname>
-  tlsclient (--version | -v)
-  tlsclient (--help | -h)
+  tlsclient-mio [options] [--suite SUITE ...] [--proto PROTO ...] [--protover PROTOVER ...] <hostname>
+  tlsclient-mio (--version | -v)
+  tlsclient-mio (--help | -h)
 
 Options:
     -p, --port PORT     Connect to PORT [default: 443].
@@ -189,7 +196,7 @@ Options:
 Some sample runs:
 
 ```
-$ cargo run --example tlsclient -- --http mozilla-modern.badssl.com
+$ cargo run --bin tlsclient-mio -- --http mozilla-modern.badssl.com
 HTTP/1.1 200 OK
 Server: nginx/1.6.2 (Ubuntu)
 Date: Wed, 01 Jun 2016 18:44:00 GMT
@@ -201,15 +208,15 @@ Content-Length: 644
 or
 
 ```
-$ cargo run --example tlsclient -- --http expired.badssl.com
+$ cargo run --bin tlsclient-mio -- --http expired.badssl.com
 TLS error: WebPkiError(CertExpired, ValidateServerCert)
 Connection closed
 ```
 
 ## Server example program
-The server example program is named `tlsserver`.  The interface looks like:
+The server example program is named `tlsserver-mio`.  The interface looks like:
 
-```tlsserver
+```tlsserver-mio
 Runs a TLS server on :PORT.  The default PORT is 443.
 
 `echo' mode means the server echoes received data on each connection.
@@ -224,11 +231,11 @@ localhost:fport.
 RSA private key.
 
 Usage:
-  tlsserver --certs CERTFILE --key KEYFILE [--suite SUITE ...] [--proto PROTO ...] [options] echo
-  tlsserver --certs CERTFILE --key KEYFILE [--suite SUITE ...] [--proto PROTO ...] [options] http
-  tlsserver --certs CERTFILE --key KEYFILE [--suite SUITE ...] [--proto PROTO ...] [options] forward <fport>
-  tlsserver (--version | -v)
-  tlsserver (--help | -h)
+  tlsserver-mio --certs CERTFILE --key KEYFILE [--suite SUITE ...] [--proto PROTO ...] [--protover PROTOVER ...] [options] echo
+  tlsserver-mio --certs CERTFILE --key KEYFILE [--suite SUITE ...] [--proto PROTO ...] [--protover PROTOVER ...] [options] http
+  tlsserver-mio --certs CERTFILE --key KEYFILE [--suite SUITE ...] [--proto PROTO ...] [--protover PROTOVER ...] [options] forward <fport>
+  tlsserver-mio (--version | -v)
+  tlsserver-mio (--help | -h)
 
 Options:
     -p, --port PORT     Listen on PORT [default: 443].
@@ -258,16 +265,16 @@ Options:
 ```
 
 Here's a sample run; we start a TLS echo server, then connect to it with
-openssl and tlsclient:
+`openssl` and `tlsclient-mio`:
 
 ```
-$ cargo run --example tlsserver -- --certs test-ca/rsa/end.fullchain --key test-ca/rsa/end.rsa -p 8443 echo &
+$ cargo run --bin tlsserver-mio -- --certs test-ca/rsa/end.fullchain --key test-ca/rsa/end.rsa -p 8443 echo &
 $ echo hello world | openssl s_client -ign_eof -quiet -connect localhost:8443
 depth=2 CN = ponytown RSA CA
 verify error:num=19:self signed certificate in certificate chain
 hello world
 ^C
-$ echo hello world | cargo run --example tlsclient -- --cafile test-ca/rsa/ca.cert -p 8443 localhost
+$ echo hello world | cargo run --bin tlsclient-mio -- --cafile test-ca/rsa/ca.cert -p 8443 localhost
 hello world
 ^C
 ```

@@ -301,7 +301,7 @@ impl<ErrType,
               return Err(e);
             },
             Ok(size) => if size == 0 {
-              return Err(self.error_if_invalid_data.take().unwrap());
+              return self.error_if_invalid_data.take().map(|e| Err(e)).unwrap_or(Ok(0));
             }else {
               self.input_len += size;
               avail_in = self.input_len - self.input_offset;
@@ -311,11 +311,29 @@ impl<ErrType,
         BrotliResult::NeedsMoreOutput => {
           break;
         },
-        BrotliResult::ResultSuccess => return Ok(output_offset),
-        BrotliResult::ResultFailure => return Err(self.error_if_invalid_data.take().unwrap()),
+        BrotliResult::ResultSuccess => {
+            if self.input_len != self.input_offset {
+                // Did not consume entire input; report error.
+                return self.error_if_invalid_data.take().map(|e| Err(e)).unwrap_or(Ok(output_offset));
+            }
+            return Ok(output_offset);
+        }
+        BrotliResult::ResultFailure => return self.error_if_invalid_data.take().map(|e| Err(e)).unwrap_or(Ok(0)),
       }
     }
     Ok(output_offset)
   }
+}
+
+#[cfg(feature="std")]
+#[test]
+fn test_no_vanishing_bytes() {
+    use std::string::ToString;
+
+    // Output from this command:
+    let compressed_with_extra = b"\x8f\x02\x80\x68\x65\x6c\x6c\x6f\x0a\x03\x67\x6f\x6f\x64\x62\x79\x65\x0a";
+    let cursor = std::io::Cursor::new(compressed_with_extra);
+    let mut reader = super::Decompressor::new(cursor, 8000);
+    assert_eq!(std::io::read_to_string(&mut reader).unwrap_err().kind(), io::ErrorKind::InvalidData);
 }
 

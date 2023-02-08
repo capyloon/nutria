@@ -10,7 +10,7 @@ use crate::msgs::enums::HandshakeType;
 use crate::msgs::enums::{AlertDescription, AlertLevel, ContentType};
 use crate::msgs::fragmenter::MessageFragmenter;
 use crate::msgs::handshake::Random;
-use crate::msgs::hsjoiner::HandshakeJoiner;
+use crate::msgs::hsjoiner::{HandshakeJoiner, JoinerError};
 use crate::msgs::message::{
     BorrowedPlainMessage, Message, MessagePayload, OpaqueMessage, PlainMessage,
 };
@@ -538,32 +538,23 @@ impl<Data> ConnectionCommon<Data> {
     /// This is a shortcut to the `process_new_packets()` -> `process_msg()` ->
     /// `process_handshake_messages()` path, specialized for the first handshake message.
     pub(crate) fn first_handshake_message(&mut self) -> Result<Option<Message>, Error> {
-        if self.message_deframer.desynced {
-            return Err(Error::CorruptMessage);
-        }
-
-        let msg = match self.message_deframer.frames.pop_front() {
+        let msg = match self.message_deframer.pop()? {
             Some(msg) => msg,
             None => return Ok(None),
         };
 
         let msg = msg.into_plain_message();
-        if !self.handshake_joiner.want_message(&msg) {
-            return Err(Error::CorruptMessagePayload(ContentType::Handshake));
-        }
-
-        if self
-            .handshake_joiner
-            .take_message(msg)
-            .is_none()
-        {
-            self.common_state
-                .send_fatal_alert(AlertDescription::DecodeError);
-            return Err(Error::CorruptMessagePayload(ContentType::Handshake));
-        }
-
-        self.common_state.aligned_handshake = self.handshake_joiner.is_empty();
-        Ok(self.handshake_joiner.frames.pop_front())
+        self.handshake_joiner
+            .push(msg)
+            .and_then(|aligned| {
+                self.common_state.aligned_handshake = aligned;
+                self.handshake_joiner.pop()
+            })
+            .map_err(|_| {
+                self.common_state
+                    .send_fatal_alert(AlertDescription::DecodeError);
+                Error::CorruptMessagePayload(ContentType::Handshake)
+            })
     }
 
     pub(crate) fn replace_state(&mut self, new: Box<dyn State<Data>>) {
@@ -619,23 +610,28 @@ impl<Data> ConnectionCommon<Data> {
             false => msg.into_plain_message(),
         };
 
-        // For handshake messages, we need to join them before parsing
-        // and processing.
-        if self.handshake_joiner.want_message(&msg) {
-            // First decryptable handshake message concludes trial decryption
-            self.common_state
-                .record_layer
-                .finish_trial_decryption();
+        // For handshake messages, we need to join them before parsing and processing.
+        let msg = match self.handshake_joiner.push(msg) {
+            // Handshake message, we handle these in another method.
+            Ok(aligned) => {
+                self.common_state.aligned_handshake = aligned;
 
-            self.handshake_joiner
-                .take_message(msg)
-                .ok_or_else(|| {
-                    self.common_state
-                        .send_fatal_alert(AlertDescription::DecodeError);
-                    Error::CorruptMessagePayload(ContentType::Handshake)
-                })?;
-            return self.process_new_handshake_messages(state);
-        }
+                // First decryptable handshake message concludes trial decryption
+                self.common_state
+                    .record_layer
+                    .finish_trial_decryption();
+
+                return self.process_new_handshake_messages(state);
+            }
+            // Not a handshake message, continue to handle it here.
+            Err(JoinerError::Unwanted(msg)) => msg,
+            // Decoding the handshake message failed, yield an error.
+            Err(JoinerError::Decode) => {
+                self.common_state
+                    .send_fatal_alert(AlertDescription::DecodeError);
+                return Err(Error::CorruptMessagePayload(ContentType::Handshake));
+            }
+        };
 
         // Now we can fully parse the message payload.
         let msg = Message::try_from(msg)?;
@@ -677,11 +673,7 @@ impl<Data> ConnectionCommon<Data> {
             }
         };
 
-        if self.message_deframer.desynced {
-            return Err(Error::CorruptMessage);
-        }
-
-        while let Some(msg) = self.message_deframer.frames.pop_front() {
+        while let Some(msg) = self.message_deframer.pop()? {
             match self.process_msg(msg, state) {
                 Ok(new) => state = new,
                 Err(e) => {
@@ -699,14 +691,29 @@ impl<Data> ConnectionCommon<Data> {
         &mut self,
         mut state: Box<dyn State<Data>>,
     ) -> Result<Box<dyn State<Data>>, Error> {
-        self.common_state.aligned_handshake = self.handshake_joiner.is_empty();
-        while let Some(msg) = self.handshake_joiner.frames.pop_front() {
-            state = self
-                .common_state
-                .process_main_protocol(msg, state, &mut self.data)?;
-        }
+        loop {
+            match self.handshake_joiner.pop() {
+                Ok(Some(msg)) => {
+                    state = self
+                        .common_state
+                        .process_main_protocol(msg, state, &mut self.data)?;
+                }
+                Ok(None) => return Ok(state),
+                Err(_) => {
+                    #[cfg(feature = "quic")]
+                    if self.common_state.is_quic() {
+                        self.common_state.quic.alert = Some(AlertDescription::DecodeError);
+                    }
 
-        Ok(state)
+                    if !self.common_state.is_quic() {
+                        self.common_state
+                            .send_fatal_alert(AlertDescription::DecodeError);
+                    }
+
+                    return Err(Error::CorruptMessagePayload(ContentType::Handshake));
+                }
+            }
+        }
     }
 
     pub(crate) fn send_some_plaintext(&mut self, buf: &[u8]) -> usize {
@@ -717,22 +724,33 @@ impl<Data> ConnectionCommon<Data> {
             .send_some_plaintext(buf)
     }
 
-    /// Read TLS content from `rd`.  This method does internal
-    /// buffering, so `rd` can supply TLS messages in arbitrary-
-    /// sized chunks (like a socket or pipe might).
+    /// Read TLS content from `rd` into the internal buffer.
     ///
-    /// You should call [`process_new_packets`] each time a call to
-    /// this function succeeds.
+    /// Due to the internal buffering, `rd` can supply TLS messages in arbitrary-sized chunks (like
+    /// a socket or pipe might).
     ///
-    /// The returned error only relates to IO on `rd`.  TLS-level
-    /// errors are emitted from [`process_new_packets`].
+    /// You should call [`process_new_packets()`] each time a call to this function succeeds in order
+    /// to empty the incoming TLS data buffer.
     ///
-    /// This function returns `Ok(0)` when the underlying `rd` does
-    /// so.  This typically happens when a socket is cleanly closed,
-    /// or a file is at EOF.
+    /// This function returns `Ok(0)` when the underlying `rd` does so. This typically happens when
+    /// a socket is cleanly closed, or a file is at EOF. Errors may result from the IO done through
+    /// `rd`; additionally, errors of `ErrorKind::Other` are emitted to signal backpressure:
     ///
-    /// [`process_new_packets`]: Connection::process_new_packets
+    /// * In order to empty the incoming TLS data buffer, you should call [`process_new_packets()`]
+    ///   each time a call to this function succeeds.
+    /// * In order to empty the incoming plaintext data buffer, you should empty it through
+    ///   the [`reader()`] after the call to [`process_new_packets()`].
+    ///
+    /// [`process_new_packets()`]: ConnectionCommon::process_new_packets
+    /// [`reader()`]: ConnectionCommon::reader
     pub fn read_tls(&mut self, rd: &mut dyn io::Read) -> Result<usize, io::Error> {
+        if self.received_plaintext.is_full() {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "received plaintext buffer full",
+            ));
+        }
+
         let res = self.message_deframer.read(rd);
         if let Ok(0) = res {
             self.common_state.has_seen_eof = true;
@@ -800,11 +818,7 @@ impl<Data> ConnectionCommon<Data> {
             payload: Payload::new(plaintext.to_vec()),
         };
 
-        if self
-            .handshake_joiner
-            .take_message(msg)
-            .is_none()
-        {
+        if self.handshake_joiner.push(msg).is_err() {
             self.common_state.quic.alert = Some(AlertDescription::DecodeError);
             return Err(Error::CorruptMessage);
         }
@@ -876,7 +890,7 @@ impl CommonState {
             received_middlebox_ccs: 0,
             peer_certificates: None,
             message_fragmenter: MessageFragmenter::default(),
-            received_plaintext: ChunkVecBuffer::new(Some(0)),
+            received_plaintext: ChunkVecBuffer::new(Some(DEFAULT_RECEIVED_PLAINTEXT_LIMIT)),
             sendable_plaintext: ChunkVecBuffer::new(Some(DEFAULT_BUFFER_LIMIT)),
             sendable_tls: ChunkVecBuffer::new(Some(DEFAULT_BUFFER_LIMIT)),
 
@@ -1448,4 +1462,5 @@ pub(crate) enum Side {
 /// Data specific to the peer's side (client or server).
 pub trait SideData {}
 
+const DEFAULT_RECEIVED_PLAINTEXT_LIMIT: usize = 16 * 1024;
 const DEFAULT_BUFFER_LIMIT: usize = 64 * 1024;

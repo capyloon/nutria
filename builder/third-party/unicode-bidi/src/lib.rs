@@ -354,8 +354,15 @@ impl<'text> BidiInfo<'text> {
 
             let sequences = prepare::isolating_run_sequences(para.level, original_classes, levels);
             for sequence in &sequences {
-                implicit::resolve_weak(sequence, processing_classes);
-                implicit::resolve_neutral(sequence, levels, processing_classes);
+                implicit::resolve_weak(text, sequence, processing_classes);
+                implicit::resolve_neutral(
+                    text,
+                    data_source,
+                    sequence,
+                    levels,
+                    original_classes,
+                    processing_classes,
+                );
             }
             implicit::resolve_levels(processing_classes, levels);
 
@@ -411,6 +418,71 @@ impl<'text> BidiInfo<'text> {
         result.into()
     }
 
+    /// Reorders pre-calculated levels of a sequence of characters.
+    ///
+    /// NOTE: This is a convenience method that does not use a `Paragraph`  object. It is
+    /// intended to be used when an application has determined the levels of the objects (character sequences)
+    /// and just needs to have them reordered.
+    ///
+    /// the index map will result in `indexMap[visualIndex]==logicalIndex`.
+    ///
+    ///   # # Example
+    /// ```
+    /// use unicode_bidi::BidiInfo;
+    /// use unicode_bidi::Level;
+    ///
+    /// let l0 = Level::from(0);
+    /// let l1 = Level::from(1);
+    /// let l2 = Level::from(2);
+    ///
+    /// let levels = vec![l0, l0, l0, l0];
+    /// let index_map = BidiInfo::reorder_visual(&levels);
+    /// assert_eq!(levels.len(), index_map.len());
+    /// assert_eq!(index_map, [0, 1, 2, 3]);
+    ///
+    /// let levels: Vec<Level> = vec![l0, l0, l0, l1, l1, l1, l2, l2];
+    /// let index_map = BidiInfo::reorder_visual(&levels);
+    /// assert_eq!(levels.len(), index_map.len());
+    /// assert_eq!(index_map, [0, 1, 2, 5, 4, 3, 6, 7]);
+    /// ```
+    pub fn reorder_visual(levels: &[Level]) -> Vec<usize> {
+        // Gets the next range
+        fn next_range(levels: &[level::Level], start_index: usize) -> Range<usize> {
+            if levels.is_empty() || start_index >= levels.len() {
+                return start_index..start_index;
+            }
+
+            let mut end_index = start_index + 1;
+            while end_index < levels.len() {
+                if levels[start_index] != levels[end_index] {
+                    return start_index..end_index;
+                }
+                end_index += 1;
+            }
+
+            start_index..end_index
+        }
+
+        if levels.is_empty() {
+            return vec![];
+        }
+        let mut result: Vec<usize> = (0..levels.len()).collect();
+
+        let mut range: Range<usize> = 0..0;
+        loop {
+            range = next_range(levels, range.end);
+            if levels[range.start].is_rtl() {
+                result[range.clone()].reverse();
+            }
+
+            if range.end >= levels.len() {
+                break;
+            }
+        }
+
+        result
+    }
+
     /// Find the level runs within a line and return them in visual order.
     ///
     /// `line` is a range of bytes indices within `levels`.
@@ -434,10 +506,9 @@ impl<'text> BidiInfo<'text> {
         let line_str: &str = &self.text[line.clone()];
         let mut reset_from: Option<usize> = Some(0);
         let mut reset_to: Option<usize> = None;
+        let mut prev_level = para.level;
         for (i, c) in line_str.char_indices() {
             match line_classes[i] {
-                // Ignored by X9
-                RLE | LRE | RLO | LRO | PDF | BN => {}
                 // Segment separator, Paragraph separator
                 B | S => {
                     assert_eq!(reset_to, None);
@@ -452,6 +523,15 @@ impl<'text> BidiInfo<'text> {
                         reset_from = Some(i);
                     }
                 }
+                // <https://www.unicode.org/reports/tr9/#Retaining_Explicit_Formatting_Characters>
+                // same as above + set the level
+                RLE | LRE | RLO | LRO | PDF | BN => {
+                    if reset_from == None {
+                        reset_from = Some(i);
+                    }
+                    // also set the level to previous
+                    line_levels[i] = prev_level;
+                }
                 _ => {
                     reset_from = None;
                 }
@@ -463,6 +543,7 @@ impl<'text> BidiInfo<'text> {
                 reset_from = None;
                 reset_to = None;
             }
+            prev_level = line_levels[i];
         }
         if let Some(from) = reset_from {
             for level in &mut line_levels[from..] {
@@ -874,7 +955,7 @@ mod tests {
         assert_eq!(reorder_paras("א(ב)ג."), vec![".ג)ב(א"]);
 
         // With mirrorable characters on level boundry
-        assert_eq!(reorder_paras("אב(גד[&ef].)gh"), vec!["ef].)gh&[דג(בא"]);
+        assert_eq!(reorder_paras("אב(גד[&ef].)gh"), vec!["gh).]ef&[דג(בא"]);
     }
 
     fn reordered_levels_for_paras(text: &str) -> Vec<Vec<Level>> {
@@ -1023,7 +1104,7 @@ mod tests {
     }
 }
 
-#[cfg(all(feature = "serde", test))]
+#[cfg(all(feature = "serde", feature = "hardcoded-data", test))]
 mod serde_tests {
     use super::*;
     use serde_test::{assert_tokens, Token};

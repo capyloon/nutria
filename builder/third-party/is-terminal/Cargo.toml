@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.48"
 name = "is-terminal"
-version = "0.4.2"
+version = "0.4.3"
 authors = [
     "softprops <d.tangren@gmail.com>",
     "Dan Gohman <dev@sunfishcode.online>",
@@ -52,10 +52,10 @@ version = "0.36.4"
 features = ["termios"]
 
 [target."cfg(target_os = \"hermit\")".dependencies.hermit-abi]
-version = "0.2.0"
+version = "0.3.0"
 
 [target."cfg(windows)".dependencies.windows-sys]
-version = "0.42.0"
+version = "0.45.0"
 features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",

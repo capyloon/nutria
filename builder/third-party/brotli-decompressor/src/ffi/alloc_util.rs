@@ -193,7 +193,8 @@ impl<Ty:Sized+Default+Clone> alloc::Allocator<Ty> for SubclassableAllocator {
                 if let Some(free_fn) = self.alloc.free_func {
                     unsafe {free_fn(self.alloc.opaque, core::mem::transmute::<*mut Ty, *mut c_void>(&mut bv.slice_mut()[0]))};
                 }
-                core::mem::replace(&mut bv, MemoryBlock::<Ty>::default());
+                let _ = core::mem::replace(&mut bv,
+                                           MemoryBlock::<Ty>::default());
             } else {
                 panic!("Must provide allocators in no-stdlib code");
             }
@@ -214,7 +215,7 @@ pub fn alloc_stdlib<T:Sized+Default+Copy+Clone>(_size: usize) -> *mut T {
 #[cfg(feature="std")]
 pub unsafe fn free_stdlib<T>(ptr: *mut T, size: usize) {
     let slice_ref = super::slice_from_raw_parts_or_nil_mut(ptr, size);
-    Box::from_raw(slice_ref); // free on drop
+    let _ = Box::from_raw(slice_ref); // free on drop
 }
 #[cfg(feature="std")]
 pub fn alloc_stdlib<T:Sized+Default+Copy+Clone>(size: usize) -> *mut T {

@@ -1,7 +1,15 @@
 # rust-brotli-decompressor
 
-[![crates.io](https://meritbadge.herokuapp.com/brotli-decompressor)](https://crates.io/crates/brotli-decompressor)
+[![crates.io](https://img.shields.io/crates/v/brotli-decompressor.svg)](https://crates.io/crates/brotli-decompressor)
 [![Build Status](https://travis-ci.org/dropbox/rust-brotli-decompressor.svg?branch=master)](https://travis-ci.org/dropbox/rust-brotli-decompressor)
+
+## What's new in version 2.3.4
+* Check for fully consumed buffers in the decompressor reader/writer.
+
+## What's new in version 2.3.x
+* Error handling for Write and Read implementations.
+* Fixed issue with small buffer sizes on certain files when repeatedly calling Decode stream
+* Expose BrotliDecoderIsFinished
 
 ## What's new in version 2.2.x
 * into_impl for reader and writer classes
@@ -14,7 +22,7 @@
 * Never create slice::from_raw_parts with nil
 * Better panic reporting to C FFI
 * Backport fixes to brotli issues 502 and 506
-
+b
 ## What's new in version 2.0.0
 
 * Legacy Custom dictionaries (mostly useful for testing multithreaded brotli encoding and experimentation)

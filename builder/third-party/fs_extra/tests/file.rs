@@ -1,11 +1,11 @@
 // use std::io::{ErrorKind, Result};
 use std::path::{Path, PathBuf};
-use std::thread;
 use std::sync::mpsc;
+use std::thread;
 
 extern crate fs_extra;
-use fs_extra::file::*;
 use fs_extra::error::*;
+use fs_extra::file::*;
 
 const TEST_FOLDER: &'static str = "./tests/temp/file";
 
@@ -228,7 +228,7 @@ fn it_copy_exist_not_overwrite() {
     match copy(&test_file, &test_file_out, &options) {
         Ok(_) => panic!("should be error"),
         Err(err) => {
-            let file_path = format!("Path \"{}\" is exist", test_file_out.to_str().unwrap());
+            let file_path = format!("Path \"{}\" exists", test_file_out.to_str().unwrap());
             assert_eq!(file_path, err.to_string());
             assert!(!files_eq(test_file, test_file_out).unwrap());
             ()
@@ -497,7 +497,7 @@ fn it_copy_with_progress_exist_not_overwrite() {
     match copy_with_progress(&test_file, &test_file_out, &options, func_test) {
         Ok(_) => panic!("should be error"),
         Err(err) => {
-            let file_path = format!("Path \"{}\" is exist", test_file_out.to_str().unwrap());
+            let file_path = format!("Path \"{}\" exists", test_file_out.to_str().unwrap());
 
             assert_eq!(file_path, err.to_string());
             assert!(!files_eq(test_file, test_file_out).unwrap());
@@ -704,7 +704,7 @@ fn it_move_exist_not_overwrite() {
     match move_file(&test_file, &test_file_out, &options) {
         Ok(_) => panic!("should be error"),
         Err(err) => {
-            let file_path = format!("Path \"{}\" is exist", test_file_out.to_str().unwrap());
+            let file_path = format!("Path \"{}\" exists", test_file_out.to_str().unwrap());
 
             assert_eq!(file_path, err.to_string());
             assert!(!files_eq(test_file, test_file_out).unwrap());
@@ -964,7 +964,7 @@ fn it_move_with_progress_exist_not_overwrite() {
     match move_file_with_progress(&test_file, &test_file_out, &options, func_test) {
         Ok(_) => panic!("should be error"),
         Err(err) => {
-            let file_path = format!("Path \"{}\" is exist", test_file_out.to_str().unwrap());
+            let file_path = format!("Path \"{}\" exists", test_file_out.to_str().unwrap());
 
             assert_eq!(file_path, err.to_string());
             assert!(!files_eq(test_file, test_file_out).unwrap());

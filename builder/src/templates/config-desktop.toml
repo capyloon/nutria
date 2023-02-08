@@ -1,6 +1,6 @@
 # Configuration used for developement purposes, where apps are not zipped.
 [general]
-host = "0.0.0.0"
+host = "127.0.0.1"
 port = 8081
 message_max_time = 0 # In ms.
 verbose_log = true

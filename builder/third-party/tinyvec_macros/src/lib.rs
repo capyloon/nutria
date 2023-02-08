@@ -1,4 +1,5 @@
 #![no_std]
+#![forbid(unsafe_code)]
 
 #[macro_export]
 macro_rules! impl_mirrored {

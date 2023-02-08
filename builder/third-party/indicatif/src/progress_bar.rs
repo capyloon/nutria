@@ -36,22 +36,22 @@ impl ProgressBar {
     /// This progress bar by default draws directly to stderr, and refreshes a maximum of 15 times
     /// a second. To change the refresh rate, set the draw target to one with a different refresh
     /// rate.
-    pub fn new(len: u64) -> ProgressBar {
-        ProgressBar::with_draw_target(Some(len), ProgressDrawTarget::stderr())
+    pub fn new(len: u64) -> Self {
+        Self::with_draw_target(Some(len), ProgressDrawTarget::stderr())
     }
 
     /// Creates a completely hidden progress bar
     ///
     /// This progress bar still responds to API changes but it does not have a length or render in
     /// any way.
-    pub fn hidden() -> ProgressBar {
-        ProgressBar::with_draw_target(None, ProgressDrawTarget::hidden())
+    pub fn hidden() -> Self {
+        Self::with_draw_target(None, ProgressDrawTarget::hidden())
     }
 
     /// Creates a new progress bar with a given length and draw target
-    pub fn with_draw_target(len: Option<u64>, draw_target: ProgressDrawTarget) -> ProgressBar {
+    pub fn with_draw_target(len: Option<u64>, draw_target: ProgressDrawTarget) -> Self {
         let pos = Arc::new(AtomicPosition::new());
-        ProgressBar {
+        Self {
             state: Arc::new(Mutex::new(BarState::new(len, draw_target, pos.clone()))),
             pos,
             ticker: Arc::new(Mutex::new(None)),
@@ -64,19 +64,19 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given style
-    pub fn with_style(self, style: ProgressStyle) -> ProgressBar {
+    pub fn with_style(self, style: ProgressStyle) -> Self {
         self.set_style(style);
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given tab width
-    pub fn with_tab_width(self, tab_width: usize) -> ProgressBar {
+    pub fn with_tab_width(self, tab_width: usize) -> Self {
         self.state().set_tab_width(tab_width);
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given prefix
-    pub fn with_prefix(self, prefix: impl Into<Cow<'static, str>>) -> ProgressBar {
+    pub fn with_prefix(self, prefix: impl Into<Cow<'static, str>>) -> Self {
         let mut state = self.state();
         state.state.prefix = TabExpandedString::new(prefix.into(), state.tab_width);
         drop(state);
@@ -84,7 +84,7 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given message
-    pub fn with_message(self, message: impl Into<Cow<'static, str>>) -> ProgressBar {
+    pub fn with_message(self, message: impl Into<Cow<'static, str>>) -> Self {
         let mut state = self.state();
         state.state.message = TabExpandedString::new(message.into(), state.tab_width);
         drop(state);
@@ -92,13 +92,13 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given position
-    pub fn with_position(self, pos: u64) -> ProgressBar {
+    pub fn with_position(self, pos: u64) -> Self {
         self.state().state.set_pos(pos);
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given elapsed time
-    pub fn with_elapsed(self, elapsed: Duration) -> ProgressBar {
+    pub fn with_elapsed(self, elapsed: Duration) -> Self {
         self.state().state.started = Instant::now() - elapsed;
         self
     }
@@ -114,7 +114,7 @@ impl ProgressBar {
     /// [`ProgressBar`]: crate::ProgressBar
     /// [`ProgressBarIter`]: crate::ProgressBarIter
     /// [`ProgressBar::is_finished()`]: crate::ProgressBar::is_finished
-    pub fn with_finish(self, finish: ProgressFinish) -> ProgressBar {
+    pub fn with_finish(self, finish: ProgressFinish) -> Self {
         self.state().on_finish = finish;
         self
     }
@@ -122,8 +122,8 @@ impl ProgressBar {
     /// Creates a new spinner
     ///
     /// This spinner by default draws directly to stderr. This adds the default spinner style to it.
-    pub fn new_spinner() -> ProgressBar {
-        let rv = ProgressBar::with_draw_target(None, ProgressDrawTarget::stderr());
+    pub fn new_spinner() -> Self {
+        let rv = Self::with_draw_target(None, ProgressDrawTarget::stderr());
         rv.set_style(ProgressStyle::default_spinner());
         rv
     }
@@ -197,7 +197,7 @@ impl ProgressBar {
     fn tick_inner(&self, now: Instant) {
         // Only tick if a `Ticker` isn't installed
         if self.ticker.lock().unwrap().is_none() {
-            self.state().tick(now)
+            self.state().tick(now);
         }
     }
 
@@ -232,13 +232,13 @@ impl ProgressBar {
     /// [`suspend`]: ProgressBar::suspend
     /// [`MultiProgress`]: crate::MultiProgress
     pub fn println<I: AsRef<str>>(&self, msg: I) {
-        self.state().println(Instant::now(), msg.as_ref())
+        self.state().println(Instant::now(), msg.as_ref());
     }
 
     /// Update the `ProgressBar`'s inner [`ProgressState`]
     pub fn update(&self, f: impl FnOnce(&mut ProgressState)) {
         self.state()
-            .update(Instant::now(), f, self.ticker.lock().unwrap().is_none())
+            .update(Instant::now(), f, self.ticker.lock().unwrap().is_none());
     }
 
     /// Sets the position of the progress bar
@@ -252,12 +252,12 @@ impl ProgressBar {
 
     /// Sets the length of the progress bar
     pub fn set_length(&self, len: u64) {
-        self.state().set_length(Instant::now(), len)
+        self.state().set_length(Instant::now(), len);
     }
 
     /// Increase the length of the progress bar
     pub fn inc_length(&self, delta: u64) {
-        self.state().inc_length(Instant::now(), delta)
+        self.state().inc_length(Instant::now(), delta);
     }
 
     /// Sets the current prefix of the progress bar
@@ -294,17 +294,17 @@ impl ProgressBar {
     /// This can be useful if the progress bars made a large jump or was paused for a prolonged
     /// time.
     pub fn reset_eta(&self) {
-        self.state().reset(Instant::now(), Reset::Eta)
+        self.state().reset(Instant::now(), Reset::Eta);
     }
 
     /// Resets elapsed time
     pub fn reset_elapsed(&self) {
-        self.state().reset(Instant::now(), Reset::Elapsed)
+        self.state().reset(Instant::now(), Reset::Elapsed);
     }
 
     /// Resets all of the progress bar state
     pub fn reset(&self) {
-        self.state().reset(Instant::now(), Reset::All)
+        self.state().reset(Instant::now(), Reset::All);
     }
 
     /// Finishes the progress bar and leaves the current message
@@ -319,7 +319,7 @@ impl ProgressBar {
     /// [`ProgressStyle`]).
     pub fn finish_with_message(&self, msg: impl Into<Cow<'static, str>>) {
         self.state()
-            .finish_using_style(Instant::now(), ProgressFinish::WithMessage(msg.into()))
+            .finish_using_style(Instant::now(), ProgressFinish::WithMessage(msg.into()));
     }
 
     /// Finishes the progress bar and completely clears it
@@ -342,7 +342,7 @@ impl ProgressBar {
         self.state().finish_using_style(
             Instant::now(),
             ProgressFinish::AbandonWithMessage(msg.into()),
-        )
+        );
     }
 
     /// Finishes the progress bar using the behavior stored in the [`ProgressStyle`]
@@ -566,8 +566,8 @@ impl WeakProgressBar {
     /// Create a new `WeakProgressBar` that returns `None` when [`upgrade`] is called.
     ///
     /// [`upgrade`]: WeakProgressBar::upgrade
-    pub fn new() -> WeakProgressBar {
-        Default::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Attempts to upgrade the Weak pointer to a [`ProgressBar`], delaying dropping of the inner
@@ -640,8 +640,7 @@ impl TickerControl {
                 break;
             }
 
-            state.state.tick = state.state.tick.saturating_add(1);
-            state.draw(false, Instant::now()).ok();
+            state.tick(Instant::now());
 
             drop(state); // Don't forget to drop the lock before sleeping
             drop(arc); // Also need to drop Arc otherwise BarState won't be dropped

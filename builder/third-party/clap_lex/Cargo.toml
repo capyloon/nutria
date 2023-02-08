@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.60.0"
+rust-version = "1.64.0"
 name = "clap_lex"
-version = "0.3.0"
+version = "0.3.1"
 include = [
     "build.rs",
     "src/**/*",
@@ -35,7 +35,6 @@ keywords = [
 categories = ["command-line-interface"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/clap-rs/clap/tree/master/clap_lex"
-resolver = "2"
 
 [[package.metadata.release.pre-release-replacements]]
 file = "CHANGELOG.md"

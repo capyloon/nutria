@@ -55,7 +55,7 @@ impl BarState {
             }
             ProgressFinish::Abandon => {}
             ProgressFinish::AbandonWithMessage(msg) => {
-                self.state.message = TabExpandedString::new(msg, self.tab_width)
+                self.state.message = TabExpandedString::new(msg, self.tab_width);
             }
         }
 
@@ -77,7 +77,7 @@ impl BarState {
             self.state.pos.reset(now);
             self.state.status = Status::InProgress;
 
-            for (_, tracker) in self.style.format_map.iter_mut() {
+            for tracker in self.style.format_map.values_mut() {
                 tracker.reset(&self.state, now);
             }
 
@@ -126,7 +126,7 @@ impl BarState {
         self.state.est.record(pos, now);
         let _ = self.draw(false, now);
 
-        for (_, tracker) in self.style.format_map.iter_mut() {
+        for tracker in self.style.format_map.values_mut() {
             tracker.tick(&self.state, now);
         }
     }
@@ -250,7 +250,7 @@ impl ProgressState {
             (0, _) => 0.0,
             (pos, Some(len)) => pos as f32 / len as f32,
         };
-        pct.max(0.0).min(1.0)
+        pct.clamp(0.0, 1.0)
     }
 
     /// The expected ETA
@@ -279,15 +279,14 @@ impl ProgressState {
 
     /// The number of steps per second
     pub fn per_sec(&self) -> f64 {
-        match self.status {
-            Status::InProgress => match 1.0 / self.est.seconds_per_step() {
+        if let Status::InProgress = self.status {
+            match 1.0 / self.est.seconds_per_step() {
                 per_sec if per_sec.is_nan() => 0.0,
                 per_sec => per_sec,
-            },
-            _ => {
-                let len = self.len.unwrap_or_else(|| self.pos());
-                len as f64 / self.started.elapsed().as_secs_f64()
             }
+        } else {
+            let len = self.len.unwrap_or_else(|| self.pos());
+            len as f64 / self.started.elapsed().as_secs_f64()
         }
     }
 
@@ -348,7 +347,7 @@ impl TabExpandedString {
     }
 
     pub(crate) fn set_tab_width(&mut self, new_tab_width: usize) {
-        if let TabExpandedString::WithTabs {
+        if let Self::WithTabs {
             original,
             expanded,
             tab_width,

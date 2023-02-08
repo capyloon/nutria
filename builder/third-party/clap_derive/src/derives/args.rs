@@ -187,7 +187,7 @@ pub fn gen_augment(
                     (Ty::Option, Some(sub_type)) => sub_type,
                     _ => &field.ty,
                 };
-                let implicit_methods = if **ty == Ty::Option || override_required {
+                let implicit_methods = if **ty == Ty::Option {
                     quote!()
                 } else {
                     quote_spanned! { kind.span()=>
@@ -196,10 +196,20 @@ pub fn gen_augment(
                     }
                 };
 
+                let override_methods = if override_required {
+                    quote_spanned! { kind.span()=>
+                        .subcommand_required(false)
+                        .arg_required_else_help(false)
+                    }
+                } else {
+                    quote!()
+                };
+
                 Some(quote! {
                     let #app_var = <#subcmd_type as clap::Subcommand>::augment_subcommands( #app_var );
                     let #app_var = #app_var
-                        #implicit_methods;
+                        #implicit_methods
+                        #override_methods;
                 })
             }
             Kind::Flatten(ty) => {
@@ -288,8 +298,16 @@ pub fn gen_augment(
                         }
                     }
 
+                    Ty::VecVec | Ty::OptionVecVec => {
+                        quote_spanned! { ty.span() =>
+                            .value_name(#value_name)
+                            #value_parser
+                            #action
+                        }
+                    }
+
                     Ty::Other => {
-                        let required = item.find_default_method().is_none() && !override_required;
+                        let required = item.find_default_method().is_none();
                         // `ArgAction::takes_values` is assuming `ArgAction::default_value` will be
                         // set though that won't always be true but this should be good enough,
                         // otherwise we'll report an "arg required" error when unwrapping.
@@ -310,6 +328,13 @@ pub fn gen_augment(
                 } else {
                     quote!()
                 };
+                let override_methods = if override_required {
+                    quote_spanned! { kind.span()=>
+                        .required(false)
+                    }
+                } else {
+                    quote!()
+                };
 
                 Some(quote_spanned! { field.span()=>
                     let #app_var = #app_var.arg({
@@ -321,6 +346,10 @@ pub fn gen_augment(
 
                         let arg = arg
                             #explicit_methods;
+
+                        let arg = arg
+                            #override_methods;
+
                         arg
                     });
                 })
@@ -431,7 +460,9 @@ pub fn gen_constructor(fields: &[(&Field, Item)]) -> TokenStream {
                     Ty::Unit |
                     Ty::Vec |
                     Ty::OptionOption |
-                    Ty::OptionVec => {
+                    Ty::OptionVec |
+                    Ty::VecVec |
+                    Ty::OptionVecVec => {
                         abort!(
                             ty.span(),
                             "{} types are not supported for subcommand",
@@ -470,7 +501,9 @@ pub fn gen_constructor(fields: &[(&Field, Item)]) -> TokenStream {
                     Ty::Unit |
                     Ty::Vec |
                     Ty::OptionOption |
-                    Ty::OptionVec => {
+                    Ty::OptionVec |
+                    Ty::VecVec |
+                    Ty::OptionVecVec => {
                         abort!(
                             ty.span(),
                             "{} types are not supported for flatten",
@@ -609,8 +642,7 @@ fn gen_parsers(
     let id = item.id();
     let get_one = quote_spanned!(span=> remove_one::<#convert_type>);
     let get_many = quote_spanned!(span=> remove_many::<#convert_type>);
-    let deref = quote!(|s| s);
-    let parse = quote_spanned!(span=> |s| ::std::result::Result::Ok::<_, clap::Error>(s));
+    let get_occurrences = quote_spanned!(span=> remove_occurrences::<#convert_type>);
 
     // Give this identifier the same hygiene
     // as the `arg_matches` parameter definition. This
@@ -627,9 +659,6 @@ fn gen_parsers(
         Ty::Option => {
             quote_spanned! { ty.span()=>
                 #arg_matches.#get_one(#id)
-                    .map(#deref)
-                    .map(#parse)
-                    .transpose()?
             }
         }
 
@@ -637,8 +666,6 @@ fn gen_parsers(
             if #arg_matches.contains_id(#id) {
                 Some(
                     #arg_matches.#get_one(#id)
-                        .map(#deref)
-                        .map(#parse).transpose()?
                 )
             } else {
                 None
@@ -648,8 +675,7 @@ fn gen_parsers(
         Ty::OptionVec => quote_spanned! { ty.span()=>
             if #arg_matches.contains_id(#id) {
                 Some(#arg_matches.#get_many(#id)
-                    .map(|v| v.map(#deref).map::<::std::result::Result<#convert_type, clap::Error>, _>(#parse).collect::<::std::result::Result<Vec<_>, clap::Error>>())
-                    .transpose()?
+                    .map(|v| v.collect::<Vec<_>>())
                     .unwrap_or_else(Vec::new))
             } else {
                 None
@@ -659,18 +685,26 @@ fn gen_parsers(
         Ty::Vec => {
             quote_spanned! { ty.span()=>
                 #arg_matches.#get_many(#id)
-                    .map(|v| v.map(#deref).map::<::std::result::Result<#convert_type, clap::Error>, _>(#parse).collect::<::std::result::Result<Vec<_>, clap::Error>>())
-                    .transpose()?
+                    .map(|v| v.collect::<Vec<_>>())
                     .unwrap_or_else(Vec::new)
             }
         }
 
+        Ty::VecVec => quote_spanned! { ty.span()=>
+            #arg_matches.#get_occurrences(#id)
+                .map(|g| g.map(::std::iter::Iterator::collect).collect::<Vec<Vec<_>>>())
+                .unwrap_or_else(Vec::new)
+        },
+
+        Ty::OptionVecVec => quote_spanned! { ty.span()=>
+            #arg_matches.#get_occurrences(#id)
+                .map(|g| g.map(::std::iter::Iterator::collect).collect::<Vec<Vec<_>>>())
+        },
+
         Ty::Other => {
             quote_spanned! { ty.span()=>
                 #arg_matches.#get_one(#id)
-                    .map(#deref)
-                    .ok_or_else(|| clap::Error::raw(clap::error::ErrorKind::MissingRequiredArgument, format!("The following required argument was not provided: {}", #id)))
-                    .and_then(#parse)?
+                    .ok_or_else(|| clap::Error::raw(clap::error::ErrorKind::MissingRequiredArgument, format!("The following required argument was not provided: {}", #id)))?
             }
         }
     };

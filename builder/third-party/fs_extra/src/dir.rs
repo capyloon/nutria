@@ -1,25 +1,25 @@
-use error::*;
+use crate::error::*;
 use std::collections::{HashMap, HashSet};
 use std::fs::{create_dir, create_dir_all, read_dir, remove_dir_all, Metadata};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-///	Options and flags which can be used to configure how a file will be  copied  or moved.
+/// Options and flags which can be used to configure how a file will be copied or moved.
 #[derive(Clone)]
 pub struct CopyOptions {
-    /// Sets the option true for overwrite existing files.
+    /// Overwrite existing files if true (default: false).
     pub overwrite: bool,
-    /// Sets the option true for skipe existing files.
+    /// Skip existing files if true (default: false).
     pub skip_exist: bool,
-    /// Sets buffer size for copy/move work only with receipt information about process work.
+    /// Buffer size that specifies the amount of bytes to be moved or copied before the progress handler is called. This only affects functions with progress handlers. (default: 64000)
     pub buffer_size: usize,
-    /// Sets the option true for recursively copying a directory with a new name or place it inside the destination.(same behaviors like cp -r in Unix)
+    /// Recursively copy a directory with a new name or place it inside the destination (default: false, same behaviors as cp -r on Unix)
     pub copy_inside: bool,
-    /// Sets the option true, for copy only content without a created folder in the destination folder    
+    /// Copy only contents without a creating a new folder in the destination folder (default: false).
     pub content_only: bool,
-    /// Sets levels reading. Set 0 for read all directory folder. By default 0.
+    /// Sets levels reading. Set 0 for read all directory folder (default: 0).
     ///
-    /// Warrning: Work only for copy operations!
+    /// Warning: Work only for copy operations!
     pub depth: u64,
 }
 
@@ -31,7 +31,7 @@ impl CopyOptions {
     ///
     /// skip_exist: false
     ///
-    /// buffer_size: 64000 //64kb
+    /// buffer_size: 64000 // 64kb
     ///
     /// copy_inside: false
     /// ```
@@ -39,11 +39,47 @@ impl CopyOptions {
         CopyOptions {
             overwrite: false,
             skip_exist: false,
-            buffer_size: 64000, //64kb
+            buffer_size: 64000, // 64kb
             copy_inside: false,
             content_only: false,
             depth: 0,
         }
+    }
+
+    /// Overwrite existing files if true.
+    pub fn overwrite(mut self, overwrite: bool) -> Self {
+        self.overwrite = overwrite;
+        self
+    }
+
+    /// Skip existing files if true.
+    pub fn skip_exist(mut self, skip_exist: bool) -> Self {
+        self.skip_exist = skip_exist;
+        self
+    }
+
+    /// Buffer size that specifies the amount of bytes to be moved or copied before the progress handler is called. This only affects functions with progress handlers.
+    pub fn buffer_size(mut self, buffer_size: usize) -> Self {
+        self.buffer_size = buffer_size;
+        self
+    }
+
+    /// Recursively copy a directory with a new name or place it inside the destination (default: false, same behaviors as cp -r on Unix)
+    pub fn copy_inside(mut self, copy_inside: bool) -> Self {
+        self.copy_inside = copy_inside;
+        self
+    }
+
+    /// Copy only contents without a creating a new folder in the destination folder.
+    pub fn content_only(mut self, content_only: bool) -> Self {
+        self.content_only = content_only;
+        self
+    }
+
+    /// Sets levels reading. Set 0 for read all directory folder
+    pub fn depth(mut self, depth: u64) -> Self {
+        self.depth = depth;
+        self
     }
 }
 
@@ -53,7 +89,7 @@ impl Default for CopyOptions {
     }
 }
 
-///	Options and flags which can be used to configure how read a directory.
+// Options and flags which can be used to configure how to read a directory.
 #[derive(Clone, Default)]
 pub struct DirOptions {
     /// Sets levels reading. Set value 0 for read all directory folder. By default 0.
@@ -67,9 +103,9 @@ impl DirOptions {
     }
 }
 
-/// A structure which imclude information about directory
+/// A structure which include information about directory
 pub struct DirContent {
-    /// Directory size.
+    /// Directory size in bytes.
     pub dir_size: u64,
     /// List all files directory and sub directories.
     pub files: Vec<String>,
@@ -96,11 +132,11 @@ pub struct TransitProcess {
 ///
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub enum TransitState {
-    /// Standart state.
+    /// Standard state.
     Normal,
-    /// Pause state when destination path is exist.
+    /// Pause state when destination path exists.
     Exists,
-    /// Pause state when current process does not have the permission rights to acess from or to
+    /// Pause state when current process does not have the permission to access from or to
     /// path.
     NoAccess,
 }
@@ -143,7 +179,7 @@ pub enum DirEntryAttr {
     Name,
     /// File extension.
     Ext,
-    /// Folder name or file name with extention.
+    /// Folder name or file name with extension.
     FullName,
     /// Path to file or directory.
     Path,
@@ -206,7 +242,7 @@ pub struct LsResult {
 ///
 /// * This `path` does not exist.
 /// * Invalid `path`.
-/// * The current process does not have the permission rights to access `path`.
+/// * The current process does not have the permission to access `path`.
 ///
 /// #Examples
 ///
@@ -233,6 +269,7 @@ where
     let metadata = path.metadata()?;
     get_details_entry_with_meta(path, config, metadata)
 }
+
 fn get_details_entry_with_meta<P>(
     path: P,
     config: &HashSet<DirEntryAttr>,
@@ -253,15 +290,13 @@ where
             } else {
                 item.insert(DirEntryAttr::Name, DirEntryValue::String(String::new()));
             }
+        } else if let Some(file_stem) = path.file_stem() {
+            item.insert(
+                DirEntryAttr::Name,
+                DirEntryValue::String(file_stem.to_os_string().into_string()?),
+            );
         } else {
-            if let Some(file_stem) = path.file_stem() {
-                item.insert(
-                    DirEntryAttr::Name,
-                    DirEntryValue::String(file_stem.to_os_string().into_string()?),
-                );
-            } else {
-                item.insert(DirEntryAttr::Name, DirEntryValue::String(String::new()));
-            }
+            item.insert(DirEntryAttr::Name, DirEntryValue::String(String::new()));
         }
     }
     if config.contains(&DirEntryAttr::Ext) {
@@ -370,13 +405,13 @@ where
     Ok(item)
 }
 
-/// Returned collection directory entries with information which you choose in config.
+/// Returns a collection of directory entries with attributes specifying the information that should be returned.
 ///
 /// This function takes to arguments:
 ///
 /// * `path` - Path to directory.
 ///
-/// * `config` - Set attributes which you want see inside return data.
+/// * `config` - Set attributes which you want see in return data.
 ///
 /// # Errors
 ///
@@ -385,7 +420,7 @@ where
 ///
 /// * This `path` directory does not exist.
 /// * Invalid `path`.
-/// * The current process does not have the permission rights to access `path`.
+/// * The current process does not have the permission to access `path`.
 ///
 /// #Examples
 ///
@@ -423,10 +458,7 @@ where
     if config.contains(&DirEntryAttr::BaseInfo) {
         base = get_details_entry(&path, &config)?;
     }
-    Ok(LsResult {
-        items: items,
-        base: base,
-    })
+    Ok(LsResult { items, base })
 }
 
 /// Creates a new, empty directory at the provided path.
@@ -500,7 +532,7 @@ where
 
 /// Copies the directory contents from one place to another using recursive method.
 /// This function will also copy the permission bits of the original files to
-/// destionation files (not for directories).
+/// destination files (not for directories).
 ///
 /// # Errors
 ///
@@ -510,7 +542,7 @@ where
 /// * This `from` path is not a directory.
 /// * This `from` directory does not exist.
 /// * Invalid folder name for `from` or `to`.
-/// * The current process does not have the permission rights to access `from` or write `to`.
+/// * The current process does not have the permission to access `from` or write `to`.
 ///
 /// # Example
 /// ```rust,ignore
@@ -556,7 +588,7 @@ where
         err!("Invalid folder from", ErrorKind::InvalidFolder);
     }
     let mut to: PathBuf = to.as_ref().to_path_buf();
-    if !options.content_only && ((options.copy_inside && to.exists()) || !options.copy_inside) {
+    if (to.exists() || !options.copy_inside) && !options.content_only {
         to.push(dir_name);
     }
 
@@ -608,11 +640,11 @@ where
     Ok(result)
 }
 
-/// Return DirContent which containt information about directory:
+/// Return DirContent which contains information about directory:
 ///
-/// * Size directory.
-/// * List all files source directory(files subdirectories  included too).
-/// * List all directory and subdirectories source path.
+/// * Size of the directory in bytes.
+/// * List of source paths of files in the directory (files inside subdirectories included too).
+/// * List of source paths of all directories and subdirectories.
 ///
 /// # Errors
 ///
@@ -621,7 +653,7 @@ where
 ///
 /// * This `path` directory does not exist.
 /// * Invalid `path`.
-/// * The current process does not have the permission rights to access `path`.
+/// * The current process does not have the permission to access `path`.
 ///
 /// # Examples
 /// ```rust,ignore
@@ -642,7 +674,7 @@ where
     get_dir_content2(path, &options)
 }
 
-/// Return DirContent which containt information about directory:
+/// Return DirContent which contains information about directory:
 ///
 /// * Size directory.
 /// * List all files source directory(files subdirectories  included too).
@@ -655,14 +687,14 @@ where
 ///
 /// * This `path` directory does not exist.
 /// * Invalid `path`.
-/// * The current process does not have the permission rights to access `path`.
+/// * The current process does not have the permission to access `path`.
 ///
 /// # Examples
 /// ```rust,ignore
 /// extern crate fs_extra;
-/// use fs_extra::dir::get_dir_content2;
+/// use fs_extra::dir::{DirOptions, get_dir_content2};
 ///
-/// let options = DirOptions::new();
+/// let mut options = DirOptions::new();
 /// options.depth = 3; // Get 3 levels of folder.
 /// let dir_content = get_dir_content2("dir", &options)?;
 /// for directory in dir_content.directories {
@@ -687,14 +719,15 @@ where
 {
     let mut directories = Vec::new();
     let mut files = Vec::new();
-    let mut dir_size = 0;
+    let mut dir_size;
     let item = path.as_ref().to_str();
-    if !item.is_some() {
+    if item.is_none() {
         err!("Invalid path", ErrorKind::InvalidPath);
     }
     let item = item.unwrap().to_string();
 
     if path.as_ref().is_dir() {
+        dir_size = path.as_ref().metadata()?.len();
         directories.push(item);
         if depth == 0 || depth > 1 {
             if depth > 1 {
@@ -706,10 +739,10 @@ where
                 match _get_dir_content(_path, depth) {
                     Ok(items) => {
                         let mut _files = items.files;
-                        let mut _dirrectories = items.directories;
+                        let mut _directories = items.directories;
                         dir_size += items.dir_size;
                         files.append(&mut _files);
-                        directories.append(&mut _dirrectories);
+                        directories.append(&mut _directories);
                     }
                     Err(err) => return Err(err),
                 }
@@ -720,13 +753,18 @@ where
         files.push(item);
     }
     Ok(DirContent {
-        dir_size: dir_size,
-        files: files,
-        directories: directories,
+        dir_size,
+        files,
+        directories,
     })
 }
 
-/// Returns the size of the file or directory
+/// Returns the size of the file or directory in bytes.(!important: folders size not count)
+///
+/// If used on a directory, this function will recursively iterate over every file and every
+/// directory inside the directory. This can be very time consuming if used on large directories.
+///
+/// Does not follow symlinks.
 ///
 /// # Errors
 ///
@@ -735,7 +773,7 @@ where
 ///
 /// * This `path` directory does not exist.
 /// * Invalid `path`.
-/// * The current process does not have the permission rights to access `path`.
+/// * The current process does not have the permission to access `path`.
 ///
 /// # Examples
 /// ```rust,ignore
@@ -743,32 +781,43 @@ where
 /// use fs_extra::dir::get_size;
 ///
 /// let folder_size = get_size("dir")?;
-/// println!("{}", folder_size); // print directory sile in bytes
+/// println!("{}", folder_size); // print directory size in bytes
 /// ```
 pub fn get_size<P>(path: P) -> Result<u64>
 where
     P: AsRef<Path>,
 {
-    let mut result = 0;
+    // Using `fs::symlink_metadata` since we don't want to follow symlinks,
+    // as we're calculating the exact size of the requested path itself.
+    let path_metadata = path.as_ref().symlink_metadata()?;
 
-    if path.as_ref().is_dir() {
+    let mut size_in_bytes = 0;
+
+    if path_metadata.is_dir() {
         for entry in read_dir(&path)? {
-            let _path = entry?.path();
-            if _path.is_file() {
-                result += _path.metadata()?.len();
+            let entry = entry?;
+            // `DirEntry::metadata` does not follow symlinks (unlike `fs::metadata`), so in the
+            // case of symlinks, this is the size of the symlink itself, not its target.
+            let entry_metadata = entry.metadata()?;
+
+            if entry_metadata.is_dir() {
+                // The size of the directory entry itself will be counted inside the `get_size()` call,
+                // so we intentionally don't also add `entry_metadata.len()` to the total here.
+                size_in_bytes += get_size(entry.path())?;
             } else {
-                result += get_size(_path)?;
+                size_in_bytes += entry_metadata.len();
             }
         }
     } else {
-        result = path.as_ref().metadata()?.len();
+        size_in_bytes = path_metadata.len();
     }
-    Ok(result)
+
+    Ok(size_in_bytes)
 }
 
 /// Copies the directory contents from one place to another using recursive method,
-/// with recept information about process. This function will also copy the
-/// permission bits of the original files to destionation files (not for directories).
+/// with information about progress. This function will also copy the
+/// permission bits of the original files to destination files (not for directories).
 ///
 /// # Errors
 ///
@@ -778,7 +827,7 @@ where
 /// * This `from` path is not a directory.
 /// * This `from` directory does not exist.
 /// * Invalid folder name for `from` or `to`.
-/// * The current process does not have the permission rights to access `from` or write `to`.
+/// * The current process does not have the permission to access `from` or write `to`.
 ///
 /// # Example
 /// ```rust,ignore
@@ -833,7 +882,7 @@ where
     } else {
         err!("Invalid folder from", ErrorKind::InvalidFolder);
     }
-    if !options.content_only && ((options.copy_inside && to.exists()) || !options.copy_inside) {
+    if (to.exists() || !options.copy_inside) && !options.content_only {
         to.push(dir_name);
     }
 
@@ -872,7 +921,7 @@ where
         let path = to.join(&tp);
 
         let file_name = path.file_name();
-        if !file_name.is_some() {
+        if file_name.is_none() {
             err!("No file name");
         }
         let file_name = file_name.unwrap();
@@ -986,7 +1035,7 @@ where
 
 /// Moves the directory contents from one place to another.
 /// This function will also copy the permission bits of the original files to
-/// destionation files (not for directories).
+/// destination files (not for directories).
 ///
 /// # Errors
 ///
@@ -996,7 +1045,7 @@ where
 /// * This `from` path is not a directory.
 /// * This `from` directory does not exist.
 /// * Invalid folder name for `from` or `to`.
-/// * The current process does not have the permission rights to access `from` or write `to`.
+/// * The current process does not have the permission to access `from` or write `to`.
 ///
 /// # Example
 /// ```rust,ignore
@@ -1052,7 +1101,7 @@ where
         err!("Invalid folder from", ErrorKind::InvalidFolder);
     }
 
-    if !options.content_only && ((options.copy_inside && to.exists()) || !options.copy_inside) {
+    if (to.exists() || !options.copy_inside) && !options.content_only {
         to.push(dir_name);
     }
     let dir_content = get_dir_content(from)?;
@@ -1104,9 +1153,9 @@ where
     Ok(result)
 }
 
-/// Moves the directory contents from one place to another with recept information about process.
+/// Moves the directory contents from one place to another with information about progress.
 /// This function will also copy the permission bits of the original files to
-/// destionation files (not for directories).
+/// destination files (not for directories).
 ///
 /// # Errors
 ///
@@ -1116,7 +1165,7 @@ where
 /// * This `from` path is not a directory.
 /// * This `from` directory does not exist.
 /// * Invalid folder name for `from` or `to`.
-/// * The current process does not have the permission rights to access `from` or write `to`.
+/// * The current process does not have the permission to access `from` or write `to`.
 ///
 /// # Example
 /// ```rust,ignore
@@ -1175,7 +1224,7 @@ where
     } else {
         err!("Invalid folder from", ErrorKind::InvalidFolder);
     }
-    if !options.content_only && ((options.copy_inside && to.exists()) || !options.copy_inside) {
+    if !(options.content_only || options.copy_inside && !to.exists()) {
         to.push(dir_name);
     }
 
@@ -1209,7 +1258,7 @@ where
         let path = to.join(&tp);
 
         let file_name = path.file_name();
-        if !file_name.is_some() {
+        if file_name.is_none() {
             err!("No file name");
         }
         let file_name = file_name.unwrap();

@@ -1,14 +1,14 @@
-use error::{Error, ErrorKind, Result};
+use crate::error::{Error, ErrorKind, Result};
 use std;
 use std::fs::{remove_file, File};
 use std::io::{Read, Write};
 use std::path::Path;
 
-///	Options and flags which can be used to configure how a file will be  copied  or moved.
+// Options and flags which can be used to configure how a file will be  copied  or moved.
 pub struct CopyOptions {
     /// Sets the option true for overwrite existing files.
     pub overwrite: bool,
-    /// Sets the option true for skipe existing files.
+    /// Sets the option true for skip existing files.
     pub skip_exist: bool,
     /// Sets buffer size for copy/move work only with receipt information about process work.
     pub buffer_size: usize,
@@ -32,6 +32,24 @@ impl CopyOptions {
             buffer_size: 64000, //64kb
         }
     }
+
+    /// Sets the option true for overwrite existing files.
+    pub fn overwrite(mut self, overwrite: bool) -> Self {
+        self.overwrite = overwrite;
+        self
+    }
+
+    /// Sets the option true for skip existing files.
+    pub fn skip_exist(mut self, skip_exist: bool) -> Self {
+        self.skip_exist = skip_exist;
+        self
+    }
+
+    /// Sets buffer size for copy/move work only with receipt information about process work.
+    pub fn buffer_size(mut self, buffer_size: usize) -> Self {
+        self.buffer_size = buffer_size;
+        self
+    }
 }
 
 impl Default for CopyOptions {
@@ -40,7 +58,7 @@ impl Default for CopyOptions {
     }
 }
 
-/// A structure  which include information about the current status of the copy or move file.
+/// A structure which stores information about the current status of a file that's copied or moved. .
 pub struct TransitProcess {
     /// Copied bytes on this time.
     pub copied_bytes: u64,
@@ -58,7 +76,7 @@ pub struct TransitProcess {
 ///
 /// * This `from` path is not a file.
 /// * This `from` file does not exist.
-/// * The current process does not have the permission rights to access `from` or write `to`.
+/// * The current process does not have the permission to access `from` or write `to`.
 ///
 /// # Example
 ///
@@ -101,7 +119,7 @@ where
         }
 
         if let Some(msg) = to.as_ref().to_str() {
-            let msg = format!("Path \"{}\" is exist", msg);
+            let msg = format!("Path \"{}\" exists", msg);
             err!(&msg, ErrorKind::AlreadyExists);
         }
     }
@@ -109,7 +127,7 @@ where
     Ok(std::fs::copy(from, to)?)
 }
 
-/// Copies the contents of one file to another with recept information about process.
+/// Copies the contents of one file to another file with information about progress.
 /// This function will also copy the permission bits of the original file to the
 /// destination file.
 ///
@@ -120,7 +138,7 @@ where
 ///
 /// * This `from` path is not a file.
 /// * This `from` file does not exist.
-/// * The current process does not have the permission rights to access `from` or write `to`.
+/// * The current process does not have the permission to access `from` or write `to`.
 ///
 /// # Example
 /// ```rust,ignore
@@ -143,7 +161,7 @@ pub fn copy_with_progress<P, Q, F>(
 where
     P: AsRef<Path>,
     Q: AsRef<Path>,
-    F: FnMut(TransitProcess) -> (),
+    F: FnMut(TransitProcess),
 {
     let from = from.as_ref();
     if !from.exists() {
@@ -171,7 +189,7 @@ where
         }
 
         if let Some(msg) = to.as_ref().to_str() {
-            let msg = format!("Path \"{}\" is exist", msg);
+            let msg = format!("Path \"{}\" exists", msg);
             err!(&msg, ErrorKind::AlreadyExists);
         }
     }
@@ -185,10 +203,13 @@ where
         match file_from.read(&mut buf) {
             Ok(0) => break,
             Ok(n) => {
-                file_to.write(&mut buf[..n])?;
-                copied_bytes = copied_bytes + n as u64;
+                let written_bytes = file_to.write(&buf[..n])?;
+                if written_bytes != n {
+                    err!("Couldn't write the whole buffer to file", ErrorKind::Other);
+                }
+                copied_bytes += n as u64;
                 let data = TransitProcess {
-                    copied_bytes: copied_bytes,
+                    copied_bytes,
                     total_bytes: file_size,
                 };
                 progress_handler(data);
@@ -200,7 +221,7 @@ where
     Ok(file_size)
 }
 
-/// Moves file from one place to another. This function will also copy the permission
+/// Moves a file from one place to another. This function will also copy the permission
 /// bits of the original file to the destination file.
 ///
 /// # Errors
@@ -210,7 +231,7 @@ where
 ///
 /// * This `from` path is not a file.
 /// * This `from` file does not exist.
-/// * The current process does not have the permission rights to access `from` or write `to`.
+/// * The current process does not have the permission to access `from` or write `to`.
 ///
 /// # Example
 /// ```rust,ignore
@@ -238,7 +259,7 @@ where
     Ok(result)
 }
 
-/// Moves file from one place to another with recept information about process.
+/// Moves a file from one place to another with information about progress.
 /// This function will also copy the permission bits of the original file to the
 /// destination file.
 ///
@@ -249,7 +270,7 @@ where
 ///
 /// * This `from` path is not a file.
 /// * This `from` file does not exist.
-/// * The current process does not have the permission rights to access `from` or write `to`.
+/// * The current process does not have the permission to access `from` or write `to`.
 ///
 /// # Example
 /// ```rust,ignore
@@ -272,7 +293,7 @@ pub fn move_file_with_progress<P, Q, F>(
 where
     P: AsRef<Path>,
     Q: AsRef<Path>,
-    F: FnMut(TransitProcess) -> (),
+    F: FnMut(TransitProcess),
 {
     let mut is_remove = true;
     if options.skip_exist && to.as_ref().exists() && !options.overwrite {
@@ -293,7 +314,7 @@ where
 /// This function will return an error in the following situations, but is not limited to just
 /// these cases:
 ///
-/// * The current process does not have the permission rights to access `path`.
+/// * The current process does not have the permission to access `path`.
 ///
 /// # Example
 /// ```rust,ignore
@@ -314,7 +335,7 @@ where
     }
 }
 
-/// Read file content, placing him into `String`.
+/// Read file contents, placing them into `String`.
 ///
 /// # Errors
 ///
@@ -323,14 +344,14 @@ where
 ///
 /// * This `path` is not a file.
 /// * This `path` file does not exist.
-/// * The current process does not have the permission rights to access `path`.
+/// * The current process does not have the permission to access `path`.
 ///
 /// # Example
 /// ```rust,ignore
 /// extern crate fs_extra;
 /// use fs_extra::file::read_to_string;
 ///
-/// let file_content = read_to_string("foo.txt" )?; // Get file conent from foo.txt
+/// let file_content = read_to_string("foo.txt" )?; // Get file content from foo.txt
 /// println!("{}", file_content);
 ///
 /// ```
@@ -354,7 +375,7 @@ where
     Ok(result)
 }
 
-/// Write `String` content into inside target file.
+/// Write `String` content into file.
 ///
 /// # Errors
 ///
@@ -363,14 +384,14 @@ where
 ///
 /// * This `path` is not a file.
 /// * This `path` file does not exist.
-/// * The current process does not have the permission rights to access `path`.
+/// * The current process does not have the permission to access `path`.
 ///
 /// # Example
 /// ```rust,ignore
 /// extern crate fs_extra;
 /// use fs_extra::file::read_to_string;
 ///
-/// write_all("foo.txt", "conents" )?; // Create file foo.txt and send content inside
+/// write_all("foo.txt", "contents" )?; // Create file foo.txt and send content inside
 ///
 /// ```
 pub fn write_all<P>(path: P, content: &str) -> Result<()>

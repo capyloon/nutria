@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.56"
 name = "indicatif"
-version = "0.17.2"
+version = "0.17.3"
 exclude = ["screenshots/*"]
 description = "A progress bar and cli reporting library for Rust"
 documentation = "https://docs.rs/indicatif"
@@ -53,10 +53,7 @@ optional = true
 
 [dependencies.tokio]
 version = "1"
-features = [
-    "fs",
-    "io-util",
-]
+features = ["io-util"]
 optional = true
 
 [dependencies.unicode-segmentation]
@@ -83,6 +80,7 @@ version = "0.3"
 [dev-dependencies.tokio]
 version = "1"
 features = [
+    "fs",
     "time",
     "rt",
 ]
