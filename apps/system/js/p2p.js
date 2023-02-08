@@ -6,7 +6,9 @@
 // - p2p.device.desc
 
 class Webrtc {
-  constructor() {
+  constructor(peer, dweb) {
+    this.peer = peer; // The remote peer.
+    this.dweb = dweb;
     this.pc = null;
     this.channel = null;
   }
@@ -52,13 +54,13 @@ class Webrtc {
     );
   }
 
-  handleEvent(event) {
+  async handleEvent(event) {
     console.log(`dweb webrtc: event ${event.type}`);
 
-    if (event.type === "signalingstatechange") {
-      console.log(`dweb webrtc: signalingState is ${this.pc.signalingState}`);
-      console.log(`dweb ${JSON.stringify(this.pc.localDescription)}`);
-    }
+    // if (event.type === "signalingstatechange") {
+    //   console.log(`dweb webrtc: signalingState is ${this.pc.signalingState}`);
+    //   console.log(`dweb ${JSON.stringify(this.pc.localDescription)}`);
+    // }
 
     if (event.type === "icegatheringstatechange") {
       console.log(
@@ -67,13 +69,9 @@ class Webrtc {
       if (this.pc.iceGatheringState === "complete") {
         this._iceGatheringDone();
       }
-    }
-
-    if (event.type === "datachannel") {
+    } else if (event.type === "datachannel") {
       this.setupChannel(event.channel);
-    }
-
-    if (event.type === "open") {
+    } else if (event.type === "open") {
       this.channel.send("HELLO WORLD!");
     }
   }
@@ -185,7 +183,7 @@ class P2pDiscovery {
         return Promise.resolve(result == "accept");
       }
 
-      async provideAnswer(peer, offer) {
+      async provideAnswer(peer, action, offer) {
         try {
           this.log(
             `provideAnswer to ${JSON.stringify(peer)}, offer: ${offer.substring(
@@ -203,7 +201,7 @@ class P2pDiscovery {
       }
     }
 
-    await this.dweb.setWebrtcProvider(
+    await this.dweb.setP2pProvider(
       new WebrtcProvider(
         this.webrtcManagers,
         this.dweb.service_id,
@@ -255,6 +253,12 @@ class P2pDiscovery {
       this.dweb.PEERLOST_EVENT,
       this.onPeerLost.bind(this)
     );
+    this.dweb.addEventListener(this.dweb.SESSIONADDED_EVENT, (session) => {
+      this.log(`SESSIONADDED_EVENT: ${JSON.stringify(session)}`);
+    });
+    this.dweb.addEventListener(this.dweb.SESSIONREMOVED_EVENT, (sessionId) => {
+      this.log(`SESSIONREMOVED_EVENT: ${sessionId}`);
+    });
 
     await this.updateDiscovery();
   }
@@ -264,7 +268,7 @@ class P2pDiscovery {
       return;
     }
     this.log(`peer found: ${JSON.stringify(peer)}`);
-    this.webrtcManagers.set(peerKey(peer), new Webrtc());
+    // this.webrtcManagers.set(peerKey(peer), new Webrtc(peer, this.dweb));
     let msg = await window.utils.l10n("p2p-peer-found", {
       name: peer.deviceDesc,
     });
@@ -277,11 +281,11 @@ class P2pDiscovery {
 
   async initiateConnection(peer) {
     try {
-      let webrtc = this.webrtcManagers.get(peerKey(peer));
-      let offer = await webrtc.offer();
-      this.log(`dweb offer is ${JSON.stringify(offer)}`);
-      let answer = await this.dweb.pairWith(peer, JSON.stringify(offer));
-      webrtc.setRemoteDescription(JSON.parse(answer));
+      // let webrtc = this.webrtcManagers.get(peerKey(peer));
+      // let offer = await webrtc.offer();
+      // this.log(`dweb offer is ${JSON.stringify(offer)}`);
+      let answer = await this.dweb.pairWith(peer);
+      // webrtc.setRemoteDescription(JSON.parse(answer));
       await this.toasterMessage(`p2p-connect-success`, true, {
         desc: peer.deviceDesc,
       });
@@ -298,7 +302,7 @@ class P2pDiscovery {
 
   async onPeerLost(peer) {
     this.log(`peer lost: ${JSON.stringify(peer)}`);
-    this.webrtcManagers.delete(peerKey(peer));
+    // this.webrtcManagers.delete(peerKey(peer));
     document.querySelector("quick-settings").removePeer(peer);
   }
 
