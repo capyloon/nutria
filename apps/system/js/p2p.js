@@ -150,7 +150,7 @@ class P2pDiscovery {
 
     let lib = apiDaemon.getLibraryFor("DwebService");
 
-    class WebrtcProvider extends lib.WebrtcProviderBase {
+    class WebrtcProvider extends lib.P2pProviderBase {
       constructor(webrtcManagers, serviceId, session) {
         super(serviceId, session);
         this.webrtcManagers = webrtcManagers;
