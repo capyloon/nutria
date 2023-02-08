@@ -209,6 +209,10 @@ sl-input::part(password-toggle-button) {
   background-color: var(--sl-color-neutral-400);
 }
 
+#systeminfo-panel sl-input {
+  margin-bottom: 1em;
+}
+
 #lockscreen-panel .sl-box * {
   padding: 1em;
 }

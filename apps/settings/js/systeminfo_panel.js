@@ -66,6 +66,7 @@ class SystemInfoPanel {
     let manager = navigator.b2g?.iccManager;
     if (!manager) {
       console.error("b2g.iccManager is not available!");
+      return;
     }
 
     let table = document.getElementById("systeminfo-telephony-table");
@@ -90,11 +91,28 @@ class SystemInfoPanel {
     }
   }
 
+  async manageDeviceName() {
+    let input = document.getElementById("systeminfo-device-desc");
+    const settingsKey = "device.name";
+
+    input.addEventListener("sl-input", async () => {
+      let setting = { name: settingsKey, value: input.value.trim() };
+      await this.settings.set([setting]);
+    });
+
+    try {
+      let setting = await this.settings.get(settingsKey);
+      input.value = setting.value;
+    } catch (e) {}
+  }
+
   async init() {
     if (this.ready) {
       return;
     }
 
+    this.settings = await apiDaemon.getSettings();
+    await this.manageDeviceName();
     await this.displayBuildInfo();
     await this.displayTelephony();
 

@@ -78,6 +78,8 @@ systeminfo-deviceinfo-hardware = Hardware
 systeminfo-deviceinfo-product_manufacturer = Manufacturer
 systeminfo-deviceinfo-product_model = Model
 systeminfo-user-agent = User Agent
+systeminfo-device-desc =
+  .label = Device Name
 
 # Lockscreen panel
 lockscreen-title = Lockscreen

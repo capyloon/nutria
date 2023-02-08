@@ -97,7 +97,7 @@ const kDeps = [
   {
     name: "systeminfo-panel",
     kind: "virtual",
-    deps: ["systeminfo-module", "shoelace-divider"],
+    deps: ["systeminfo-module", "shoelace-input", "shoelace-divider"],
   },
   {
     name: "lockscreen-panel",
