@@ -161,7 +161,7 @@ class P2pDiscovery {
               this.log(`channel message: ${event.data}`);
               if (action === lib.PeerAction.URL) {
                 this.onUrlAction(peer, event.data);
-              } else if (action === lib.PeerAction.URL) {
+              } else if (action === lib.PeerAction.TEXT) {
                 this.onTextAction(peer, event.data);
               } else {
                 this.log(`Unsupported action: ${action}`);
