@@ -139,7 +139,7 @@ body {
 }
 
 .list > h4 {
-  font-size: 2.75em;
+  font-size: 2.5em;
   font-weight: 500;
   margin: 1em 0.5rem 0.25em;
 }
@@ -164,7 +164,7 @@ body {
 
 .favorite {
   cursor: pointer;
-  width: 20.625rem;
+  width: calc(20vw + 1em);
   padding: 0.25em;
   border: 1px solid transparent;
   border-radius: var(--sl-border-radius-x-large);
@@ -180,7 +180,7 @@ body {
 }
 
 .favorite .background {
-  width: 20em;
+  width: 20vw;
   border-radius: var(--sl-border-radius-x-large);
   background-repeat: no-repeat;
   background-size: contain;
@@ -205,11 +205,11 @@ body {
   top: unset;
   bottom: 0.75em;
   left: 1em;
-  width: 50px;
-  height: 50px;
+  width: 5vw;
+  height: 5vw;
   border-radius: 40%;
   background-color: white;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
 }
 
 .favorite .title {
@@ -221,8 +221,7 @@ body {
 }
 
 .favorite.app .title {
-  /* 1.25em (spacing near the card curve) + 3.125em (icon width, equivalent to 50px) + 0.25em (text left padding)  */
-  padding-left: 4.625em;
+  padding-left: calc(5vw + 1em);
 }
 
 #status-bar {
