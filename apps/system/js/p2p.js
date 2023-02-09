@@ -88,7 +88,7 @@ class P2pDiscovery {
 
         const [title, accept, reject] = await document.l10n.formatValues([
           {
-            id: "p2p-open-url-request-title",
+            id: "p2p-open-url-title",
             args: { did: peer.did, device: peer.deviceDesc },
           },
           "p2p-open-url-accept",
@@ -114,7 +114,7 @@ class P2pDiscovery {
 
         const [title, accept, reject] = await document.l10n.formatValues([
           {
-            id: "p2p-copy-text-request-title",
+            id: "p2p-copy-text-title",
             args: { did: peer.did, device: peer.deviceDesc },
           },
           "p2p-copy-text-accept",
@@ -143,6 +143,45 @@ class P2pDiscovery {
         }
       }
 
+      async onFileAction(peer, data) {
+        let dialog = document.querySelector("confirm-dialog");
+
+        const [title, text, accept, reject] = await document.l10n.formatValues([
+          {
+            id: "p2p-download-title",
+            args: {
+              did: peer.did,
+              device: peer.deviceDesc,
+            },
+          },
+          {
+            id: "p2p-download-text",
+            args: {
+              name: data.name,
+              size: data.size,
+            },
+          },
+          "p2p-download-accept",
+          "p2p-download-reject",
+        ]);
+
+        let result = await dialog.open({
+          title,
+          text,
+          buttons: [
+            { id: "accept", label: accept, variant: "success" },
+            { id: "reject", label: reject },
+          ],
+        });
+
+        if (result == "accept") {
+          let link = document.createElement("a");
+          link.href = data.ipfsUrl;
+          link.setAttribute("download", data.name);
+          link.click();
+        }
+      }
+
       async provideAnswer(peer, action, offer) {
         this.log(`provideAnswer for ${action} on ${JSON.stringify(peer)}`);
         this.log(`offer is ${offer}`);
@@ -163,6 +202,8 @@ class P2pDiscovery {
                 this.onUrlAction(peer, event.data);
               } else if (action === lib.PeerAction.TEXT) {
                 this.onTextAction(peer, event.data);
+              } else if (action === lib.PeerAction.FILE) {
+                this.onFileAction(peer, JSON.parse(event.data));
               } else {
                 this.log(`Unsupported action: ${action}`);
               }
