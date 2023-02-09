@@ -75,6 +75,7 @@ class ContextMenu extends HTMLElement {
         <sl-menu-item class="when-image" data-l10n-id="image-share"></sl-menu-item>
         <sl-divider class="when-image-and-link"></sl-divider>
         <sl-menu-label class="when-link"><sl-icon name="link"></sl-icon><span data-l10n-id="link-section-title"></span></sl-menu-label>
+        <sl-menu-item class="when-link" data-l10n-id="link-download"></sl-menu-item>
         <sl-menu-item class="when-link" data-l10n-id="link-new-tab"></sl-menu-item>
         <sl-menu-item class="when-link" data-l10n-id="link-share"></sl-menu-item>
       </sl-menu>
@@ -113,6 +114,12 @@ class ContextMenu extends HTMLElement {
     shadow.querySelector("sl-menu-item[data-l10n-id=link-share]").onclick =
       () => {
         this.shareLink(this.linkUrl);
+      };
+
+    shadow.querySelector("sl-menu-item[data-l10n-id=link-download]").onclick =
+      () => {
+        this.close();
+        this.contentWindow.webView.download(this.linkUrl);
       };
 
     shadow.querySelector(

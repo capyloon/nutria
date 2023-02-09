@@ -25,6 +25,7 @@ image-new-tab = Open In New Tab
 link-section-title = Link
 link-new-tab = Open In New Tab
 link-share = Share…
+link-download = Save Link
 page-section-title = Page
 page-save-as-pdf = Save As PDF
 selection-section-title = Selected Text
