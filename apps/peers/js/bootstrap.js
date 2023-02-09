@@ -81,7 +81,9 @@ async function shareBlob(blob, name = "") {
       body: blob,
     });
     progress.removeAttribute("indeterminate");
-    document.getElementById("qr-code").value = response.headers.get("location");
+    let ipfsUrl = response.headers.get("location");
+    document.getElementById("qr-code").value = ipfsUrl;
+    return ipfsUrl;
   } catch (e) {
     // Cleanup if anything fails.
     // TODO: proper error message.
@@ -90,17 +92,35 @@ async function shareBlob(blob, name = "") {
   }
 }
 
-async function sendToPeer(dweb, sessionId, data) {
+async function sendToPeer(dweb, sessionId, toShare) {
   log(`sendToPeer, session id=${sessionId}`);
   try {
     let session = await dweb.getSession(sessionId);
     let webrtc = new Webrtc(session.peer);
+
+    let lib = apiDaemon.getLibraryFor("DwebService");
+
+    let action = lib.PeerAction.TEXT;
+    if (toShare.url) {
+      action = lib.PeerAction.URL;
+    } else if (toShare.ipfsUrl) {
+      action = lib.PeerAction.FILE;
+    }
+
     webrtc.addEventListener("channel-open", () => {
       log(`channel open! ${webrtc.channel}`);
       webrtc.channel.addEventListener("message", (event) => {
         log(`webrtc message: ${event.data}`);
       });
-      webrtc.channel.send(data.url || data.text);
+      let toSend = "";
+      if (action === lib.PeerAction.TEXT) {
+        toSend = toShare.text;
+      } else if (action === lib.PeerAction.URL) {
+        toSend = toShare.url;
+      } else if (action === lib.PeerAction.FILE) {
+        toSend = JSON.stringify(toShare);
+      }
+      webrtc.channel.send(toSend);
     });
     webrtc.addEventListener("channel-error", () => {
       log(`channel error!`);
@@ -112,10 +132,10 @@ async function sendToPeer(dweb, sessionId, data) {
     // Get the local offer.
     let offer = await webrtc.offer();
     // Get the anwser.
-    let lib = apiDaemon.getLibraryFor("DwebService");
+
     let answer = await dweb.setupWebrtcFor(
       session,
-      data.url ? lib.PeerAction.URL : lib.PeerAction.TEXT,
+      action,
       JSON.stringify(offer)
     );
     webrtc.setRemoteDescription(JSON.parse(answer));
@@ -129,39 +149,48 @@ async function sendToPeer(dweb, sessionId, data) {
 async function onShare(data) {
   log(`onShare: ${JSON.stringify(data)}`);
 
+  let toShare = {};
+
   if (data.blob) {
-    await shareBlob(data.blob, data.name);
+    let ipfsUrl = await shareBlob(data.blob, data.name);
+    toShare.ipfsUrl = ipfsUrl;
+    toShare.name = data.name;
+    toShare.size = data.blob.size;
   } else if (data.url || data.text) {
+    toShare.url = data.url;
+    toShare.text = data.text;
+
     let text = data.url || data.text;
     document
       .getElementById("description")
       .setAttribute("data-l10n-args", JSON.stringify({ name: text }));
     document.getElementById("share").classList.remove("hidden");
     document.getElementById("qr-code").value = text;
-
-    await Promise.all(
-      ["shared-api-daemon", "webrtc"].map((dep) => graph.waitForDeps(dep))
-    );
-
-    let dweb = await apiDaemon.getDwebService();
-    let sessions = await dweb.getSessions();
-    log(`Found ${sessions.length} active p2p sessions`);
-    if (sessions?.length) {
-      let menu = document.getElementById("peers");
-      menu.addEventListener("sl-select", (event) => {
-        sendToPeer(dweb, event.detail.item.dataset.sessionId, data);
-      });
-      document.getElementById("peers-section").classList.add("open");
-      sessions.forEach((session) => {
-        let item = document.createElement("sl-menu-item");
-        item.dataset.l10nId = "peers-detail";
-        item.dataset.sessionId = session.id;
-        let { did, deviceDesc } = session.peer;
-        item.dataset.l10nArgs = JSON.stringify({ did, deviceDesc });
-        menu.append(item);
-      });
-    }
   } else {
     log(`onShare: nothing to share`);
+    return;
+  }
+
+  await Promise.all(
+    ["shared-api-daemon", "webrtc"].map((dep) => graph.waitForDeps(dep))
+  );
+
+  let dweb = await apiDaemon.getDwebService();
+  let sessions = await dweb.getSessions();
+  log(`Found ${sessions.length} active p2p sessions`);
+  if (sessions?.length) {
+    let menu = document.getElementById("peers");
+    menu.addEventListener("sl-select", (event) => {
+      sendToPeer(dweb, event.detail.item.dataset.sessionId, toShare);
+    });
+    document.getElementById("peers-section").classList.add("open");
+    sessions.forEach((session) => {
+      let item = document.createElement("sl-menu-item");
+      item.dataset.l10nId = "peers-detail";
+      item.dataset.sessionId = session.id;
+      let { did, deviceDesc } = session.peer;
+      item.dataset.l10nArgs = JSON.stringify({ did, deviceDesc });
+      menu.append(item);
+    });
   }
 }
