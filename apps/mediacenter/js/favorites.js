@@ -2,7 +2,8 @@
 
 class Favorites {
   constructor(parent, containerName) {
-    this.log("constructor");
+    this.containerName = containerName;
+    this.log(`constructor`);
     this.parentNode = parent;
     this.container = contentManager.getContainerManager(containerName, []);
     this.container.addEventListener("full-list", this);
@@ -16,7 +17,7 @@ class Favorites {
   }
 
   log(msg) {
-    console.log(`Favorites: ${msg}`);
+    console.log(`Favorites[${this.containerName}]: ${msg}`);
   }
 
   async init() {
@@ -79,6 +80,7 @@ class Favorites {
       let node = this.buildNodeFor(content, resource);
       node.dataset.resourceId = resource.meta.id;
       container.append(node);
+      this.parentNode.classList.remove("hidden");
     }
   }
 
@@ -87,12 +89,21 @@ class Favorites {
     this.log(`removeChild ${item.id}`);
     // Search for the node with the given id.
     let nodes = this.parentNode.querySelectorAll(".favorite");
+    let itemCount = 0;
     nodes.forEach((node) => {
       this.log(`checking node resource=${node.dataset["resource-id"]}`);
       if (node.dataset.resourceId == item.id) {
         node.remove();
+      } else {
+        itemCount += 1;
       }
     });
+
+    if (itemCount) {
+      this.parentNode.classList.remove("hidden");
+    } else {
+      this.parentNode.classList.add("hidden");
+    }
   }
 
   // Updates the full list of favorites.

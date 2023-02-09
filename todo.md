@@ -115,16 +115,3 @@ Predefined actions:
 - Co-launch an app.
 
 In an app, the page gets a JS api that gives access to the offer or answer to re-create a webrtc connection between the peers if needed.
-
-
-MDNS / RDV-SERVER:
-
-pairWith(remote_peer)
-Initiator    Remotee
-   (peer desc) ->
-    <- (peer desc)
-
-setupForWebrtc(remote_peer, action, offer)
-Initiator    Remotee
-   (offer) ->
-   <- (answer)
