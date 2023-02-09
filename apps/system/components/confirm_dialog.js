@@ -60,8 +60,13 @@ class ConfirmDialog extends LitElement {
   }
 
   buttonClick(event) {
+    let id = event.target.dataset.id;
+    this.dialog.addEventListener(
+      "sl-after-hide",
+      () => this.deferred.resolve(id),
+      { once: true }
+    );
     this.close();
-    this.deferred.resolve(event.target.dataset.id);
   }
 
   // data is:

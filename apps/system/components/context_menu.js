@@ -66,6 +66,7 @@ class ContextMenu extends HTMLElement {
         <sl-menu-label class="when-selection"><sl-icon name="type"></sl-icon><span data-l10n-id="selection-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-selection" data-l10n-id="selection-copy"></sl-menu-item>
         <sl-menu-item class="when-selection" data-l10n-id="selection-search"></sl-menu-item>
+        <sl-menu-item class="when-selection" data-l10n-id="selection-share"></sl-menu-item>
         <sl-divider class="when-image-or-link"></sl-divider>
         <sl-menu-label class="when-image"><sl-icon name="image"></sl-icon><span data-l10n-id="image-section-title"></span></sl-menu-label>
         <sl-menu-item class="when-image" data-l10n-id="image-set-wallpaper"></sl-menu-item>
@@ -138,6 +139,25 @@ class ContextMenu extends HTMLElement {
       );
       this.close();
     };
+
+    shadow.querySelector("sl-menu-item[data-l10n-id=selection-share]").onclick =
+      (event) => {
+        this.dialog.addEventListener(
+          "sl-after-hide",
+          () => {
+            try {
+              let activity = new WebActivity("share", {
+                text: this.selectedText,
+              });
+              activity.start();
+            } catch (e) {
+              console.error(e);
+            }
+          },
+          { once: true }
+        );
+        this.close();
+      };
 
     shadow.querySelector("sl-menu-item[data-l10n-id=selection-copy]").onclick =
       async (event) => {

@@ -29,6 +29,7 @@ page-section-title = Page
 page-save-as-pdf = Save As PDF
 selection-section-title = Selected Text
 selection-copy = Copy
+selection-share = Share…
 selection-search = Search ”{$query}”
 
 # Site Info Panel
@@ -147,3 +148,9 @@ p2p-connect-request-title = Peer Connection Request
 p2p-connect-request-text = Do you accept the connection request from {$desc}?
 p2p-connect-request-accept = Accept
 p2p-connect-request-reject = Reject
+p2p-open-url-request-title = Do you want to open the link sent by {$did} on {$device}?
+p2p-open-url-accept = Open
+p2p-open-url-reject = Close
+p2p-copy-text-request-title = Do you want to copy the text sent by {$did} on {$device}?
+p2p-copy-text-accept = Copy
+p2p-copy-text-reject = Close

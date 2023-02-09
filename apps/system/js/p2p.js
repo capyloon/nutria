@@ -83,6 +83,66 @@ class P2pDiscovery {
         return Promise.resolve(result == "accept");
       }
 
+      async onUrlAction(peer, url) {
+        let dialog = document.querySelector("confirm-dialog");
+
+        const [title, accept, reject] = await document.l10n.formatValues([
+          {
+            id: "p2p-open-url-request-title",
+            args: { did: peer.did, device: peer.deviceDesc },
+          },
+          "p2p-open-url-accept",
+          "p2p-open-url-reject",
+        ]);
+
+        let result = await dialog.open({
+          title,
+          text: url,
+          buttons: [
+            { id: "accept", label: accept, variant: "success" },
+            { id: "reject", label: reject },
+          ],
+        });
+
+        if (result == "accept") {
+          window.wm.openFrame(url, { activate: true });
+        }
+      }
+
+      async onTextAction(peer, text) {
+        let dialog = document.querySelector("confirm-dialog");
+
+        const [title, accept, reject] = await document.l10n.formatValues([
+          {
+            id: "p2p-copy-text-request-title",
+            args: { did: peer.did, device: peer.deviceDesc },
+          },
+          "p2p-copy-text-accept",
+          "p2p-copy-text-reject",
+        ]);
+
+        let result = await dialog.open({
+          title,
+          text,
+          buttons: [
+            { id: "accept", label: accept, variant: "success" },
+            { id: "reject", label: reject },
+          ],
+        });
+
+        if (result == "accept") {
+          navigator.clipboard.writeText(text).then(
+            async () => {
+              let msg = await window.utils.l10n("text-share-copied");
+              window.toaster.show(msg);
+            },
+            (err) => {
+              this.error(`Failure copying '${text}' to the clipboard: ${err}`);
+            }
+          );
+        }
+      }
+
       async provideAnswer(peer, action, offer) {
         this.log(`provideAnswer for ${action} on ${JSON.stringify(peer)}`);
         this.log(`offer is ${offer}`);
@@ -97,8 +157,15 @@ class P2pDiscovery {
           webrtc.addEventListener("channel-open", () => {
             this.log(`channel open!`);
             webrtc.channel.addEventListener("message", (event) => {
+              let lib = apiDaemon.getLibraryFor("DwebService");
               this.log(`channel message: ${event.data}`);
-              window.wm.openFrame(event.data, { activate: true });
+              if (action === lib.PeerAction.URL) {
+                this.onUrlAction(peer, event.data);
+              } else if (action === lib.PeerAction.URL) {
+                this.onTextAction(peer, event.data);
+              } else {
+                this.log(`Unsupported action: ${action}`);
+              }
             });
           });
 
