@@ -86,15 +86,13 @@ TODO:
 
 [Done] Local network discovery: when discoverable, a Capyloon device advertises itself using mDNS with the _capyloon.tcp.local service name. It exposes its public DID in a txt record, and a service endpoint url.
 
-Other devices discovering a peer by mDNS can filter out if this is one of their contacts based on the DID. Note that this does not provide any access control: this is done through the handshake protocol when connecting to the endpoint url. The handshake will end up with an offer / answer exchange to setup a WebRTC connection.
+Other devices discovering a peer by mDNS can filter out if this is one of their contacts based on the DID. Note that this does not provide any access control: this is done through the handshake protocol when connecting to the endpoint url.
 
 Remote discovery: a device can also decide to advertise its availability to a rendez-vous server. To do so, it needs to prove it owns the DID by signing a payload made random data provided by the server and the list of peers DIDs that can discover it.
 
 On the discovery side, you can request presence notifications by registering a web push endpoint with a signed payload containing the list of DIDs you want to observe. The server will take care of only delivering notifications that are allowed.
 
 Once 2 devices want to communicate using the rendez vous server, the first one will send a connection request to the server, which will relay it to the other peer (using web push) with the endpoint id and a TTL. Both devices can then do an offer / answer exchange to setup a WebRTC connection.
-
-JS API: we should expose a unified api for the local & remote cases.
 
 Use cases:
 - basic data transfert: text, urls, files.
@@ -103,15 +101,6 @@ Use cases:
 - Casual gaming.
 - remote activities
 
-
 "Guest mode" needed: how to connect to a previously unknown peer, like a TV.
 - TV shows a QR code with its DID + device id.
 - Guest adds the TV to its address book and initiates the connection.
-
-Predefined actions:
-- Sending text.
-- Sending a URL.
-- Sharing a file.
-- Co-launch an app.
-
-In an app, the page gets a JS api that gives access to the offer or answer to re-create a webrtc connection between the peers if needed.

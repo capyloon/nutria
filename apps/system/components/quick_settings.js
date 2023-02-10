@@ -276,12 +276,20 @@ class QuickSettings extends HTMLElement {
 
     let tag = document.createElement("sl-tag");
     tag.dataset.l10nId = "peer-paired";
+    tag.classList.add("when-paired");
     tag.setAttribute("variant", "success");
     tag.setAttribute("pill", "true");
     node.append(tag);
 
+    let apps = document.createElement("sl-button");
+    apps.dataset.l10nId = "launch-peer-app";
+    apps.classList.add("launch");
+    apps.classList.add("when-paired");
+    node.append(apps);
+
     let button = document.createElement("sl-button");
-    button.setAttribute("data-l10n-id", "connect-peer");
+    button.dataset.l10nId = "connect-peer";
+    button.classList.add("when-unpaired");
     button.onclick = () => {
       this.drawer.hide();
       handler(peer);
@@ -304,9 +312,24 @@ class QuickSettings extends HTMLElement {
     }
   }
 
-  peerPaired(peer) {
+  peerPaired(session) {
+    let peer = session.peer;
     let id = `#peer-${peer.did}-${peer.deviceId}`.replaceAll(":", "-");
-    this.shadowRoot.querySelector(id)?.classList.add("paired");
+    let node = this.shadowRoot.querySelector(id);
+    if (node) {
+      node.querySelector(".launch").onclick = () => {
+        this.drawer.hide();
+        try {
+          let act = new WebActivity("p2p-start", { sessionId: session.id });
+          act.start();
+        } catch (e) {
+          console.error(
+            `p2p: failed to launch app for session ${session.id}: ${e}`
+          );
+        }
+      };
+      node.classList.add("paired");
+    }
   }
 
   handleEvent(event) {

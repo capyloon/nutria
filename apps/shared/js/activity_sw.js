@@ -47,9 +47,11 @@ async function getClient(activityName) {
         disposition = ACTIVITIES_DISPOSITION[activityName];
       }
     } catch (e) {}
-    let win = await clients.openWindow(`/index.html#activity-${activityName}`, {
-      disposition,
-    });
+    let url = `/index.html#activity-${activityName}`;
+    if (ACTIVITIES_URL && ACTIVITIES_URL[activityName]) {
+      url = ACTIVITIES_URL[activityName];
+    }
+    let win = await clients.openWindow(url, { disposition });
     return win;
   }
 }
@@ -106,7 +108,7 @@ self.addEventListener("message", async (event) => {
         });
       }
     }
-  } else {
+  } else if (data.topic !== "keep-alive") {
     error(`Unexpected message topic: ${data.topic}`);
   }
 });

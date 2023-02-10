@@ -62,6 +62,7 @@ screenshot-saved-error = Failed to Save Screenshot: {$error}
 emergency-calls-only = Emergency Calls Only
 connect-peer = Connect
 peer-paired = Paired
+launch-peer-app = Launch App
 
 # Download notifications
 download-notification-title-downloading = Download Ongoing
@@ -151,11 +152,14 @@ p2p-connect-request-accept = Accept
 p2p-connect-request-reject = Reject
 p2p-open-url-title = Do you want to open the link sent by {$did} on {$device}?
 p2p-open-url-accept = Open
-p2p-open-url-reject = Close
+p2p-open-url-reject = Cancel
 p2p-copy-text-title = Do you want to copy the text sent by {$did} on {$device}?
 p2p-copy-text-accept = Copy
-p2p-copy-text-reject = Close
+p2p-copy-text-reject = Cancel
 p2p-download-title = Do you want to download this file offered by {$did} on {$device}?
 p2p-download-text = {$name}: {$size} bytes
 p2p-download-accept = Download
-p2p-download-reject = Close
+p2p-download-reject = Cancel
+p2p-launch-title = Do you want to launch this app sent by {$did} on {$device}?
+p2p-launch-accept = Launch
+p2p-launch-reject = Cancel
