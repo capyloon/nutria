@@ -51,13 +51,13 @@ class P2pDiscovery {
 
     let lib = apiDaemon.getLibraryFor("DwebService");
 
-    class WebrtcProvider extends lib.P2pProviderBase {
+    class P2pProvider extends lib.P2pProviderBase {
       constructor(serviceId, session) {
         super(serviceId, session);
       }
 
       log(msg) {
-        console.log(`p2p: dweb: WebrtcProvider: ${msg}`);
+        console.log(`p2p: dweb: P2pProvider: ${msg}`);
       }
 
       async hello(peer) {
@@ -143,7 +143,7 @@ class P2pDiscovery {
         }
       }
 
-      async onFileAction(peer, data) {
+      async onDownloadAction(peer, data) {
         let dialog = document.querySelector("confirm-dialog");
 
         const [title, text, accept, reject] = await document.l10n.formatValues([
@@ -176,49 +176,70 @@ class P2pDiscovery {
 
         if (result == "accept") {
           let link = document.createElement("a");
-          link.href = data.ipfsUrl;
+          link.href = data.url;
           link.setAttribute("download", data.name);
           link.click();
         }
       }
 
-      async provideAnswer(peer, action, offer) {
-        this.log(`provideAnswer for ${action} on ${JSON.stringify(peer)}`);
-        this.log(`offer is ${offer}`);
+      async onLaunchAction(peer, data) {
+        let dialog = document.querySelector("confirm-dialog");
 
-        try {
-          let webrtc = new Webrtc(peer);
-          webrtc.setRemoteDescription(JSON.parse(offer));
-          let answer = JSON.stringify(await webrtc.answer());
+        const [title, accept, reject] = await document.l10n.formatValues([
+          {
+            id: "p2p-launch-title",
+            args: { did: peer.did, device: peer.deviceDesc },
+          },
+          "p2p-launch-accept",
+          "p2p-launch-reject",
+        ]);
 
-          this.log(`got answer: ${answer.substring(0, 80)}`);
+        let result = await dialog.open({
+          title,
+          text: data.desc,
+          buttons: [
+            { id: "accept", label: accept, variant: "success" },
+            { id: "reject", label: reject },
+          ],
+        });
 
-          webrtc.addEventListener("channel-open", () => {
-            this.log(`channel open!`);
-            webrtc.channel.addEventListener("message", (event) => {
-              let lib = apiDaemon.getLibraryFor("DwebService");
-              this.log(`channel message: ${event.data}`);
-              if (action === lib.PeerAction.URL) {
-                this.onUrlAction(peer, event.data);
-              } else if (action === lib.PeerAction.TEXT) {
-                this.onTextAction(peer, event.data);
-              } else if (action === lib.PeerAction.FILE) {
-                this.onFileAction(peer, JSON.parse(event.data));
-              } else {
-                this.log(`Unsupported action: ${action}`);
-              }
-            });
+        if (result == "accept") {
+          let act = new WebActivity("p2p-respond", {
+            peer,
+            app_id: data.app_id,
+            desc: data.desc,
+            offer: data.offer,
           });
-
-          return answer;
-        } catch (e) {
-          this.log(e);
+          let dialResult = await act.start();
+          this.log(`Got dial result: ${JSON.stringify(dialResult)}`);
+          return dialResult;
+        } else {
+          throw new Error("Denied");
         }
+      }
+
+      async onDialed(peer, params) {
+        this.log(`onDialed with ${JSON.stringify(params)}`);
+
+        if (params.action === "open-url") {
+          this.onUrlAction(peer, params.url);
+        } else if (params.action === "text") {
+          this.onTextAction(peer, params.text);
+        } else if (params.action === "download") {
+          this.onDownloadAction(peer, params);
+        } else if (params.action === "launch") {
+          return this.onLaunchAction(peer, params);
+        } else {
+          console.error(`Unsupported peer action: ${params.action}`);
+          return false;
+        }
+
+        return true;
       }
     }
 
     await this.dweb.setP2pProvider(
-      new WebrtcProvider(this.dweb.service_id, this.dweb.session)
+      new P2pProvider(this.dweb.service_id, this.dweb.session)
     );
 
     // Get the initial settings values.
@@ -267,7 +288,7 @@ class P2pDiscovery {
     );
     this.dweb.addEventListener(this.dweb.SESSIONADDED_EVENT, (session) => {
       this.log(`SESSIONADDED_EVENT: ${JSON.stringify(session)}`);
-      this.quickSettings().peerPaired(session.peer);
+      this.quickSettings().peerPaired(session);
     });
     this.dweb.addEventListener(this.dweb.SESSIONREMOVED_EVENT, (sessionId) => {
       this.log(`SESSIONREMOVED_EVENT: ${sessionId}`);

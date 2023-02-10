@@ -141,14 +141,16 @@
   padding-right: 0.5em;
 }
 
-:host .peer > sl-tag {
+:host .peer > .when-paired,
+:host .peer > .when-paired {
   display: none;
 }
 
-:host .peer.paired > sl-tag {
+:host .peer.paired > .when-paired,
+:host .peer.paired > .when-paired {
   display: initial;
 }
 
-:host .peer.paired > sl-button {
+:host .peer.paired > .when-unpaired {
   display: none;
 }

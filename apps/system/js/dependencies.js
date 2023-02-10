@@ -249,6 +249,7 @@ const kDeps = [
       "shoelace-icon",
       "shoelace-range",
       "shoelace-badge",
+      "shoelace-button",
       "status icons comp",
     ],
   },

@@ -18,11 +18,6 @@ const kDeps = [
     kind: "sharedModule",
     param: ["js/activity_manager.js", ["ActivityManager"]],
   },
-  {
-    name: "webrtc",
-    kind: "sharedScript",
-    param: ["js/webrtc.js"],
-  },
 ];
 
 function log(msg) {
@@ -96,49 +91,24 @@ async function sendToPeer(dweb, sessionId, toShare) {
   log(`sendToPeer, session id=${sessionId}`);
   try {
     let session = await dweb.getSession(sessionId);
-    let webrtc = new Webrtc(session.peer);
 
-    let lib = apiDaemon.getLibraryFor("DwebService");
+    let params = {};
 
-    let action = lib.PeerAction.TEXT;
     if (toShare.url) {
-      action = lib.PeerAction.URL;
+      params.action = "open-url";
+      params.url = toShare.url;
     } else if (toShare.ipfsUrl) {
-      action = lib.PeerAction.FILE;
+      params.action = "download";
+      params.url = toShare.ipfsUrl;
+      params.name = toShare.name;
+      params.size = toShare.size;
+    } else if (toShare.text) {
+      params.action = "text";
+      params.text = toShare.text;
     }
 
-    webrtc.addEventListener("channel-open", () => {
-      log(`channel open! ${webrtc.channel}`);
-      webrtc.channel.addEventListener("message", (event) => {
-        log(`webrtc message: ${event.data}`);
-      });
-      let toSend = "";
-      if (action === lib.PeerAction.TEXT) {
-        toSend = toShare.text;
-      } else if (action === lib.PeerAction.URL) {
-        toSend = toShare.url;
-      } else if (action === lib.PeerAction.FILE) {
-        toSend = JSON.stringify(toShare);
-      }
-      webrtc.channel.send(toSend);
-    });
-    webrtc.addEventListener("channel-error", () => {
-      log(`channel error!`);
-    });
-    webrtc.addEventListener("channel-close", () => {
-      log(`channel close!`);
-    });
-
-    // Get the local offer.
-    let offer = await webrtc.offer();
-    // Get the anwser.
-
-    let answer = await dweb.setupWebrtcFor(
-      session,
-      action,
-      JSON.stringify(offer)
-    );
-    webrtc.setRemoteDescription(JSON.parse(answer));
+    let result = await dweb.dial(session, params);
+    log(`sendToPeer result: ${result}`);
   } catch (e) {
     console.error(e);
     log(`Oops ${JSON.stringify(e)}`);
@@ -171,9 +141,7 @@ async function onShare(data) {
     return;
   }
 
-  await Promise.all(
-    ["shared-api-daemon", "webrtc"].map((dep) => graph.waitForDeps(dep))
-  );
+  await graph.waitForDeps("shared-api-daemon");
 
   let dweb = await apiDaemon.getDwebService();
   let sessions = await dweb.getSessions();

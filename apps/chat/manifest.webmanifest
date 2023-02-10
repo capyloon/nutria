@@ -1,0 +1,44 @@
+{
+  "name": "Chat",
+  "description": "Chat with friends",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "/icons/messages.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "role": "p2p-app",
+    "developer": {
+      "name": "The Capyloon team"
+    },
+    "permissions": {
+      "content-manager": {},
+      "dweb": {},
+      "themeable": {}
+    },
+    "serviceworker": {
+      "script_url": "sw.js"
+    },
+    "activities": {
+      "p2p-start": {
+        "filters": {
+          "sessionId": { "mandatory": true }
+        },
+        "href": "/index.html"
+      },
+      "p2p-respond": {
+        "filters": {
+          "app_id": "aff588f5-0e8c-4225-9e61-284ff8f746d5",
+          "offer": { "mandatory": true }
+        },
+        "href": "/index.html",
+        "returnValue": true
+      }
+    }
+  },
+  "version": "1.0"
+}
