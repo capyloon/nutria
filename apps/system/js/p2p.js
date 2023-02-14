@@ -3,6 +3,7 @@
 // - p2p.discovery.enabled
 // - p2p.discovery.local-only
 // - p2p.device.id
+// - p2p.user.did
 // - device.name
 
 // Mapping of ConnectErrorKind to strings usable in l10n contexts.
@@ -246,6 +247,7 @@ class P2pDiscovery {
     this.enabled = await this.getSetting("p2p.discovery.enabled", false);
     this.localOnly = await this.getSetting("p2p.discovery.local-only", true);
     this.deviceDesc = await this.getSetting("device.name", this.deviceDesc);
+    this.did = await this.getSetting("p2p.user.did", this.did);
 
     try {
       let setting = await this.settings.get("p2p.device.id");
@@ -275,6 +277,17 @@ class P2pDiscovery {
     this.settings.addObserver("p2p.discovery.local-only", async (setting) => {
       this.localOnly = setting.value;
       await this.updateDiscovery();
+    });
+
+    this.settings.addObserver("p2p.user.did", async (setting) => {
+      this.did = setting.value;
+      // Stop and restart the discovery to force the new DID to be broadcasted.
+      if (this.enabled) {
+        this.enabled = false;
+        await this.updateDiscovery();
+        this.enabled = true;
+        await this.updateDiscovery();
+      }
     });
 
     // Install dweb event listeners.
@@ -355,7 +368,7 @@ class P2pDiscovery {
   // Starts / stop the dweb discovery based on the current configuration.
   async updateDiscovery() {
     this.log(
-      `updateDiscovery enabled=${this.enabled} localOnly=${this.localOnly}`
+      `updateDiscovery enabled=${this.enabled} localOnly=${this.localOnly} did=${this.did}`
     );
 
     if (this.enabled) {
