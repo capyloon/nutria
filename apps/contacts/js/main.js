@@ -160,15 +160,15 @@ async function manageList(wrappers) {
   let manager = contentManager.getContactsManager(async (contacts) => {
     await graph.waitForDeps("contact info");
     console.log(`Contacts list updated: ${contacts.length} contacts`);
-    elem("main-title").setAttribute(
-      "data-l10n-args",
-      JSON.stringify({ count: contacts.length })
-    );
+    elem("main-title").dataset.l10nArgs = JSON.stringify({
+      count: contacts.length,
+    });
 
     let list = elem("contact-list");
     list.innerHTML = "";
     for (let contact of contacts) {
       let el = list.appendChild(new ContactInfo(contact));
+      el.classList.add("sl-box");
       el.addEventListener("delete-contact", () => {
         manager.deleteContact(contact);
       });

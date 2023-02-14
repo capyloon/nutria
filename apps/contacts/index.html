@@ -21,7 +21,7 @@
       <h2
         id="main-title"
         data-l10n-id="main-title"
-        data-l10n-args='{ "count": 0}'
+        data-l10n-args='{"count":0}'
       ></h2>
       <div id="contact-list"></div>
       <div id="float-buttons">
@@ -68,6 +68,20 @@
             data-l10n-id="add-contact-email"
             data-l10n-attrs="label"
           ></sl-input>
+          <div id="add-contact-identity-section">
+            <span data-l10n-id="add-contact-identity"></span>
+            <ul id="add-contact-did-list"></ul>
+          </div>
+          <sl-switch
+            id="add-contact-personnal-card-switch"
+            data-l10n-id="personnal-card"
+          ></sl-switch>
+          <div class="hidden" id="add-contact-did-section">
+            <sl-button
+              id="add-contact-update-dids"
+              data-l10n-id="update-dids"
+            ></sl-button>
+          </div>
         </form>
       </div>
       <div slot="footer">

@@ -4,6 +4,7 @@
   display: flex;
   gap: 0.5em;
   align-items: center;
+  padding-left: 0.5em;
 }
 
 :host .details {
@@ -36,4 +37,12 @@
   display: flex;
   gap: 0.25em;
   align-items: center;
+}
+
+:host .did {
+  font-size: var(--sl-font-size-small);
+  font-weight: var(--sl-font-weight-light);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }

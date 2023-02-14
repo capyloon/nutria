@@ -50,6 +50,15 @@ class AddContactPanel {
       this.photo = await response.blob();
       this.setAvatar();
     }
+    this.updateDidList(contact.did || []);
+
+    this.cardSwitch.checked = contact.isOwn;
+    if (this.cardSwitch.checked) {
+      elem("did-section").classList.remove("hidden");
+    } else {
+      elem("did-section").classList.add("hidden");
+      elem("did-list").innerHTML = "";
+    }
   }
 
   setAvatar() {
@@ -64,10 +73,18 @@ class AddContactPanel {
       this.goToMainScreen();
     } else if (event.target == this.btnOk) {
       let contact = this.contactsManager.newContact();
+      contact.isOwn = this.cardSwitch.checked;
       contact.name = this.inputs["name"].value;
       contact.phone = [this.inputs["phone"].value];
       contact.email = [this.inputs["email"].value];
       contact.photo = this.photo;
+      contact.did = [];
+      elem("did-list")
+        .querySelectorAll("li")
+        .forEach((item) => {
+          contact.did.push(item.did);
+        });
+
       if (this.contactId) {
         await this.contactsManager.update(this.contactId, contact);
       } else {
@@ -81,7 +98,36 @@ class AddContactPanel {
         this.photo = await picker.start();
         this.setAvatar();
       } catch (e) {}
+    } else if (event.target == this.cardSwitch) {
+      if (this.cardSwitch.checked) {
+        elem("did-section").classList.remove("hidden");
+      } else {
+        elem("did-section").classList.add("hidden");
+        elem("did-list").innerHTML = "";
+      }
+    } else if (event.target == this.btnUpdateDid) {
+      await this.updateIdentity();
     }
+  }
+
+  updateDidList(dids) {
+    let list = elem("did-list");
+    list.innerHTML = "";
+    dids.forEach((did) => {
+      if (did.name == "superuser") {
+        return;
+      }
+      let item = document.createElement("li");
+      item.did = did;
+      item.textContent = `${did.name} | ${did.uri}`;
+      list.append(item);
+    });
+  }
+
+  async updateIdentity() {
+    let dweb = await apiDaemon.getDwebService();
+    let dids = await dweb.getDids();
+    this.updateDidList(dids);
   }
 
   clear() {
@@ -109,6 +155,12 @@ class AddContactPanel {
 
     this.avatar = elem("avatar");
     this.avatar.addEventListener("click", this);
+
+    this.cardSwitch = elem("personnal-card-switch");
+    this.cardSwitch.addEventListener("sl-change", this);
+
+    this.btnUpdateDid = elem("update-dids");
+    this.btnUpdateDid.addEventListener("click", this);
 
     ALL_INPUTS.forEach((item) => {
       this.inputs[item] = elem(item);

@@ -1053,7 +1053,7 @@ class OpenSearchManager extends ContentManager {
 // Contact Wrapper.
 // These fields are indexed: { name: "...", phone: "[...]", email: "[...]" }
 class Contact {
-  constructor(init = null) {
+  constructor(init = null, tags = []) {
     // The resource id.
     this.id = null;
 
@@ -1063,9 +1063,11 @@ class Contact {
     this.email = init?.email || [];
     this.did = init?.did || [];
     this.photo = init?.photo || null;
+
+    this.isOwn = tags.includes("own-card");
   }
 
-  static fromJson(json, id) {
+  static fromJson(json, id, tags = []) {
     let contact = new Contact();
 
     contact.id = id;
@@ -1076,6 +1078,7 @@ class Contact {
     contact.email = json.email;
     contact.did = json.did;
 
+    contact.isOwn = tags.includes("own-card");
     return contact;
   }
 
@@ -1126,6 +1129,7 @@ class ContactsManager extends ContentManager {
     this.log(`list modified: ${JSON.stringify(change)}`);
     if (
       change.kind == this.lib.ModificationKind.CHILD_CREATED ||
+      change.kind == this.lib.ModificationKind.CHILD_MODIFIED ||
       change.kind == this.lib.ModificationKind.CHILD_DELETED
     ) {
       await this.updateList();
@@ -1157,7 +1161,7 @@ class ContactsManager extends ContentManager {
             let blob = await this.svc.getVariant(child.id, "default");
             if (blob.type === CONTACTS_MIME_TYPE) {
               let json = JSON.parse(await blob.text());
-              let contact = Contact.fromJson(json, child.id);
+              let contact = Contact.fromJson(json, child.id, child.tags);
 
               // Fetch the photo variant url if it's available.
               let hasPhoto = child.variants.find((variant) => {
@@ -1188,6 +1192,11 @@ class ContactsManager extends ContentManager {
   async add(contact) {
     await this.ready();
 
+    let tags = ["contact"];
+    if (contact.isOwn) {
+      tags.push("own-card");
+    }
+
     try {
       // Store the new contact.
       let meta = await this.svc.createobj(
@@ -1195,7 +1204,7 @@ class ContactsManager extends ContentManager {
           parent: this.container,
           name: contact.name,
           kind: this.lib.ResourceKind.LEAF,
-          tags: ["contact"],
+          tags,
         },
         "default",
         new Blob([JSON.stringify(contact.asDefaultVariant())], {
@@ -1215,6 +1224,8 @@ class ContactsManager extends ContentManager {
   }
 
   async update(id, contact) {
+    await this.ready();
+
     let resource = new ContentResource(this.svc, this.http_key, { id });
     await resource.update(
       new Blob([JSON.stringify(contact.asDefaultVariant())], {
@@ -1224,6 +1235,13 @@ class ContactsManager extends ContentManager {
     if (contact.photo) {
       await resource.update(contact.photo, "photo");
     }
+    try {
+      if (contact.isOwn) {
+        await resource.addTag("own-card");
+      } else {
+        await resource.removeTag("own-card");
+      }
+    } catch (e) {}
     await this.updateList();
   }
 }

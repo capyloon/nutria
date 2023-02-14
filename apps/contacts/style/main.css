@@ -80,6 +80,30 @@ header span {
   background-color: white;
 }
 
+#add-contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+#add-contact-avatar {
+  margin-bottom: 1em;
+  cursor: pointer;
+}
+
+#add-contact-did-list {
+  padding-left: 0;
+}
+
+#add-contact-did-list li {
+  list-style-type: none;
+  font-size: var(--sl-font-size-small);
+  font-weight: var(--sl-font-weight-light);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
 /*
 Generic style to create containers with the Shoelace style
 TODO: consider moving to shared/
