@@ -57,6 +57,28 @@ class DwebPanel {
     remoteSwitch.disabled = !enabled;
   }
 
+  async initDid() {
+    let dweb = await apiDaemon.getDwebService();
+    let dids = await dweb.getDids();
+    let list = document.getElementById("dweb-p2p-dids");
+    dids.forEach((did) => {
+      if (did.name === "superuser") {
+        return;
+      }
+      let item = document.createElement("sl-option");
+      item.setAttribute("value", did.uri);
+      item.textContent = did.name;
+      list.append(item);
+    });
+    try {
+      let current = await this.settings.get("p2p.user.did");
+      list.setAttribute("value", current.value);
+    } catch (e) {}
+    list.addEventListener("sl-change", async () => {
+      await this.settings.set([{ name: "p2p.user.did", value: list.value }]);
+    });
+  }
+
   async init() {
     if (this.ready) {
       return;
@@ -72,6 +94,8 @@ class DwebPanel {
     );
 
     await this.addSwitchBinding("remote", "p2p.discovery.local-only", () => {});
+
+    await this.initDid();
 
     this.ready = true;
   }

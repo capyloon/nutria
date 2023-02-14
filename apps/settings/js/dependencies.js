@@ -118,6 +118,8 @@ const kDeps = [
       "shoelace-input",
       "shoelace-divider",
       "shoelace-switch",
+      "shoelace-select",
+      "shoelace-option",
       "switch-setting",
     ],
   },

@@ -98,6 +98,8 @@ dweb-estuary-section = Estuary API key
 dweb-p2p-section = Peers Discovery
 dweb-p2p-discovery-label = Allow discovery
 dweb-p2p-remote-label = Allow discovery outside of the local network
+dweb-p2p-did-label =
+  .label = User Identity
 
 # Telephony panel
 telephony-title = Telephony
