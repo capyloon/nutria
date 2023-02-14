@@ -28,7 +28,7 @@ const kDeps = [
   {
     name: "add-panel",
     kind: "virtual",
-    deps: ["shoelace-input", "add-module"],
+    deps: ["shoelace-input", "shoelace-switch", "add-module"],
   },
   { name: "add-module", kind: "module", param: "js/add_panel.js" },
   {

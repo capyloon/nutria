@@ -4,7 +4,7 @@ export class ContactInfo extends LitElement {
   constructor(contact) {
     super();
     this.contact = contact;
-    this.log(`constructor: ${contact.id}`);
+    this.log(`constructor: ${contact.id} ${contact.photoUrl}`);
     this.opened = false;
   }
 
@@ -65,8 +65,8 @@ export class ContactInfo extends LitElement {
           ${this.contact.phone.map(
             (phone) =>
               html`<div class="comm-item">
-                <sl-icon name="message-circle"></sl-icon
-                ><a href="sms://${phone}">${phone}</a>
+                <sl-icon name="message-circle"></sl-icon>
+                <a href="sms://${phone}">${phone}</a>
               </div>`
           )}
         </div>
@@ -74,8 +74,17 @@ export class ContactInfo extends LitElement {
           ${this.contact.email.map(
             (email) =>
               html`<div class="comm-item">
-                <sl-icon name="mail"></sl-icon
-                ><a href="mailto:${email}">${email}</a>
+                <sl-icon name="mail"></sl-icon>
+                <a href="mailto:${email}">${email}</a>
+              </div>`
+          )}
+        </div>
+        <div>
+          ${this.contact.did.map(
+            (did) =>
+              html`<div class="comm-item did">
+                <sl-icon name="key"></sl-icon>
+                ${did.name} | ${did.uri}
               </div>`
           )}
         </div>

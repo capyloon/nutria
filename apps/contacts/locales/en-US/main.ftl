@@ -5,8 +5,8 @@ title = Contacts
 
 # main screen
 main-title = {$count ->
-    [zero] No contacts
-    [one] One contact
+    [0] No contacts
+    [1] One contact
    *[other] {$count} contacts
 }
 btn-add = New
@@ -21,3 +21,6 @@ add-contact-phone =
   .label = Phone Number
 add-contact-email =
   .label = E-mail
+add-contact-identity = Identity
+personnal-card = This is my own contact card
+update-dids = Update Identity

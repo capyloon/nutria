@@ -48,9 +48,11 @@ async function getClient(activityName) {
       }
     } catch (e) {}
     let url = `/index.html#activity-${activityName}`;
-    if (ACTIVITIES_URL && ACTIVITIES_URL[activityName]) {
-      url = ACTIVITIES_URL[activityName];
-    }
+    try {
+      if (ACTIVITIES_URL && ACTIVITIES_URL[activityName]) {
+        url = ACTIVITIES_URL[activityName];
+      }
+    } catch (e) {}
     let win = await clients.openWindow(url, { disposition });
     return win;
   }
