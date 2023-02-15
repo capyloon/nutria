@@ -11,7 +11,9 @@ const kDeps = [
       "shoelace-input",
       "shoelace-icon-button",
       "shoelace-alert",
+      "shoelace-avatar",
       "activity manager",
+      "content manager",
       "webrtc",
     ],
   },
@@ -19,6 +21,12 @@ const kDeps = [
     name: "activity manager",
     kind: "sharedModule",
     param: ["js/activity_manager.js", ["ActivityManager"]],
+  },
+  {
+    name: "content manager",
+    kind: "sharedWindowModule",
+    param: ["js/content_manager.js", "contentManager", "ContentManager"],
+    deps: ["shared-api-daemon"],
   },
   {
     name: "webrtc",
@@ -69,11 +77,37 @@ function onClose() {
     .setAttribute("disabled", "true");
 }
 
+async function maybeUseContact(peer) {
+  log(`maybeUseContact ${peer.did}`);
+  await contentManager.as_superuser();
+
+  let manager = contentManager.getContactsManager((contacts) => {
+    for (let contact of contacts) {
+      let dids = (contact.did || []).map((did) => did.uri);
+      if (dids.includes(peer.did)) {
+        document.getElementById("chat-title").textContent = contact.name;
+        let avatar = document.getElementById("contact-photo");
+        if (contact.photoUrl) {
+          log(contact.photoUrl);
+          avatar.setAttribute("image", contact.photoUrl);
+          avatar.classList.remove("hidden");
+        }
+      }
+    }
+    manager = null;
+  });
+
+  await manager.init();
+}
+
 function createChat(channel, peer) {
   document.getElementById("connect").classList.add("hidden");
   let chatContainer = document.getElementById("chat");
   chatContainer.classList.remove("hidden");
-  chatContainer.querySelector("#chat-title").textContent = peer.did;
+  chatContainer.querySelector("#chat-title").textContent = peer.deviceDesc;
+
+  maybeUseContact(peer);
+
   let messages = document.getElementById("messages");
 
   channel.addEventListener("error", () => {

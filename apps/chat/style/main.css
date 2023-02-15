@@ -66,6 +66,10 @@ sl-alert::part(message) {
   gap: 1em;
 }
 
+sl-avatar {
+  --size: 2em;
+}
+
 #bottom sl-input {
   flex: 1;
 }
@@ -76,7 +80,8 @@ sl-progress-bar {
 
 #connect.hidden,
 #chat.hidden,
-#error-wrapper.hidden {
+#error-wrapper.hidden,
+#contact-photo.hidden {
   display: none;
 }
 
