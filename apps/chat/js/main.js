@@ -10,6 +10,7 @@ const kDeps = [
       "shoelace-button",
       "shoelace-input",
       "shoelace-icon-button",
+      "shoelace-alert",
       "activity manager",
       "webrtc",
     ],
@@ -59,6 +60,15 @@ function addTextBubble(text, node, dir = "left") {
   node.prepend(item);
 }
 
+function onClose() {
+  document.getElementById("closed-section").show();
+  document.getElementById("send-button").setAttribute("disabled", "true");
+  document
+    .getElementById("chat")
+    .querySelector("sl-input")
+    .setAttribute("disabled", "true");
+}
+
 function createChat(channel, peer) {
   document.getElementById("connect").classList.add("hidden");
   let chatContainer = document.getElementById("chat");
@@ -72,6 +82,7 @@ function createChat(channel, peer) {
 
   channel.addEventListener("close", () => {
     log(`channel close!`);
+    onClose();
   });
 
   channel.addEventListener("message", (event) => {
@@ -131,6 +142,16 @@ async function onRespond(data) {
   }
 }
 
+function onError(error) {
+  document.getElementById("connect").classList.add("hidden");
+  document.getElementById("chat").classList.add("hidden");
+  document.getElementById("bye-bye-error").onclick = () => {
+    window.close();
+  };
+  document.getElementById("error-wrapper").classList.remove("hidden");
+  document.getElementById("error-section").show();
+}
+
 async function onStart(data) {
   log(`onStart ${JSON.stringify(data)}`);
 
@@ -158,7 +179,7 @@ async function onStart(data) {
     log(`onStart got answer: ${JSON.stringify(answer)}`);
     webrtc.setRemoteDescription(answer);
   } catch (e) {
-    console.error(e);
+    onError(e.value);
     log(`onStart Oops ${JSON.stringify(e)}`);
     throw e;
   }
