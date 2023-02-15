@@ -4,6 +4,8 @@ export class ContactInfo extends LitElement {
   constructor(contact) {
     super();
     this.contact = contact;
+    this.known = [];
+    this.paired = [];
     this.log(`constructor: ${contact.id} ${contact.photoUrl}`);
     this.opened = false;
   }
@@ -15,6 +17,8 @@ export class ContactInfo extends LitElement {
   static get properties() {
     return {
       contact: { state: true },
+      known: { state: true },
+      paired: { state: true },
     };
   }
 
@@ -37,6 +41,34 @@ export class ContactInfo extends LitElement {
     this.dispatchEvent(new CustomEvent(`${action}-contact`));
   }
 
+  updatePeerInfo(known, paired) {
+    this.known = known;
+    this.paired = paired;
+  }
+
+  launchApp(event) {
+    let index = event.target.dataset.pairedIndex;
+    let session = this.paired[index];
+
+    this.log(`launching app for session ${index}`);
+    try {
+      let act = new WebActivity("p2p-start", {
+        sessionId: session.id,
+      });
+      act.start();
+    } catch (e) {
+      console.error(
+        `p2p: failed to launch app for session ${session.id}: ${e}`
+      );
+    }
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  updated() {
+    document.l10n.translateFragment(this.shadowRoot);
+  }
+
   render() {
     let initials = this.contact.name
       .split(" ")
@@ -48,8 +80,18 @@ export class ContactInfo extends LitElement {
         <sl-avatar
           initials="${initials}"
           image="${this.contact.photoUrl}?${Math.random()}"
-        ></sl-avatar
-        >${this.contact.name}
+        ></sl-avatar>
+        <span>${this.contact.name}</span>
+        <div class="flex-fill"></div>
+        ${this.paired.map((_paired, index) => {
+          return html`<sl-button
+            data-l10n-id="contact-launch-app"
+            data-paired-index="${index}"
+            @click="${this.launchApp}"
+            size="small"
+            variant="success"
+          ></sl-button>`;
+        })}
       </div>
       <div class="details hidden">
         <div>
