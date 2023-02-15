@@ -24,3 +24,6 @@ add-contact-email =
 add-contact-identity = Identity
 personnal-card = This is my own contact card
 update-dids = Update Identity
+
+# ContactInfo
+contact-launch-app = Launch app

@@ -23,7 +23,12 @@ const kDeps = [
     name: "contact info",
     kind: "module",
     param: ["./components/contact_info.js", ["ContactInfo"]],
-    deps: ["lit element", "shoelace-avatar", "shoelace-icon-button"],
+    deps: [
+      "lit element",
+      "shoelace-avatar",
+      "shoelace-icon-button",
+      "shoelace-button",
+    ],
   },
   {
     name: "add-panel",

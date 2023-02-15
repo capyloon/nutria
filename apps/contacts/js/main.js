@@ -63,6 +63,118 @@ class PanelWrapper {
   }
 }
 
+class PeerWatcher {
+  constructor() {
+    this.peers = new Map(); // Maps peer key to Peer
+    this.sessions = new Map(); // Maps sessionId to session
+
+    this.watchers = new Map(); // Maps did to [ContactInfo]
+  }
+
+  peerKey(peer) {
+    return `${peer.did}-${peer.deviceId}`;
+  }
+
+  log(msg) {
+    console.log(`PeerWatcher: ${msg}`);
+  }
+
+  async init() {
+    this.dweb = await apiDaemon.getDwebService();
+    let peers = await this.dweb.knownPeers();
+    peers.forEach((peer) => {
+      this.peers.set(this.peerKey(peer), peer);
+    });
+    let sessions = await this.dweb.getSessions();
+    sessions.forEach((session) => {
+      this.sessions.set(session.id, session);
+    });
+
+    this.dweb.addEventListener(
+      this.dweb.PEERFOUND_EVENT,
+      this.onPeerFound.bind(this)
+    );
+    this.dweb.addEventListener(
+      this.dweb.PEERLOST_EVENT,
+      this.onPeerLost.bind(this)
+    );
+    this.dweb.addEventListener(
+      this.dweb.SESSIONADDED_EVENT,
+      this.onSessionAdded.bind(this)
+    );
+    this.dweb.addEventListener(
+      this.dweb.SESSIONREMOVED_EVENT,
+      this.onSessionRemoved.bind(this)
+    );
+  }
+
+  clearWatchers() {
+    this.watchers.clear();
+  }
+
+  getInfo(did) {
+    let known = [];
+    let paired = [];
+    for (let peer of this.peers.values()) {
+      if (peer.did === did) {
+        known.push(peer);
+      }
+    }
+    for (let session of this.sessions.values()) {
+      if (session.peer.did === did) {
+        paired.push(session);
+      }
+    }
+    return { known, paired };
+  }
+
+  addWatcher(did, contact) {
+    let current = this.watchers.get(did);
+    if (current) {
+      current.push(contact);
+      this.watchers.set(did, current);
+    } else {
+      this.watchers.set(did, [contact]);
+    }
+
+    // Set the proper contact state.
+    let { known, paired } = this.getInfo(did);
+    contact.updatePeerInfo(known, paired);
+  }
+
+  updateContactsFor(did) {
+    let contacts = this.watchers.get(did) || [];
+    let { known, paired } = this.getInfo(did);
+    contacts.forEach((contact) => {
+      contact.updatePeerInfo(known, paired);
+    });
+  }
+
+  onPeerFound(peer) {
+    this.peers.set(this.peerKey(peer), peer);
+    this.updateContactsFor(peer.did);
+  }
+
+  onPeerLost(peer) {
+    this.peers.delete(this.peerKey(peer));
+    this.updateContactsFor(peer.did);
+  }
+
+  onSessionAdded(session) {
+    this.sessions.set(session.id, session);
+    this.updateContactsFor(session.peer.did);
+  }
+
+  onSessionRemoved(sessionId) {
+    let session = this.sessions.get(sessionId);
+    if (session) {
+      let did = session.peer.did;
+      this.sessions.delete(sessionId);
+      this.updateContactsFor(did);
+    }
+  }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   await depGraphLoaded;
 
@@ -153,10 +265,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.body.classList.add("ready");
 
   await contentManager.as_superuser();
+
   manageList(wrappers);
 });
 
 async function manageList(wrappers) {
+  let didWatcher = new PeerWatcher();
+  await didWatcher.init();
+
   let manager = contentManager.getContactsManager(async (contacts) => {
     await graph.waitForDeps("contact info");
     console.log(`Contacts list updated: ${contacts.length} contacts`);
@@ -164,10 +280,16 @@ async function manageList(wrappers) {
       count: contacts.length,
     });
 
+    didWatcher.clearWatchers();
+
     let list = elem("contact-list");
     list.innerHTML = "";
     for (let contact of contacts) {
       let el = list.appendChild(new ContactInfo(contact));
+      let dids = contact.did || [];
+      dids.forEach((did) => {
+        didWatcher.addWatcher(did.uri, el);
+      });
       el.classList.add("sl-box");
       el.addEventListener("delete-contact", () => {
         manager.deleteContact(contact);

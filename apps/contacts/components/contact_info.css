@@ -5,6 +5,7 @@
   gap: 0.5em;
   align-items: center;
   padding-left: 0.5em;
+  padding-right: 0.5em;
 }
 
 :host .details {
@@ -45,4 +46,8 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
+}
+
+:host .flex-fill {
+  flex: 1;
 }
