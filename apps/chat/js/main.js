@@ -66,11 +66,11 @@ function createChat(channel, peer) {
   chatContainer.querySelector("#chat-title").textContent = peer.did;
   let messages = document.getElementById("messages");
 
-  webrtc.addEventListener("channel-error", () => {
+  channel.addEventListener("error", () => {
     log(`channel error!`);
   });
 
-  webrtc.addEventListener("channel-close", () => {
+  channel.addEventListener("close", () => {
     log(`channel close!`);
   });
 
