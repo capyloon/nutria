@@ -32,3 +32,11 @@ body {
 #peers-section:not(.open) {
   display: none;
 }
+
+#peers-section sl-menu {
+  max-width: 90vw;
+}
+
+#peers-section sl-menu-item img {
+  width: 2em;
+}
