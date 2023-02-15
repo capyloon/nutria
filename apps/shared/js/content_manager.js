@@ -1147,6 +1147,17 @@ class ContactsManager extends ContentManager {
     await this.updateList();
   }
 
+  async contactWithDid(did) {
+    if (!this.list) {
+      await this.updateList();
+    }
+    let contact = this.list.find(contact => {
+      let dids = (contact.did || []).map((did) => did.uri);
+      return dids.includes(did);
+    });
+    return contact;
+  }
+
   // Refresh the list of contacts.
   async updateList() {
     let cursor = await this.svc.childrenOf(this.container);

@@ -18,6 +18,12 @@ const kDeps = [
     kind: "sharedModule",
     param: ["js/activity_manager.js", ["ActivityManager"]],
   },
+  {
+    name: "content manager",
+    kind: "sharedWindowModule",
+    param: ["js/content_manager.js", "contentManager", "ContentManager"],
+    deps: ["shared-api-daemon"],
+  },
 ];
 
 function log(msg) {
@@ -147,18 +153,38 @@ async function onShare(data) {
   let sessions = await dweb.getSessions();
   log(`Found ${sessions.length} active p2p sessions`);
   if (sessions?.length) {
+    await graph.waitForDeps("content manager");
+    await contentManager.as_superuser();
+    let contacts = contentManager.getContactsManager();
+    await contacts.init();
+
     let menu = document.getElementById("peers");
     menu.addEventListener("sl-select", (event) => {
       sendToPeer(dweb, event.detail.item.dataset.sessionId, toShare);
     });
     document.getElementById("peers-section").classList.add("open");
-    sessions.forEach((session) => {
+    for (let session of sessions) {
       let item = document.createElement("sl-menu-item");
-      item.dataset.l10nId = "peers-detail";
       item.dataset.sessionId = session.id;
       let { did, deviceDesc } = session.peer;
-      item.dataset.l10nArgs = JSON.stringify({ did, deviceDesc });
+      // If we find a contact matching this DID,
+      // use the contact name instead of the DID.
+      let contact = await contacts.contactWithDid(did);
+      if (contact) {
+        did = contact.name;
+        if (contact.photoUrl) {
+          log(`adding photo ${contact.photoUrl}`);
+          let img = document.createElement("img");
+          img.src = contact.photoUrl;
+          img.setAttribute("slot", "prefix");
+          item.append(img);
+        }
+      }
+      let text = document.createElement("span");
+      text.dataset.l10nId = "peers-detail";
+      text.dataset.l10nArgs = JSON.stringify({ did, deviceDesc });
+      item.append(text);
       menu.append(item);
-    });
+    }
   }
 }
