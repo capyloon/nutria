@@ -20,6 +20,23 @@ body {
   height: 100%;
 }
 
+#error-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  align-items: center;
+  justify-content: center;
+  padding: 1em;
+  height: 100%;
+}
+
+sl-alert::part(message) {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  align-items: center;
+}
+
 #chat {
   display: flex;
   flex-direction: column;
@@ -58,7 +75,8 @@ sl-progress-bar {
 }
 
 #connect.hidden,
-#chat.hidden {
+#chat.hidden,
+#error-wrapper.hidden {
   display: none;
 }
 
@@ -74,10 +92,16 @@ sl-progress-bar {
 .message > div {
   max-width: 70%;
   padding: 0.5em;
-  background: linear-gradient(var(--sl-color-primary-100), var(--sl-color-primary-500));
+  background: linear-gradient(
+    var(--sl-color-primary-100),
+    var(--sl-color-primary-500)
+  );
   border-radius: var(--sl-border-radius-x-large);
 }
 
 .message.left > div {
-  background: linear-gradient(var(--sl-color-success-100), var(--sl-color-success-500));
+  background: linear-gradient(
+    var(--sl-color-success-100),
+    var(--sl-color-success-500)
+  );
 }

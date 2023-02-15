@@ -31,15 +31,32 @@
       ></sl-button>
     </div>
 
+    <!-- error screen -->
+    <div id="error-wrapper" class="hidden">
+      <sl-alert variant="danger" id="error-section">
+        <sl-icon slot="icon" name="alert-triangle"></sl-icon>
+        <div data-l10n-id="connect-denied"></div>
+        <sl-button
+          variant="primary"
+          id="bye-bye-error"
+          data-l10n-id="button-close"
+        ></sl-button>
+      </sl-alert>
+    </div>
+
     <!-- messages screen -->
     <div id="chat" class="hidden">
       <div id="top">
         <span id="chat-title"></span>
       </div>
       <div id="messages"></div>
+      <sl-alert variant="danger" id="closed-section">
+        <sl-icon slot="icon" name="alert-triangle"></sl-icon>
+        <div data-l10n-id="connect-close"></div>
+      </sl-alert>
       <div id="bottom">
         <sl-input pill clearable></sl-input>
-        <sl-icon-button name="send" id="send-button"></sl-button-icon>
+        <sl-icon-button name="send" id="send-button"></sl-icon-button>
       </div>
     </div>
   </body>
