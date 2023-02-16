@@ -81,7 +81,7 @@ const kDeps = [
     name: "p2p",
     kind: "script",
     param: ["./js/p2p.js"],
-    deps: ["api daemon core", "webrtc"],
+    deps: ["api daemon core", "webrtc", "content manager"],
   },
   {
     name: "webrtc",
