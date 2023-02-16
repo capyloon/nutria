@@ -58,16 +58,33 @@ class P2pDiscovery {
       }
 
       log(msg) {
-        console.log(`p2p: dweb: P2pProvider: ${msg}`);
+        console.log(`P2pProvider: ${msg}`);
+      }
+
+      async contactNameForDid(did) {
+        // Use the contact name instead of the DID if possible.
+        if (!this.contacts) {
+          this.contacts = contentManager.getContactsManager();
+          await this.contacts.init();
+        }
+
+        let contact = await this.contacts.contactWithDid(did);
+        if (contact) {
+          return contact.name;
+        }
+        return null;
       }
 
       async hello(peer) {
         this.log(`Hello from ${JSON.stringify(peer)}`);
         let dialog = document.querySelector("confirm-dialog");
 
+        let name = await this.contactNameForDid(peer.did);
+        let source = name || peer.did;
+
         const [title, text, accept, reject] = await document.l10n.formatValues([
           "p2p-connect-request-title",
-          { id: "p2p-connect-request-text", args: { desc: peer.did } },
+          { id: "p2p-connect-request-text", args: { source } },
           "p2p-connect-request-accept",
           "p2p-connect-request-reject",
         ]);
@@ -87,10 +104,13 @@ class P2pDiscovery {
       async onUrlAction(peer, url) {
         let dialog = document.querySelector("confirm-dialog");
 
+        let name = await this.contactNameForDid(peer.did);
+        let source = name || peer.did;
+
         const [title, accept, reject] = await document.l10n.formatValues([
           {
             id: "p2p-open-url-title",
-            args: { did: peer.did, device: peer.deviceDesc },
+            args: { source, device: peer.deviceDesc },
           },
           "p2p-open-url-accept",
           "p2p-open-url-reject",
@@ -113,10 +133,13 @@ class P2pDiscovery {
       async onTextAction(peer, text) {
         let dialog = document.querySelector("confirm-dialog");
 
+        let name = await this.contactNameForDid(peer.did);
+        let source = name || peer.did;
+
         const [title, accept, reject] = await document.l10n.formatValues([
           {
             id: "p2p-copy-text-title",
-            args: { did: peer.did, device: peer.deviceDesc },
+            args: { source, device: peer.deviceDesc },
           },
           "p2p-copy-text-accept",
           "p2p-copy-text-reject",
@@ -147,20 +170,17 @@ class P2pDiscovery {
       async onDownloadAction(peer, data) {
         let dialog = document.querySelector("confirm-dialog");
 
+        let name = await this.contactNameForDid(peer.did);
+        let source = name || peer.did;
+
         const [title, text, accept, reject] = await document.l10n.formatValues([
           {
             id: "p2p-download-title",
-            args: {
-              did: peer.did,
-              device: peer.deviceDesc,
-            },
+            args: { source, device: peer.deviceDesc },
           },
           {
             id: "p2p-download-text",
-            args: {
-              name: data.name,
-              size: data.size,
-            },
+            args: { name: data.name, size: data.size },
           },
           "p2p-download-accept",
           "p2p-download-reject",
@@ -186,10 +206,13 @@ class P2pDiscovery {
       async onLaunchAction(peer, data) {
         let dialog = document.querySelector("confirm-dialog");
 
+        let name = await this.contactNameForDid(peer.did);
+        let source = name || peer.did;
+
         const [title, accept, reject] = await document.l10n.formatValues([
           {
             id: "p2p-launch-title",
-            args: { did: peer.did, device: peer.deviceDesc },
+            args: { source, device: peer.deviceDesc },
           },
           "p2p-launch-accept",
           "p2p-launch-reject",
