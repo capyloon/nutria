@@ -1,7 +1,13 @@
 // New contact panel
 
+const _elems = new Map();
 function elem(id) {
-  return document.getElementById(`add-contact-${id}`);
+  let res = _elems.get(id);
+  if (!res) {
+    res = document.getElementById(`add-contact-${id}`);
+    _elems.set(id, res);
+  }
+  return res;
 }
 
 const ALL_INPUTS = ["name", "phone", "email"];
@@ -57,7 +63,6 @@ class AddContactPanel {
       elem("did-section").classList.remove("hidden");
     } else {
       elem("did-section").classList.add("hidden");
-      elem("did-list").innerHTML = "";
     }
   }
 
@@ -103,7 +108,6 @@ class AddContactPanel {
         elem("did-section").classList.remove("hidden");
       } else {
         elem("did-section").classList.add("hidden");
-        elem("did-list").innerHTML = "";
       }
     } else if (event.target == this.btnUpdateDid) {
       await this.updateIdentity();
