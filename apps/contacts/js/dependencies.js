@@ -17,7 +17,13 @@ const kDeps = [
   {
     name: "qr dialog",
     kind: "virtual",
-    deps: ["shoelace-dialog", "shoelace-qr-code", "shoelace-progress-bar"],
+    deps: [
+      "shoelace-dialog",
+      "shoelace-qr-code",
+      "shoelace-progress-bar",
+      "shoelace-menu",
+      "shoelace-menu-item",
+    ],
   },
   {
     name: "contact info",

@@ -242,6 +242,38 @@ class P2pDiscovery {
         }
       }
 
+      async onActivityAction(peer, activity) {
+        let dialog = document.querySelector("confirm-dialog");
+
+        let name = await this.contactNameForDid(peer.did);
+        let source = name || peer.did;
+
+        const [title, accept, reject] = await document.l10n.formatValues([
+          {
+            id: "p2p-activity-title",
+            args: { source, device: peer.deviceDesc },
+          },
+          "p2p-activity-accept",
+          "p2p-activity-reject",
+        ]);
+
+        let result = await dialog.open({
+          title,
+          text: activity.name,
+          buttons: [
+            { id: "accept", label: accept, variant: "success" },
+            { id: "reject", label: reject },
+          ],
+        });
+
+        if (result == "accept") {
+          let act = new WebActivity(activity.name, activity.data);
+          return await act.start();
+        } else {
+          throw new Error("Denied");
+        }
+      }
+
       async onDialed(peer, params) {
         this.log(`onDialed with ${JSON.stringify(params)}`);
 
@@ -253,6 +285,8 @@ class P2pDiscovery {
           this.onDownloadAction(peer, params);
         } else if (params.action === "launch") {
           return this.onLaunchAction(peer, params);
+        } else if (params.action === "activity") {
+          return this.onActivityAction(peer, params.activity);
         } else {
           console.error(`Unsupported peer action: ${params.action}`);
           return false;
