@@ -195,6 +195,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     "new-contact": (data) => {
       onNewContact(wrappers, data);
     },
+    "import-contact": onImportContact,
   });
 
   // Create the <sl-drawer> elements.
@@ -383,6 +384,71 @@ class PasswordBasedSecret {
   }
 }
 
+function log(msg) {
+  console.log(`Contacts: ${msg}`);
+}
+
+async function sendToPeer(dweb, sessionId, toShare) {
+  log(`sendToPeer, session id=${sessionId}`);
+  try {
+    let session = await dweb.getSession(sessionId);
+
+    let params = {
+      action: "activity",
+      activity: { name: "import-contact", data: toShare },
+    };
+    let result = await dweb.dial(session, params);
+    log(`sendToPeer result: ${result}`);
+  } catch (e) {
+    console.error(e);
+    log(`Oops ${JSON.stringify(e)}`);
+  }
+}
+
+async function maybeAddPeers(params) {
+  let dweb = await apiDaemon.getDwebService();
+  let sessions = await dweb.getSessions();
+  log(`Found ${sessions.length} active p2p sessions`);
+  if (sessions?.length) {
+    await graph.waitForDeps("content manager");
+    await contentManager.as_superuser();
+    let contacts = contentManager.getContactsManager();
+    await contacts.init();
+
+    let menu = document.getElementById("peers");
+    menu.addEventListener("sl-select", (event) => {
+      sendToPeer(dweb, event.detail.item.dataset.sessionId, params);
+    });
+    document.getElementById("peers-section").classList.add("open");
+    menu.innerHTML = "";
+    for (let session of sessions) {
+      let item = document.createElement("sl-menu-item");
+      item.dataset.sessionId = session.id;
+      let { did, deviceDesc } = session.peer;
+      // If we find a contact matching this DID,
+      // use the contact name instead of the DID.
+      let contact = await contacts.contactWithDid(did);
+      if (contact) {
+        did = contact.name;
+        if (contact.photoUrl) {
+          log(`adding photo ${contact.photoUrl}`);
+          let img = document.createElement("img");
+          img.src = contact.photoUrl;
+          img.setAttribute("slot", "prefix");
+          item.append(img);
+        }
+      }
+      let text = document.createElement("span");
+      text.dataset.l10nId = "peers-detail";
+      text.dataset.l10nArgs = JSON.stringify({ did, deviceDesc });
+      item.append(text);
+      menu.append(item);
+    }
+  } else {
+    document.getElementById("peers-section").classList.remove("open");
+  }
+}
+
 async function publishContact(contact) {
   await graph.waitForDeps("qr dialog");
 
@@ -426,6 +492,9 @@ async function publishContact(contact) {
     let url = response.headers.get("location");
     // Share the password and url in the qr code.
     qrCode.value = JSON.stringify({ url, password: encrypter.password });
+
+    maybeAddPeers({ url, password: encrypter.password });
+
     progress.classList.add("hidden");
     qrCode.classList.remove("hidden");
   } catch (e) {
@@ -433,11 +502,8 @@ async function publishContact(contact) {
   }
 }
 
-async function importContact(manager) {
-  let qr = new WebActivity("scan-qr-code");
+async function fetchContact(manager, url, password) {
   try {
-    let text = await qr.start();
-    let { url, password } = JSON.parse(text);
     let decrypter = new PasswordBasedSecret(password);
     let response = await fetch(url);
     let buffer = await response.arrayBuffer();
@@ -452,6 +518,17 @@ async function importContact(manager) {
       contact.photo = new Blob([await decrypter.decrypt(buffer)]);
     }
     await manager.add(manager.newContact(contact));
+  } catch (e) {
+    console.error(`Failed to fetch contact: ${e}`);
+  }
+}
+
+async function importContact(manager) {
+  let qr = new WebActivity("scan-qr-code");
+  try {
+    let text = await qr.start();
+    let { url, password } = JSON.parse(text);
+    await fetchContact(manager, url, password);
   } catch (e) {
     console.error(`Failed to import contact: ${e}`);
   }
@@ -476,4 +553,10 @@ function onNewContact(wrappers, data) {
   }
   let panel = wrappers.get("add");
   panel.fromContact(contact);
+}
+
+async function onImportContact(data) {
+  let { url, password } = data;
+  let manager = contentManager.getContactsManager();
+  await fetchContact(manager, url, password);
 }

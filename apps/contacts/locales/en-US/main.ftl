@@ -11,7 +11,11 @@ main-title = {$count ->
 }
 btn-add = New
 btn-scan = Scan
+
+# Publish dialog
 publish-label = Export Contact
+peers-section-title = Send to a Peer
+peers-detail = {$did} on {$deviceDesc}
 
 # add contact panel
 add-contact-title = Contact Information

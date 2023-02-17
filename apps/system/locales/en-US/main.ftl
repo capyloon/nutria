@@ -163,3 +163,6 @@ p2p-download-reject = Cancel
 p2p-launch-title = Do you want to launch this app sent by {$source} on {$device}?
 p2p-launch-accept = Launch
 p2p-launch-reject = Cancel
+p2p-activity-title = Do you want to start the activity triggered by {$source} on {$device}?
+p2p-activity-accept = Start
+p2p-activity-reject = Cancel

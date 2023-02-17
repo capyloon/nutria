@@ -28,6 +28,12 @@
         "filters": {
           "name": { "required": true }
         }
+      },
+      "import-contact": {
+        "filters": {
+          "url": { "required": true },
+          "password": { "required": true }
+        }
       }
     },
     "skills": [
