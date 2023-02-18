@@ -24,8 +24,10 @@
 }
 
 :host #list > div.selected {
-  color: var(--sl-panel-background-color);
-  background-color: var(--sl-color-neutral-700);
+  background-color: var(--sl-color-primary-100);
+  outline: var(--sl-color-primary-500) ridge 2px;
+  border-radius: var(--sl-border-radius-medium);
+  transition: all 0.2s;
 }
 
 :host #list sl-icon {
