@@ -114,11 +114,6 @@ sl-icon:not(.static):not(.disabled):active {
   transition: background-color 1s;
 }
 
-sl-badge {
-  padding-left: 0.2em;
-  padding-right: 0.2em;
-}
-
 sl-badge::part(base) {
   font-size: 1em;
 }
@@ -127,6 +122,11 @@ sl-badge[variant="neutral"]::part(base) {
   background-color: transparent;
   border-color: transparent;
   color: var(--status-text-normal);
+}
+
+sl-badge[variant="primary"]::part(base) {
+  background: radial-gradient(var(--sl-color-primary-700), transparent);
+  border-color: transparent;
 }
 
 :host(.high-luminance) sl-badge[variant="neutral"]::part(base) {
