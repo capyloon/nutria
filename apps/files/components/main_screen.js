@@ -126,7 +126,11 @@ class MainScreen extends LitElement {
       if (data.mimeType.startsWith("image/")) {
         let { ImageRenderer } = await import("/components/image_renderer.js");
         this.renderer = new ImageRenderer(resource);
+      } else if (data.mimeType.startsWith("video/")) {
+        let { VideoRenderer } = await import("/components/video_renderer.js");
+        this.renderer = new VideoRenderer(resource);
       } else {
+        this.log(`Using default renderer for mime type '${data.mimeType}'`);
         let { DefaultRenderer } = await import(
           "/components/default_renderer.js"
         );
