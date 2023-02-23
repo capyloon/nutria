@@ -264,6 +264,13 @@ class ContextMenu extends HTMLElement {
       }
     });
 
+    // If the document is a SVG image, set hasImage.
+    // TODO: rely on the actual document mime type, not the extension.
+    if (data.pageUrl?.endsWith(".svg")) {
+      hasImage = true;
+      this.imageUrl = data.pageUrl;
+    }
+
     // Selection management.
     let hasSelection =
       data.selectionInfo &&
