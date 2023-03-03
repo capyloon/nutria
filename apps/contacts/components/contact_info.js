@@ -69,6 +69,17 @@ export class ContactInfo extends LitElement {
     document.l10n.translateFragment(this.shadowRoot);
   }
 
+  emptyArray(array) {
+    let res = true;
+    array.forEach(item => {
+      if (item.length > 0) {
+        console.log(`Found ${item}, len=${item.length}`);
+        res = false;
+      }
+    })
+    return res;
+  }
+
   render() {
     let initials = this.contact.name
       .split(" ")
@@ -94,7 +105,7 @@ export class ContactInfo extends LitElement {
         })}
       </div>
       <div class="details hidden">
-        <div>
+        <div class="${this.emptyArray(this.contact.phone) ? "hidden" : ""}">
           ${this.contact.phone.map(
             (phone) =>
               html`<div class="comm-item">
@@ -103,7 +114,7 @@ export class ContactInfo extends LitElement {
               </div>`
           )}
         </div>
-        <div>
+        <div class="${this.emptyArray(this.contact.phone) ? "hidden" : ""}">
           ${this.contact.phone.map(
             (phone) =>
               html`<div class="comm-item">
@@ -112,7 +123,7 @@ export class ContactInfo extends LitElement {
               </div>`
           )}
         </div>
-        <div>
+        <div class="${this.emptyArray(this.contact.email) ? "hidden" : ""}">
           ${this.contact.email.map(
             (email) =>
               html`<div class="comm-item">
