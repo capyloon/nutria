@@ -249,7 +249,7 @@ impl AdbCommand for PushCommand {
                 Ok(output) => {
                     for line in output.split('\n') {
                         let parts: Vec<String> =
-                            line.trim().split_whitespace().map(|s| s.to_owned()).collect();
+                            line.split_whitespace().map(|s| s.to_owned()).collect();
                         if parts.len() >= 2 && parts[0] == "homescreen" {
                             let pid: u32 = parts[1].parse().unwrap_or(0);
                             if pid != 0 {
