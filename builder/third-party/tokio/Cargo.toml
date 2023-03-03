@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.49"
 name = "tokio"
-version = "1.25.0"
+version = "1.26.0"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = """
 An event-driven, non-blocking I/O platform for writing asynchronous I/O
@@ -89,9 +89,6 @@ features = ["async-await"]
 
 [dev-dependencies.mockall]
 version = "0.11.1"
-
-[dev-dependencies.tempfile]
-version = "3.1.0"
 
 [dev-dependencies.tokio-stream]
 version = "0.1"
@@ -175,7 +172,7 @@ time = []
 version = "0.3.0"
 
 [target."cfg(docsrs)".dependencies.windows-sys]
-version = "0.42.0"
+version = "0.45"
 features = [
     "Win32_Foundation",
     "Win32_Security_Authorization",
@@ -196,11 +193,11 @@ version = "0.4.4"
 features = ["all"]
 optional = true
 
-[target."cfg(not(any(target_arch = \"wasm32\", target_arch = \"wasm64\")))".dev-dependencies.proptest]
-version = "1"
-
 [target."cfg(not(any(target_arch = \"wasm32\", target_arch = \"wasm64\")))".dev-dependencies.socket2]
 version = "0.4"
+
+[target."cfg(not(any(target_arch = \"wasm32\", target_arch = \"wasm64\")))".dev-dependencies.tempfile]
+version = "3.1.0"
 
 [target."cfg(target_os = \"freebsd\")".dev-dependencies.mio-aio]
 version = "0.7.0"
@@ -232,7 +229,7 @@ features = [
 default-features = false
 
 [target."cfg(windows)".dependencies.windows-sys]
-version = "0.42.0"
+version = "0.45"
 optional = true
 
 [target."cfg(windows)".dev-dependencies.ntapi]

@@ -3,7 +3,7 @@
 set -e
 
 rm -rf third-party/*
-rm .cargo/config
+rm -f .cargo/config
 
 cargo clean
 cargo update $@

@@ -1,6 +1,6 @@
 use crate::{Interest, Token};
 
-use libc::{EPOLLET, EPOLLIN, EPOLLOUT, EPOLLRDHUP};
+use libc::{EPOLLET, EPOLLIN, EPOLLOUT, EPOLLPRI, EPOLLRDHUP};
 use log::error;
 use std::os::unix::io::{AsRawFd, RawFd};
 #[cfg(debug_assertions)]
@@ -88,16 +88,11 @@ impl Selector {
 
         let timeout = timeout
             .map(|to| {
-                let to_ms = to.as_millis();
-                // as_millis() truncates, so round up to 1 ms as the documentation says can happen.
-                // This avoids turning submillisecond timeouts into immediate returns unless the
-                // caller explicitly requests that by specifying a zero timeout.
-                let to_ms = to_ms
-                    + if to_ms == 0 && to.subsec_nanos() != 0 {
-                        1
-                    } else {
-                        0
-                    };
+                // `Duration::as_millis` truncates, so round up. This avoids
+                // turning sub-millisecond timeouts into a zero timeout, unless
+                // the caller explicitly requests that by specifying a zero
+                // timeout.
+                let to_ms = (to + Duration::from_nanos(999_999)).as_millis();
                 cmp::min(MAX_SAFE_TIMEOUT, to_ms) as libc::c_int
             })
             .unwrap_or(-1);
@@ -180,6 +175,10 @@ fn interests_to_epoll(interests: Interest) -> u32 {
 
     if interests.is_writable() {
         kind |= EPOLLOUT;
+    }
+
+    if interests.is_priority() {
+        kind |= EPOLLPRI;
     }
 
     kind as u32

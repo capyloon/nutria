@@ -32,9 +32,9 @@ use io_lifetimes::AsFilelike;
 #[cfg(windows)]
 use io_lifetimes::BorrowedHandle;
 #[cfg(windows)]
-use windows_sys::Win32::Foundation::HANDLE;
+use std::os::windows::io::AsRawHandle;
 #[cfg(windows)]
-use windows_sys::Win32::System::Console::STD_HANDLE;
+use windows_sys::Win32::Foundation::HANDLE;
 
 pub trait IsTerminal {
     /// Returns true if this is a terminal.
@@ -67,80 +67,71 @@ impl<Stream: AsFilelike> IsTerminal for Stream {
 
         #[cfg(windows)]
         {
-            _is_terminal(self.as_filelike())
+            handle_is_console(self.as_filelike())
         }
     }
 }
 
-// The Windows implementation here is copied from atty, with #51 and #54
-// applied. The only significant modification is to take a `BorrowedHandle`
-// argument instead of using a `Stream` enum.
+// The Windows implementation here is copied from `handle_is_console` in
+// std/src/sys/windows/io.rs in Rust at revision
+// d7b0bcb20f2f7d5f3ea3489d56ece630147e98f5.
 
 #[cfg(windows)]
-fn _is_terminal(stream: BorrowedHandle<'_>) -> bool {
-    use std::os::windows::io::AsRawHandle;
-    use windows_sys::Win32::System::Console::GetStdHandle;
+fn handle_is_console(handle: BorrowedHandle<'_>) -> bool {
     use windows_sys::Win32::System::Console::{
-        STD_ERROR_HANDLE as STD_ERROR, STD_INPUT_HANDLE as STD_INPUT,
-        STD_OUTPUT_HANDLE as STD_OUTPUT,
+        GetConsoleMode, GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
     };
 
-    let (fd, others) = unsafe {
-        if stream.as_raw_handle() == GetStdHandle(STD_INPUT) as _ {
-            (STD_INPUT, [STD_ERROR, STD_OUTPUT])
-        } else if stream.as_raw_handle() == GetStdHandle(STD_OUTPUT) as _ {
-            (STD_OUTPUT, [STD_INPUT, STD_ERROR])
-        } else if stream.as_raw_handle() == GetStdHandle(STD_ERROR) as _ {
-            (STD_ERROR, [STD_INPUT, STD_OUTPUT])
-        } else {
+    let handle = handle.as_raw_handle();
+
+    unsafe {
+        // A null handle means the process has no console.
+        if handle.is_null() {
             return false;
         }
-    };
-    if unsafe { console_on_any(&[fd]) } {
-        // False positives aren't possible. If we got a console then
-        // we definitely have a tty on stdin.
-        return true;
-    }
 
-    // At this point, we *could* have a false negative. We can determine that
-    // this is true negative if we can detect the presence of a console on
-    // any of the other streams. If another stream has a console, then we know
-    // we're in a Windows console and can therefore trust the negative.
-    if unsafe { console_on_any(&others) } {
-        return false;
-    }
-
-    // Otherwise, we fall back to a very strange msys hack to see if we can
-    // sneakily detect the presence of a tty.
-    // Safety: function has no invariants. an invalid handle id will cause
-    // GetFileInformationByHandleEx to return an error.
-    let handle = unsafe { GetStdHandle(fd) };
-    unsafe { msys_tty_on(handle) }
-}
-
-/// Returns true if any of the given fds are on a console.
-#[cfg(windows)]
-unsafe fn console_on_any(fds: &[STD_HANDLE]) -> bool {
-    use windows_sys::Win32::System::Console::{GetConsoleMode, GetStdHandle};
-
-    for &fd in fds {
         let mut out = 0;
-        let handle = GetStdHandle(fd);
-        if GetConsoleMode(handle, &mut out) != 0 {
+        if GetConsoleMode(handle as HANDLE, &mut out) != 0 {
+            // False positives aren't possible. If we got a console then we definitely have a console.
             return true;
         }
+
+        // At this point, we *could* have a false negative. We can determine that this is a true
+        // negative if we can detect the presence of a console on any of the standard I/O streams. If
+        // another stream has a console, then we know we're in a Windows console and can therefore
+        // trust the negative.
+        for std_handle in [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
+            let std_handle = GetStdHandle(std_handle);
+            if std_handle != 0
+                && std_handle != handle as HANDLE
+                && GetConsoleMode(std_handle, &mut out) != 0
+            {
+                return false;
+            }
+        }
+
+        // Otherwise, we fall back to an msys hack to see if we can detect the presence of a pty.
+        msys_tty_on(handle as HANDLE)
     }
-    false
 }
 
 /// Returns true if there is an MSYS tty on the given handle.
+///
+/// This incoproates d7b0bcb20f2f7d5f3ea3489d56ece630147e98f5
 #[cfg(windows)]
 unsafe fn msys_tty_on(handle: HANDLE) -> bool {
     use std::ffi::c_void;
     use windows_sys::Win32::{
         Foundation::MAX_PATH,
-        Storage::FileSystem::{FileNameInfo, GetFileInformationByHandleEx},
+        Storage::FileSystem::{
+            FileNameInfo, GetFileInformationByHandleEx, GetFileType, FILE_TYPE_PIPE,
+        },
     };
+
+    // Early return if the handle is not a pipe.
+    if GetFileType(handle) != FILE_TYPE_PIPE {
+        return false;
+    }
 
     /// Mirrors windows_sys::Win32::Storage::FileSystem::FILE_NAME_INFO, giving
     /// it a fixed length that we can stack allocate
@@ -165,13 +156,22 @@ unsafe fn msys_tty_on(handle: HANDLE) -> bool {
         return false;
     }
 
-    let s = &name_info.FileName[..name_info.FileNameLength as usize / 2];
+    // Use `get` because `FileNameLength` can be out of range.
+    let s = match name_info
+        .FileName
+        .get(..name_info.FileNameLength as usize / 2)
+    {
+        None => return false,
+        Some(s) => s,
+    };
     let name = String::from_utf16_lossy(s);
+    // Get the file name only.
+    let name = name.rsplit('\\').next().unwrap_or(&name);
     // This checks whether 'pty' exists in the file name, which indicates that
     // a pseudo-terminal is attached. To mitigate against false positives
     // (e.g., an actual file name that contains 'pty'), we also require that
-    // either the strings 'msys-' or 'cygwin-' are in the file name as well.)
-    let is_msys = name.contains("msys-") || name.contains("cygwin-");
+    // the file name begins with either the strings 'msys-' or 'cygwin-'.)
+    let is_msys = name.starts_with("msys-") || name.starts_with("cygwin-");
     let is_pty = name.contains("-pty");
     is_msys && is_pty
 }

@@ -1117,11 +1117,10 @@ mod value {
                         b'\'' => '\'',
                         b'"' => '"',
                         b'\r' | b'\n' => loop {
-                            let ch = next_chr(s);
-                            if ch.is_whitespace() {
-                                s = &s[ch.len_utf8()..];
-                            } else {
-                                continue 'outer;
+                            let b = byte(s, 0);
+                            match b {
+                                b' ' | b'\t' | b'\n' | b'\r' => s = &s[1..],
+                                _ => continue 'outer,
                             }
                         },
                         b => panic!("unexpected byte {:?} after \\ character in byte literal", b),

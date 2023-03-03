@@ -1,4 +1,3 @@
-use fastrand;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::{io, iter::repeat_with};
@@ -21,10 +20,10 @@ pub fn create_helper<F, R>(
     prefix: &OsStr,
     suffix: &OsStr,
     random_len: usize,
-    f: F,
+    mut f: F,
 ) -> io::Result<R>
 where
-    F: Fn(PathBuf) -> io::Result<R>,
+    F: FnMut(PathBuf) -> io::Result<R>,
 {
     let num_retries = if random_len != 0 {
         crate::NUM_RETRIES
@@ -35,7 +34,10 @@ where
     for _ in 0..num_retries {
         let path = base.join(tmpname(prefix, suffix, random_len));
         return match f(path) {
-            Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists && num_retries > 1 => continue,
+            // AddrInUse can happen if we're creating a UNIX domain socket and
+            // the path already exists.
+            Err(ref e) if e.kind() == io::ErrorKind::AddrInUse && num_retries > 1 => continue,
             res => res,
         };
     }

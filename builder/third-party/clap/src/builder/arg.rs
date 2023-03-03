@@ -2111,7 +2111,8 @@ impl Arg {
     ///
     /// Args with a lower value will be displayed first in the help message. This is helpful when
     /// one would like to emphasise frequently used args, or prioritize those towards the top of
-    /// the list. Args with duplicate display orders will be displayed in alphabetical order.
+    /// the list. Args with duplicate display orders will be displayed in the order they are
+    /// defined.
     ///
     /// **NOTE:** The default is 999 for all arguments.
     ///
@@ -4122,7 +4123,7 @@ impl Arg {
             if self.val_names.len() > 1 {
                 self.val_names
                     .iter()
-                    .map(|n| format!("<{}>", n))
+                    .map(|n| format!("<{n}>"))
                     .collect::<Vec<_>>()
                     .join(delim)
             } else {
@@ -4206,9 +4207,9 @@ impl Arg {
         debug_assert!(self.is_takes_value_set());
         for (n, val_name) in val_names.iter().enumerate() {
             let arg_name = if self.is_positional() && (num_vals.min_values() == 0 || !required) {
-                format!("[{}]", val_name)
+                format!("[{val_name}]")
             } else {
-                format!("<{}>", val_name)
+                format!("<{val_name}>")
             };
 
             if n != 0 {

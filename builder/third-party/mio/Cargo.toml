@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "mio"
-version = "0.8.5"
+version = "0.8.6"
 authors = [
     "Carl Lerche <me@carllerche.com>",
     "Thomas de Zeeuw <thomasdezeeuw@gmail.com>",
@@ -26,7 +26,7 @@ include = [
     "src/**/*.rs",
     "examples/**/*.rs",
 ]
-description = "Lightweight non-blocking IO"
+description = "Lightweight non-blocking I/O."
 homepage = "https://github.com/tokio-rs/mio"
 readme = "README.md"
 keywords = [
@@ -116,7 +116,7 @@ version = "0.11.0"
 version = "0.2.121"
 
 [target."cfg(windows)".dependencies.windows-sys]
-version = "0.42"
+version = "0.45"
 features = [
     "Win32_Foundation",
     "Win32_Networking_WinSock",

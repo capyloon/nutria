@@ -12,13 +12,9 @@
 [package]
 edition = "2021"
 name = "hermit-abi"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Stefan Lankes"]
-description = """
-hermit-abi is small interface to call functions from the unikernel RustyHermit.
-It is used to build the target `x86_64-unknown-hermit`.
-"""
-documentation = "https://hermitcore.github.io/rusty-hermit/hermit_abi"
+description = "Hermit system calls definitions."
 readme = "README.md"
 keywords = [
     "unikernel",
@@ -28,10 +24,6 @@ categories = ["os"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/hermitcore/rusty-hermit"
 resolver = "1"
-
-[package.metadata.docs.rs]
-features = ["docs"]
-default-target = "x86_64-unknown-hermit"
 
 [dependencies.alloc]
 version = "1.0.0"
@@ -49,7 +41,6 @@ package = "rustc-std-workspace-core"
 
 [features]
 default = []
-docs = []
 rustc-dep-of-std = [
     "core",
     "alloc",
