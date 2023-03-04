@@ -303,6 +303,17 @@
     <template id="identity-panel-tmpl">
       <div class="drawer-content">
         <h1 data-l10n-id="identity-title" class="branded-text"></h1>
+
+        <header>
+          <sl-icon name="smartphone"></sl-icon>&nbsp;
+          <span data-l10n-id="identity-device-set-name"></span>
+        </header>
+        <sl-input
+          id="identity-device-desc"
+          data-l10n-id="identity-device-desc"
+          data-l10n-attrs="placeholder"
+        ></sl-input>
+
         <header>
           <sl-icon name="users"></sl-icon>&nbsp;
           <span data-l10n-id="identity-select"></span>

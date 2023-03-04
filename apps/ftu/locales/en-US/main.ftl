@@ -61,3 +61,6 @@ identity-empty = No Identity Available
 identity-error-duplicate = Can't create several identities with the same name!
 identity-add-input =
   .placeholder = New Identity Name
+identity-device-set-name = Choose a Device Name
+identity-device-desc =
+  .placeholder = Device Name

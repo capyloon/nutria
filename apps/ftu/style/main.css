@@ -205,6 +205,10 @@ sl-input::part(password-toggle-button) {
   gap: 0.5em;
 }
 
+#identity-panel sl-input {
+  margin-bottom: 3em;
+}
+
 /* user invalid styles */
 sl-input[data-user-invalid]::part(base),
 sl-select[data-user-invalid]::part(control) {

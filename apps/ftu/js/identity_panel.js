@@ -89,6 +89,22 @@ class IdentityPanel {
     });
   }
 
+  async manageDeviceName() {
+    this.settings = await apiDaemon.getSettings();
+    let input = document.getElementById("identity-device-desc");
+    const settingsKey = "device.name";
+
+    input.addEventListener("sl-input", async () => {
+      let setting = { name: settingsKey, value: input.value.trim() };
+      await this.settings.set([setting]);
+    });
+
+    try {
+      let setting = await this.settings.get(settingsKey);
+      input.value = setting.value;
+    } catch (e) {}
+  }
+
   async init() {
     this.log(`init ready=${this.ready}`);
     if (this.ready) {
@@ -111,6 +127,7 @@ class IdentityPanel {
       }
     );
 
+    await this.manageDeviceName();
     await this.updateList();
 
     this.ready = true;
