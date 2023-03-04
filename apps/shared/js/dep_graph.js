@@ -418,6 +418,8 @@ const kValidShoelaceNames = new Set([
   "tag",
   "textarea",
   "tooltip",
+  "tree",
+  "tree-item",
 ]);
 
 // Adds the declaration for all the needed Shoelace components, by looking at dependency names.
