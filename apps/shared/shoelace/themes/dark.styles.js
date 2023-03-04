@@ -401,6 +401,9 @@ export default css`
     --sl-input-spacing-medium: var(--sl-spacing-medium);
     --sl-input-spacing-large: var(--sl-spacing-large);
 
+    --sl-input-focus-ring-color: hsl(198.6 88.7% 48.4% / 40%);
+    --sl-input-focus-ring-offset: 0;
+
     --sl-input-filled-background-color: var(--sl-color-neutral-100);
     --sl-input-filled-background-color-hover: var(--sl-color-neutral-100);
     --sl-input-filled-background-color-focus: var(--sl-color-neutral-100);
@@ -410,19 +413,14 @@ export default css`
     --sl-input-filled-color-focus: var(--sl-color-neutral-700);
     --sl-input-filled-color-disabled: var(--sl-color-neutral-800);
 
-    --sl-input-focus-ring-color: hsl(198.6 88.7% 48.4% / 40%);
-    --sl-input-focus-ring-offset: 0;
-
     --sl-input-label-font-size-small: var(--sl-font-size-small);
     --sl-input-label-font-size-medium: var(--sl-font-size-medium);
     --sl-input-label-font-size-large: var(--sl-font-size-large);
-
     --sl-input-label-color: inherit;
 
     --sl-input-help-text-font-size-small: var(--sl-font-size-x-small);
     --sl-input-help-text-font-size-medium: var(--sl-font-size-small);
     --sl-input-help-text-font-size-large: var(--sl-font-size-medium);
-
     --sl-input-help-text-color: var(--sl-color-neutral-500);
 
     --sl-toggle-size-small: 0.875rem;
@@ -453,6 +451,7 @@ export default css`
   }
 
   .sl-scroll-lock {
+    padding-right: var(--sl-scroll-lock-size) !important;
     overflow: hidden !important;
   }
 
