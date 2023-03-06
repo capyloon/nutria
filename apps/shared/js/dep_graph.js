@@ -411,6 +411,7 @@ const kValidShoelaceNames = new Set([
   "select",
   "skeleton",
   "spinner",
+  "split-panel",
   "switch",
   "tab",
   "tab-group",
