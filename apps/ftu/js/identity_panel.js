@@ -33,7 +33,7 @@ class IdentityPanel {
 
   async addDid() {
     this.alert.hide();
-    let input = this.panel.querySelector("sl-input");
+    let input = this.panel.querySelector("#identity-input-add");
     let name = input.value.trim();
     if (name.length === 0) {
       input.value = "";
