@@ -1,0 +1,24 @@
+{
+  "name": "Tiles",
+  "description": "Manage Your Tiles",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "developer": {
+      "name": "The Capyloon team"
+    },
+    "permissions": {
+      "content-manager": {},
+      "dweb": {},
+      "themeable": {}
+    }
+  },
+  "version": "1.0"
+}

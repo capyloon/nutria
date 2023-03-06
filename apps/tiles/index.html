@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
+    />
+    <meta name="theme-color" content="black" />
+    <title data-l10n-id="page-title"></title>
+
+    <meta name="defaultLanguage" content="en-US" />
+    <meta name="availableLanguages" content="en-US" />
+    <link rel="icon" href="icons/icon.svg" />
+    <link rel="localization" href="./locales/{locale}/main.ftl" />
+
+    <link rel="stylesheet" href="style/index.css" type="text/css" />
+    <link rel="stylesheet" href="style/ace.css" type="text/css" />
+
+    <script src="js/config.js"></script>
+    <script src="js/bootstrap.js"></script>
+    <script src="ace/ace.js"></script>
+  </head>
+  <body>
+    <div>Tile name</div>
+    <div id="main">
+      <div id="files">
+        <sl-tree>
+          <sl-tree-item>manifest.webmanifest</sl-tree-item>
+          <sl-tree-item>index.html</sl-tree-item>
+          <sl-tree-item
+            >icons
+            <sl-tree-item>icon.svg</sl-tree-item>
+          </sl-tree-item>
+        </sl-tree>
+      </div>
+      <sl-tab-group id="tabs">
+        <sl-tab slot="nav" panel="file-1">file1.txt</sl-tab>
+
+        <sl-tab-panel name="file-1"><div id="editor">hello world</div></sl-tab-panel>
+      </sl-tab-group>
+    </div>
+    <div id="actions">
+      <sl-button>Launch</sl-button>
+      <sl-button>Publish</sl-button>
+      <sl-button>Open</sl-button>
+    </div>
+  </body>
+</html>
