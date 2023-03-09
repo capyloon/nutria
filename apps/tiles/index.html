@@ -14,6 +14,7 @@
     <link rel="icon" href="icons/icon.svg" />
     <link rel="localization" href="./locales/{locale}/main.ftl" />
 
+    <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="style/index.css" type="text/css" />
     <link rel="stylesheet" href="style/ace.css" type="text/css" />
 
@@ -22,28 +23,38 @@
     <script src="ace/ace.js"></script>
   </head>
   <body>
-    <div>Tile name</div>
-    <div id="main">
-      <div id="files">
-        <sl-tree>
+    <div id="start">
+      <p>
+        <img src="/icons/icon.svg" /><span data-l10n-id="start-with"></span>
+      </p>
+      <sl-button data-l10n-id="action-start-new"></sl-button>
+      <sl-button data-l10n-id="action-start-import" disabled></sl-button>
+    </div>
+    <div id="ui" class="hidden">
+      <header id="tile-name">Tile name</header>
+      <sl-split-panel id="main">
+        <div id="files" slot="start">
+          <!-- <sl-tree>
           <sl-tree-item>manifest.webmanifest</sl-tree-item>
           <sl-tree-item>index.html</sl-tree-item>
           <sl-tree-item
             >icons
             <sl-tree-item>icon.svg</sl-tree-item>
           </sl-tree-item>
-        </sl-tree>
-      </div>
-      <sl-tab-group id="tabs">
-        <sl-tab slot="nav" panel="file-1">file1.txt</sl-tab>
+        </sl-tree> -->
+        </div>
+        <sl-tab-group id="tabs" slot="end">
+          <!-- <sl-tab slot="nav" panel="file-1" closable>file1.txt</sl-tab>
 
-        <sl-tab-panel name="file-1"><div id="editor">hello world</div></sl-tab-panel>
-      </sl-tab-group>
-    </div>
-    <div id="actions">
-      <sl-button>Launch</sl-button>
-      <sl-button>Publish</sl-button>
-      <sl-button>Open</sl-button>
+        <sl-tab-panel name="file-1"><div id="editor">hello world</div></sl-tab-panel> -->
+        </sl-tab-group>
+      </sl-split-panel>
+      <footer id="actions">
+        <sl-button data-l10n-id="action-new"></sl-button>
+        <sl-button data-l10n-id="action-launch"></sl-button>
+        <sl-button data-l10n-id="action-publish"></sl-button>
+        <sl-button data-l10n-id="action-import" disabled></sl-button>
+      </footer>
     </div>
   </body>
 </html>

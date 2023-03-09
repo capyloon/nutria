@@ -10,13 +10,33 @@ body {
   box-sizing: border-box;
 }
 
-body {
+#ui,
+#start {
   display: flex;
   flex-direction: column;
   gap: 0.5em;
+  height: 100%;
 }
 
-.hidden {
+#start {
+  align-items: center;
+  justify-content: center;
+}
+
+#start p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+}
+
+#start img {
+  width: 2em;
+  border-radius: 40%;
+}
+
+#ui.hidden,
+#start.hidden {
   display: none;
 }
 
@@ -26,16 +46,15 @@ body {
   gap: 0.5em;
 }
 
-#tabs {
-  flex: 1;
-  border: 1px solid yellow;
-  display: flex;
-  flex-direction: column;
+header {
+  padding: 0.5em;
 }
 
-#tabs sl-tab-panel {
-  height: 100%;
-  border: 1px solid green;
+#tabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-x: scroll;
 }
 
 #tabs::part(base) {
@@ -45,17 +64,25 @@ body {
 #tabs::part(body) {
   flex: 1;
   height: 100%;
-  border: 1px solid blue;
 }
 
-#editor {
-  flex: 1;
-  /* position: relative; */
+#tabs sl-tab-panel {
   height: 100%;
-  border: 1px solid red;
+}
+
+#tabs sl-tab-panel::part(base) {
+  height: 100%;
+  padding: 0;
+}
+
+div.text-editor {
+  flex: 1;
+  height: 100%;
+  font-size: 1rem;
 }
 
 #actions {
   display: flex;
   gap: 0.5em;
+  padding: 0.5em;
 }

@@ -1,0 +1,27 @@
+{
+  "name": "NewTile",
+  "description": "A Sample Tile",
+  "start_url": "/index.html",
+  "version": "1.0",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "developer": {
+      "name": "The Capyloon team"
+    },
+    "permissions": {}
+  },
+  "tile": {
+    "resources": [
+      "/index.html",
+      "/js/main.js",
+      "/style/main.css",
+      "/icons/icon.svg"
+    ]
+  }
+}
