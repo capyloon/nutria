@@ -75,6 +75,7 @@ class ContextMenu extends HTMLElement {
         <sl-menu-item class="when-image" data-l10n-id="image-share"></sl-menu-item>
         <sl-divider class="when-image-and-link"></sl-divider>
         <sl-menu-label class="when-link"><sl-icon name="link"></sl-icon><span data-l10n-id="link-section-title"></span></sl-menu-label>
+        <sl-menu-item class="when-link" data-l10n-id="link-copy"></sl-menu-item>
         <sl-menu-item class="when-link" data-l10n-id="link-download"></sl-menu-item>
         <sl-menu-item class="when-link" data-l10n-id="link-new-tab"></sl-menu-item>
         <sl-menu-item class="when-link" data-l10n-id="link-share"></sl-menu-item>
@@ -120,6 +121,26 @@ class ContextMenu extends HTMLElement {
       () => {
         this.close();
         this.contentWindow.webView.download(this.linkUrl);
+      };
+
+    shadow.querySelector("sl-menu-item[data-l10n-id=link-copy]").onclick =
+      () => {
+        this.close();
+      };
+    shadow.querySelector("sl-menu-item[data-l10n-id=link-copy]").onclick =
+      async (event) => {
+        this.close();
+        navigator.clipboard.writeText(this.linkUrl).then(
+          async () => {
+            let msg = await window.utils.l10n("link-copied");
+            window.toaster.show(msg);
+          },
+          (err) => {
+            this.error(
+              `Failure copying '${this.linkUrl}' to the clipboard: ${err}`
+            );
+          }
+        );
       };
 
     shadow.querySelector(
