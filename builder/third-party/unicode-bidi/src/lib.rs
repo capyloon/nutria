@@ -65,7 +65,6 @@
 //!
 //! [tr9]: <http://www.unicode.org/reports/tr9/>
 
-#![forbid(unsafe_code)]
 #![no_std]
 // We need to link to std to make doc tests work on older Rust versions
 #[cfg(feature = "std")]

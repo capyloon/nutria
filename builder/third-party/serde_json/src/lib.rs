@@ -300,7 +300,7 @@
 //! [macro]: crate::json
 //! [`serde-json-core`]: https://github.com/rust-embedded-community/serde-json-core
 
-#![doc(html_root_url = "https://docs.rs/serde_json/1.0.93")]
+#![doc(html_root_url = "https://docs.rs/serde_json/1.0.94")]
 // Ignored clippy lints
 #![allow(
     clippy::collapsible_else_if,
@@ -338,6 +338,7 @@
     clippy::enum_glob_use,
     clippy::if_not_else,
     clippy::integer_division,
+    clippy::let_underscore_untyped,
     clippy::map_err_ignore,
     clippy::match_same_arms,
     clippy::similar_names,

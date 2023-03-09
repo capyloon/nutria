@@ -1,4 +1,4 @@
-#![allow(clippy::unreadable_literal)]
+#![allow(clippy::let_underscore_untyped, clippy::unreadable_literal)]
 
 use std::mem::size_of_val;
 

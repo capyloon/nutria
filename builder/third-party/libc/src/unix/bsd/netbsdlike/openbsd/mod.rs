@@ -498,6 +498,7 @@ s! {
         pub p_tid: i32,
         pub p_rtableid: u32,
         pub p_pledge: u64,
+        pub p_name: [::c_char; KI_MAXCOMLEN as usize],
     }
 
     pub struct kinfo_vmentry {
@@ -1822,7 +1823,6 @@ extern "C" {
         newp: *mut ::c_void,
         newlen: ::size_t,
     ) -> ::c_int;
-    pub fn getentropy(buf: *mut ::c_void, buflen: ::size_t) -> ::c_int;
     pub fn setresgid(rgid: ::gid_t, egid: ::gid_t, sgid: ::gid_t) -> ::c_int;
     pub fn setresuid(ruid: ::uid_t, euid: ::uid_t, suid: ::uid_t) -> ::c_int;
     pub fn ptrace(request: ::c_int, pid: ::pid_t, addr: caddr_t, data: ::c_int) -> ::c_int;
@@ -1888,6 +1888,8 @@ extern "C" {
         timeout: *const ::timespec,
         uaddr2: *mut u32,
     ) -> ::c_int;
+
+    pub fn mimmutable(addr: *mut ::c_void, len: ::size_t) -> ::c_int;
 }
 
 #[link(name = "execinfo")]

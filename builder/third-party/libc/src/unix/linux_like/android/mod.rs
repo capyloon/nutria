@@ -2121,6 +2121,10 @@ pub const PT_HIOS: u32 = 0x6fffffff;
 pub const PT_LOPROC: u32 = 0x70000000;
 pub const PT_HIPROC: u32 = 0x7fffffff;
 
+// uapi/linux/mount.h
+pub const OPEN_TREE_CLONE: ::c_uint = 0x01;
+pub const OPEN_TREE_CLOEXEC: ::c_uint = O_CLOEXEC as ::c_uint;
+
 // linux/netfilter.h
 pub const NF_DROP: ::c_int = 0;
 pub const NF_ACCEPT: ::c_int = 1;
@@ -2727,6 +2731,18 @@ pub const SCHED_DEADLINE: ::c_int = 6;
 pub const SCHED_RESET_ON_FORK: ::c_int = 0x40000000;
 
 pub const CLONE_PIDFD: ::c_int = 0x1000;
+
+// linux/membarrier.h
+pub const MEMBARRIER_CMD_QUERY: ::c_int = 0;
+pub const MEMBARRIER_CMD_GLOBAL: ::c_int = 1 << 0;
+pub const MEMBARRIER_CMD_GLOBAL_EXPEDITED: ::c_int = 1 << 1;
+pub const MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED: ::c_int = 1 << 2;
+pub const MEMBARRIER_CMD_PRIVATE_EXPEDITED: ::c_int = 1 << 3;
+pub const MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED: ::c_int = 1 << 4;
+pub const MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE: ::c_int = 1 << 5;
+pub const MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE: ::c_int = 1 << 6;
+pub const MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ: ::c_int = 1 << 7;
+pub const MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ: ::c_int = 1 << 8;
 
 // linux/mempolicy.h
 pub const MPOL_DEFAULT: ::c_int = 0;
@@ -3506,6 +3522,8 @@ extern "C" {
         longopts: *const option,
         longindex: *mut ::c_int,
     ) -> ::c_int;
+
+    pub fn syncfs(fd: ::c_int) -> ::c_int;
 }
 
 cfg_if! {

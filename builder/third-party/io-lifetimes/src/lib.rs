@@ -28,7 +28,7 @@
 //! [from+into conversions]: FromFilelike::from_into_filelike
 
 #![deny(missing_docs)]
-// Work around https://github.com/rust-lang/rust/issues/103306.
+// Work around <https://github.com/rust-lang/rust/issues/103306>.
 #![cfg_attr(all(wasi_ext, target_os = "wasi"), feature(wasi_ext))]
 // Currently supported platforms.
 #![cfg(any(unix, windows, target_os = "wasi"))]

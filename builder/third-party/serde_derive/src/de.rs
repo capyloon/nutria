@@ -954,6 +954,7 @@ fn deserialize_struct(
             lifetime: _serde::__private::PhantomData,
         }
     };
+    let need_seed = deserializer.is_none();
     let dispatch = if let Some(deserializer) = deserializer {
         quote! {
             _serde::Deserializer::deserialize_any(#deserializer, #visitor_expr)
@@ -999,14 +1000,14 @@ fn deserialize_struct(
         _ => None,
     };
 
-    let visitor_seed = if is_enum && cattrs.has_flatten() {
+    let visitor_seed = if need_seed && is_enum && cattrs.has_flatten() {
         Some(quote! {
             impl #de_impl_generics _serde::de::DeserializeSeed<#delife> for __Visitor #de_ty_generics #where_clause {
                 type Value = #this_type #ty_generics;
 
                 fn deserialize<__D>(self, __deserializer: __D) -> _serde::__private::Result<Self::Value, __D::Error>
                 where
-                    __D: _serde::Deserializer<'de>,
+                    __D: _serde::Deserializer<#delife>,
                 {
                     _serde::Deserializer::deserialize_map(__deserializer, self)
                 }
@@ -1256,7 +1257,7 @@ fn deserialize_externally_tagged_enum(
         // This is an empty enum like `enum Impossible {}` or an enum in which
         // all variants have `#[serde(skip_deserializing)]`.
         quote! {
-            // FIXME: Once we drop support for Rust 1.15:
+            // FIXME: Once feature(exhaustive_patterns) is stable:
             // let _serde::__private::Err(__err) = _serde::de::EnumAccess::variant::<__Field>(__data);
             // _serde::__private::Err(__err)
             _serde::__private::Result::map(
@@ -2400,7 +2401,10 @@ fn deserialize_struct_as_struct_visitor(
         .collect();
 
     let fields_stmt = {
-        let field_names = field_names_idents.iter().map(|(name, _, _)| name);
+        let field_names = field_names_idents
+            .iter()
+            .flat_map(|(_, _, aliases)| aliases);
+
         quote_block! {
             const FIELDS: &'static [&'static str] = &[ #(#field_names),* ];
         }
@@ -2535,7 +2539,7 @@ fn deserialize_map(
     let all_skipped = fields.iter().all(|field| field.attrs.skip_deserializing());
     let match_keys = if cattrs.deny_unknown_fields() && all_skipped {
         quote! {
-            // FIXME: Once we drop support for Rust 1.15:
+            // FIXME: Once feature(exhaustive_patterns) is stable:
             // let _serde::__private::None::<__Field> = try!(_serde::de::MapAccess::next_key(&mut __map));
             _serde::__private::Option::map(
                 try!(_serde::de::MapAccess::next_key::<__Field>(&mut __map)),
@@ -2768,7 +2772,7 @@ fn deserialize_map_in_place(
 
     let match_keys = if cattrs.deny_unknown_fields() && all_skipped {
         quote! {
-            // FIXME: Once we drop support for Rust 1.15:
+            // FIXME: Once feature(exhaustive_patterns) is stable:
             // let _serde::__private::None::<__Field> = try!(_serde::de::MapAccess::next_key(&mut __map));
             _serde::__private::Option::map(
                 try!(_serde::de::MapAccess::next_key::<__Field>(&mut __map)),

@@ -76,6 +76,11 @@
 //! [the `collections` from `std`]: https://doc.rust-lang.org/std/collections/index.html
 //! [`std`]: https://doc.rust-lang.org/std/
 //!
+//! # Targets without threading
+//!
+//! Rayon has limited support for targets without `std` threading implementations.
+//! See the [`rayon_core`] documentation for more information about its global fallback.
+//!
 //! # Other questions?
 //!
 //! See [the Rayon FAQ][faq].
@@ -119,6 +124,7 @@ pub use rayon_core::{in_place_scope, scope, Scope};
 pub use rayon_core::{in_place_scope_fifo, scope_fifo, ScopeFifo};
 pub use rayon_core::{join, join_context};
 pub use rayon_core::{spawn, spawn_fifo};
+pub use rayon_core::{yield_local, yield_now, Yield};
 
 /// We need to transmit raw pointers across threads. It is possible to do this
 /// without any unsafe code by converting pointers to usize or to AtomicPtr<T>

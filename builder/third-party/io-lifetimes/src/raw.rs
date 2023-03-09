@@ -183,7 +183,7 @@ pub trait FromRawFilelike: FromRawFd {
     /// This is `unsafe` for the same reason as [`from_raw_fd`] and
     /// [`from_raw_handle`].
     ///
-    /// [`from_raw_fd`]: https://doc.rust-lang.org/stable/std/os/unix/io/trait.FromRawFd.html#tymethod.from_raw_fd
+    /// [`from_raw_fd`]: https://doc.rust-lang.org/stable/std/os/fd/trait.FromRawFd.html#tymethod.from_raw_fd
     /// [`from_raw_handle`]: https://doc.rust-lang.org/stable/std/os/windows/io/trait.FromRawHandle.html#tymethod.from_raw_handle
     unsafe fn from_raw_filelike(raw: RawFilelike) -> Self;
 }
@@ -223,7 +223,7 @@ pub trait FromRawSocketlike: FromRawFd {
     /// This is `unsafe` for the same reason as [`from_raw_fd`] and
     /// [`from_raw_socket`].
     ///
-    /// [`from_raw_fd`]: https://doc.rust-lang.org/stable/std/os/unix/io/trait.FromRawFd.html#tymethod.from_raw_fd
+    /// [`from_raw_fd`]: https://doc.rust-lang.org/stable/std/os/fd/trait.FromRawFd.html#tymethod.from_raw_fd
     /// [`from_raw_socket`]: https://doc.rust-lang.org/stable/std/os/windows/io/trait.FromRawSocket.html#tymethod.from_raw_socket
     unsafe fn from_raw_socketlike(raw: RawSocketlike) -> Self;
 }

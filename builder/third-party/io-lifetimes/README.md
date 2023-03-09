@@ -174,6 +174,6 @@ currently Rust 1.48. This policy may change in the future, in minor version
 releases, so users using a fixed version of Rust should pin to a specific
 version of this crate.
 
-[`OwnedFd`]: https://doc.rust-lang.org/stable/std/os/unix/io/struct.OwnedFd.html
-[`BorrowedFd`]: https://doc.rust-lang.org/stable/std/os/unix/io/struct.BorrowedFd.html
+[`OwnedFd`]: https://doc.rust-lang.org/stable/std/os/fd/struct.OwnedFd.html
+[`BorrowedFd`]: https://doc.rust-lang.org/stable/std/os/fd/struct.BorrowedFd.html
 [RFC 3128]: https://github.com/rust-lang/rfcs/blob/master/text/3128-io-safety.md

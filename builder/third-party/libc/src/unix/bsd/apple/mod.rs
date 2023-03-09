@@ -3313,6 +3313,8 @@ pub const MINCORE_MODIFIED: ::c_int = 0x4;
 pub const MINCORE_REFERENCED_OTHER: ::c_int = 0x8;
 pub const MINCORE_MODIFIED_OTHER: ::c_int = 0x10;
 
+pub const CTLIOCGINFO: c_ulong = 0xc0644e03;
+
 //
 // sys/netinet/in.h
 // Protocols (RFC 1700)
@@ -5188,6 +5190,10 @@ extern "C" {
         f: extern "C" fn(*mut ::c_void) -> *mut ::c_void,
         value: *mut ::c_void,
     ) -> ::c_int;
+    pub fn pthread_stack_frame_decode_np(
+        frame_addr: ::uintptr_t,
+        return_addr: *mut ::uintptr_t,
+    ) -> ::uintptr_t;
     pub fn pthread_get_stackaddr_np(thread: ::pthread_t) -> *mut ::c_void;
     pub fn pthread_get_stacksize_np(thread: ::pthread_t) -> ::size_t;
     pub fn pthread_condattr_setpshared(attr: *mut pthread_condattr_t, pshared: ::c_int) -> ::c_int;
@@ -5195,6 +5201,7 @@ extern "C" {
         attr: *const pthread_condattr_t,
         pshared: *mut ::c_int,
     ) -> ::c_int;
+    pub fn pthread_main_np() -> ::c_int;
     pub fn pthread_mutexattr_setpshared(
         attr: *mut pthread_mutexattr_t,
         pshared: ::c_int,
@@ -5555,6 +5562,14 @@ extern "C" {
         pref: *mut ::cpu_type_t,
         subpref: *mut ::cpu_subtype_t,
         ocount: *mut ::size_t,
+    ) -> ::c_int;
+    pub fn posix_spawnattr_set_qos_class_np(
+        attr: *mut posix_spawnattr_t,
+        qos_class: ::qos_class_t,
+    ) -> ::c_int;
+    pub fn posix_spawnattr_get_qos_class_np(
+        attr: *const posix_spawnattr_t,
+        qos_class: *mut ::qos_class_t,
     ) -> ::c_int;
 
     pub fn posix_spawn_file_actions_init(actions: *mut posix_spawn_file_actions_t) -> ::c_int;
@@ -5929,5 +5944,12 @@ cfg_if! {
         pub use self::b64::*;
     } else {
         // Unknown target_arch
+    }
+}
+
+cfg_if! {
+    if #[cfg(libc_long_array)] {
+        mod long_array;
+        pub use self::long_array::*;
     }
 }
