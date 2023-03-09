@@ -10,6 +10,15 @@ body {
   box-sizing: border-box;
 }
 
+body {
+  opacity: 0;
+}
+
+body.ready {
+  opacity: 1;
+  transition: 0.25s opacity;
+}
+
 #ui,
 #start {
   display: flex;

@@ -42,6 +42,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.querySelector(
     `#start sl-button[data-l10n-id=action-start-new]`
   ).onclick = startNew;
+
+  document.body.classList.add("ready");
 });
 
 function startNew() {
