@@ -102,7 +102,8 @@ function maybeOpenURL(url, search = null) {
     !isFileUrl &&
     !url.startsWith("http") &&
     !url.startsWith("ipfs://") &&
-    !url.startsWith("ipns://")
+    !url.startsWith("ipns://") &&
+    !url.startsWith("tile://")
   ) {
     url = `https://${url}`;
   }
