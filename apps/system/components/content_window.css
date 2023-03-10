@@ -11,6 +11,12 @@ content-window.keyboard-open > .container {
   height: calc(100% - var(--keyboard-height));
 }
 
+content-window.deactivated {
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s linear;
+}
+
 /* We create a stack by putting all the grid elements at the same place */
 content-window > .container > * {
   grid-row: 1;
@@ -53,7 +59,6 @@ content-window .inline-activity sl-button {
   position: absolute;
   bottom: 3em;
   right: 3em;
-
 }
 
 content-window .content-crash .message {

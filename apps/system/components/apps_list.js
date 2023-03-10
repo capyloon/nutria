@@ -78,7 +78,7 @@ class AppsList extends LitElement {
   open() {
     this.classList.add("open");
     // Hide the homescreen.
-    window.wm.homescreenFrame().style.opacity = 0;
+    window.wm.homescreenFrame().classList.add("deactivated");
     this.focus();
     embedder.addSystemEventListener("keypress", this, true);
   }
@@ -88,7 +88,7 @@ class AppsList extends LitElement {
     this.closeContextMenu();
     this.classList.remove("open");
     // Show the homescreen.
-    window.wm.homescreenFrame().style.opacity = 1;
+    window.wm.homescreenFrame().classList.remove("deactivated");
   }
 
   toggle() {
