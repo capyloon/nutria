@@ -464,7 +464,7 @@ impl Task for IrohRunner {
 
     fn run(&self, _: ()) -> Result<Self::Output, Self::Error> {
         info!(
-            "Running the iroh-one binary {} in {} with --cfg {}",
+            "Running the ipfsd binary {} in {} with --cfg {}",
             self.iroh_binary.display(),
             self.current_dir.display(),
             self.settings_path.display(),
