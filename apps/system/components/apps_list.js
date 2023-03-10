@@ -126,9 +126,11 @@ class AppsList extends LitElement {
     let appsNodes = [];
     for (let app of apps) {
       let summary = await window.appsManager.getSummary(app);
+      const isTile = summary.url?.startsWith("tile://");
       if (
-        !summary.role ||
-        !["system", "homescreen", "input"].includes(summary.role)
+        (!summary.role ||
+          !["system", "homescreen", "input", "theme"].includes(summary.role)) &&
+        !isTile
       ) {
         let node = new AppIcon(summary);
         node.app = app;
