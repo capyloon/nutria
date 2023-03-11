@@ -61,6 +61,11 @@ class ActionsWall extends HTMLElement {
   async addAppAction(app) {
     this.log(`Adding App ${JSON.stringify(app)}`);
 
+    // Don't add Tiles to the homescreen when installing them.
+    if (app.updateUrl.startsWith("tile://")) {
+      return;
+    }
+
     let summary = await window.appsManager.getSummary(app);
     summary.kind = "bookmark";
     this.addNewAction(summary);

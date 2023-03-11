@@ -3,7 +3,7 @@
 let port1;
 
 function log() {
-  console.log("YYY [swproxy]proxy.js", ...arguments);
+  console.log("[swproxy]proxy.js", ...arguments);
 }
 
 function messageHandler(evt) {
