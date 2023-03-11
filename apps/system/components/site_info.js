@@ -105,6 +105,16 @@ class SiteInfo extends HTMLElement {
 
   async updateTosdr() {
     this.tosdrImg.classList.add("hidden");
+
+    let url = new URL(this.state.url);
+    let domain = url.hostname;
+
+    // For now, consider all local packaged apps as safe.
+    // tile:// pages are also safe because of their default CSP.
+    if (domain.endsWith(".localhost") || url.protocol === "tile:") {
+      return;
+    }
+
     let lang = navigator.language.split("-")[0];
     if (this.tosdrData == null) {
       try {
@@ -116,14 +126,6 @@ class SiteInfo extends HTMLElement {
         this.tosdrImg.src = "https://shields.tosdr.org/${lang}_0.svg";
         return;
       }
-    }
-
-    let url = new URL(this.state.url);
-    let domain = url.hostname;
-
-    // For now, consider all local packaged apps as safe.
-    if (domain.endsWith(".localhost")) {
-      return;
     }
 
     let item = this.tosdrData[domain];
