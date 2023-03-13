@@ -3,7 +3,7 @@
 class ConfirmDialog extends LitElement {
   constructor() {
     super();
-    this.data = { title: "", text: "", buttons: [] };
+    this.data = { title: "", text: "", buttons: [], focused: null };
     this.deferred = null;
     this.log(`constructor`);
     this.addEventListener("sl-request-close", () => {
@@ -26,7 +26,16 @@ class ConfirmDialog extends LitElement {
   }
 
   updated() {
+    if (!this.data.focused) {
+      return;
+    }
     document.l10n.translateFragment(this.shadowRoot);
+
+    let button = this.shadowRoot.querySelector("sl-button.initial-focus");
+    if (button) {
+      // lit.html fails in the focus() call without this setTimeout :()
+      window.setTimeout(() => button.focus(), 0);
+    }
   }
 
   render() {
@@ -42,6 +51,9 @@ class ConfirmDialog extends LitElement {
                   @click="${this.buttonClick}"
                   data-id="${button.id}"
                   variant="${button.variant || "default"}"
+                  class="${button.id == this.data.focused
+                    ? "initial-focus"
+                    : ""}"
                   >${button.label}</sl-button
                 >`
             )}
@@ -55,7 +67,7 @@ class ConfirmDialog extends LitElement {
   }
 
   close() {
-    this.data = { title: "", text: "", buttons: [] };
+    this.data = { title: "", text: "", buttons: [], focused: null };
     this.dialog.hide();
   }
 
@@ -73,7 +85,8 @@ class ConfirmDialog extends LitElement {
   // {
   //   title: "some title",
   //   text: "some text",
-  //   buttons: [ { id: "button-1", label: "First Choice", variant: "primary" }]
+  //   buttons: [ { id: "button-1", label: "First Choice", variant: "primary" }],
+  //   focused: <id of button to focus when the dialog is opened>
   // }
 
   // This function returns a promise that resolves with the id of the button
@@ -85,6 +98,10 @@ class ConfirmDialog extends LitElement {
       return Promise.reject();
     }
     this.data = data;
+
+    if (!this.data.focused) {
+      this.data.focused = this.data.buttons[0].id;
+    }
 
     this.dialog.show();
     return new Promise((resolve, reject) => {
