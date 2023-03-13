@@ -360,7 +360,7 @@ pub fn update(config: BuildConfig, target: Option<String>) -> Result<(), Downloa
         let _ = env_file.flush();
     } else {
         error!("No prebuilts available for this target: {}", target);
-        let targets: Vec<String> = list.keys().into_iter().cloned().collect();
+        let targets: Vec<String> = list.keys().cloned().collect();
         info!(
             "{} Available targets:\n\t{}",
             targets.len(),

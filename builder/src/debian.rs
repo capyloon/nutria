@@ -78,17 +78,12 @@ pub enum DebianError {
     Other(String),
 }
 
-#[derive(clap::ValueEnum, PartialEq, Debug, Clone)]
+#[derive(clap::ValueEnum, Default, PartialEq, Debug, Clone)]
 pub enum DebianTarget {
+    #[default]
     Desktop,
     Pinephone,
     Librem5,
-}
-
-impl Default for DebianTarget {
-    fn default() -> Self {
-        DebianTarget::Desktop
-    }
 }
 
 impl DebianTarget {
