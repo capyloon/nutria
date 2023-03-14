@@ -14,12 +14,26 @@
     "developer": {
       "name": "The Capyloon team"
     },
+    "serviceworker": {
+      "script_url": "sw.js"
+    },
+    "activities": {
+      "p2p-tile-start": {
+        "filters": {
+          "sessionId": { "mandatory": true }
+        },
+        "href": "/index.html"
+      }
+    },
     "permissions": {}
   },
   "tile": {
     "resources": [
       "/index.html",
+      "/page2.html",
       "/js/main.js",
+      "/js/config.js",
+      "/sw.js",
       "/style/main.css",
       "/icons/icon.svg"
     ]

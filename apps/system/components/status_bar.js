@@ -333,6 +333,7 @@ class StatusBar extends HTMLElement {
         isSecure ||
         url.protocol == "ipfs:" ||
         url.protocol == "ipns:" ||
+        url.protocol == "tile:" ||
         url.protocol == "chrome:" ||
         url.protocol == "moz-extension:" ||
         url.hostname.endsWith(".localhost");
