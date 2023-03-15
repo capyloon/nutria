@@ -181,17 +181,23 @@ sl-input::part(password-toggle-button) {
   gap: 0.5em;
 }
 
-#webext-panel ul {
+#webext-panel ul,
+#apps-panel ul {
   list-style: none;
 }
 
-#webext-panel ul li {
+#webext-panel ul li,
+#apps-panel ul li {
   padding-left: 0.5em;
   padding-right: 0.5em;
 }
 
 #webext-panel ul li:hover:not([aria-disabled="true"]),
 #webext-panel
+  ul
+  li:focus-visible:not(.sl-focus-invisible):not([aria-disabled="true"]),
+#apps-panel ul li:hover:not([aria-disabled="true"]),
+#apps-panel
   ul
   li:focus-visible:not(.sl-focus-invisible):not([aria-disabled="true"]) {
   outline: none;
@@ -225,6 +231,10 @@ sl-input::part(password-toggle-button) {
   color: var(--sl-color-danger-500);
 }
 
+#apps-panel .hidden {
+  display: none;
+}
+
 /*
 Generic style to create containers with the Shoelace style
 TODO: consider moving to shared/
@@ -237,35 +247,35 @@ TODO: consider moving to shared/
 }
 
 /* user invalid styles */
- sl-input[data-user-invalid]::part(base),
- sl-select[data-user-invalid]::part(control) {
+sl-input[data-user-invalid]::part(base),
+sl-select[data-user-invalid]::part(control) {
   border-color: var(--sl-color-danger-600);
 }
 
- [data-user-invalid]::part(form-control-label),
- [data-user-invalid]::part(form-control-help-text) {
+[data-user-invalid]::part(form-control-label),
+[data-user-invalid]::part(form-control-help-text) {
   color: var(--sl-color-danger-700);
 }
 
- sl-input:focus-within[data-user-invalid]::part(base),
- sl-select:focus-within[data-user-invalid]::part(control) {
+sl-input:focus-within[data-user-invalid]::part(base),
+sl-select:focus-within[data-user-invalid]::part(control) {
   border-color: var(--sl-color-danger-600);
   box-shadow: 0 0 0 var(--sl-focus-ring-width) var(--sl-color-danger-300);
 }
 
 /* User valid styles */
- sl-input[data-user-valid]::part(base),
- sl-select[data-user-valid]::part(control) {
+sl-input[data-user-valid]::part(base),
+sl-select[data-user-valid]::part(control) {
   border-color: var(--sl-color-success-600);
 }
 
- [data-user-valid]::part(form-control-label),
- [data-user-valid]::part(form-control-help-text) {
+[data-user-valid]::part(form-control-label),
+[data-user-valid]::part(form-control-help-text) {
   color: var(--sl-color-success-700);
 }
 
- sl-input:focus-within[data-user-valid]::part(base),
- sl-select:focus-within[data-user-valid]::part(control) {
+sl-input:focus-within[data-user-valid]::part(base),
+sl-select:focus-within[data-user-valid]::part(control) {
   border-color: var(--sl-color-success-600);
   box-shadow: 0 0 0 var(--sl-focus-ring-width) var(--sl-color-success-300);
 }

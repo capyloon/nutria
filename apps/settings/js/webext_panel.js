@@ -114,4 +114,4 @@ class WebextPanel {
   }
 }
 
-const searchPanel = new WebextPanel();
+const webextPanel = new WebextPanel();

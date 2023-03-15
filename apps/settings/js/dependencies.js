@@ -82,6 +82,17 @@ const kDeps = [
     ],
   },
   {
+    name: "apps-panel",
+    kind: "virtual",
+    deps: [
+      "shoelace-button",
+      "shoelace-icon",
+      "shoelace-menu",
+      "shoelace-menu-item",
+      "apps-module",
+    ],
+  },
+  {
     name: "identity-panel",
     kind: "virtual",
     deps: [
@@ -155,6 +166,12 @@ const kDeps = [
   },
   { name: "search-module", kind: "module", param: "js/search_panel.js" },
   { name: "webext-module", kind: "module", param: "js/webext_panel.js" },
+  {
+    name: "apps-module",
+    kind: "module",
+    param: "js/apps_panel.js",
+    deps: ["apps manager"],
+  },
   { name: "identity-module", kind: "module", param: "js/identity_panel.js" },
   {
     name: "systeminfo-module",
@@ -181,6 +198,12 @@ const kDeps = [
     name: "switch-setting",
     kind: "sharedModule",
     param: ["js/switch_setting.js", "SwitchAndSetting"],
+  },
+  {
+    name: "apps manager",
+    kind: "sharedWindowModule",
+    param: ["js/apps_manager.js", "appsManager", "AppsManager"],
+    deps: ["shared-api-daemon"],
   },
   { name: "dummy", kind: "virtual", deps: ["shoelace-drawer"] },
 ];

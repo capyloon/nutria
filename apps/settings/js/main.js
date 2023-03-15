@@ -64,6 +64,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     { name: "lockscreen", icon: "lock" },
     { name: "privacy", icon: "venetian-mask" },
     { name: "search", icon: "search" },
+    { name: "apps", icon: "layout-grid" },
     { name: "webext", icon: "layout-dashboard" },
     { name: "display", icon: "image" },
     { name: "identity", icon: "users" },

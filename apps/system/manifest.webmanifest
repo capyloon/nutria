@@ -2,13 +2,6 @@
   "name": "System",
   "description": "System UI",
   "start_url": "/index.html",
-  "icons": [
-    {
-      "src": "/style/icons/system.png",
-      "type": "image/png",
-      "sizes": "84x84"
-    }
-  ],
   "b2g_features": {
     "core": true,
     "role": "system",

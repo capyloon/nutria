@@ -109,3 +109,8 @@ telephony-data-enabled = Enable Mobile Data
 telephony-summary = Summary
 telephony-voice = Voice
 telephony-data = Data
+
+# Apps panel
+apps-title = Apps & Tiles
+apps-section-title = Apps
+tiles-section-title = Tiles

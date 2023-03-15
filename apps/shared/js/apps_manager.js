@@ -94,22 +94,25 @@ export class AppsManager extends EventTarget {
       url = url.href;
       let port = location.port || window.config.port;
       let icon = `http://branding.localhost:${port}/resources/logo.webp`;
-      if (manifest.icons && manifest.icons[0]) {
+      if (manifest?.icons && manifest?.icons[0]) {
         let iconUrl = new URL(manifest.icons[0].src, manifestUrl);
         icon = iconUrl.href;
       }
 
       summary = {
         app: app.manifestUrl,
-        title: manifest.name,
+        updateUrl: app.updateUrl || app.manifestUrl,
+        title: manifest?.name,
+        description: manifest?.description,
         url,
         icon,
         role: manifest?.b2g_features?.role,
+        removable: app.removable,
       };
 
-      if (manifest.background_color) {
+      if (manifest?.background_color) {
         summary.backgroundColor = manifest.background_color;
-      } else if (manifest.theme_color) {
+      } else if (manifest?.theme_color) {
         summary.backgroundColor = manifest.theme_color;
       }
     } catch (e) {
