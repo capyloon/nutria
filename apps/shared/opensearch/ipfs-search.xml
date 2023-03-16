@@ -2,6 +2,6 @@
   <ShortName>ipfs-search.com</ShortName>
   <Description>Search the Distributed Web.</Description>
   <InputEncoding>UTF-8</InputEncoding>
-  <Url type="text/html" template="https://ipfs-search.com/#/search?q={searchTerms}" />
+  <Url type="text/html" template="https://ipfs-search.com/#/search?nativeIpfs&amp;noDetailPage&amp;q={searchTerms}" />
   <Image height="48" width="48" type="image/png">data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAAXNSR0IArs4c6QAAAFpQTFRFAAAA////////////////////////////Ix8gMCwtMS0uPjo7Pzs8TEhJTElKWVZXZ2RlaGVmg4GBkY+PkY+Qnp2drKurraysurm5yMfH1tXV4+Pj8fHx////dzcMkQAAAAh0Uk5TAA8efIe8wu5G5b8oAAABRUlEQVRIx5WW0ZKCMAxFIygUXIRdlKXS/v9vbgsIS3PbIXlynHvm1NhJSuQry4vSJqss8oy2utpTdV3jl5s9WbfLDJzOOyJ1HhM5VYbjv1/1iL7PKMdx5eobSHIqYnFXQFJQieP3Vw8lJeH44D6+GyShWNwXklA8jiUUxJvheAIm2YA53mrWllCyATjOJR/AuHzsBi2S6Qhopbr4pfMSzYA+cU1bpYwIqJUKfsOQBhQD3ClfUkAngUYE6L3pH6CTAq5vbylgk8CPCOj3phPr22ngLgXaNDAegSkNtHvTaWuDekqAqXLEI/pPPBhgTaeiknk8GDY1xohkmSYVmEtQssZ7Aycfk/DRFozKowTEQ+C/BMYdEI77VfKsYdyNe75QZgmO+4UCVtYiQXG/suBSHCsc90sRr12TegxIF7v86SB+nMieP3/SWOFYJ9wLoQAAAABJRU5ErkJggg==</Image>
 </OpenSearchDescription>
