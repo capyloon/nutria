@@ -89,7 +89,6 @@ class TileEditor {
       let manifestUrl = `${await this.tile?.onPublish(
         target
       )}manifest.webmanifest`;
-      console.log(`ABCD manifestUrl=${manifestUrl}`);
       let service = await window.apiDaemon.getAppsManager();
       let app;
       try {
