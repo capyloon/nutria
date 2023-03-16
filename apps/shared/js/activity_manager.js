@@ -11,7 +11,22 @@ export class ActivityManager {
     this.handlers = handlers;
     this.swTimer = null;
 
-    navigator.serviceWorker.addEventListener("message", this);
+    this.controller = null;
+
+    if (!navigator.serviceWorker.controller) {
+      navigator.serviceWorker.register("sw.js").then(
+        (registration) => {
+          this.controller = registration.active;
+          navigator.serviceWorker.addEventListener("message", this);
+        },
+        (error) => {
+          console.error(`serviceWorker.register failed: ${error}`);
+        }
+      );
+    } else {
+      this.controller = navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener("message", this);
+    }
   }
 
   handleEvent(event) {
@@ -37,12 +52,12 @@ export class ActivityManager {
         handler(data).then(
           (success) => {
             message.result = success;
-            navigator.serviceWorker.controller.postMessage(message);
+            this.controller.postMessage(message);
           },
           (error) => {
             message.result = error;
             message.isError = true;
-            navigator.serviceWorker.controller.postMessage(message);
+            this.controller.postMessage(message);
           }
         );
       } else {
@@ -54,9 +69,7 @@ export class ActivityManager {
         window.clearInterval(this.swTimer);
       } else if (data === "start_activity_keepalive" && !this.swTimer) {
         this.swTimer = window.setInterval(() => {
-          navigator.serviceWorker.controller.postMessage({
-            topic: "keep-alive",
-          });
+          this.controller.postMessage({ topic: "keep-alive" });
         }, 25000);
       } else {
         console.error(`Unexpected system topic: ${data}`);

@@ -244,7 +244,7 @@ class P2pDiscovery {
 
       async onTileAction(peer, data) {
         let dialog = document.querySelector("confirm-dialog");
-        console.log(`ABCD onTileAction ${JSON.stringify(data)}`);
+        this.log(`onTileAction ${JSON.stringify(data)}`);
 
         let name = await this.contactNameForDid(peer.did);
         let source = name || peer.did;
@@ -268,7 +268,7 @@ class P2pDiscovery {
         });
 
         if (result == "accept") {
-          // Register the tile if needed, then launch it indirectly with the `tile-called` activity.
+          // Register the tile if needed, then launch it indirectly with the `p2p-tile-called` activity.
           let manifestUrl = `tile://${data.cid}/manifest.webmanifest`;
           let service = await window.apiDaemon.getAppsManager();
           let app;
@@ -282,12 +282,12 @@ class P2pDiscovery {
           } catch (e) {}
           if (!app) {
             let appObject = await service.installPwa(manifestUrl);
-            log(`Tile registered: ${JSON.stringify(appObject)}`);
+            this.log(`Tile registered: ${JSON.stringify(appObject)}`);
           } else {
-            log(`This tile is already registered`);
+            this.log(`This tile is already registered`);
           }
 
-          let act = new WebActivity("tile-called", {
+          let act = new WebActivity("p2p-tile-called", {
             peer,
             cid: data.cid,
             desc: data.desc,
