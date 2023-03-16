@@ -242,6 +242,65 @@ class P2pDiscovery {
         }
       }
 
+      async onTileAction(peer, data) {
+        let dialog = document.querySelector("confirm-dialog");
+        console.log(`ABCD onTileAction ${JSON.stringify(data)}`);
+
+        let name = await this.contactNameForDid(peer.did);
+        let source = name || peer.did;
+
+        const [title, accept, reject] = await document.l10n.formatValues([
+          {
+            id: "p2p-tile-title",
+            args: { source, device: peer.deviceDesc },
+          },
+          "p2p-tile-accept",
+          "p2p-tile-reject",
+        ]);
+
+        let result = await dialog.open({
+          title,
+          text: data.desc,
+          buttons: [
+            { id: "accept", label: accept, variant: "success" },
+            { id: "reject", label: reject },
+          ],
+        });
+
+        if (result == "accept") {
+          // Register the tile if needed, then launch it indirectly with the `tile-called` activity.
+          let manifestUrl = `tile://${data.cid}/manifest.webmanifest`;
+          let service = await window.apiDaemon.getAppsManager();
+          let app;
+          try {
+            // Check if the app is installed. getApp() expects the cached url, so instead
+            // we need to get all apps and check their update url...
+            let apps = await service.getAll();
+            app = apps.find((app) => {
+              return app.updateUrl == manifestUrl;
+            });
+          } catch (e) {}
+          if (!app) {
+            let appObject = await service.installPwa(manifestUrl);
+            log(`Tile registered: ${JSON.stringify(appObject)}`);
+          } else {
+            log(`This tile is already registered`);
+          }
+
+          let act = new WebActivity("tile-called", {
+            peer,
+            cid: data.cid,
+            desc: data.desc,
+            offer: data.offer,
+          });
+          let dialResult = await act.start();
+          this.log(`Got dial result: ${JSON.stringify(dialResult)}`);
+          return dialResult;
+        } else {
+          throw new Error("Denied");
+        }
+      }
+
       async onActivityAction(peer, activity) {
         let dialog = document.querySelector("confirm-dialog");
 
@@ -285,6 +344,8 @@ class P2pDiscovery {
           this.onDownloadAction(peer, params);
         } else if (params.action === "launch") {
           return this.onLaunchAction(peer, params);
+        } else if (params.action === "tile") {
+          return this.onTileAction(peer, params);
         } else if (params.action === "activity") {
           return this.onActivityAction(peer, params.activity);
         } else {

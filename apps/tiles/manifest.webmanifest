@@ -17,7 +17,8 @@
     "permissions": {
       "content-manager": {},
       "dweb": {},
-      "themeable": {}
+      "themeable": {},
+      "webapps-manage": {}
     }
   },
   "version": "1.0"

@@ -73,7 +73,7 @@ export class AppsManager extends EventTarget {
     }
   }
 
-  // Returns { app, title, url, icon, role }
+  // Returns { app, updateUrl, title, description, url, icon, role, removable }
   async getSummary(app) {
     let summary = {};
     try {

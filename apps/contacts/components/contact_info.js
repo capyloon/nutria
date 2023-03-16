@@ -46,19 +46,17 @@ export class ContactInfo extends LitElement {
     this.paired = paired;
   }
 
-  launchApp(event) {
+  launchTile(event) {
     let index = event.target.dataset.pairedIndex;
     let session = this.paired[index];
 
-    this.log(`launching app for session ${index}`);
+    this.log(`launching tile for session ${index}`);
     try {
-      let act = new WebActivity("p2p-start", {
-        sessionId: session.id,
-      });
+      let act = new WebActivity("p2p-tile-start", { sessionId: session.id });
       act.start();
     } catch (e) {
       console.error(
-        `p2p: failed to launch app for session ${session.id}: ${e}`
+        `p2p: failed to launch tile for session ${session.id}: ${e}`
       );
     }
     event.stopPropagation();
@@ -71,12 +69,12 @@ export class ContactInfo extends LitElement {
 
   emptyArray(array) {
     let res = true;
-    array.forEach(item => {
+    array.forEach((item) => {
       if (item.length > 0) {
         console.log(`Found ${item}, len=${item.length}`);
         res = false;
       }
-    })
+    });
     return res;
   }
 
@@ -98,7 +96,7 @@ export class ContactInfo extends LitElement {
           return html`<sl-button
             data-l10n-id="contact-launch-app"
             data-paired-index="${index}"
-            @click="${this.launchApp}"
+            @click="${this.launchTile}"
             size="small"
             variant="success"
           ></sl-button>`;

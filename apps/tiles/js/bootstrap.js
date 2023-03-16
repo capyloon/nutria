@@ -85,7 +85,30 @@ class TileEditor {
   }
 
   async onPublish(target) {
-    this.tile?.onPublish(target);
+    try {
+      let manifestUrl = `${await this.tile?.onPublish(
+        target
+      )}manifest.webmanifest`;
+      console.log(`ABCD manifestUrl=${manifestUrl}`);
+      let service = await window.apiDaemon.getAppsManager();
+      let app;
+      try {
+        // Check if the app is installed. getApp() expects the cached url, so instead
+        // we need to get all apps and check their update url...
+        let apps = await service.getAll();
+        app = apps.find((app) => {
+          return app.updateUrl == manifestUrl;
+        });
+      } catch (e) {}
+      if (!app) {
+        let appObject = await service.installPwa(manifestUrl);
+        log(`Tile registered: ${JSON.stringify(appObject)}`);
+      } else {
+        log(`This tile is already registered`);
+      }
+    } catch (e) {
+      log(`Failed to publish tile: ${e}`);
+    }
   }
 
   async onLaunch(target) {
@@ -151,7 +174,10 @@ class Tile {
 
   async onLaunch(target) {
     // Get the start url from the manifest.
-    this.manifest = this.ensureResource(`${this.root}/manifest.webmanifest`, "json");
+    this.manifest = this.ensureResource(
+      `${this.root}/manifest.webmanifest`,
+      "json"
+    );
     let startUrl = this.manifest.start_url || "/index.html";
     let url = new URL(startUrl, await this.onPublish(target));
     window.open(url, "_blank");
