@@ -1,1 +1,0 @@
-import{a as o}from"./chunk.6LO6FWLR.js";import{a as l,f as m}from"./chunk.PRU55YXS.js";import{c as r}from"./chunk.SYBSOZNG.js";import{e as t}from"./chunk.I4CX4JT3.js";var e=class extends m{render(){return r` <slot part="base" class="menu-label"></slot> `}};e.styles=o,e=t([l("sl-menu-label")],e);export{e as a};

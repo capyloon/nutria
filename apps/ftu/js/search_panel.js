@@ -30,11 +30,11 @@ class SearchPanel {
   async updateChoice(item) {
     this.log(`updateChoice ${item.value.meta.name}`);
     if (item.checked) {
-      item.value.removeTag("enabled");
-      this.enabled -= 1;
-    } else {
       item.value.addTag("enabled");
       this.enabled += 1;
+    } else {
+      item.value.removeTag("enabled");
+      this.enabled -= 1;
     }
 
     this.okBtn.disabled = this.alert.open = this.enabled === 0;
