@@ -62,7 +62,7 @@ class ActionsWall extends HTMLElement {
     this.log(`Adding App ${JSON.stringify(app)}`);
 
     // Don't add Tiles to the homescreen when installing them.
-    if (app.updateUrl.startsWith("tile://")) {
+    if (app.updateUrl.protocol === "tile:") {
       return;
     }
 

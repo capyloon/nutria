@@ -8,11 +8,13 @@ function error(msg) {
 
 self.addEventListener("install", (event) => {
   // Perform install steps
+  event.waitUntil(self.skipWaiting());
   log(`is now installed`);
 });
 
 self.addEventListener("activate", (event) => {
   // Perform activation steps
+  event.waitUntil(self.clients.claim());
   log(`is now activated`);
 });
 

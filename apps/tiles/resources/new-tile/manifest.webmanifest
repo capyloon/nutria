@@ -25,7 +25,9 @@
         "href": "/index.html"
       }
     },
-    "permissions": {}
+    "permissions": {
+      "dweb": {}
+    }
   },
   "tile": {
     "resources": [

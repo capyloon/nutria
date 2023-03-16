@@ -320,11 +320,11 @@ class QuickSettings extends HTMLElement {
       node.querySelector(".launch").onclick = () => {
         this.drawer.hide();
         try {
-          let act = new WebActivity("p2p-start", { sessionId: session.id });
+          let act = new WebActivity("p2p-tile-start", { sessionId: session.id });
           act.start();
         } catch (e) {
           console.error(
-            `p2p: failed to launch app for session ${session.id}: ${e}`
+            `p2p: failed to launch tile for session ${session.id}: ${e}`
           );
         }
       };

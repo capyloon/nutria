@@ -168,3 +168,6 @@ p2p-launch-reject = Cancel
 p2p-activity-title = Do you want to start the activity triggered by {$source} on {$device}?
 p2p-activity-accept = Start
 p2p-activity-reject = Cancel
+p2p-tile-title = Do you want to start this Tile sent by {$source} on {$device}?
+p2p-tile-accept = Launch
+p2p-tile-reject = Cancel
