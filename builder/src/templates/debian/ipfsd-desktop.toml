@@ -3,7 +3,7 @@
 gateway_uds_path = '/tmp/ipfsd.http'
 
 [gateway]
-http_resolvers = ['4everland.io', 'storry.tv', 'dweb.link']
+http_resolvers = ['https://w3s.link/ipfs/', 'https://dweb.link/ipfs/', 'https://ipfs.io/ipfs/']
 cache = false
 denylist = false
 fetch = false
