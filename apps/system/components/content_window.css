@@ -82,7 +82,7 @@ content-window .loader img {
   width: 4em;
   border-radius: 40%;
   box-shadow: 2px 2px 3px black;
-  animation: pulse 1s linear infinite;
+  animation: pulse 1.5s ease infinite;
 }
 
 content-window .loader img.hidden {
@@ -96,8 +96,17 @@ content-window .loader .title {
 }
 
 @keyframes pulse {
+  0% {
+    transform: scale(1.0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.9);
+    opacity: 0.75;
+  }
   100% {
-    transform: scale(120%);
+    transform: scale(1.0);
+    opacity: 1;
   }
 }
 

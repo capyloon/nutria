@@ -10,7 +10,7 @@
   width: calc(100% - 2em);
   max-height: 50vh;
   padding: 1em;
-  border-radius: 5px;
+  border-radius: var(--sl-border-radius-x-large);
   border: var(--sl-panel-border-width) solid var(--sl-panel-border-color);
   font-size: smaller;
   background-color: var(--sl-panel-background-color);
@@ -19,6 +19,7 @@
   transition: transform 0.25s;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 0.5em 1em rgba(0, 0, 0, 0.3);
   -moz-user-focus: ignore;
 }
 

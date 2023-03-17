@@ -26,6 +26,8 @@ window-manager .windows {
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   scrollbar-width: none;
+
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
 }
 
 window-manager.lock-swipe .windows {
@@ -37,6 +39,36 @@ window-manager .windows > content-window {
   height: 100%;
   width: 100vw;
   overflow-y: hidden;
+}
+
+window-manager .windows > content-window.opening {
+  animation: windowOpen 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
+}
+
+window-manager .windows > content-window.closing {
+  animation: windowClose 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
+}
+
+@keyframes windowOpen {
+  from {
+    transform: scale(0.75);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1.0);
+    opacity: 1;
+  }
+}
+
+@keyframes windowClose {
+  from {
+    transform: scale(1.0);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.75);
+    opacity: 0;
+  }
 }
 
 window-manager .windows > content-window.split {
@@ -56,6 +88,8 @@ window-manager .carousel {
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   scrollbar-width: none;
+
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
 }
 
 window-manager .carousel > div:not(.empty-carousel) {
@@ -103,8 +137,8 @@ window-manager .carousel > div.screenshot.sideline {
 
 window-manager .carousel > div.screenshot.closing {
   transform: scale(0.75);
-  opacity: 0.5;
-  transition: all 0.1s linear;
+  opacity: 0;
+  transition: all 0.3s ease;
 }
 
 window-manager .carousel > div.empty-carousel {
@@ -165,5 +199,7 @@ window-manager .carousel .empty-carousel .learn-something {
 }
 
 window-manager .hidden {
-  display: none;
+  visibility: hidden;
+  opacity: 0;
+  transform: scale(0.9);
 }

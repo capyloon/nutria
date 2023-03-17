@@ -6,9 +6,10 @@
 
 :host .container {
   background-color: var(--sl-panel-background-color);
-  padding: 0.5em;
+  padding: 1em;
   margin: 0.5em;
-  border-radius: var(--sl-border-radius-medium);
+  border-radius: var(--sl-border-radius-x-large);
+  box-shadow: 0 0.5em 1em rgba(0, 0, 0, 0.3);
 }
 
 :host h4 {

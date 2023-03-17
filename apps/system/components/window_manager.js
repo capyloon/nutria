@@ -415,6 +415,15 @@ class WindowManager extends HTMLElement {
     let contentWindow = document.createElement("content-window");
     contentWindow.setAttribute("id", attrId);
 
+    contentWindow.classList.add("opening");
+    contentWindow.addEventListener(
+      "animationend",
+      function () {
+        contentWindow.classList.remove("opening");
+      },
+      { once: true }
+    );
+
     config.startUrl = url;
 
     if (config.isHomescreen) {
@@ -626,7 +635,16 @@ class WindowManager extends HTMLElement {
 
   goHome() {
     if (this.homescreenId) {
-      this.switchToFrame(this.homescreenId);
+      let activeFrame = this.frames[this.activeFrame];
+      activeFrame.classList.add("closing");
+      activeFrame.addEventListener(
+        "animationend",
+        (event) => {
+          activeFrame.classList.remove("closing");
+          this.switchToFrame(this.homescreenId);
+        },
+        { once: true }
+      );
     }
   }
 
