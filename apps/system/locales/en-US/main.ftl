@@ -171,3 +171,13 @@ p2p-activity-reject = Cancel
 p2p-tile-title = Do you want to start this Tile sent by {$source} on {$device}?
 p2p-tile-accept = Launch
 p2p-tile-reject = Cancel
+
+# Activities names displayed in the activity chooser.
+activity-pick = Choose file in…
+activity-share = Share with…
+activity-add-to-home = Add to Homescreen
+activity-p2p-tile-start = Select Tile
+activity-scan-qr-code = Scan QR Code
+activity-view-resource = View File
+activity-publish-resource = Publish File
+activity-install-wasm-plugin = Install WASM plugin
