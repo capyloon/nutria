@@ -24,10 +24,6 @@
   color: var(--sl-color-neutral-500);
 }
 
-:host(:hover) .desc {
-  color: var(--sl-color-neutral-0);
-}
-
 :host img {
   width: 24px;
   border-radius: 40%;
