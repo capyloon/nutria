@@ -40,7 +40,7 @@ site-info-add-home = 添加到主屏幕
 site-info-split-screen = 分屏
 site-info-choose-ua = 用户代理
 site-info-b2g-ua = 默认
-site-info-android-ua = Android
+site-info-android-ua = 安卓
 site-info-desktop-ua = 桌面
 success-add-to-home = 成功将网站添加到主屏幕
 error-add-to-home = 添加网站到主屏幕时出错
@@ -139,17 +139,17 @@ drm-content-cdm-installing-text = Capyloon正在安装播放此页面上的音�
 
 
 # P2P 发现和配对
-p2p-enable-discovery-success = 启用了对等体发现
-p2p-enable-discovery-failure = 无法启用对等体发现
-p2p-disable-discovery-success = 禁用了对等体发现
-p2p-disable-discovery-failure = 无法禁用对等体发现
-p2p-peer-found = 发现了新对等体：{$name}
+p2p-enable-discovery-success = 节点发现已启用
+p2p-enable-discovery-failure = 无法启用节点发现
+p2p-disable-discovery-success = 节点发现已禁用
+p2p-disable-discovery-failure = 无法禁用节点发现
+p2p-peer-found = 发现了新节点：{$name}
 p2p-connect-error-not-connected = 无法连接 {$desc} ：未连接
 p2p-connect-error-not-paired = 无法连接 {$desc} ：未配对
-p2p-connect-error-denied = {$desc} 拒绝了连接
+p2p-connect-error-denied = {$desc} 连接已拒绝
 p2p-connect-error-other = 连接 {$desc} 时出错
 p2p-connect-success = 已连接到 {$desc}
-p2p-connect-request-title = 对等体连接请求
+p2p-connect-request-title = 节点连接请求
 p2p-connect-request-text = 您是否接受来自 {$source} 的连接请求？
 p2p-connect-request-accept = 接受
 p2p-connect-request-reject = 拒绝
@@ -169,6 +169,16 @@ p2p-launch-reject = 取消
 p2p-activity-title = 您是否要在 {$device} 上启动由 {$source} 触发的此活动？
 p2p-activity-accept = 启动
 p2p-activity-reject = 取消
-p2p-tile-title = 您是否要在 {$device} 上启动由 {$source} 发送的此 Tile？
+p2p-tile-title = 您是否要在 {$device} 上启动由 {$source} 发送的图块？
 p2p-tile-accept = 启动
 p2p-tile-reject = 取消
+
+# Activities names displayed in the activity chooser.
+activity-pick = 在...中选择文件
+activity-share = 分享给...
+activity-add-to-home = 添加到主屏幕
+activity-p2p-tile-start = 选择图块
+activity-scan-qr-code = 扫描二维码
+activity-view-resource = 查看文件
+activity-publish-resource = 发布文件
+activity-install-wasm-plugin = 安装WASM插件

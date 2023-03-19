@@ -70,10 +70,10 @@ identity-add-input =
 systeminfo-title = 设备信息
 systeminfo-system-section = 系统
 systeminfo-telephony-section = 电话
-systeminfo-deviceinfo-build_number = 构建号
+systeminfo-deviceinfo-build_number = 版本号
 systeminfo-deviceinfo-software = 操作系统版本
 systeminfo-deviceinfo-platform_version = 平台版本
-systeminfo-deviceinfo-platform_build_id = 平台构建号
+systeminfo-deviceinfo-platform_build_id = 平台版本号
 systeminfo-deviceinfo-hardware = 硬件
 systeminfo-deviceinfo-product_manufacturer = 制造商
 systeminfo-deviceinfo-product_model = 型号
@@ -113,9 +113,9 @@ telephony-voice = 语音
 telephony-data = 数据
 
 # Apps panel
-apps-title = 应用程序和磁贴
+apps-title = 应用程序和图块
 apps-section-title = 应用程序
-tiles-section-title = 磁贴
+tiles-section-title = 图块
 
 
 
