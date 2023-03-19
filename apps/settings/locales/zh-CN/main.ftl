@@ -49,7 +49,7 @@ display-choose-theme = 选择主题
 # Search engines panel
 search-title = 搜索引擎
 search-select = 启用您的搜索引擎
-search-details = 当进行关键字搜索时，会随机选择一个已启用的搜索引擎。
+search-details = 当进行关键词搜索时，将会随机选择一个已启用的搜索引擎。
 search-error-no-enabled = 请至少启用一个搜索引擎！
 
 # WebExt panel
@@ -59,10 +59,10 @@ webext-get-more = 获取更多Web扩展
 # Identity panel
 identity-title = 身份
 identity-select = 管理您的身份
-identity-details = 您可以定义任意多个身份，以便在不同的上下文中使用（例如个人与职业）。
+identity-details = 您可以定义多个身份在不同的语境中使用（例如个人与专业）。
 identity-add = 创建新身份
 identity-empty = 无可用身份
-identity-error-duplicate = 无法创建具有相同名称的多个身份！
+identity-error-duplicate = 无法用相同名称创建多个身份！
 identity-add-input =
   .placeholder = 新身份名称
 
