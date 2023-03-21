@@ -636,6 +636,10 @@ class WindowManager extends HTMLElement {
   goHome() {
     if (this.homescreenId) {
       let activeFrame = this.frames[this.activeFrame];
+      if (!activeFrame) {
+        return;
+      }
+
       activeFrame.classList.add("closing");
       activeFrame.addEventListener(
         "animationend",
