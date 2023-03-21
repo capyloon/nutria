@@ -144,6 +144,7 @@ export class TileHelper extends EventTarget {
 
   async onCalled() {
     let webrtc = new Webrtc(this.data.peer);
+    this.peer = this.data.peer;
     webrtc.setRemoteDescription(this.data.offer);
     this.setupWebrtcEvents(webrtc);
 
