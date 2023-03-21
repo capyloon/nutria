@@ -1,4 +1,4 @@
-// Helper to manager webrtc offer / answer flow.
+// Helper to manager webrtc offer / answer flow for tiles.
 
 class Webrtc extends EventTarget {
   constructor(peer) {
@@ -89,5 +89,69 @@ class Webrtc extends EventTarget {
   setRemoteDescription(answer) {
     this.ensurePeerConnection();
     this.pc.setRemoteDescription(answer);
+  }
+}
+
+export class TileHelper extends EventTarget {
+  constructor(data) {
+    super();
+    this.data = data;
+    this.peer = null;
+  }
+
+  log(msg) {
+    console.log(`TileHelper: ${msg}`);
+  }
+
+  setupWebrtcEvents(webrtc) {
+    webrtc.addEventListener("channel-open", () => {
+      this.dispatchEvent(
+        new CustomEvent("open", { detail: { channel: webrtc.channel } })
+      );
+    });
+
+    webrtc.addEventListener("channel-error", () => {
+      this.dispatchEvent(new CustomEvent("error"));
+    });
+
+    webrtc.addEventListener("channel-close", () => {
+      this.dispatchEvent(new CustomEvent("close"));
+    });
+  }
+
+  async onStart() {
+    let dweb = await window.apiDaemon.getDwebService();
+
+    let session = await dweb.getSession(this.data.sessionId);
+    this.peer = session.peer;
+    let webrtc = new Webrtc(session.peer);
+    this.setupWebrtcEvents(webrtc);
+
+    // Get the local offer.
+    let offer = await webrtc.offer();
+    this.log(`offer ready, about to dial remote peer`);
+
+    // Get the anwser.
+    let answer = await dweb.dial(session, {
+      action: "tile",
+      cid: location.hostname,
+      offer,
+      desc: this.data.desc,
+    });
+    this.log(`onStart got answer: ${JSON.stringify(answer)}`);
+    webrtc.setRemoteDescription(answer);
+  }
+
+  async onCalled() {
+    let webrtc = new Webrtc(this.data.peer);
+    webrtc.setRemoteDescription(this.data.offer);
+    this.setupWebrtcEvents(webrtc);
+
+    // Get the local answer.
+    let answer = await webrtc.answer();
+    // answser is a RTCSessionDescription object that can't be cloned so
+    // we do a JSON roundtrip to turn it into a clonable object.
+    this.log(`returning answer: ${answer}`);
+    return JSON.parse(JSON.stringify(answer));
   }
 }
