@@ -2,7 +2,7 @@ const kDeps = [
   {
     name: "main",
     kind: "virtual",
-    deps: ["activity manager", "webrtc", "shared-api-daemon"],
+    deps: ["activity manager", "tile helper"],
   },
   {
     name: "activity manager",
@@ -10,9 +10,10 @@ const kDeps = [
     param: ["js/activity_manager.js", ["ActivityManager"]],
   },
   {
-    name: "webrtc",
-    kind: "sharedScript",
-    param: ["js/webrtc.js"],
+    name: "tile helper",
+    kind: "sharedModule",
+    param: ["js/tile.js", ["TileHelper"]],
+    deps: ["shared-api-daemon"],
   },
 ];
 
@@ -49,37 +50,26 @@ function onError(error) {
   document.getElementById("error").textContent = JSON.stringify(error);
 }
 
+// Function called when the app start in "initiating mode".
 async function onStart(data) {
   log(`onStart data=${JSON.stringify(data)}`);
+  data.desc = "Shared Tile";
+
+  let helper = new TileHelper(data);
+
+  helper.addEventListener("open", event => {
+    let channel = event.detail.channel;
+
+    channel.onmessage = (event) => {
+      let output = document.getElementById("result");
+      output.textContent = event.data;
+    };
+
+    channel.send(`Hello ${JSON.stringify(helper.peer)}`);
+  });
 
   try {
-    let dweb = await window.apiDaemon.getDwebService();
-
-    let session = await dweb.getSession(data.sessionId);
-    let webrtc = new Webrtc(session.peer);
-
-    webrtc.addEventListener("channel-open", () => {
-      webrtc.channel.onmessage = (event) => {
-        let output = document.getElementById("result");
-        output.textContent = event.data;
-      };
-
-      webrtc.channel.send(`Hello ${JSON.stringify(session.peer)}`);
-    });
-
-    // Get the local offer.
-    let offer = await webrtc.offer();
-    log(`offer ready, about to dial remote peer`);
-
-    // Get the anwser.
-    let answer = await dweb.dial(session, {
-      action: "tile",
-      cid: location.hostname,
-      offer,
-      desc: "Shared Tile",
-    });
-    log(`onStart got answer: ${JSON.stringify(answer)}`);
-    webrtc.setRemoteDescription(answer);
+    helper.onStart();
   } catch (e) {
     onError(e.value);
     log(`onStart Oops ${JSON.stringify(e)}`);
@@ -87,27 +77,25 @@ async function onStart(data) {
   }
 }
 
+// Function called when the app start in "receiving" mode.
 async function onCalled(data) {
-  log(`onCalled data=${JSON.stringify(data)}`);
+  log(`onCalled`);
+  let helper = new TileHelper(data);
+
+  helper.addEventListener("open", event => {
+    let channel = event.detail.channel;
+
+    channel.onmessage = (event) => {
+      let output = document.getElementById("result");
+      output.textContent = event.data;
+    };
+
+    channel.send(`Hello ${JSON.stringify(helper.peer)}`);
+  });
 
   try {
-    let webrtc = new Webrtc(data.peer);
-    webrtc.setRemoteDescription(data.offer);
-
-    webrtc.addEventListener("channel-open", () => {
-      webrtc.channel.onmessage = (event) => {
-        let output = document.getElementById("result");
-        output.textContent = event.data;
-      };
-      webrtc.channel.send(`Hello ${JSON.stringify(data.peer)}`);
-    });
-
-    // Get the local answer.
-    let answer = await webrtc.answer();
-    // answser is a RTCSessionDescription object that can't be cloned so
-    // we do a JSON roundtrip to turn it into a clonable object.
-    log(`returning answer: ${answer}`);
-    return JSON.parse(JSON.stringify(answer));
+    let answer = await helper.onCalled();
+    return answer;
   } catch (e) {
     console.error(e);
     log(`onRespond Oops ${JSON.stringify(e)}`);
