@@ -203,45 +203,6 @@ class P2pDiscovery {
         }
       }
 
-      async onLaunchAction(peer, data) {
-        let dialog = document.querySelector("confirm-dialog");
-
-        let name = await this.contactNameForDid(peer.did);
-        let source = name || peer.did;
-
-        const [title, accept, reject] = await document.l10n.formatValues([
-          {
-            id: "p2p-launch-title",
-            args: { source, device: peer.deviceDesc },
-          },
-          "p2p-launch-accept",
-          "p2p-launch-reject",
-        ]);
-
-        let result = await dialog.open({
-          title,
-          text: data.desc,
-          buttons: [
-            { id: "accept", label: accept, variant: "success" },
-            { id: "reject", label: reject },
-          ],
-        });
-
-        if (result == "accept") {
-          let act = new WebActivity("p2p-respond", {
-            peer,
-            app_id: data.app_id,
-            desc: data.desc,
-            offer: data.offer,
-          });
-          let dialResult = await act.start();
-          this.log(`Got dial result: ${JSON.stringify(dialResult)}`);
-          return dialResult;
-        } else {
-          throw new Error("Denied");
-        }
-      }
-
       async onTileAction(peer, data) {
         let dialog = document.querySelector("confirm-dialog");
         this.log(`onTileAction ${JSON.stringify(data)}`);
@@ -342,8 +303,6 @@ class P2pDiscovery {
           this.onTextAction(peer, params.text);
         } else if (params.action === "download") {
           this.onDownloadAction(peer, params);
-        } else if (params.action === "launch") {
-          return this.onLaunchAction(peer, params);
         } else if (params.action === "tile") {
           return this.onTileAction(peer, params);
         } else if (params.action === "activity") {
