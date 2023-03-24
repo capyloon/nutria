@@ -228,38 +228,50 @@ class P2pDiscovery {
           ],
         });
 
-        if (result == "accept") {
-          // Register the tile if needed, then launch it indirectly with the `p2p-tile-called` activity.
-          let manifestUrl = `tile://${data.cid}/manifest.webmanifest`;
-          let service = await window.apiDaemon.getAppsManager();
-          let app;
-          try {
-            // Check if the app is installed. getApp() expects the cached url, so instead
-            // we need to get all apps and check their update url...
-            let apps = await service.getAll();
-            app = apps.find((app) => {
-              return app.updateUrl == manifestUrl;
-            });
-          } catch (e) {}
-          if (!app) {
-            let appObject = await service.installPwa(manifestUrl);
-            this.log(`Tile registered: ${JSON.stringify(appObject)}`);
-          } else {
-            this.log(`This tile is already registered`);
-          }
-
-          let act = new WebActivity("p2p-tile-called", {
-            peer,
-            cid: data.cid,
-            desc: data.desc,
-            offer: data.offer,
-          });
-          let dialResult = await act.start();
-          this.log(`Got dial result: ${JSON.stringify(dialResult)}`);
-          return dialResult;
-        } else {
+        if (result == "reject") {
           throw new Error("Denied");
         }
+
+        // Register the tile if needed, then launch it indirectly with the `p2p-tile-called` activity.
+        let manifestUrl = `tile://${data.cid}/manifest.webmanifest`;
+        let service = await window.apiDaemon.getAppsManager();
+        let app;
+        try {
+          // Check if the app is installed. getApp() expects the cached url, so instead
+          // we need to get all apps and check their update url...
+          let apps = await service.getAll();
+          app = apps.find((app) => {
+            return app.updateUrl == manifestUrl;
+          });
+        } catch (e) {}
+        if (!app) {
+          let appObject = await service.installPwa(manifestUrl);
+          this.log(`Tile registered: ${JSON.stringify(appObject)}`);
+
+          // Fetch all the resources linked in the tile manifest.
+          let response = await fetch(manifestUrl);
+          let manifest = await response.json();
+          let tileResources = manifest.tile?.resources;
+          this.log(`Will fetch tile resources: ${tileResources}`);
+          let fetches = [];
+          tileResources.forEach((resource) => {
+            fetches.push(fetch(new URL(resource, manifestUrl)));
+          });
+          await Promise.allSettled(fetches);
+          this.log(`Tile resources ready`);
+        } else {
+          this.log(`This tile is already registered`);
+        }
+
+        let act = new WebActivity("p2p-tile-called", {
+          peer,
+          cid: data.cid,
+          desc: data.desc,
+          offer: data.offer,
+        });
+        let dialResult = await act.start();
+        this.log(`Got dial result: ${JSON.stringify(dialResult)}`);
+        return dialResult;
       }
 
       async onActivityAction(peer, activity) {
