@@ -173,7 +173,7 @@ class Tile {
 
   async onLaunch(target) {
     // Get the start url from the manifest.
-    this.manifest = this.ensureResource(
+    this.manifest = await this.ensureResource(
       `${this.root}/manifest.webmanifest`,
       "json"
     );
@@ -182,7 +182,7 @@ class Tile {
     window.open(url, "_blank");
   }
 
-  saveAllEditors() {
+  async saveAllEditors() {
     let panels = document
       .getElementById("tabs")
       ?.querySelectorAll("sl-tab-panel");
@@ -190,11 +190,18 @@ class Tile {
       let resource = panel.getAttribute("name");
       this.content.set(`${this.root}${resource}`, panel.editor.getValue());
     });
+
+    this.manifest = await this.ensureResource(
+      `${this.root}/manifest.webmanifest`,
+      "json"
+    );
+
+    this.updateTitle();
   }
 
   // Publishes the resources to the local IPFS node.
   async onPublish(target) {
-    this.saveAllEditors();
+    await this.saveAllEditors();
 
     // TODO: netter progress UI.
     target.setAttribute("loading", "true");
@@ -251,14 +258,18 @@ class Tile {
     return icon;
   }
 
+  updateTitle() {
+    document.getElementById("tile-name").textContent =
+      this.manifest.description;
+  }
+
   async fromNew() {
     let root = (this.root = "/resources/new-tile");
     try {
       this.manifest = await (
         await fetch(`${root}/manifest.webmanifest`)
       ).json();
-      document.getElementById("tile-name").textContent =
-        this.manifest.description;
+      this.updateTitle();
 
       this.resources.add(`${root}/manifest.webmanifest`);
       this.content.set(
@@ -330,6 +341,14 @@ class Tile {
       }
     }
     return null;
+  }
+
+  updateTitleFromEditor(editor) {
+    try {
+      this.manifest = JSON.parse(editor.getValue());
+      document.getElementById("tile-name").textContent =
+        this.manifest.description;
+    } catch (e) {}
   }
 
   async open(resource) {
@@ -411,6 +430,17 @@ class Tile {
       panel.editor.setValue(content);
       panel.editor.selection.clearSelection();
       window.setTimeout(() => tabs.show(resource), 0);
+
+      if (resource == "/manifest.webmanifest") {
+        // Setup a change listener to update the title if needed.
+        panel.editor.on("change", () => {
+          try {
+            this.manifest = JSON.parse(panel.editor.getValue());
+            document.getElementById("tile-name").textContent =
+              this.manifest.description;
+          } catch (e) {}
+        });
+      }
     } catch (e) {
       log(`Failed to open resource ${resource}: ${e}`);
     }
