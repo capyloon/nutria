@@ -66,10 +66,48 @@ class AppsPanel {
     console.error(`AppsPanel: ${msg}`);
   }
 
+  // If a <li> node for that manifest url is found, remove it and
+  // update the container state.
+  maybeRemove(container, manifestUrl) {
+    let items = container.querySelectorAll("li");
+    items.forEach((item) => {
+      if (item.dataset.manifestUrl == manifestUrl) {
+        item.remove();
+        if (!container.firstElementChild) {
+          container.parentElement.classList.add("hidden");
+        }
+        return true;
+      }
+    });
+    return false;
+  }
+
+  // Add an app or tile node, and update the visibility of its parent
+  // container if required.
+  async addApp(app, updateVisibility) {
+    let summary = await window.appsManager.getSummary(app);
+    let li = document.createElement("li");
+    li.dataset.manifestUrl = summary.app;
+    li.append(new AppItem(summary));
+    if (summary.updateUrl.protocol === "tile:") {
+      this.tilesMenu.append(li);
+      updateVisibility &&
+        this.tilesMenu.parentElement.classList.remove("hidden");
+    } else {
+      this.appsMenu.append(li);
+      updateVisibility &&
+        this.appsMenu.parentElement.classList.remove("hidden");
+    }
+  }
+
   handleEvent(event) {
-    if (event.type === "app-installed" || event.type === "app-uninstalled") {
-      // Simplistic implementation: recreate the whole list.
-      this.createAppList(true);
+    if (event.type === "app-uninstalled") {
+      console.log(`ZZZZZZ ${event.type} ${event.detail}`);
+      if (!this.maybeRemove(this.appsMenu, event.detail)) {
+        this.maybeRemove(this.tilesMenu, event.detail);
+      }
+    } else if (event.type === "app-installed") {
+      this.addApp(event.detail, true);
     } else if (event.type === "panel-ready") {
       this.init();
     } else {
@@ -77,39 +115,19 @@ class AppsPanel {
     }
   }
 
-  async createAppList(clearFirst = false) {
-    if (clearFirst) {
-      this.appsMenu.innerHTML = "";
-      this.tilesMenu.innerHTML = "";
-    }
+  async createAppList() {
+    this.tilesMenu.parentElement.classList.add("hidden");
+    this.appsMenu.parentElement.classList.add("hidden");
+
     try {
       let apps = await window.appsManager.getAll();
-      let hasApps = false;
-      let hasTiles = false;
       for (let app of apps) {
-        let summary = await window.appsManager.getSummary(app);
-        let li = document.createElement("li");
-        li.append(new AppItem(summary));
-        if (summary.updateUrl.protocol === "tile:") {
-          this.tilesMenu.append(li);
-          hasTiles = true;
-        } else {
-          this.appsMenu.append(li);
-          hasApps = true;
-        }
+        await this.addApp(app);
       }
-
-      if (hasTiles) {
-        this.tilesMenu.parentElement.classList.remove("hidden");
-      } else {
-        this.tilesMenu.parentElement.classList.add("hidden");
-      }
-
-      if (hasApps) {
-        this.appsMenu.parentElement.classList.remove("hidden");
-      } else {
-        this.appsMenu.parentElement.classList.add("hidden");
-      }
+      [this.tilesMenu, this.appsMenu].forEach((container) => {
+        container.firstElementChild &&
+          container.parentElement.classList.remove("hidden");
+      });
     } catch (e) {
       this.error(`Failed to fetch app list: ${e}`);
     }

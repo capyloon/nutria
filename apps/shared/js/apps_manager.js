@@ -128,13 +128,15 @@ export class AppsManager extends EventTarget {
       service.addEventListener(service.APP_INSTALLED_EVENT, async (app) => {
         this.log(`AppInstalled ${JSON.stringify(app)} installed`);
         if (await this.addApp(app)) {
-          this.dispatchEvent(new CustomEvent("app-installed"));
+          this.dispatchEvent(new CustomEvent("app-installed", { detail: app }));
         }
       });
       service.addEventListener(service.APP_UNINSTALLED_EVENT, (manifestUrl) => {
         this.log(`AppUninstalled ${manifestUrl} uninstalled`);
         this.removeApp(manifestUrl);
-        this.dispatchEvent(new CustomEvent("app-uninstalled"));
+        this.dispatchEvent(
+          new CustomEvent("app-uninstalled", { detail: manifestUrl })
+        );
       });
 
       let apps = await service.getAll();
