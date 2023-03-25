@@ -93,7 +93,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Serde types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/serde/1.0.154")]
+#![doc(html_root_url = "https://docs.rs/serde/1.0.158")]
 // Support using Serde without the standard library!
 #![cfg_attr(not(feature = "std"), no_std)]
 // Unstable functionality only if the user asks for it. For tracking and
@@ -219,13 +219,23 @@ mod lib {
     #[cfg(feature = "std")]
     pub use std::collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque};
 
+    #[cfg(all(not(no_core_cstr), not(feature = "std")))]
+    pub use core::ffi::CStr;
+    #[cfg(feature = "std")]
+    pub use std::ffi::CStr;
+
+    #[cfg(all(not(no_core_cstr), feature = "alloc", not(feature = "std")))]
+    pub use alloc::ffi::CString;
+    #[cfg(feature = "std")]
+    pub use std::ffi::CString;
+
     #[cfg(feature = "std")]
     pub use std::{error, net};
 
     #[cfg(feature = "std")]
     pub use std::collections::{HashMap, HashSet};
     #[cfg(feature = "std")]
-    pub use std::ffi::{CStr, CString, OsStr, OsString};
+    pub use std::ffi::{OsStr, OsString};
     #[cfg(feature = "std")]
     pub use std::hash::{BuildHasher, Hash};
     #[cfg(feature = "std")]
@@ -328,9 +338,10 @@ mod std_error;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate serde_derive;
+
+/// Derive macro available if serde is built with `features = ["derive"]`.
 #[cfg(feature = "serde_derive")]
-#[doc(hidden)]
-pub use serde_derive::*;
+pub use serde_derive::{Deserialize, Serialize};
 
 #[cfg(all(not(no_serde_derive), any(feature = "std", feature = "alloc")))]
 mod actually_private {

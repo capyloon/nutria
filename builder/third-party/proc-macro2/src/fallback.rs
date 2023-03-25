@@ -94,7 +94,7 @@ fn push_token_from_proc_macro(mut vec: RcVecMut<TokenTree>, token: TokenTree) {
             if literal.repr.starts_with('-') {
                 push_negative_literal(vec, literal);
             } else {
-                vec.push(TokenTree::Literal(crate::Literal::_new_stable(literal)));
+                vec.push(TokenTree::Literal(crate::Literal::_new_fallback(literal)));
             }
         }
         _ => vec.push(token),
@@ -104,9 +104,9 @@ fn push_token_from_proc_macro(mut vec: RcVecMut<TokenTree>, token: TokenTree) {
     fn push_negative_literal(mut vec: RcVecMut<TokenTree>, mut literal: Literal) {
         literal.repr.remove(0);
         let mut punct = crate::Punct::new('-', Spacing::Alone);
-        punct.set_span(crate::Span::_new_stable(literal.span));
+        punct.set_span(crate::Span::_new_fallback(literal.span));
         vec.push(TokenTree::Punct(punct));
-        vec.push(TokenTree::Literal(crate::Literal::_new_stable(literal)));
+        vec.push(TokenTree::Literal(crate::Literal::_new_fallback(literal)));
     }
 }
 
@@ -342,6 +342,7 @@ thread_local! {
         files: vec![FileInfo {
             #[cfg(procmacro2_semver_exempt)]
             name: "<unspecified>".to_owned(),
+            source_text: String::new(),
             span: Span { lo: 0, hi: 0 },
             lines: vec![0],
         }],
@@ -352,6 +353,7 @@ thread_local! {
 struct FileInfo {
     #[cfg(procmacro2_semver_exempt)]
     name: String,
+    source_text: String,
     span: Span,
     lines: Vec<usize>,
 }
@@ -378,6 +380,12 @@ impl FileInfo {
 
     fn span_within(&self, span: Span) -> bool {
         span.lo >= self.span.lo && span.hi <= self.span.hi
+    }
+
+    fn source_text(&self, span: Span) -> String {
+        let lo = (span.lo - self.span.lo) as usize;
+        let hi = (span.hi - self.span.lo) as usize;
+        self.source_text[lo..hi].to_owned()
     }
 }
 
@@ -425,6 +433,7 @@ impl SourceMap {
         self.files.push(FileInfo {
             #[cfg(procmacro2_semver_exempt)]
             name: name.to_owned(),
+            source_text: src.to_owned(),
             span,
             lines,
         });
@@ -555,12 +564,26 @@ impl Span {
     }
 
     #[cfg(not(span_locations))]
-    fn first_byte(self) -> Self {
+    pub fn source_text(&self) -> Option<String> {
+        None
+    }
+
+    #[cfg(span_locations)]
+    pub fn source_text(&self) -> Option<String> {
+        if self.is_call_site() {
+            None
+        } else {
+            Some(SOURCE_MAP.with(|cm| cm.borrow().fileinfo(*self).source_text(*self)))
+        }
+    }
+
+    #[cfg(not(span_locations))]
+    pub(crate) fn first_byte(self) -> Self {
         self
     }
 
     #[cfg(span_locations)]
-    fn first_byte(self) -> Self {
+    pub(crate) fn first_byte(self) -> Self {
         Span {
             lo: self.lo,
             hi: cmp::min(self.lo.saturating_add(1), self.hi),
@@ -568,16 +591,21 @@ impl Span {
     }
 
     #[cfg(not(span_locations))]
-    fn last_byte(self) -> Self {
+    pub(crate) fn last_byte(self) -> Self {
         self
     }
 
     #[cfg(span_locations)]
-    fn last_byte(self) -> Self {
+    pub(crate) fn last_byte(self) -> Self {
         Span {
             lo: cmp::max(self.hi.saturating_sub(1), self.lo),
             hi: self.hi,
         }
+    }
+
+    #[cfg(span_locations)]
+    fn is_call_site(&self) -> bool {
+        self.lo == 0 && self.hi == 0
     }
 }
 
@@ -594,7 +622,7 @@ impl Debug for Span {
 pub(crate) fn debug_span_field_if_nontrivial(debug: &mut fmt::DebugStruct, span: Span) {
     #[cfg(span_locations)]
     {
-        if span.lo == 0 && span.hi == 0 {
+        if span.is_call_site() {
             return;
         }
     }

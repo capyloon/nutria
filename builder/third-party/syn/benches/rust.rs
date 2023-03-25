@@ -5,14 +5,19 @@
 
 #![cfg_attr(not(syn_only), feature(rustc_private))]
 #![recursion_limit = "1024"]
-#![allow(clippy::cast_lossless, clippy::unnecessary_wraps)]
+#![allow(
+    clippy::cast_lossless,
+    clippy::let_underscore_untyped,
+    clippy::manual_let_else,
+    clippy::match_like_matches_macro,
+    clippy::uninlined_format_args,
+    clippy::unnecessary_wraps
+)]
 
 #[macro_use]
 #[path = "../tests/macros/mod.rs"]
 mod macros;
 
-#[path = "../tests/common/mod.rs"]
-mod common;
 #[path = "../tests/repo/mod.rs"]
 mod repo;
 
@@ -38,6 +43,7 @@ mod syn_parse {
 #[cfg(not(syn_only))]
 mod librustc_parse {
     extern crate rustc_data_structures;
+    extern crate rustc_driver;
     extern crate rustc_error_messages;
     extern crate rustc_errors;
     extern crate rustc_parse;
@@ -91,7 +97,7 @@ mod librustc_parse {
 #[cfg(not(syn_only))]
 mod read_from_disk {
     pub fn bench(content: &str) -> Result<(), ()> {
-        _ = content;
+        let _ = content;
         Ok(())
     }
 }

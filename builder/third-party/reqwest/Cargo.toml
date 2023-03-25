@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "reqwest"
-version = "0.11.14"
+version = "0.11.15"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 autotests = true
 description = "higher level HTTP client library"
@@ -186,6 +186,13 @@ gzip = [
     "async-compression/gzip",
     "tokio-util",
 ]
+http3 = [
+    "rustls-tls",
+    "h3",
+    "h3-quinn",
+    "quinn",
+    "futures-channel",
+]
 json = ["serde_json"]
 multipart = ["mime_guess"]
 native-tls = ["default-tls"]
@@ -233,8 +240,20 @@ optional = true
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.encoding_rs]
 version = "0.8"
 
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.futures-channel]
+version = "0.3"
+optional = true
+
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.h2]
 version = "0.3.10"
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.h3]
+version = "0.0.1"
+optional = true
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.h3-quinn]
+version = "0.0.1"
+optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.http-body]
 version = "0.4.0"
@@ -281,6 +300,15 @@ version = "2.1"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.pin-project-lite]
 version = "0.2.0"
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.quinn]
+version = "0.8"
+features = [
+    "tls-rustls",
+    "ring",
+]
+optional = true
+default-features = false
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.rustls]
 version = "0.20"
@@ -389,6 +417,8 @@ optional = true
 [target."cfg(target_arch = \"wasm32\")".dependencies.web-sys]
 version = "0.3.25"
 features = [
+    "AbortController",
+    "AbortSignal",
     "Headers",
     "Request",
     "RequestInit",

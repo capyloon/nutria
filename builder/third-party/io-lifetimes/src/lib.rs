@@ -31,7 +31,7 @@
 // Work around <https://github.com/rust-lang/rust/issues/103306>.
 #![cfg_attr(all(wasi_ext, target_os = "wasi"), feature(wasi_ext))]
 // Currently supported platforms.
-#![cfg(any(unix, windows, target_os = "wasi"))]
+#![cfg(any(unix, windows, target_os = "wasi", target_os = "hermit"))]
 
 mod portability;
 mod traits;
@@ -42,12 +42,12 @@ mod types;
 mod impls_std;
 
 #[cfg(not(io_safety_is_in_std))]
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub use traits::AsFd;
 #[cfg(not(io_safety_is_in_std))]
 #[cfg(windows)]
 pub use traits::{AsHandle, AsSocket};
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 #[allow(deprecated)]
 pub use traits::{FromFd, IntoFd};
 #[cfg(windows)]
@@ -55,7 +55,7 @@ pub use traits::{FromFd, IntoFd};
 pub use traits::{FromHandle, FromSocket, IntoHandle, IntoSocket};
 
 #[cfg(not(io_safety_is_in_std))]
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub use types::{BorrowedFd, OwnedFd};
 #[cfg(not(io_safety_is_in_std))]
 #[cfg(windows)]
@@ -64,6 +64,9 @@ pub use types::{
     OwnedHandle, OwnedSocket,
 };
 
+#[cfg(io_safety_is_in_std)]
+#[cfg(target_os = "hermit")]
+pub use std::os::hermit::io::{AsFd, BorrowedFd, OwnedFd};
 #[cfg(io_safety_is_in_std)]
 #[cfg(unix)]
 pub use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
@@ -89,7 +92,7 @@ pub use std::os::windows::io::{
 // So we define `FromFd`/`IntoFd` traits, and implement them in terms of
 // `From`/`Into`,
 #[cfg(io_safety_is_in_std)]
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 #[allow(deprecated)]
 impl<T: From<OwnedFd>> FromFd for T {
     #[inline]
@@ -98,7 +101,7 @@ impl<T: From<OwnedFd>> FromFd for T {
     }
 }
 #[cfg(io_safety_is_in_std)]
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 #[allow(deprecated)]
 impl<T> IntoFd for T
 where

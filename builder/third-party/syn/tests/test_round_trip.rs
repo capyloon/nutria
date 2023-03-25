@@ -2,10 +2,17 @@
 #![cfg(not(miri))]
 #![recursion_limit = "1024"]
 #![feature(rustc_private)]
-#![allow(clippy::manual_assert)]
+#![allow(
+    clippy::manual_assert,
+    clippy::manual_let_else,
+    clippy::match_like_matches_macro,
+    clippy::uninlined_format_args
+)]
 
 extern crate rustc_ast;
+extern crate rustc_ast_pretty;
 extern crate rustc_data_structures;
+extern crate rustc_driver;
 extern crate rustc_error_messages;
 extern crate rustc_errors;
 extern crate rustc_expand;
@@ -21,6 +28,7 @@ use rustc_ast::ast::{
     WhereClause,
 };
 use rustc_ast::mut_visit::{self, MutVisitor};
+use rustc_ast_pretty::pprust;
 use rustc_error_messages::{DiagnosticMessage, LazyFallbackBundle};
 use rustc_errors::{translation, Diagnostic, PResult};
 use rustc_session::parse::ParseSess;
@@ -93,7 +101,9 @@ fn test(path: &Path, failed: &AtomicUsize, abort_after: usize) {
 
     rustc_span::create_session_if_not_set_then(edition, |_| {
         let equal = match panic::catch_unwind(|| {
-            let sess = ParseSess::new(FilePathMapping::empty());
+            let locale_resources = rustc_driver::DEFAULT_LOCALE_RESOURCES.to_vec();
+            let file_path_mapping = FilePathMapping::empty();
+            let sess = ParseSess::new(locale_resources, file_path_mapping);
             let before = match librustc_parse(content, &sess) {
                 Ok(before) => before,
                 Err(diagnostic) => {
@@ -133,10 +143,10 @@ fn test(path: &Path, failed: &AtomicUsize, abort_after: usize) {
                     true
                 } else {
                     errorf!(
-                        "=== {}: FAIL\nbefore: {:#?}\nafter: {:#?}\n",
+                        "=== {}: FAIL\n{}\n!=\n{}\n",
                         path.display(),
-                        before,
-                        after,
+                        pprust::crate_to_string_for_macros(&before),
+                        pprust::crate_to_string_for_macros(&after),
                     );
                     false
                 }
@@ -161,9 +171,9 @@ fn librustc_parse(content: String, sess: &ParseSess) -> PResult<Crate> {
 fn translate_message(diagnostic: &Diagnostic) -> String {
     thread_local! {
         static FLUENT_BUNDLE: LazyFallbackBundle = {
-            let resources = rustc_error_messages::DEFAULT_LOCALE_RESOURCES;
+            let locale_resources = rustc_driver::DEFAULT_LOCALE_RESOURCES.to_vec();
             let with_directionality_markers = false;
-            rustc_error_messages::fallback_fluent_bundle(resources, with_directionality_markers)
+            rustc_error_messages::fallback_fluent_bundle(locale_resources, with_directionality_markers)
         };
     }
 

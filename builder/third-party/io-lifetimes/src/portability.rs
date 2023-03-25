@@ -5,7 +5,7 @@
 //! layer of portability over this difference.
 
 use crate::views::{FilelikeView, FilelikeViewType, SocketlikeView, SocketlikeViewType};
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 use crate::{AsFd, BorrowedFd, OwnedFd};
 #[cfg(windows)]
 use crate::{AsHandle, AsSocket, BorrowedHandle, BorrowedSocket, OwnedHandle, OwnedSocket};
@@ -14,7 +14,7 @@ use crate::{AsHandle, AsSocket, BorrowedHandle, BorrowedSocket, OwnedHandle, Own
 ///
 /// This is a portability abstraction over Unix-like [`BorrowedFd`] and
 /// Windows' `BorrowedHandle`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub type BorrowedFilelike<'filelike> = BorrowedFd<'filelike>;
 
 /// A reference to a filelike object.
@@ -28,7 +28,7 @@ pub type BorrowedFilelike<'filelike> = BorrowedHandle<'filelike>;
 ///
 /// This is a portability abstraction over Unix-like [`BorrowedFd`] and
 /// Windows' `BorrowedSocket`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub type BorrowedSocketlike<'socketlike> = BorrowedFd<'socketlike>;
 
 /// A reference to a socketlike object.
@@ -42,7 +42,7 @@ pub type BorrowedSocketlike<'socketlike> = BorrowedSocket<'socketlike>;
 ///
 /// This is a portability abstraction over Unix-like [`OwnedFd`] and
 /// Windows' `OwnedHandle`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub type OwnedFilelike = OwnedFd;
 
 /// An owned filelike object.
@@ -56,7 +56,7 @@ pub type OwnedFilelike = OwnedHandle;
 ///
 /// This is a portability abstraction over Unix-like [`OwnedFd`] and
 /// Windows' `OwnedSocket`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub type OwnedSocketlike = OwnedFd;
 
 /// An owned socketlike object.
@@ -71,7 +71,7 @@ pub type OwnedSocketlike = OwnedSocket;
 /// This is a portability abstraction over Unix-like [`AsFd`] and Windows'
 /// `AsHandle`. It also provides the `as_filelike_view` convenience function
 /// providing typed views.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait AsFilelike: AsFd {
     /// Borrows the reference.
     ///
@@ -107,7 +107,7 @@ pub trait AsFilelike: AsFd {
     fn as_filelike_view<Target: FilelikeViewType>(&self) -> FilelikeView<'_, Target>;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: AsFd> AsFilelike for T {
     #[inline]
     fn as_filelike(&self) -> BorrowedFilelike<'_> {
@@ -180,7 +180,7 @@ impl<T: AsHandle> AsFilelike for T {
 /// This is a portability abstraction over Unix-like [`AsFd`] and Windows'
 /// `AsSocket`. It also provides the `as_socketlike_view` convenience
 /// function providing typed views.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait AsSocketlike: AsFd {
     /// Borrows the reference.
     fn as_socketlike(&self) -> BorrowedSocketlike<'_>;
@@ -204,7 +204,7 @@ pub trait AsSocketlike: AsFd {
     fn as_socketlike_view<Target: SocketlikeViewType>(&self) -> SocketlikeView<'_, Target>;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: AsFd> AsSocketlike for T {
     #[inline]
     fn as_socketlike(&self) -> BorrowedSocketlike<'_> {
@@ -263,7 +263,7 @@ impl<T: AsSocket> AsSocketlike for T {
 ///
 /// This is a portability abstraction over Unix-like [`Into<OwnedFd>`] and
 /// Windows' `Into<OwnedHandle>`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait IntoFilelike: Into<OwnedFd> {
     /// Consumes this object, returning the underlying filelike object.
     ///
@@ -281,7 +281,7 @@ pub trait IntoFilelike: Into<OwnedFd> {
     fn into_filelike(self) -> OwnedFilelike;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: Into<OwnedFd>> IntoFilelike for T {
     #[inline]
     fn into_filelike(self) -> OwnedFilelike {
@@ -313,13 +313,13 @@ impl<T: Into<OwnedHandle>> IntoFilelike for T {
 ///
 /// This is a portability abstraction over Unix-like [`Into<OwnedFd>`] and
 /// Windows' `Into<OwnedSocket>`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait IntoSocketlike: Into<OwnedFd> {
     /// Consumes this object, returning the underlying socketlike object.
     fn into_socketlike(self) -> OwnedSocketlike;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: Into<OwnedFd>> IntoSocketlike for T {
     #[inline]
     fn into_socketlike(self) -> OwnedSocketlike {
@@ -364,7 +364,7 @@ impl<T: Into<OwnedSocket>> IntoSocketlike for T {
 /// This is a portability abstraction over Unix-like [`From<OwnedFd>`] and
 /// Windows' `From<OwnedHandle>`. It also provides the `from_into_filelike`
 /// convenience function providing simplified from+into conversions.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait FromFilelike: From<OwnedFd> {
     /// Constructs a new instance of `Self` from the given filelike object.
     ///
@@ -399,7 +399,7 @@ pub trait FromFilelike: From<OwnedFd> {
     fn from_into_filelike<Owned: IntoFilelike>(owned: Owned) -> Self;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: From<OwnedFd>> FromFilelike for T {
     #[inline]
     fn from_filelike(owned: OwnedFilelike) -> Self {
@@ -473,7 +473,7 @@ impl<T: From<OwnedHandle>> FromFilelike for T {
 /// Windows' `From<OwnedSocketFrom<OwnedSocket>` It also provides the
 /// `from_into_socketlike` convenience function providing simplified from+into
 /// conversions.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait FromSocketlike: From<OwnedFd> {
     /// Constructs a new instance of `Self` from the given socketlike object.
     fn from_socketlike(owned: OwnedSocketlike) -> Self;
@@ -483,7 +483,7 @@ pub trait FromSocketlike: From<OwnedFd> {
     fn from_into_socketlike<Owned: IntoSocketlike>(owned: Owned) -> Self;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: From<OwnedFd>> FromSocketlike for T {
     #[inline]
     fn from_socketlike(owned: OwnedSocketlike) -> Self {

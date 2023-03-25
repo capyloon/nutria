@@ -86,7 +86,7 @@
 //! a different thread.
 
 // Proc-macro2 types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/proc-macro2/1.0.51")]
+#![doc(html_root_url = "https://docs.rs/proc-macro2/1.0.53")]
 #![cfg_attr(
     any(proc_macro_span, super_unstable),
     feature(proc_macro_span, proc_macro_span_shrink)
@@ -98,6 +98,7 @@
     clippy::cast_possible_truncation,
     clippy::doc_markdown,
     clippy::items_after_statements,
+    clippy::let_underscore_untyped,
     clippy::manual_assert,
     clippy::must_use_candidate,
     clippy::needless_doctest_main,
@@ -133,6 +134,8 @@ mod detection;
 #[doc(hidden)]
 pub mod fallback;
 
+pub mod extra;
+
 #[cfg(not(wrap_proc_macro))]
 use crate::fallback as imp;
 #[path = "wrapper.rs"]
@@ -142,6 +145,7 @@ mod imp;
 #[cfg(span_locations)]
 mod location;
 
+use crate::extra::DelimSpan;
 use crate::marker::Marker;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug, Display};
@@ -183,7 +187,7 @@ impl TokenStream {
         }
     }
 
-    fn _new_stable(inner: fallback::TokenStream) -> Self {
+    fn _new_fallback(inner: fallback::TokenStream) -> Self {
         TokenStream {
             inner: inner.into(),
             _marker: Marker,
@@ -377,7 +381,7 @@ impl Span {
         }
     }
 
-    fn _new_stable(inner: fallback::Span) -> Self {
+    fn _new_fallback(inner: fallback::Span) -> Self {
         Span {
             inner: inner.into(),
             _marker: Marker,
@@ -524,6 +528,17 @@ impl Span {
     pub fn eq(&self, other: &Span) -> bool {
         self.inner.eq(&other.inner)
     }
+
+    /// Returns the source text behind a span. This preserves the original
+    /// source code, including spaces and comments. It only returns a result if
+    /// the span corresponds to real source code.
+    ///
+    /// Note: The observable result of a macro should only rely on the tokens
+    /// and not on this source text. The result of this function is a best
+    /// effort to be used for diagnostics only.
+    pub fn source_text(&self) -> Option<String> {
+        self.inner.source_text()
+    }
 }
 
 /// Prints a span in a form convenient for debugging.
@@ -664,7 +679,7 @@ impl Group {
         Group { inner }
     }
 
-    fn _new_stable(inner: fallback::Group) -> Self {
+    fn _new_fallback(inner: fallback::Group) -> Self {
         Group {
             inner: inner.into(),
         }
@@ -681,7 +696,8 @@ impl Group {
         }
     }
 
-    /// Returns the delimiter of this `Group`
+    /// Returns the punctuation used as the delimiter for this group: a set of
+    /// parentheses, square brackets, or curly braces.
     pub fn delimiter(&self) -> Delimiter {
         self.inner.delimiter()
     }
@@ -723,6 +739,13 @@ impl Group {
     /// ```
     pub fn span_close(&self) -> Span {
         Span::_new(self.inner.span_close())
+    }
+
+    /// Returns an object that holds this group's `span_open()` and
+    /// `span_close()` together (in a more compact representation than holding
+    /// those 2 spans individually).
+    pub fn delim_span(&self) -> DelimSpan {
+        DelimSpan::new(&self.inner)
     }
 
     /// Configures the span for this `Group`'s delimiters, but not its internal
@@ -1081,7 +1104,7 @@ impl Literal {
         }
     }
 
-    fn _new_stable(inner: fallback::Literal) -> Self {
+    fn _new_fallback(inner: fallback::Literal) -> Self {
         Literal {
             inner: inner.into(),
             _marker: Marker,

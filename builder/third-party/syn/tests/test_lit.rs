@@ -1,11 +1,14 @@
-#![allow(clippy::float_cmp, clippy::non_ascii_literal)]
+#![allow(
+    clippy::float_cmp,
+    clippy::non_ascii_literal,
+    clippy::uninlined_format_args
+)]
 
 #[macro_use]
 mod macros;
 
 use proc_macro2::{Delimiter, Group, Literal, Span, TokenStream, TokenTree};
 use quote::ToTokens;
-use std::iter::FromIterator;
 use std::str::FromStr;
 use syn::{Lit, LitFloat, LitInt, LitStr};
 

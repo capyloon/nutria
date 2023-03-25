@@ -4,6 +4,8 @@
 //! handles are distinct from socket descriptors. This file provides a minimal
 //! layer of portability over this difference.
 
+#[cfg(target_os = "hermit")]
+use std::os::hermit::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 #[cfg(unix)]
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 #[cfg(target_os = "wasi")]
@@ -18,7 +20,7 @@ use std::os::windows::io::{
 ///
 /// This is a portability abstraction over Unix-like [`RawFd`] and
 /// Windows' `RawHandle`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub type RawFilelike = RawFd;
 
 /// A raw filelike object.
@@ -32,7 +34,7 @@ pub type RawFilelike = RawHandle;
 ///
 /// This is a portability abstraction over Unix-like [`RawFd`] and
 /// Windows' `RawSocket`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub type RawSocketlike = RawFd;
 
 /// A raw socketlike object.
@@ -46,13 +48,13 @@ pub type RawSocketlike = RawSocket;
 ///
 /// This is a portability abstraction over Unix-like [`AsRawFd`] and Windows'
 /// `AsRawHandle`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait AsRawFilelike: AsRawFd {
     /// Returns the raw value.
     fn as_raw_filelike(&self) -> RawFilelike;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: AsRawFd> AsRawFilelike for T {
     #[inline]
     fn as_raw_filelike(&self) -> RawFilelike {
@@ -78,13 +80,13 @@ impl<T: AsRawHandle> AsRawFilelike for T {
 
 /// This is a portability abstraction over Unix-like [`AsRawFd`] and Windows'
 /// `AsRawSocket`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait AsRawSocketlike: AsRawFd {
     /// Returns the raw value.
     fn as_raw_socketlike(&self) -> RawSocketlike;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: AsRawFd> AsRawSocketlike for T {
     #[inline]
     fn as_raw_socketlike(&self) -> RawSocketlike {
@@ -110,13 +112,13 @@ impl<T: AsRawSocket> AsRawSocketlike for T {
 
 /// This is a portability abstraction over Unix-like [`IntoRawFd`] and Windows'
 /// `IntoRawHandle`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait IntoRawFilelike: IntoRawFd {
     /// Returns the raw value.
     fn into_raw_filelike(self) -> RawFilelike;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: IntoRawFd> IntoRawFilelike for T {
     #[inline]
     fn into_raw_filelike(self) -> RawFilelike {
@@ -142,13 +144,13 @@ impl<T: IntoRawHandle> IntoRawFilelike for T {
 
 /// This is a portability abstraction over Unix-like [`IntoRawFd`] and Windows'
 /// `IntoRawSocket`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait IntoRawSocketlike: IntoRawFd {
     /// Returns the raw value.
     fn into_raw_socketlike(self) -> RawSocketlike;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: IntoRawFd> IntoRawSocketlike for T {
     #[inline]
     fn into_raw_socketlike(self) -> RawSocketlike {
@@ -174,7 +176,7 @@ impl<T: IntoRawSocket> IntoRawSocketlike for T {
 
 /// This is a portability abstraction over Unix-like [`FromRawFd`] and Windows'
 /// `FromRawHandle`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait FromRawFilelike: FromRawFd {
     /// Constructs `Self` from the raw value.
     ///
@@ -188,7 +190,7 @@ pub trait FromRawFilelike: FromRawFd {
     unsafe fn from_raw_filelike(raw: RawFilelike) -> Self;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: FromRawFd> FromRawFilelike for T {
     #[inline]
     unsafe fn from_raw_filelike(raw: RawFilelike) -> Self {
@@ -214,7 +216,7 @@ impl<T: FromRawHandle> FromRawFilelike for T {
 
 /// This is a portability abstraction over Unix-like [`FromRawFd`] and Windows'
 /// `FromRawSocket`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait FromRawSocketlike: FromRawFd {
     /// Constructs `Self` from the raw value.
     ///
@@ -228,7 +230,7 @@ pub trait FromRawSocketlike: FromRawFd {
     unsafe fn from_raw_socketlike(raw: RawSocketlike) -> Self;
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: FromRawFd> FromRawSocketlike for T {
     #[inline]
     unsafe fn from_raw_socketlike(raw: RawSocketlike) -> Self {

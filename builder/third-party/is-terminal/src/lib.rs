@@ -31,6 +31,8 @@
 use io_lifetimes::AsFilelike;
 #[cfg(windows)]
 use io_lifetimes::BorrowedHandle;
+#[cfg(target_os = "hermit")]
+use std::os::hermit::io::AsRawFd;
 #[cfg(windows)]
 use std::os::windows::io::AsRawHandle;
 #[cfg(windows)]
@@ -62,7 +64,7 @@ impl<Stream: AsFilelike> IsTerminal for Stream {
 
         #[cfg(target_os = "hermit")]
         {
-            hermit_abi::isatty(self.as_filelike().as_fd())
+            hermit_abi::isatty(self.as_filelike().as_raw_fd())
         }
 
         #[cfg(windows)]

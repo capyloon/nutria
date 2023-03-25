@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.64.0"
 name = "clap_derive"
-version = "4.1.8"
+version = "4.1.12"
 include = [
     "build.rs",
     "src/**/*",
@@ -54,9 +54,6 @@ proc-macro = true
 [dependencies.heck]
 version = "0.4.0"
 
-[dependencies.proc-macro-error]
-version = "1"
-
 [dependencies.proc-macro2]
 version = "1.0.42"
 
@@ -64,7 +61,7 @@ version = "1.0.42"
 version = "1.0.9"
 
 [dependencies.syn]
-version = "1.0.74"
+version = "2.0.8"
 features = ["full"]
 
 [features]

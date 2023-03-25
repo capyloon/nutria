@@ -1,6 +1,8 @@
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem::forget;
+#[cfg(target_os = "hermit")]
+use std::os::hermit::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 #[cfg(unix)]
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 #[cfg(target_os = "wasi")]
@@ -47,7 +49,7 @@ const INVALID_SOCKET: usize = !0 as _;
 /// This type's `.to_owned()` implementation returns another `BorrowedFd`
 /// rather than an `OwnedFd`. It just makes a trivial copy of the raw file
 /// descriptor, which is then borrowed under the same lifetime.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 #[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct BorrowedFd<'fd> {
@@ -112,13 +114,13 @@ pub struct BorrowedSocket<'socket> {
 /// descriptor, so it can be used in FFI in places where a file descriptor is
 /// passed as a consumed argument or returned as an owned value, and it never
 /// has the value `-1`.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 #[repr(transparent)]
 pub struct OwnedFd {
     fd: RawFd,
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl OwnedFd {
     /// Creates a new `OwnedFd` instance that shares the same underlying file
     /// description as the existing `OwnedFd` instance.
@@ -127,7 +129,7 @@ impl OwnedFd {
     }
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl BorrowedFd<'_> {
     /// Creates a new `OwnedFd` instance that shares the same underlying file
     /// description as the existing `BorrowedFd` instance.
@@ -157,7 +159,7 @@ impl BorrowedFd<'_> {
                 Ok(unsafe { OwnedFd::from_raw_fd(fd) })
             }
 
-            #[cfg(target_os = "wasi")]
+            #[cfg(any(target_os = "wasi", target_os = "hermit"))]
             {
                 unreachable!("try_clone is not yet suppported on wasi");
             }
@@ -427,7 +429,7 @@ unsafe impl Sync for HandleOrNull {}
 #[cfg(windows)]
 unsafe impl Sync for BorrowedHandle<'_> {}
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl BorrowedFd<'_> {
     /// Return a `BorrowedFd` holding the given raw file descriptor.
     ///
@@ -558,7 +560,7 @@ impl fmt::Display for InvalidHandleError {
 
 impl std::error::Error for InvalidHandleError {}
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl AsRawFd for BorrowedFd<'_> {
     #[inline]
     fn as_raw_fd(&self) -> RawFd {
@@ -582,7 +584,7 @@ impl AsRawSocket for BorrowedSocket<'_> {
     }
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl AsRawFd for OwnedFd {
     #[inline]
     fn as_raw_fd(&self) -> RawFd {
@@ -606,7 +608,7 @@ impl AsRawSocket for OwnedSocket {
     }
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl IntoRawFd for OwnedFd {
     #[inline]
     fn into_raw_fd(self) -> RawFd {
@@ -636,7 +638,7 @@ impl IntoRawSocket for OwnedSocket {
     }
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl FromRawFd for OwnedFd {
     /// Constructs a new instance of `Self` from the given raw file descriptor.
     ///
@@ -731,6 +733,24 @@ impl Drop for OwnedFd {
     }
 }
 
+#[cfg(target_os = "hermit")]
+impl Drop for OwnedFd {
+    #[inline]
+    fn drop(&mut self) {
+        #[cfg(feature = "close")]
+        unsafe {
+            let _ = hermit_abi::close(self.fd);
+        }
+
+        // If the `close` feature is disabled, we expect users to avoid letting
+        // `OwnedFd` instances drop, so that we don't have to call `close`.
+        #[cfg(not(feature = "close"))]
+        {
+            unreachable!("drop called without the \"close\" feature in io-lifetimes");
+        }
+    }
+}
+
 #[cfg(windows)]
 impl Drop for OwnedHandle {
     #[inline]
@@ -803,7 +823,7 @@ impl Drop for OwnedSocket {
     }
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl fmt::Debug for BorrowedFd<'_> {
     #[allow(clippy::missing_inline_in_public_items)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -831,7 +851,7 @@ impl fmt::Debug for BorrowedSocket<'_> {
     }
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl fmt::Debug for OwnedFd {
     #[allow(clippy::missing_inline_in_public_items)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

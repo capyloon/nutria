@@ -40,7 +40,7 @@ impl LexError {
 }
 
 fn mismatch() -> ! {
-    panic!("stable/nightly mismatch")
+    panic!("compiler/fallback mismatch")
 }
 
 impl DeferredTokenStream {
@@ -527,6 +527,16 @@ impl Span {
             (Span::Compiler(a), Span::Compiler(b)) => a.eq(b),
             (Span::Fallback(a), Span::Fallback(b)) => a.eq(b),
             _ => false,
+        }
+    }
+
+    pub fn source_text(&self) -> Option<String> {
+        match self {
+            #[cfg(not(no_source_text))]
+            Span::Compiler(s) => s.source_text(),
+            #[cfg(no_source_text)]
+            Span::Compiler(_) => None,
+            Span::Fallback(s) => s.source_text(),
         }
     }
 

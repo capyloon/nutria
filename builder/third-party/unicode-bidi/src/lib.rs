@@ -93,7 +93,7 @@ pub use crate::char_data::{bidi_class, HardcodedBidiData};
 use alloc::borrow::Cow;
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::cmp::{max, min};
+use core::cmp;
 use core::iter::repeat;
 use core::ops::Range;
 
@@ -425,6 +425,14 @@ impl<'text> BidiInfo<'text> {
     ///
     /// the index map will result in `indexMap[visualIndex]==logicalIndex`.
     ///
+    /// This only runs [Rule L2](http://www.unicode.org/reports/tr9/#L2) as it does not have
+    /// information about the actual text.
+    ///
+    /// Furthermore, if `levels` is an array that is aligned with code units, bytes within a codepoint may be
+    /// reversed. You may need to fix up the map to deal with this. Alternatively, only pass in arrays where each `Level`
+    /// is for a single code point.
+    ///
+    ///
     ///   # # Example
     /// ```
     /// use unicode_bidi::BidiInfo;
@@ -442,18 +450,31 @@ impl<'text> BidiInfo<'text> {
     /// let levels: Vec<Level> = vec![l0, l0, l0, l1, l1, l1, l2, l2];
     /// let index_map = BidiInfo::reorder_visual(&levels);
     /// assert_eq!(levels.len(), index_map.len());
-    /// assert_eq!(index_map, [0, 1, 2, 5, 4, 3, 6, 7]);
+    /// assert_eq!(index_map, [0, 1, 2, 6, 7, 5, 4, 3]);
     /// ```
     pub fn reorder_visual(levels: &[Level]) -> Vec<usize> {
-        // Gets the next range
-        fn next_range(levels: &[level::Level], start_index: usize) -> Range<usize> {
+        // Gets the next range of characters after start_index with a level greater
+        // than or equal to `max`
+        fn next_range(levels: &[level::Level], mut start_index: usize, max: Level) -> Range<usize> {
             if levels.is_empty() || start_index >= levels.len() {
+                return start_index..start_index;
+            }
+            while let Some(l) = levels.get(start_index) {
+                if *l >= max {
+                    break;
+                }
+                start_index += 1;
+            }
+
+            if levels.get(start_index).is_none() {
+                // If at the end of the array, adding one will
+                // produce an out-of-range end element
                 return start_index..start_index;
             }
 
             let mut end_index = start_index + 1;
-            while end_index < levels.len() {
-                if levels[start_index] != levels[end_index] {
+            while let Some(l) = levels.get(end_index) {
+                if *l < max {
                     return start_index..end_index;
                 }
                 end_index += 1;
@@ -462,21 +483,50 @@ impl<'text> BidiInfo<'text> {
             start_index..end_index
         }
 
+        // This implementation is similar to the L2 implementation in `visual_runs()`
+        // but it cannot benefit from a precalculated LevelRun vector so needs to be different.
+
         if levels.is_empty() {
             return vec![];
         }
+
+        // Get the min and max levels
+        let (mut min, mut max) = levels
+            .iter()
+            .fold((levels[0], levels[0]), |(min, max), &l| {
+                (cmp::min(min, l), cmp::max(max, l))
+            });
+
+        // Initialize an index map
         let mut result: Vec<usize> = (0..levels.len()).collect();
 
-        let mut range: Range<usize> = 0..0;
-        loop {
-            range = next_range(levels, range.end);
-            if levels[range.start].is_rtl() {
+        if min == max && min.is_ltr() {
+            // Everything is LTR and at the same level, do nothing
+            return result;
+        }
+
+        // Stop at the lowest *odd* level, since everything below that
+        // is LTR and does not need further reordering
+        min = min.new_lowest_ge_rtl().expect("Level error");
+
+        // For each max level, take all contiguous chunks of
+        // levels ≥ max and reverse them
+        //
+        // We can do this check with the original levels instead of checking reorderings because all
+        // prior reorderings will have been for contiguous chunks of levels >> max, which will
+        // be a subset of these chunks anyway.
+        while min <= max {
+            let mut range = 0..0;
+            loop {
+                range = next_range(levels, range.end, max);
                 result[range.clone()].reverse();
+
+                if range.end >= levels.len() {
+                    break;
+                }
             }
 
-            if range.end >= levels.len() {
-                break;
-            }
+            max.lower(1).expect("Level error");
         }
 
         result
@@ -563,8 +613,8 @@ impl<'text> BidiInfo<'text> {
                 runs.push(start..i);
                 start = i;
                 run_level = new_level;
-                min_level = min(run_level, min_level);
-                max_level = max(run_level, max_level);
+                min_level = cmp::min(run_level, min_level);
+                max_level = cmp::max(run_level, max_level);
             }
         }
         runs.push(start..line.end);
@@ -577,6 +627,12 @@ impl<'text> BidiInfo<'text> {
         // Stop at the lowest *odd* level.
         min_level = min_level.new_lowest_ge_rtl().expect("Level error");
 
+        // This loop goes through contiguous chunks of level runs that have a level
+        // ≥ max_level and reverses their contents, reducing max_level by 1 each time.
+        //
+        // It can do this check with the original levels instead of checking reorderings because all
+        // prior reorderings will have been for contiguous chunks of levels >> max, which will
+        // be a subset of these chunks anyway.
         while max_level >= min_level {
             // Look for the start of a sequence of consecutive runs of max_level or higher.
             let mut seq_start = 0;

@@ -6,9 +6,11 @@ use std::result;
 
 #[cfg(all(target_vendor = "fortanix", target_env = "sgx"))]
 use std::os::fortanix_sgx as os;
+#[cfg(target_os = "hermit")]
+use std::os::hermit as os;
 #[cfg(target_os = "solid_asp3")]
 use std::os::solid as os;
-#[cfg(any(target_os = "hermit", unix))]
+#[cfg(unix)]
 use std::os::unix as os;
 #[cfg(target_os = "wasi")]
 use std::os::wasi as os;

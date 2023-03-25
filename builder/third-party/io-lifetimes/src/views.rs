@@ -9,7 +9,7 @@ use crate::raw::{
     AsRawFilelike, AsRawSocketlike, FromRawFilelike, FromRawSocketlike, IntoRawFilelike,
     IntoRawSocketlike, RawFilelike, RawSocketlike,
 };
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 use crate::OwnedFd;
 use crate::{
     AsFilelike, AsSocketlike, FromFilelike, FromSocketlike, IntoFilelike, IntoSocketlike,
@@ -207,7 +207,7 @@ impl<Target: SocketlikeViewType> fmt::Debug for SocketlikeView<'_, Target> {
     }
 }
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 unsafe impl FilelikeViewType for OwnedFd {}
 #[cfg(windows)]
 unsafe impl FilelikeViewType for OwnedHandle {}
@@ -224,24 +224,24 @@ unsafe impl SocketlikeViewType for std::os::unix::net::UnixListener {}
 
 #[cfg(unix)]
 unsafe impl SocketlikeViewType for std::os::unix::net::UnixDatagram {}
-#[cfg(not(target_os = "wasi"))]
+#[cfg(not(any(target_os = "wasi", target_os = "hermit")))]
 #[cfg(feature = "os_pipe")]
 unsafe impl FilelikeViewType for os_pipe::PipeWriter {}
-#[cfg(not(target_os = "wasi"))]
+#[cfg(not(any(target_os = "wasi", target_os = "hermit")))]
 #[cfg(feature = "os_pipe")]
 unsafe impl FilelikeViewType for os_pipe::PipeReader {}
 
-#[cfg(not(target_os = "wasi"))]
+#[cfg(not(any(target_os = "wasi", target_os = "hermit")))]
 #[cfg(feature = "socket2")]
 unsafe impl SocketlikeViewType for socket2::Socket {}
 
-#[cfg(not(target_os = "wasi"))]
+#[cfg(not(any(target_os = "wasi", target_os = "hermit")))]
 #[cfg(feature = "async_std")]
 unsafe impl SocketlikeViewType for async_std::net::TcpStream {}
-#[cfg(not(target_os = "wasi"))]
+#[cfg(not(any(target_os = "wasi", target_os = "hermit")))]
 #[cfg(feature = "async_std")]
 unsafe impl SocketlikeViewType for async_std::net::TcpListener {}
-#[cfg(not(target_os = "wasi"))]
+#[cfg(not(any(target_os = "wasi", target_os = "hermit")))]
 #[cfg(feature = "async_std")]
 unsafe impl SocketlikeViewType for async_std::net::UdpSocket {}
 #[cfg(unix)]

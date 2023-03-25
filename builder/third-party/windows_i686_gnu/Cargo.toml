@@ -12,9 +12,9 @@
 [package]
 edition = "2018"
 name = "windows_i686_gnu"
-version = "0.42.1"
+version = "0.42.2"
 authors = ["Microsoft"]
-description = "Code gen support for the windows crate"
+description = "Import lib for Windows"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/microsoft/windows-rs"
 

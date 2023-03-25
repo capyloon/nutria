@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.64.0"
 name = "clap"
-version = "4.1.8"
+version = "4.1.13"
 include = [
     "build.rs",
     "src/**/*",
@@ -88,6 +88,16 @@ replace = """
 <!-- next-url -->
 [Unreleased]: https://github.com/clap-rs/clap/compare/{{tag_name}}...HEAD"""
 exactly = 1
+
+[[package.metadata.release.pre-release-replacements]]
+file = "CITATION.cff"
+search = "^date-released: ....-..-.."
+replace = "date-released: {{date}}"
+
+[[package.metadata.release.pre-release-replacements]]
+file = "CITATION.cff"
+search = '^version: .+\..+\..+'
+replace = "version: {{version}}"
 
 [profile.bench]
 lto = true
@@ -356,14 +366,14 @@ path = "examples/derive_ref/flatten_hand_args.rs"
 required-features = ["derive"]
 
 [dependencies.backtrace]
-version = "0.3"
+version = "0.3.67"
 optional = true
 
 [dependencies.bitflags]
-version = "1.2"
+version = "1.2.0"
 
 [dependencies.clap_derive]
-version = "=4.1.8"
+version = "=4.1.12"
 optional = true
 
 [dependencies.clap_lex]
@@ -378,7 +388,7 @@ version = "1.12.0"
 optional = true
 
 [dependencies.strsim]
-version = "0.10"
+version = "0.10.0"
 optional = true
 
 [dependencies.termcolor]
@@ -390,7 +400,7 @@ version = "0.2.1"
 optional = true
 
 [dependencies.unicase]
-version = "2.6"
+version = "2.6.0"
 optional = true
 
 [dependencies.unicode-width]
@@ -398,25 +408,25 @@ version = "0.1.9"
 optional = true
 
 [dev-dependencies.humantime]
-version = "2"
+version = "2.1.0"
 
 [dev-dependencies.rustversion]
-version = "1"
+version = "1.0.12"
 
 [dev-dependencies.shlex]
 version = "1.1.0"
 
 [dev-dependencies.snapbox]
-version = "0.4"
+version = "0.4.10"
 
 [dev-dependencies.static_assertions]
 version = "1.1.0"
 
 [dev-dependencies.trybuild]
-version = "1.0.73"
+version = "1.0.77"
 
 [dev-dependencies.trycmd]
-version = "0.14.9"
+version = "0.14.15"
 features = [
     "color-auto",
     "diff",

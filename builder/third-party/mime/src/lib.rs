@@ -23,7 +23,7 @@
 //! }
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/mime/0.3.16")]
+#![doc(html_root_url = "https://docs.rs/mime/0.3.17")]
 #![deny(warnings)]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
@@ -45,6 +45,13 @@ pub struct Mime {
     slash: usize,
     plus: Option<usize>,
     params: ParamSource,
+}
+
+/// An iterator of parsed mime
+#[derive(Clone, Debug)]
+pub struct MimeIter<'a> {
+    pos: usize,
+    source: &'a str,
 }
 
 /// A section of a `Mime`.

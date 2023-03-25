@@ -3,12 +3,12 @@
 #![cfg_attr(not(io_safety_is_in_std), allow(unused_imports))]
 #![allow(missing_docs)]
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 use crate::{BorrowedFd, OwnedFd};
 #[cfg(windows)]
 use crate::{BorrowedHandle, HandleOrInvalid};
 
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 use libc::{c_char, c_int, c_void, size_t, ssize_t};
 #[cfg(windows)]
 use {
@@ -23,7 +23,10 @@ use {
 };
 
 // Declare a few FFI functions ourselves, to show off the FFI ergonomics.
-#[cfg(all(io_safety_is_in_std, any(unix, target_os = "wasi")))]
+#[cfg(all(
+    io_safety_is_in_std,
+    any(unix, target_os = "wasi", target_os = "hermit")
+))]
 extern "C" {
     pub fn open(pathname: *const c_char, flags: c_int, ...) -> Option<OwnedFd>;
 }

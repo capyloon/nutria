@@ -1,7 +1,7 @@
 #[cfg(not(io_safety_is_in_std))]
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 use crate::BorrowedFd;
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 use crate::OwnedFd;
 #[cfg(not(io_safety_is_in_std))]
 #[cfg(windows)]
@@ -15,7 +15,7 @@ use crate::{OwnedHandle, OwnedSocket};
 /// call the method. Windows platforms have a corresponding `AsHandle` and
 /// `AsSocket` set of traits.
 #[cfg(not(io_safety_is_in_std))]
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait AsFd {
     /// Borrows the file descriptor.
     ///
@@ -63,7 +63,7 @@ pub trait AsSocket {
 
 /// A trait to express the ability to consume an object and acquire ownership
 /// of its file descriptor.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 #[deprecated(
     since = "1.0.0",
     note = "`IntoFd` is replaced by `From<...> for OwnedFd` or `Into<OwnedFd>`"
@@ -123,7 +123,7 @@ pub trait IntoSocket {
 
 /// A trait to express the ability to construct an object from a file
 /// descriptor.
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 pub trait FromFd {
     /// Constructs a new instance of `Self` from the given file descriptor.
     ///
@@ -236,7 +236,7 @@ pub trait FromSocket {
 }
 
 #[cfg(not(io_safety_is_in_std))]
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: AsFd> AsFd for &T {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
@@ -245,7 +245,7 @@ impl<T: AsFd> AsFd for &T {
 }
 
 #[cfg(not(io_safety_is_in_std))]
-#[cfg(any(unix, target_os = "wasi"))]
+#[cfg(any(unix, target_os = "wasi", target_os = "hermit"))]
 impl<T: AsFd> AsFd for &mut T {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {

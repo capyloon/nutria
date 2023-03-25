@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "hyper"
-version = "0.14.24"
+version = "0.14.25"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 include = [
     "Cargo.toml",
@@ -296,8 +296,10 @@ version = "2.2"
 
 [features]
 __internal_happy_eyeballs_tests = []
+backports = []
 client = []
 default = []
+deprecated = []
 ffi = ["libc"]
 full = [
     "client",
