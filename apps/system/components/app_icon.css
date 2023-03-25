@@ -12,6 +12,8 @@
 
   --action-box-width: 5em;
   --action-box-height: 6em;
+
+  cursor: pointer;
 }
 
 :host span {

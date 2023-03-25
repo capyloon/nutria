@@ -28,17 +28,17 @@ class AppIcon extends HTMLElement {
       `;
 
     this.onclick = () => {
-      this.dispatchEvent(new CustomEvent("open-bookmark", { bubbles: true }));
-      let details = {
-        title: data.title,
-        icon: this.icon,
-        backgroundColor: data.backgroundColor,
-      };
-
-      window.wm.openFrame(data.url, {
-        activate: true,
-        details,
-      });
+      this.dispatchEvent(
+        new CustomEvent("open-bookmark", {
+          bubbles: true,
+          detail: {
+            url: data.url,
+            title: data.title,
+            icon: this.icon,
+            backgroundColor: data.backgroundColor,
+          },
+        })
+      );
     };
   }
 
@@ -76,7 +76,16 @@ class AppsList extends LitElement {
   }
 
   open() {
+    this.canOpen = false;
+    this.addEventListener(
+      "transitionend",
+      () => {
+        this.canOpen = true;
+      },
+      { once: true }
+    );
     this.classList.add("open");
+
     // Hide the homescreen.
     window.wm.homescreenFrame().classList.add("deactivated");
     this.focus();
@@ -102,7 +111,13 @@ class AppsList extends LitElement {
   async handleEvent(event) {
     switch (event.type) {
       case "open-bookmark":
-        this.close();
+        if (this.canOpen) {
+          window.wm.openFrame(event.detail.url, {
+            activate: true,
+            details: event.detail,
+          });
+          this.close();
+        }
         break;
       case "contextmenu":
         // console.log(`AppsList: contextmenu ${event.target?.localName}`);
