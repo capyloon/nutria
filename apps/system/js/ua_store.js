@@ -43,6 +43,7 @@ class UAStore extends EventTarget {
             "ua-store.json",
             new Blob(["[]"], { type: "application/json" })
           );
+          this.log(`New store created, ${this.current._meta.id}`);
         }
       } catch (e) {
         this.error(JSON.stringify(e));
@@ -70,7 +71,9 @@ class UAStore extends EventTarget {
       json.push(override);
     }
     // this.log(`Updating with ${JSON.stringify(json)}`);
-    await this.current.update(new Blob([JSON.stringify(json)]));
+    await this.current.update(
+      new Blob([JSON.stringify(json)], { type: "application/json" })
+    );
   }
 }
 
