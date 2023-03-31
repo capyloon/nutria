@@ -142,11 +142,11 @@ class LockScreen extends HTMLElement {
     this.lockpad = shadow.querySelector(".lockpad");
     let options = {
       root: this.lockpad.parentNode,
-      threshold: [0, 0.999],
+      threshold: [0, 0.9],
     };
     let callback = (entries, observer) => {
       entries.forEach(async (entry) => {
-        if (!this.enabled && entry.intersectionRatio > 0.999) {
+        if (!this.enabled && entry.intersectionRatio > 0.9) {
           this.unlock();
         }
       });
