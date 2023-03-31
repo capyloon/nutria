@@ -28,7 +28,7 @@
         <img src="/icons/icon.svg" /><span data-l10n-id="start-with"></span>
       </p>
       <sl-button data-l10n-id="action-start-new"></sl-button>
-      <sl-button data-l10n-id="action-start-import" disabled></sl-button>
+      <sl-button data-l10n-id="action-start-fork"></sl-button>
     </div>
     <div id="ui" class="hidden">
       <header id="tile-name">Tile name</header>
@@ -50,11 +50,26 @@
         </sl-tab-group>
       </sl-split-panel>
       <footer id="actions">
-        <sl-button data-l10n-id="action-new"></sl-button>
+        <!-- <sl-button data-l10n-id="action-new"></sl-button> -->
         <sl-button data-l10n-id="action-launch"></sl-button>
         <sl-button data-l10n-id="action-publish"></sl-button>
-        <sl-button data-l10n-id="action-import" disabled></sl-button>
+        <!-- <sl-button data-l10n-id="action-fork"></sl-button> -->
       </footer>
     </div>
+    <sl-dialog id="fork-chooser">
+      <span slot="label" data-l10n-id="fork-dialog-title"></span>
+      <div id="fork-content">
+        <sl-select id="fork-list">
+          <span slot="label" data-l10n-id="fork-chooser-library"></span>
+        </sl-select>
+        <sl-input id="fork-url" clearable data-l10n-id="fork-chooser-input-placeholder" data-l10n-attrs="placeholder">
+          <span slot="label" data-l10n-id="fork-chooser-input-url"></span>
+        </sl-input>
+      </div>
+      <div slot="footer">
+        <sl-button id="fork-chooser-fork" variant="primary" data-l10n-id="btn-fork"></sl-button>
+        <sl-button id="fork-chooser-cancel" data-l10n-id="btn-cancel"></sl-button>
+      </div>
+    </sl-dialog>
   </body>
 </html>

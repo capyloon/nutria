@@ -18,6 +18,7 @@
       "content-manager": {},
       "dweb": {},
       "themeable": {},
+      "systemXHR": {},
       "webapps-manage": {}
     }
   },

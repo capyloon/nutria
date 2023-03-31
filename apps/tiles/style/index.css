@@ -30,6 +30,7 @@ body.ready {
 #start {
   align-items: center;
   justify-content: center;
+  gap: 1em;
 }
 
 #start p {
@@ -94,4 +95,16 @@ div.text-editor {
   display: flex;
   gap: 0.5em;
   padding: 0.5em;
+}
+
+#fork-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+#fork-list img {
+  width: 24px;
+  border-radius: 40%;
+  box-shadow: 2px 2px 3px black;
 }

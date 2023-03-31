@@ -14,12 +14,22 @@ const kDeps = [
       "shoelace-tab-group",
       "shoelace-tab-panel",
       "shoelace-split-panel",
+      "shoelace-dialog",
+      "shoelace-select",
+      "shoelace-option",
+      "shoelace-input",
     ],
   },
   {
     name: "content manager",
     kind: "sharedWindowModule",
     param: ["js/content_manager.js", "contentManager", "ContentManager"],
+    deps: ["shared-api-daemon"],
+  },
+  {
+    name: "apps manager",
+    kind: "sharedWindowModule",
+    param: ["js/apps_manager.js", "appsManager", "AppsManager"],
     deps: ["shared-api-daemon"],
   },
 ];
@@ -43,8 +53,104 @@ document.addEventListener("DOMContentLoaded", async () => {
     `#start sl-button[data-l10n-id=action-start-new]`
   ).onclick = startNew;
 
+  document.querySelector(
+    `#start sl-button[data-l10n-id=action-start-fork]`
+  ).onclick = startFork;
+
   document.body.classList.add("ready");
 });
+
+class ForkDialog {
+  constructor() {
+    this.dialog = document.getElementById("fork-chooser");
+    this.dialog.addEventListener("sl-after-hide", this);
+    document
+      .getElementById("fork-chooser-fork")
+      .addEventListener("click", this);
+    document
+      .getElementById("fork-chooser-cancel")
+      .addEventListener("click", this);
+    this.promise = null;
+  }
+
+  handleEvent(event) {
+    if (this.promiseDone) {
+      return;
+    }
+
+    if (event.type === "sl-after-hide") {
+      // sl-after-hide is also dispatched when "closing" the sl-select drop down,
+      // but we should not do anything in that case.
+      if (event.target !== this) {
+        return;
+      }
+
+      this.promiseDone = true;
+      this.promise?.reject();
+      return;
+    }
+
+    let id = event.target.getAttribute("id");
+    if (id === "fork-chooser-fork") {
+      let input = this.dialog.querySelector("#fork-url").value.trim();
+      let result = input || this.dialog.querySelector("#fork-list").value;
+      this.promiseDone = true;
+      this.promise?.resolve(result);
+    } else if (id === "fork-chooser-cancel") {
+      this.promiseDone = true;
+      this.promise?.reject();
+    } else {
+      console.error(
+        `Unexpected event: ${event.type} from ${event.target.localName}#${id}`
+      );
+      return;
+    }
+    this.dialog.hide();
+  }
+
+  open() {
+    this.promiseDone = false;
+    return new Promise(async (resolve, reject) => {
+      this.promise = { resolve, reject };
+      await graph.waitForDeps("apps manager");
+
+      let apps = await appsManager.getAll();
+      let list = this.dialog.querySelector("#fork-list");
+      list.innerHTML = "";
+      for (let app of apps) {
+        let summary = await appsManager.getSummary(app);
+        const isTile = summary.url?.startsWith("tile://");
+        if (isTile) {
+          let option = document.createElement("sl-option");
+          option.value = summary.updateUrl;
+          let icon = document.createElement("img");
+          icon.src = summary.icon;
+          icon.setAttribute("slot", "prefix");
+          let desc = document.createElement("span");
+          desc.textContent = summary.description;
+          option.append(icon);
+          option.append(desc);
+
+          list.append(option);
+        }
+      }
+      this.dialog.show();
+    });
+  }
+}
+
+async function startFork() {
+  try {
+    let dialog = new ForkDialog();
+    let manifestUrl = await dialog.open();
+    dialog = null;
+
+    document.getElementById("start").classList.add("hidden");
+    document.getElementById("ui").classList.remove("hidden");
+    let editor = new TileEditor();
+    editor.forkTileFrom(manifestUrl);
+  } catch (e) {}
+}
 
 function startNew() {
   document.getElementById("start").classList.add("hidden");
@@ -57,7 +163,8 @@ class TileEditor {
   constructor() {
     ace.config.set("useStrictCSP", true);
 
-    const actions = ["new", "launch", "publish", "import"];
+    // const actions = ["new", "launch", "publish", "fork"];
+    const actions = ["launch", "publish"];
     actions.forEach((action) => {
       document
         .querySelector(`#actions sl-button[data-l10n-id=action-${action}]`)
@@ -114,7 +221,7 @@ class TileEditor {
     this.tile?.onLaunch(target);
   }
 
-  async onNewTile() {
+  resetUi() {
     // Cleanup the UI.
     let files = document.getElementById("files");
     files.innerHTML = "";
@@ -125,7 +232,17 @@ class TileEditor {
 
     // Reset the tile state.
     this.tile.reset();
+  }
+
+  async onNewTile() {
+    this.resetUi();
     await this.tile.fromNew();
+    await this.tile.open("/manifest.webmanifest");
+  }
+
+  async forkTileFrom(manifestUrl) {
+    this.resetUi();
+    await this.tile.forkTileFrom(manifestUrl);
     await this.tile.open("/manifest.webmanifest");
   }
 }
@@ -149,7 +266,7 @@ class Tile {
   async ensureResource(fullPath, kind = "text") {
     let content = this.content.get(fullPath);
     if (!content) {
-      let response = await fetch(`${fullPath}`);
+      let response = await fetch(`${fullPath}`, { mode: "no-cors" });
       if (kind === "text") {
         content = await response.text();
         this.content.set(fullPath, content);
@@ -264,18 +381,19 @@ class Tile {
   }
 
   async fromNew() {
-    let root = (this.root = "/resources/new-tile");
+    await this.forkTileFrom("/resources/new-tile/manifest.webmanifest");
+  }
+
+  async forkTileFrom(manifestUrl) {
+    let root = manifestUrl.replace("/manifest.webmanifest", "");
+    this.root = root;
     try {
-      this.manifest = await (
-        await fetch(`${root}/manifest.webmanifest`)
-      ).json();
+      let response = await fetch(manifestUrl, { mode: "no-cors" });
+      this.manifest = await response.json();
       this.updateTitle();
 
-      this.resources.add(`${root}/manifest.webmanifest`);
-      this.content.set(
-        `${root}/manifest.webmanifest`,
-        JSON.stringify(this.manifest, null, "  ")
-      );
+      this.resources.add(manifestUrl);
+      this.content.set(manifestUrl, JSON.stringify(this.manifest, null, "  "));
 
       this.manifest.tile?.resources?.forEach((resource) => {
         this.resources.add(`${root}${resource}`);
@@ -327,7 +445,7 @@ class Tile {
 
       files.append(tree);
     } catch (e) {
-      log(`Failed to load tile resouce: ${e}`);
+      log(`Failed to load tile resource: ${e}`);
     }
   }
 
