@@ -377,8 +377,17 @@ class Tile {
     }
 
     let resource = `${parentPath}${fileName}`;
+    let fullPath = `${this.root}${resource}`;
 
-    // 2. Add the DOM node.
+    // 2. Update the resources set & content.
+    if (this.resources.has(fullPath)) {
+      console.error(`Can't add twice the same resource: ${fullPath}`);
+      return;
+    }
+    this.resources.add(fullPath);
+    this.content.set(fullPath, "");
+
+    // 3. Add the DOM node.
     // TODO: factor out.
     let leaf = document.createElement("sl-tree-item");
     leaf.dataset.kind = "file";
@@ -391,11 +400,6 @@ class Tile {
       await this.open(resource);
     });
     parentNode.append(leaf);
-
-    // 3. Update the resources set & content.
-    let fullPath = `${this.root}${resource}`;
-    this.resources.add(fullPath);
-    this.content.set(fullPath, "");
 
     // 4. Update the manifest file list.
     await this.ensureManifest();
