@@ -51,14 +51,13 @@ export class QrCodeScanner extends EventTarget {
 
     try {
       let bitmap = await createImageBitmap(window.preview);
-      let canvas = document.createElement("canvas");
-      let width = bitmap.width;
-      let height = bitmap.height;
-      canvas.width = width;
-      canvas.height = height;
-      let ctxt = canvas.getContext("2d");
-      ctxt.drawImage(bitmap, 0, 0, width, height);
-      let imageData = ctxt.getImageData(0, 0, width, height);
+      let { width, height } = bitmap;
+      if (!this.ctx) {
+        let canvas = new OffscreenCanvas(width, height);
+        this.ctxt = canvas.getContext("2d");
+      }
+      this.ctxt.drawImage(bitmap, 0, 0, width, height);
+      let imageData = this.ctxt.getImageData(0, 0, width, height);
       // let start = Date.now();
       let result = this.module?.decodeQr(imageData.data, width, height);
       // let elapsed = Date.now() - start;
