@@ -1,21 +1,6 @@
 // QR Decoding support.
 // TODO: check if we should move that into a Web Worker.
 
-class ConsoleImpl {
-  constructor(name) {
-    this.name = name;
-  }
-
-  consoleLog(msg) {
-    // Silence noisy logs.
-    // console.log(`${this.name}:`, msg);
-  }
-
-  consoleError(msg) {
-    console.error(`${this.name}:`, msg);
-  }
-}
-
 export class QrCodeScanner extends EventTarget {
   constructor(cameraReady) {
     super();
@@ -24,7 +9,7 @@ export class QrCodeScanner extends EventTarget {
       this.start();
     });
     this.ready = false;
-    this.wasmModule = null;
+    this.module = null;
   }
 
   async start() {
@@ -45,30 +30,8 @@ export class QrCodeScanner extends EventTarget {
   }
 
   async initWasmDecoder() {
-    const { QrdecoderModule } = await import(
-      `http://camera.localhost:${window.config.port}/qrdecoder/qrdecoder_module.js`
-    );
-    const { addConsoleToImports } = await import(
-      `http://camera.localhost:${window.config.port}/qrdecoder/console.js`
-    );
-
-    this.module = new QrdecoderModule();
-
-    let imports = {};
-
-    addConsoleToImports(imports, new ConsoleImpl("QrdecoderModule"), (what) => {
-      if (what == "memory") {
-        return this.module._exports.memory;
-      } else {
-        console.error("Unsupport get_export() parameter: ", what);
-      }
-    });
-
-    await this.module.instantiate(
-      fetch(
-        `http://camera.localhost:${window.config.port}/qrdecoder/qrdecoder.wasm`
-      ),
-      imports
+    this.module = await import(
+      `http://camera.localhost:${window.config.port}/qrdecoder/qrdecoder.js`
     );
   }
 
@@ -97,7 +60,7 @@ export class QrCodeScanner extends EventTarget {
       ctxt.drawImage(bitmap, 0, 0, width, height);
       let imageData = ctxt.getImageData(0, 0, width, height);
       // let start = Date.now();
-      let result = this.module.decodeQr(imageData.data, width, height);
+      let result = this.module?.decodeQr(imageData.data, width, height);
       // let elapsed = Date.now() - start;
       // console.log(`QR: decoding took ${elapsed}ms`);
       if (!result) {
@@ -109,7 +72,7 @@ export class QrCodeScanner extends EventTarget {
     } catch (e) {
       // Just in case...
       log(`QR decoding error: ${e}`);
-      this.scheduleFrame();
+      // this.scheduleFrame();
     }
   }
 
