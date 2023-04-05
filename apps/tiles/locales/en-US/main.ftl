@@ -8,10 +8,8 @@ start-with = Let's Start:
 action-start-new = Create New Tile
 action-start-fork = Fork Tile
 
-action-new = New
-action-launch = Launch
+action-run = Run
 action-publish = Publish
-action-fork = Fork
 
 # Fork dialog
 fork-dialog-title = Choose a Tile to Fork

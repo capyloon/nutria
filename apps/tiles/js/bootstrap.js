@@ -104,8 +104,7 @@ class TileEditor {
   constructor() {
     ace.config.set("useStrictCSP", true);
 
-    // const actions = ["new", "launch", "publish", "fork"];
-    const actions = ["launch", "publish"];
+    const actions = ["run", "publish"];
     actions.forEach((action) => {
       document
         .querySelector(`#actions sl-button[data-l10n-id=action-${action}]`)
@@ -124,8 +123,8 @@ class TileEditor {
       case "action-publish":
         this.onPublish(event.target);
         break;
-      case "action-launch":
-        this.onLaunch(event.target);
+      case "action-run":
+        this.onRun(event.target);
         break;
       default:
         log(`Unimplemented action: ${action}`);
@@ -158,8 +157,8 @@ class TileEditor {
     }
   }
 
-  async onLaunch(target) {
-    this.tile?.onLaunch(target);
+  async onRun(target) {
+    this.tile?.onRun(target);
   }
 
   resetUi() {
@@ -334,7 +333,7 @@ class Tile {
     return content;
   }
 
-  async onLaunch(target) {
+  async onRun(target) {
     // Get the start url from the manifest.
     this.manifest = await this.ensureResource(
       `${this.root}/manifest.webmanifest`,
@@ -533,7 +532,7 @@ class Tile {
   async onPublish(target) {
     await this.saveAllEditors();
 
-    // TODO: netter progress UI.
+    // TODO: better progress UI.
     target.setAttribute("loading", "true");
 
     let ipfsUrl = null;
@@ -730,9 +729,12 @@ class Tile {
             panel.remove();
             event.target.remove();
             if (active) {
-              tabs.show(
-                tabs.querySelectorAll("sl-tab")?.[0].getAttribute("panel")
-              );
+              let firstPanel = tabs
+                .querySelectorAll("sl-tab")?.[0]
+                ?.getAttribute("panel");
+              if (firstPanel) {
+                tabs.show(firstPanel);
+              }
             }
           }
         },
