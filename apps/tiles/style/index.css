@@ -45,6 +45,7 @@ body.ready {
   border-radius: 40%;
 }
 
+.hidden,
 #ui.hidden,
 #start.hidden {
   display: none;
@@ -107,4 +108,9 @@ div.text-editor {
   width: 24px;
   border-radius: 40%;
   box-shadow: 2px 2px 3px black;
+}
+
+#context-menu {
+  position: absolute;
+  z-index: 100; /* required to show on top of the ACE UI */
 }

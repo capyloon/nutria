@@ -55,7 +55,33 @@
         <sl-button data-l10n-id="action-publish"></sl-button>
         <!-- <sl-button data-l10n-id="action-fork"></sl-button> -->
       </footer>
+      <sl-menu id="context-menu" class="hidden">
+        <sl-menu-item id="context-add-file">
+          <sl-icon slot="prefix" name="file-plus"></sl-icon>
+          <span data-l10n-id="context-add-file"></span>
+        </sl-menu-item>
+        <sl-menu-item id="context-add-directory">
+          <sl-icon slot="prefix" name="folder-plus"></sl-icon>
+          <span data-l10n-id="context-add-directory"></span>
+        </sl-menu-item>
+        <sl-menu-item id="context-delete-resource">
+          <sl-icon slot="prefix" name="trash-2"></sl-icon>
+          <span data-l10n-id="context-delete-resource"></span>
+        </sl-menu-item>
+      </sl-menu>
     </div>
+
+    <sl-dialog id="name-editor">
+      <span slot="label" id="name-editor-title"></span>
+      <sl-input autofocus id="name-editor-input" clearable data-l10n-id="name-editor-input-placeholder" data-l10n-attrs="placeholder">
+        <span slot="label" id="name-editor-label"></span>
+      </sl-input>
+      <div slot="footer">
+        <sl-button id="name-editor-ok" variant="primary" data-l10n-id="btn-ok"></sl-button>
+        <sl-button id="name-editor-cancel" data-l10n-id="btn-cancel"></sl-button>
+      </div>
+    </sl-dialog>
+
     <sl-dialog id="fork-chooser">
       <span slot="label" data-l10n-id="fork-dialog-title"></span>
       <div id="fork-content">

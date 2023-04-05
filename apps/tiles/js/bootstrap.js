@@ -18,6 +18,8 @@ const kDeps = [
       "shoelace-select",
       "shoelace-option",
       "shoelace-input",
+      "shoelace-menu",
+      "shoelace-menu-item",
     ],
   },
   {
@@ -139,6 +141,68 @@ class ForkDialog {
   }
 }
 
+class NameEditorDialog {
+  constructor() {
+    this.dialog = document.getElementById("name-editor");
+    this.dialog.addEventListener("sl-after-hide", this);
+    document.getElementById("name-editor-ok").addEventListener("click", this);
+    document
+      .getElementById("name-editor-cancel")
+      .addEventListener("click", this);
+    this.promise = null;
+  }
+
+  handleEvent(event) {
+    if (this.promiseDone) {
+      return;
+    }
+
+    if (event.type === "sl-after-hide") {
+      // sl-after-hide is also dispatched when "closing" the sl-select drop down,
+      // but we should not do anything in that case.
+      if (event.target !== this) {
+        return;
+      }
+
+      this.promiseDone = true;
+      this.promise?.reject();
+      return;
+    }
+
+    let id = event.target.getAttribute("id");
+    if (id === "name-editor-ok") {
+      let input = this.dialog.querySelector("#name-editor-input").value.trim();
+      this.promiseDone = true;
+      this.promise?.resolve(input);
+    } else if (id === "name-editor-cancel") {
+      this.promiseDone = true;
+      this.promise?.reject();
+    } else {
+      console.error(
+        `Unexpected event: ${event.type} from ${event.target.localName}#${id}`
+      );
+      return;
+    }
+    this.dialog.hide();
+  }
+
+  open(mode, initialValue = "") {
+    this.dialog.querySelector("#name-editor-input").value = initialValue;
+    this.dialog.querySelector(
+      "#name-editor-title"
+    ).dataset.l10nId = `name-editor-${mode}-title`;
+    this.dialog.querySelector(
+      "#name-editor-label"
+    ).dataset.l10nId = `name-editor-${mode}-input-label`;
+
+    this.promiseDone = false;
+    return new Promise(async (resolve, reject) => {
+      this.promise = { resolve, reject };
+      this.dialog.show();
+    });
+  }
+}
+
 async function startFork() {
   try {
     let dialog = new ForkDialog();
@@ -254,6 +318,110 @@ class TileEditor {
 class Tile {
   constructor() {
     this.reset();
+    let files = document.getElementById("files");
+    files.addEventListener("contextmenu", this);
+    this.menu = document.getElementById("context-menu");
+    this.menu.addEventListener("sl-select", this);
+    this.selected = null;
+  }
+
+  async handleMenuChoice(event) {
+    let id = event.detail.item.getAttribute("id");
+    let dataset = this.selected.dataset;
+    if (id === "context-add-file") {
+      await this.addFile(dataset.resource, dataset.kind);
+    } else if (id === "context-add-directory") {
+      await this.addDirectory(dataset.resource, dataset.kind);
+    } else if (id === "context-delete-resource") {
+      if (dataset.kind === "file") {
+        await this.removeFile(dataset.resource);
+      } else {
+        await this.removeDirectory(dataset.resource);
+      }
+      this.selected.remove();
+    } else {
+      console.error(`Unexpected item selected: ${id}`);
+    }
+
+    this.menu.classList.add("hidden");
+  }
+
+  handleContextMenu(event) {
+    event.preventDefault();
+
+    // Never remove the Tile manifest!
+    if (
+      !this.selected ||
+      this.selected.dataset.resource == "/manifest.webmanifest"
+    ) {
+      return;
+    }
+
+    // Open the context menu.
+    let targetRect = event.target.getBoundingClientRect();
+
+    this.menu.classList.remove("hidden");
+
+    // Position the context menu.
+    let menuRect = this.menu.getBoundingClientRect();
+    let uiRect = document.getElementById("ui").getBoundingClientRect();
+
+    let left = event.pageX;
+    let top = event.pageY;
+
+    if (left + menuRect.width > uiRect.width) {
+      left = uiRect.width - menuRect.width - 10;
+    }
+
+    if (left < uiRect.x) {
+      left = 10;
+    }
+
+    if (top + menuRect.height > uiRect.height) {
+      top = uiRect.height - menuRect.height - 10;
+    }
+
+    if (top < uiRect.y) {
+      top = 10;
+    }
+
+    document.getElementById("ui").addEventListener(
+      "pointerdown",
+      (event) => {
+        let isCtxtMenu = false;
+        let node = event.target;
+        while (node && !isCtxtMenu) {
+          node = node.parentElement;
+          isCtxtMenu = node === this.menu;
+        }
+        if (!isCtxtMenu) {
+          this.menu.classList.add("hidden");
+        }
+      },
+      {
+        capture: true,
+        once: true,
+      }
+    );
+
+    this.menu.style.left = `${left}px`;
+    this.menu.style.top = `${top}px`;
+  }
+
+  handleEvent(event) {
+    switch (event.type) {
+      case "sl-selection-change":
+        this.selected = event.detail.selection[0];
+        break;
+      case "sl-select":
+        this.handleMenuChoice(event);
+        break;
+      case "contextmenu":
+        this.handleContextMenu(event);
+        break;
+      default:
+        console.error(`Unexpected event: ${event.type}`);
+    }
   }
 
   reset() {
@@ -299,6 +467,170 @@ class Tile {
     window.open(url, "_blank");
   }
 
+  // If the parent is actually a file, find and returns
+  // its parent directory.
+  fixupParent(parent, kind) {
+    let parentPath = parent;
+    let parentNode = this.selected;
+
+    // If we add to a file, find it's parent instead.
+    if (kind === "file") {
+      let parts = parent.split("/");
+      parts.pop();
+      parentPath = `${parts.join("/")}/`;
+      parentNode = this.selected.parentElement;
+    }
+    return { parentPath, parentNode };
+  }
+
+  async addFile(parent, kind) {
+    let { parentPath, parentNode } = this.fixupParent(parent, kind);
+    console.log(`Will add a file to ${parentPath}`);
+
+    // 1. Get the new file name
+    let fileName;
+    try {
+      let dialog = new NameEditorDialog();
+      fileName = (await dialog.open("createfile")).trim();
+      dialog = null;
+    } catch (e) {
+      return;
+    }
+
+    let resource = `${parentPath}${fileName}`;
+
+    // 2. Add the DOM node.
+    // TODO: factor out.
+    let leaf = document.createElement("sl-tree-item");
+    leaf.dataset.kind = "file";
+    leaf.dataset.resource = resource;
+    let icon = document.createElement("sl-icon");
+    icon.setAttribute("name", this.iconForResource(fileName));
+    leaf.append(icon);
+    leaf.append(document.createTextNode(fileName));
+    leaf.addEventListener("dblclick", async () => {
+      await this.open(resource);
+    });
+    parentNode.append(leaf);
+
+    // 3. Update the resources set & content.
+    let fullPath = `${this.root}${resource}`;
+    this.resources.add(fullPath);
+    this.content.set(fullPath, "");
+
+    // 4. Update the manifest file list.
+    await this.ensureManifest();
+    this.manifest.tile.resources.push(resource);
+    this.manifest.tile.resources.sort();
+    let manifest = JSON.stringify(this.manifest, null, 2);
+    this.content.set(`${this.root}/manifest.webmanifest`, manifest);
+
+    // 5. Update the manifest panel if it is open.
+    let tabs = document.getElementById("tabs");
+    let panel = this.findPanel(tabs, "/manifest.webmanifest");
+    if (panel) {
+      panel.editor.setValue(manifest);
+    }
+  }
+
+  async addDirectory(parent, kind) {
+    let { parentPath, parentNode } = this.fixupParent(parent, kind);
+
+    // Directories don't have a real resource attached to them, only
+    // a DOM node.
+    console.log(`Will add a subdirectory to ${parentPath}`);
+
+    let dirName;
+    try {
+      let dialog = new NameEditorDialog();
+      dirName = (await dialog.open("createdir")).trim();
+      dialog = null;
+    } catch (e) {
+      return;
+    }
+
+    if (!dirName.length) {
+      return;
+    }
+
+    // TODO: factor out.
+    let newDir = document.createElement("sl-tree-item");
+    newDir.dataset.kind = "directory";
+    newDir.dataset.resource = `/${dirName}/`;
+    let icon = document.createElement("sl-icon");
+    icon.setAttribute("name", "folder");
+    newDir.append(icon);
+    newDir.append(document.createTextNode(dirName));
+    parentNode.append(newDir);
+  }
+
+  async removeDirectory(resource) {
+    let fullPath = `${this.root}${resource}`;
+
+    // Iterate over the full set of resources to find the ones that are under this directory.
+    let toDelete = [];
+    this.resources.forEach((name) => {
+      if (name.startsWith(fullPath)) {
+        toDelete.push(name.substring(this.root.length));
+      }
+    });
+
+    // Delete each file.
+    for (let item of toDelete) {
+      await this.removeFile(item);
+    }
+  }
+
+  async removeFile(resource) {
+    let fullPath = `${this.root}${resource}`;
+
+    // 1. Check that this file exists.
+    if (!this.resources.has(fullPath)) {
+      console.error(`Can´t remove unknown resource: ${resource}`);
+      return;
+    }
+
+    // 2. Remove all references to that file where needed.
+    this.resources.delete(fullPath);
+    this.content.delete(fullPath);
+
+    // 3. Update the manifest.
+    await this.ensureManifest();
+
+    let resources = this.manifest.tile.resources.filter(
+      (item) => item != resource
+    );
+    this.manifest.tile.resources = resources;
+
+    let manifest = JSON.stringify(this.manifest, null, 2);
+    this.content.set(`${this.root}/manifest.webmanifest`, manifest);
+
+    // 4. Update the manifest panel if it is open.
+    let tabs = document.getElementById("tabs");
+    let panel = this.findPanel(tabs, "/manifest.webmanifest");
+    if (panel) {
+      panel.editor.setValue(manifest);
+    }
+  }
+
+  async ensureManifest() {
+    // If the manifest is open in a panel, get the value from the editor
+    // since it may have changed.
+    let tabs = document.getElementById("tabs");
+    let panel = this.findPanel(tabs, "/manifest.webmanifest");
+    if (panel) {
+      this.content.set(
+        `${this.root}/manifest.webmanifest`,
+        panel.editor.getValue()
+      );
+    }
+
+    this.manifest = await this.ensureResource(
+      `${this.root}/manifest.webmanifest`,
+      "json"
+    );
+  }
+
   async saveAllEditors() {
     let panels = document
       .getElementById("tabs")
@@ -308,10 +640,7 @@ class Tile {
       this.content.set(`${this.root}${resource}`, panel.editor.getValue());
     });
 
-    this.manifest = await this.ensureResource(
-      `${this.root}/manifest.webmanifest`,
-      "json"
-    );
+    await this.ensureManifest();
 
     this.updateTitle();
   }
@@ -421,6 +750,8 @@ class Tile {
             container = dirs.get(currentPath);
           } else {
             let newDir = document.createElement("sl-tree-item");
+            newDir.dataset.kind = "directory";
+            newDir.dataset.resource = `/${part}/`;
             let icon = document.createElement("sl-icon");
             icon.setAttribute("name", "folder");
             newDir.append(icon);
@@ -432,6 +763,8 @@ class Tile {
         }
 
         let leaf = document.createElement("sl-tree-item");
+        leaf.dataset.kind = "file";
+        leaf.dataset.resource = resource;
         let icon = document.createElement("sl-icon");
         icon.setAttribute("name", this.iconForResource(leafName));
         leaf.append(icon);
@@ -444,6 +777,8 @@ class Tile {
       });
 
       files.append(tree);
+
+      tree.addEventListener("sl-selection-change", this);
     } catch (e) {
       log(`Failed to load tile resource: ${e}`);
     }
@@ -474,7 +809,7 @@ class Tile {
     let fullPath = `${this.root}${resource}`;
 
     if (!this.resources.has(fullPath)) {
-      log(`Can't open unknown resource: ${resource}`);
+      log(`Can't open unknown resource: ${resource} ${fullPath}`);
       return;
     }
 
