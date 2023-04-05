@@ -14,12 +14,6 @@ const kDeps = [
       "shoelace-tab-group",
       "shoelace-tab-panel",
       "shoelace-split-panel",
-      "shoelace-dialog",
-      "shoelace-select",
-      "shoelace-option",
-      "shoelace-input",
-      "shoelace-menu",
-      "shoelace-menu-item",
     ],
   },
   {
@@ -33,6 +27,29 @@ const kDeps = [
     kind: "sharedWindowModule",
     param: ["js/apps_manager.js", "appsManager", "AppsManager"],
     deps: ["shared-api-daemon"],
+  },
+  {
+    name: "fork dialog",
+    kind: "script",
+    param: "js/fork_dialog.js",
+    deps: [
+      "shoelace-dialog",
+      "shoelace-select",
+      "shoelace-option",
+      "shoelace-input",
+      "shoelace-button",
+    ],
+  },
+  {
+    name: "name editor dialog",
+    kind: "script",
+    param: "js/name_editor_dialog.js",
+    deps: ["shoelace-dialog", "shoelace-input", "shoelace-button"],
+  },
+  {
+    name: "context menu",
+    kind: "virtual",
+    deps: ["shoelace-menu", "shoelace-menu-item"],
   },
 ];
 
@@ -62,149 +79,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.body.classList.add("ready");
 });
 
-class ForkDialog {
-  constructor() {
-    this.dialog = document.getElementById("fork-chooser");
-    this.dialog.addEventListener("sl-after-hide", this);
-    document
-      .getElementById("fork-chooser-fork")
-      .addEventListener("click", this);
-    document
-      .getElementById("fork-chooser-cancel")
-      .addEventListener("click", this);
-    this.promise = null;
-  }
-
-  handleEvent(event) {
-    if (this.promiseDone) {
-      return;
-    }
-
-    if (event.type === "sl-after-hide") {
-      // sl-after-hide is also dispatched when "closing" the sl-select drop down,
-      // but we should not do anything in that case.
-      if (event.target !== this) {
-        return;
-      }
-
-      this.promiseDone = true;
-      this.promise?.reject();
-      return;
-    }
-
-    let id = event.target.getAttribute("id");
-    if (id === "fork-chooser-fork") {
-      let input = this.dialog.querySelector("#fork-url").value.trim();
-      let result = input || this.dialog.querySelector("#fork-list").value;
-      this.promiseDone = true;
-      this.promise?.resolve(result);
-    } else if (id === "fork-chooser-cancel") {
-      this.promiseDone = true;
-      this.promise?.reject();
-    } else {
-      console.error(
-        `Unexpected event: ${event.type} from ${event.target.localName}#${id}`
-      );
-      return;
-    }
-    this.dialog.hide();
-  }
-
-  open() {
-    this.promiseDone = false;
-    return new Promise(async (resolve, reject) => {
-      this.promise = { resolve, reject };
-      await graph.waitForDeps("apps manager");
-
-      let apps = await appsManager.getAll();
-      let list = this.dialog.querySelector("#fork-list");
-      list.innerHTML = "";
-      for (let app of apps) {
-        let summary = await appsManager.getSummary(app);
-        const isTile = summary.url?.startsWith("tile://");
-        if (isTile) {
-          let option = document.createElement("sl-option");
-          option.value = summary.updateUrl;
-          let icon = document.createElement("img");
-          icon.src = summary.icon;
-          icon.setAttribute("slot", "prefix");
-          let desc = document.createElement("span");
-          desc.textContent = summary.description;
-          option.append(icon);
-          option.append(desc);
-
-          list.append(option);
-        }
-      }
-      this.dialog.show();
-    });
-  }
-}
-
-class NameEditorDialog {
-  constructor() {
-    this.dialog = document.getElementById("name-editor");
-    this.dialog.addEventListener("sl-after-hide", this);
-    document.getElementById("name-editor-ok").addEventListener("click", this);
-    document
-      .getElementById("name-editor-cancel")
-      .addEventListener("click", this);
-    this.promise = null;
-  }
-
-  handleEvent(event) {
-    if (this.promiseDone) {
-      return;
-    }
-
-    if (event.type === "sl-after-hide") {
-      // sl-after-hide is also dispatched when "closing" the sl-select drop down,
-      // but we should not do anything in that case.
-      if (event.target !== this) {
-        return;
-      }
-
-      this.promiseDone = true;
-      this.promise?.reject();
-      return;
-    }
-
-    let id = event.target.getAttribute("id");
-    if (id === "name-editor-ok") {
-      let input = this.dialog.querySelector("#name-editor-input").value.trim();
-      this.promiseDone = true;
-      this.promise?.resolve(input);
-    } else if (id === "name-editor-cancel") {
-      this.promiseDone = true;
-      this.promise?.reject();
-    } else {
-      console.error(
-        `Unexpected event: ${event.type} from ${event.target.localName}#${id}`
-      );
-      return;
-    }
-    this.dialog.hide();
-  }
-
-  open(mode, initialValue = "") {
-    this.dialog.querySelector("#name-editor-input").value = initialValue;
-    this.dialog.querySelector(
-      "#name-editor-title"
-    ).dataset.l10nId = `name-editor-${mode}-title`;
-    this.dialog.querySelector(
-      "#name-editor-label"
-    ).dataset.l10nId = `name-editor-${mode}-input-label`;
-
-    this.promiseDone = false;
-    return new Promise(async (resolve, reject) => {
-      this.promise = { resolve, reject };
-      this.dialog.show();
-    });
-  }
-}
-
 async function startFork() {
   try {
+    await graph.waitForDeps("fork dialog");
     let dialog = new ForkDialog();
     let manifestUrl = await dialog.open();
     dialog = null;
@@ -346,7 +223,7 @@ class Tile {
     this.menu.classList.add("hidden");
   }
 
-  handleContextMenu(event) {
+  async handleContextMenu(event) {
     event.preventDefault();
 
     // Never remove the Tile manifest!
@@ -360,6 +237,7 @@ class Tile {
     // Open the context menu.
     let targetRect = event.target.getBoundingClientRect();
 
+    await graph.waitForDeps("context menu");
     this.menu.classList.remove("hidden");
 
     // Position the context menu.
@@ -490,6 +368,7 @@ class Tile {
     // 1. Get the new file name
     let fileName;
     try {
+      await graph.waitForDeps("name editor dialog");
       let dialog = new NameEditorDialog();
       fileName = (await dialog.open("createfile")).trim();
       dialog = null;
@@ -542,6 +421,7 @@ class Tile {
 
     let dirName;
     try {
+      await graph.waitForDeps("name editor dialog");
       let dialog = new NameEditorDialog();
       dirName = (await dialog.open("createdir")).trim();
       dialog = null;
