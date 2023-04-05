@@ -21,11 +21,11 @@ class MainScreen extends LitElement {
   }
 
   log(msg) {
-    console.log(`MainScreen: ${msg}`);
+    console.log(`Files[MainScreen] ${msg}`);
   }
 
   error(msg) {
-    console.error(`MainScreen: ${msg}`);
+    console.error(`Files[MainScreen] ${msg}`);
   }
 
   static get properties() {
@@ -237,6 +237,29 @@ class MainScreen extends LitElement {
     }
   }
 
+  async broadcastResource() {
+    // Get the native path of the resource and "provide" it through Iroh.
+    try {
+      let svc = await contentManager.getService();
+      let path = await svc.nativePath(this.data.id, "default");
+      let mime = await this.defaultMimeType(this.data.id);
+      this.log(`will broadcast resource ${this.data.id} (${mime}) at ${path}`);
+
+      if (!this.dweb) {
+        this.dweb = await apiDaemon.getDwebService();
+      }
+      let ticket = await this.dweb.broadcastFile(path, mime);
+      this.log(`Ticket is http://localhost:8081/dweb/${ticket}`);
+      let share = new WebActivity("share", { url: `ticket:${ticket}` });
+      await share.start();
+    } catch (e) {
+      this.error(
+        `Failed to broadcast resource ${this.data.id}: ${JSON.stringify(e)}`
+      );
+      console.error(`Failed to broadcast resource ${this.data.id}`, e);
+    }
+  }
+
   async pickResource() {
     // Download the resource as a Blob, and return it as the activity result.
     if (!this.filePicker) {
@@ -284,6 +307,9 @@ class MainScreen extends LitElement {
         </div>
         <div @click="${this.shareResource}" class="${filePickerClass}">
           <sl-icon-button name="share-2"></sl-icon-button>
+        </div>
+        <div @click="${this.broadcastResource}" class="${filePickerClass}">
+          <sl-icon-button name="airplay"></sl-icon-button>
         </div>
         <div @click="${this.deleteResource}" class="${filePickerClass}">
           <sl-icon-button name="trash-2"></sl-icon-button>

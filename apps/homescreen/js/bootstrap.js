@@ -170,6 +170,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         // check that this is a proper url.
         console.log(`SCAN-QR-CODE: result is ${result}`);
         try {
+          // Rewrite ticket: urls to local dweb/$ticket ones.
+          if (result.startsWith("ticket:")) {
+            result = `http://localhost:${config.port}/dweb/${result.substring(
+              7
+            )}`;
+          }
           let url = new URL(result);
           maybeOpenURL(url.href);
         } catch (e) {
