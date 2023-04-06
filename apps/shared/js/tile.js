@@ -156,3 +156,77 @@ export class TileHelper extends EventTarget {
     return JSON.parse(JSON.stringify(answer));
   }
 }
+
+// Makes it easy to call async methods on a remote peer.
+// All interactions are limited to JSON for now.
+class RpcClient extends EventTarget {
+  constructor(channel) {
+    this.channel = channel;
+    this.inFlightPromises = new Map();
+    this.reqId = 0;
+
+    this.channel.addEventListener("message", this);
+  }
+
+  callFunc(funcName, params) {
+    this.reqId += 1;
+    let req = { kind: "request", reqId: this.reqId, funcName, params };
+    return new Promise((resolve, reject) => {
+      this.inFlightPromises.set(req.reqId, { resolve, reject });
+      this.channel.send(JSON.stringify(req));
+    });
+  }
+
+  handleEvent(event) {
+    try {
+      let { kind, reqId, success, result } = JSON.parse(event.data);
+      if (kind != "response") {
+        return;
+      }
+
+      if (!this.inFlightPromises.has(reqId)) {
+        return;
+      }
+
+      let p = this.inFlightPromises.get(reqId);
+      this.inFlightPromises.delete(reqId);
+      if (success) {
+        p.resolve(result);
+      } else {
+        p.reject(result);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+// Makes it easy to respond to async methods calls from a remote peer.
+// All interactions are limited to JSON for now.
+class RpcServer extends EventTarget {
+  constructor(channel) {
+    this.channel = channel;
+
+    this.channel.addEventListener("message", this);
+  }
+
+  async handleEvent(event) {
+    try {
+      let { kind, reqId, funcName, params } = JSON.parse(event.data);
+      if (kind != "request" || typeof this[funcName] !== "function") {
+        return;
+      }
+
+      try {
+        let result = await this[funcName](params).bind(this);
+        let response = { kind: "response", reqId, result, success: true };
+        this.channel.send(JSON.stringify(response));
+      } catch (e) {
+        let response = { kind: "response", reqId, result: e, success: false };
+        this.channel.send(JSON.stringify(response));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
