@@ -179,23 +179,28 @@ export class TileRpcClient extends EventTarget {
   }
 
   handleEvent(event) {
+    console.log(`TileRpcClient::handleEvent`, event);
     try {
       let { kind, reqId, success, result } = JSON.parse(event.data);
-      if (kind != "response") {
+      if (kind !== "response") {
+        console.error(`TileRpcClient: expected 'response' but got '${kind}'`);
         return;
       }
 
       if (!this.inFlightPromises.has(reqId)) {
+        console.error(`TileRpcClient: no promise for reqId=${reqId}`);
         return;
       }
 
       let p = this.inFlightPromises.get(reqId);
-      this.inFlightPromises.delete(reqId);
       if (success) {
+        console.log(`TileRpcClient: success ${JSON.stringify(result)}`);
         p.resolve(result);
       } else {
+        console.log(`TileRpcClient: error ${JSON.stringify(result)}`);
         p.reject(result);
       }
+      this.inFlightPromises.delete(reqId);
     } catch (e) {
       console.error(e);
     }
@@ -215,15 +220,18 @@ export class TileRpcServer extends EventTarget {
   async handleEvent(event) {
     try {
       let { kind, reqId, funcName, params } = JSON.parse(event.data);
-      if (kind != "request" || typeof this[funcName] !== "function") {
+      if (kind !== "request" || typeof this[funcName] !== "function") {
+        console.error(`TileRpcServer: no ${funcName} method!`);
         return;
       }
 
       try {
         let result = await this[funcName](params).bind(this);
+        console.log(`TileRpcServer: success=${JSON.stringify(result)}`);
         let response = { kind: "response", reqId, result, success: true };
         this.channel.send(JSON.stringify(response));
       } catch (e) {
+        console.log(`TileRpcServer: error=${JSON.stringify(e)}`);
         let response = { kind: "response", reqId, result: e, success: false };
         this.channel.send(JSON.stringify(response));
       }
