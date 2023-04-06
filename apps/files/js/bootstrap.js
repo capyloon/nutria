@@ -122,7 +122,7 @@ async function activityPick(data) {
   let p = new Promise((resolve, reject) => {
     defered = { resolve, reject };
   });
-  mainScreen.enterFilePickerMode(data.type, defered);
+  mainScreen.enterFilePickerMode(data, defered);
   mainScreen.openRoot();
   return p;
 }

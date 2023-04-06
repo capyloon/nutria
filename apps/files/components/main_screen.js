@@ -38,8 +38,9 @@ class MainScreen extends LitElement {
     };
   }
 
-  enterFilePickerMode(filter, defered) {
-    this.fileFilter = filter;
+  enterFilePickerMode(data, defered) {
+    this.fileFilter = data.type;
+    this.filePickerBroadcast = !!data.forBroadcast;
     this.filePicker = defered;
   }
 
@@ -237,18 +238,30 @@ class MainScreen extends LitElement {
     }
   }
 
-  async broadcastResource() {
+  async getBroadcastTicket() {
     // Get the native path of the resource and "provide" it through Iroh.
     try {
       let svc = await contentManager.getService();
       let path = await svc.nativePath(this.data.id, "default");
       let mime = await this.defaultMimeType(this.data.id);
-      this.log(`will broadcast resource ${this.data.id} (${mime}) at ${path}`);
 
       if (!this.dweb) {
         this.dweb = await apiDaemon.getDwebService();
       }
       let ticket = await this.dweb.broadcastFile(path, mime);
+      return ticket;
+    } catch (e) {
+      this.error(
+        `Failed to broadcast resource ${this.data.id}: ${JSON.stringify(e)}`
+      );
+      console.error(`Failed to broadcast resource ${this.data.id}`, e);
+    }
+  }
+
+  async broadcastResource() {
+    // Get the native path of the resource and "provide" it through Iroh.
+    try {
+      let ticket = await this.getBroadcastTicket();
       this.log(`Ticket is http://localhost:8081/dweb/${ticket}`);
       let share = new WebActivity("share", { url: `ticket:${ticket}` });
       await share.start();
@@ -268,9 +281,15 @@ class MainScreen extends LitElement {
 
     try {
       let resource = await contentManager.resourceFromId(this.data.id);
-      let response = await fetch(resource.variantUrl());
-      let blob = await response.blob();
-      this.filePicker.resolve(blob);
+      // If we are asked a broadcastable resource, don't fetch the blob.
+      if (this.filePickerBroadcast) {
+        let ticket = await this.getBroadcastTicket();
+        this.filePicker.resolve({ticket, name: resource.meta.name });
+      } else {
+        let response = await fetch(resource.variantUrl());
+        let blob = await response.blob();
+        this.filePicker.resolve(blob);
+      }
     } catch (e) {
       this.error(
         `Failed to pick resource ${this.data.id}: ${JSON.stringify(e)}`
