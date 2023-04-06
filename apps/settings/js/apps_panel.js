@@ -102,7 +102,7 @@ class AppsPanel {
 
   handleEvent(event) {
     if (event.type === "app-uninstalled") {
-      console.log(`ZZZZZZ ${event.type} ${event.detail}`);
+      // console.log(`ZZZZZZ ${event.type} ${event.detail}`);
       if (!this.maybeRemove(this.appsMenu, event.detail)) {
         this.maybeRemove(this.tilesMenu, event.detail);
       }

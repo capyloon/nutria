@@ -189,7 +189,7 @@ export class TileRpcClient extends EventTarget {
   }
 
   handleEvent(event) {
-    console.log(`TileRpcClient::handleEvent`, event);
+    // console.log(`TileRpcClient::handleEvent`, event);
     try {
       let { kind, reqId, success, result, name, detail } = JSON.parse(
         event.data
