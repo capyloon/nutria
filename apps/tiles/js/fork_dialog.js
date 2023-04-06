@@ -34,6 +34,9 @@ class ForkDialog {
     if (id === "fork-chooser-fork") {
       let input = this.dialog.querySelector("#fork-url").value.trim();
       let result = input || this.dialog.querySelector("#fork-list").value;
+      if (!result.endsWith("/manifest.webmanifest")) {
+        result += "/manifest.webmanifest";
+      }
       this.promiseDone = true;
       this.promise?.resolve(result);
     } else if (id === "fork-chooser-cancel") {
