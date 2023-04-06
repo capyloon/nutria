@@ -159,8 +159,9 @@ export class TileHelper extends EventTarget {
 
 // Makes it easy to call async methods on a remote peer.
 // All interactions are limited to JSON for now.
-class RpcClient extends EventTarget {
+export class TileRpcClient extends EventTarget {
   constructor(channel) {
+    super();
     this.channel = channel;
     this.inFlightPromises = new Map();
     this.reqId = 0;
@@ -203,8 +204,9 @@ class RpcClient extends EventTarget {
 
 // Makes it easy to respond to async methods calls from a remote peer.
 // All interactions are limited to JSON for now.
-class RpcServer extends EventTarget {
+export class TileRpcServer extends EventTarget {
   constructor(channel) {
+    super();
     this.channel = channel;
 
     this.channel.addEventListener("message", this);
