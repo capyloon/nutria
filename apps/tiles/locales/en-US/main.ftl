@@ -17,6 +17,7 @@ fork-chooser-library = From Your Library
 fork-chooser-input-placeholder =
     .placeholder = tile://.../manifest.webmanifest or https://.../manifest.webmanifest
 fork-chooser-input-url = Or Enter the Tile's Manifest URL
+fork-chooser-recent = Recent
 
 # Context menu
 context-add-file = New File

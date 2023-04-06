@@ -11,6 +11,12 @@ class ForkDialog {
       .getElementById("fork-chooser-cancel")
       .addEventListener("click", this);
     this.promise = null;
+
+    this.dialog
+      .querySelector("sl-dropdown")
+      .addEventListener("sl-select", (event) => {
+        this.dialog.querySelector("#fork-url").value = event.detail.item.value;
+      });
   }
 
   handleEvent(event) {
@@ -37,6 +43,7 @@ class ForkDialog {
       if (!result.endsWith("/manifest.webmanifest")) {
         result += "/manifest.webmanifest";
       }
+      this.updateRecents(result);
       this.promiseDone = true;
       this.promise?.resolve(result);
     } else if (id === "fork-chooser-cancel") {
@@ -51,7 +58,39 @@ class ForkDialog {
     this.dialog.hide();
   }
 
+  // Update the LRU of recent tiles.
+  // TODO: use origin-bound storage in the content manager.
+  updateRecents(newItem) {
+    console.log(`updateRecents`, newItem);
+    const recents = JSON.parse(localStorage.getItem("recents") || "[]");
+    // Remove the new item if it's already present.
+    let lru = [newItem].concat(recents.filter((item) => item != newItem));
+    // Limit to 10 elements.
+    let filtered = lru.slice(0, 10);
+
+    localStorage.setItem("recents", JSON.stringify(filtered));
+  }
+
+  updateRecentList() {
+    try {
+      let menu = document.getElementById("fork-chooser-recents");
+      menu.innerHTML = "";
+      let recents = JSON.parse(localStorage.getItem("recents") || "[]");
+      menu.parentElement.disabled = recents.length == 0;
+
+      recents.forEach((recent) => {
+        let item = document.createElement("sl-menu-item");
+        item.textContent = recent;
+        item.value = recent;
+        menu.append(item);
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   open() {
+    this.updateRecentList();
     this.promiseDone = false;
     return new Promise(async (resolve, reject) => {
       this.promise = { resolve, reject };

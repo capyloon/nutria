@@ -71,12 +71,25 @@
 
     <sl-dialog id="name-editor">
       <span slot="label" id="name-editor-title"></span>
-      <sl-input autofocus id="name-editor-input" clearable data-l10n-id="name-editor-input-placeholder" data-l10n-attrs="placeholder">
+      <sl-input
+        autofocus
+        id="name-editor-input"
+        clearable
+        data-l10n-id="name-editor-input-placeholder"
+        data-l10n-attrs="placeholder"
+      >
         <span slot="label" id="name-editor-label"></span>
       </sl-input>
       <div slot="footer">
-        <sl-button id="name-editor-ok" variant="primary" data-l10n-id="btn-ok"></sl-button>
-        <sl-button id="name-editor-cancel" data-l10n-id="btn-cancel"></sl-button>
+        <sl-button
+          id="name-editor-ok"
+          variant="primary"
+          data-l10n-id="btn-ok"
+        ></sl-button>
+        <sl-button
+          id="name-editor-cancel"
+          data-l10n-id="btn-cancel"
+        ></sl-button>
       </div>
     </sl-dialog>
 
@@ -86,13 +99,30 @@
         <sl-select hoist id="fork-list">
           <span slot="label" data-l10n-id="fork-chooser-library"></span>
         </sl-select>
-        <sl-input id="fork-url" clearable data-l10n-id="fork-chooser-input-placeholder" data-l10n-attrs="placeholder">
+        <sl-input
+          id="fork-url"
+          clearable
+          data-l10n-id="fork-chooser-input-placeholder"
+          data-l10n-attrs="placeholder"
+        >
           <span slot="label" data-l10n-id="fork-chooser-input-url"></span>
         </sl-input>
+        <sl-dropdown>
+          <sl-button slot="trigger" caret data-l10n-id="fork-chooser-recent"></sl-button>
+          <sl-menu id="fork-chooser-recents">
+          </sl-menu>
+        </sl-dropdown>
       </div>
       <div slot="footer">
-        <sl-button id="fork-chooser-fork" variant="primary" data-l10n-id="btn-fork"></sl-button>
-        <sl-button id="fork-chooser-cancel" data-l10n-id="btn-cancel"></sl-button>
+        <sl-button
+          id="fork-chooser-fork"
+          variant="primary"
+          data-l10n-id="btn-fork"
+        ></sl-button>
+        <sl-button
+          id="fork-chooser-cancel"
+          data-l10n-id="btn-cancel"
+        ></sl-button>
       </div>
     </sl-dialog>
   </body>

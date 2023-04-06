@@ -38,6 +38,9 @@ const kDeps = [
       "shoelace-option",
       "shoelace-input",
       "shoelace-button",
+      "shoelace-menu",
+      "shoelace-menu-item",
+      "shoelace-dropdown",
     ],
   },
   {
@@ -311,7 +314,10 @@ class Tile {
   async ensureResource(fullPath, kind = "text") {
     let content = this.content.get(fullPath);
     if (!content) {
-      let response = await fetch(`${fullPath}`, { mode: "no-cors", cache: "no-store" });
+      let response = await fetch(`${fullPath}`, {
+        mode: "no-cors",
+        cache: "no-store",
+      });
       if (kind === "text") {
         content = await response.text();
         this.content.set(fullPath, content);
