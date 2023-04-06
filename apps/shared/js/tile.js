@@ -178,10 +178,28 @@ export class TileRpcClient extends EventTarget {
     });
   }
 
+  addMessageListener(name) {
+    let req = { kind: "addMessageListener", name };
+    this.channel.send(JSON.stringify(req));
+  }
+
+  removeMessageListener(name) {
+    let req = { kind: "removeMessageListener", name };
+    this.channel.send(JSON.stringify(req));
+  }
+
   handleEvent(event) {
     console.log(`TileRpcClient::handleEvent`, event);
     try {
-      let { kind, reqId, success, result } = JSON.parse(event.data);
+      let { kind, reqId, success, result, name, detail } = JSON.parse(
+        event.data
+      );
+
+      if (kind === "message") {
+        this.dispatchEvent(new CustomEvent(name, { detail }));
+        return;
+      }
+
       if (kind !== "response") {
         console.error(`TileRpcClient: expected 'response' but got '${kind}'`);
         return;
@@ -212,12 +230,25 @@ export class TileRpcServer extends EventTarget {
     super();
     this.channel = channel;
 
+    this.messageListeners = new Set();
+
     this.channel.addEventListener("message", this);
   }
 
   async handleEvent(event) {
     try {
-      let { kind, reqId, funcName, params } = JSON.parse(event.data);
+      let { kind, reqId, funcName, params, name } = JSON.parse(event.data);
+
+      if (kind === "addMessageListener") {
+        this.messageListeners.add(name);
+        return;
+      }
+
+      if (kind === "removeMessageListener") {
+        this.messageListeners.delete(name);
+        return;
+      }
+
       if (kind !== "request" || typeof this[funcName] !== "function") {
         console.error(`TileRpcServer: no ${funcName} method!`);
         return;
@@ -233,6 +264,13 @@ export class TileRpcServer extends EventTarget {
       }
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  // Send a message if a listener is set for this message name.
+  broadcastMessage({ name, detail }) {
+    if (this.messageListeners.has(name)) {
+      this.channel.send(JSON.stringify({ kind: "message", name, detail }));
     }
   }
 }
