@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Draw Together</title>
+    <style>
+      html {
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      body {
+        height: 100%;
+      }
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      canvas {
+        flex: 1;
+        width: 100%;
+        border: 1px solid gray;
+      }
+      #palette {
+        display: flex;
+        flex-wrap: wrap;
+        border: 1px solid gray;
+        width: 100%;
+      }
+      .color-choice {
+        width: 3em;
+        height: 3em;
+      }
+      .selected {
+        outline: 4px solid teal;
+        z-index: 200;
+      }
+    </style>
+    <script src="http://shared.localhost:8081/js/webrtc.js"></script>
+
+    <script>
+      // Initiator side
+    </script>
+
+    <script>
+      // Receiver side: we get the session id from the url hash.
+    </script>
+
+    <script>
+      // Main script, a fantastic drawing app.
+      function log(msg) {
+        console.log(msg);
+      }
+
+      var selectorCache = new Map();
+      function elem(selector) {
+        let cached = selectorCache.get(selector);
+        if (!cached) {
+          cached = document.querySelector(selector);
+          selectorCache.set(selector, cached);
+        }
+        return cached;
+      }
+
+      var currentColor = "black";
+      var currentColorItem = null;
+      var canvasCtxt = null;
+      var isDrawing = false;
+      var contentManagerModule = null;
+      var apiDaemonModule = null;
+
+      document.addEventListener("DOMContentLoaded", init);
+      async function init() {
+        contentManagerModule = await import(
+          "http://shared.localhost:8081/js/content_manager.js"
+        );
+        apiDaemonModule = await import(
+          "http://shared.localhost:8081/js/api_daemon.js"
+        );
+
+        log("init");
+
+        let colors = ["black", "white", "red", "green", "blue", "yellow"];
+        let palette = elem("#palette");
+        colors.forEach((color) => {
+          let item = document.createElement("div");
+          item.classList.add("color-choice");
+          if (color == currentColor) {
+            item.classList.add("selected");
+            currentColorItem = item;
+          }
+          item.style = `background-color: ${color}`;
+          item.dataset.color = color;
+          item.addEventListener("pointerdown", (event) => {
+            if (item == currentColorItem) {
+              return;
+            }
+            currentColorItem.classList.remove("selected");
+            item.classList.add("selected");
+            currentColor = item.dataset.color;
+            currentColorItem = item;
+            canvasCtxt.fillStyle = currentColor;
+          });
+          palette.append(item);
+        });
+
+        // Initialize the canvas with a white background.
+        let canvas = elem("canvas");
+        let { width, height } = canvas.getBoundingClientRect();
+        canvas.width = width - 2;
+        canvas.height = height - 2;
+        canvasCtxt = canvas.getContext("2d", { alpha: false });
+        canvasCtxt.lineWidth = 2;
+        canvasCtxt.fillStyle = "white";
+        canvasCtxt.fillRect(0, 0, canvas.width, canvas.height);
+        canvasCtxt.fillStyle = currentColor;
+        canvas.addEventListener("pointerdown", onCanvasPointerDown);
+        canvas.addEventListener("pointerup", onCanvasPointerUp);
+        canvas.addEventListener("pointermove", onCanvasPointerMove);
+
+        canvas.addEventListener("contextmenu", (event) => {
+          log(`contextmenu`);
+          event.preventDefault();
+        });
+
+        let hash = location.hash;
+        console.log(`hash=${hash}`);
+        if (hash.length) {
+          initiateSession(hash.substring(1));
+        } else {
+          receiverStart();
+        }
+      }
+
+      function onCanvasPointerUp(event) {
+        isDrawing = false;
+      }
+
+      function drawAt(event) {
+        let { x, y } = event.target.getBoundingClientRect();
+        let cx = event.clientX - x - 1; // take border width into account.
+        let cy = event.clientY - y - 1;
+        // log(`x=${cx} y=${cy}`);
+        canvasCtxt.fillRect(cx - 1, cy - 1, 3, 3);
+      }
+
+      function onCanvasPointerMove(event) {
+        if (!isDrawing) {
+          return;
+        }
+        drawAt(event);
+      }
+
+      function onCanvasPointerDown(event) {
+        isDrawing = true;
+        drawAt(event);
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <canvas id="canvas"></canvas>
+      <div id="palette"></div>
+    </main>
+    <div id="status"></div>
+  </body>
+</html>

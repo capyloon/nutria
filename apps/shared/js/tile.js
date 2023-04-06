@@ -194,10 +194,8 @@ export class TileRpcClient extends EventTarget {
 
       let p = this.inFlightPromises.get(reqId);
       if (success) {
-        console.log(`TileRpcClient: success ${JSON.stringify(result)}`);
         p.resolve(result);
       } else {
-        console.log(`TileRpcClient: error ${JSON.stringify(result)}`);
         p.reject(result);
       }
       this.inFlightPromises.delete(reqId);
@@ -226,12 +224,10 @@ export class TileRpcServer extends EventTarget {
       }
 
       try {
-        let result = await this[funcName](params).bind(this);
-        console.log(`TileRpcServer: success=${JSON.stringify(result)}`);
+        let result = await this[funcName].bind(this)(params);
         let response = { kind: "response", reqId, result, success: true };
         this.channel.send(JSON.stringify(response));
       } catch (e) {
-        console.log(`TileRpcServer: error=${JSON.stringify(e)}`);
         let response = { kind: "response", reqId, result: e, success: false };
         this.channel.send(JSON.stringify(response));
       }
