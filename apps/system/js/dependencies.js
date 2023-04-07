@@ -115,6 +115,11 @@ const kDeps = [
       "content manager",
       "shoelace-icon",
       "injected scripts",
+      "shoelace-select",
+      "shoelace-option",
+      "shoelace-drawer",
+      "shoelace-button",
+      "shoelace-icon",
     ],
   },
   {

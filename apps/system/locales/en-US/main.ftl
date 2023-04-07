@@ -178,3 +178,11 @@ activity-scan-qr-code = Scan QR Code
 activity-view-resource = View File
 activity-publish-resource = Publish File
 activity-install-wasm-plugin = Install WASM plugin
+
+# Permissions prompt panel
+permissions-title = Permission Request
+permissions-block = Block
+permissions-allow = Allow
+permissions-name-geolocation = Geolocation
+permissions-name-audio-capture = Audio Recording
+permissions-name-video-capture = Video Recording

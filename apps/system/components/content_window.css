@@ -5,6 +5,7 @@ content-window.not-homescreen {
 content-window > .container {
   height: 100%;
   display: grid;
+  position: relative;
 }
 
 content-window.keyboard-open > .container {
@@ -97,7 +98,7 @@ content-window .loader .title {
 
 @keyframes pulse {
   0% {
-    transform: scale(1.0);
+    transform: scale(1);
     opacity: 1;
   }
   50% {
@@ -105,7 +106,7 @@ content-window .loader .title {
     opacity: 0.75;
   }
   100% {
-    transform: scale(1.0);
+    transform: scale(1);
     opacity: 1;
   }
 }
@@ -179,4 +180,33 @@ content-window .overscroll sl-icon {
   padding: 0.25em;
   transform: none;
   transition: transform 1s, color 2s, background-color 2s;
+}
+
+content-window > .container .permissions {
+  color: var(--sl-color-neutral-700);
+  --size: fit-content;
+}
+
+content-window > .container .permissions::part(panel) {
+  border-radius: var(--sl-border-radius-x-large);
+  margin-left: 1em;
+  width: fit-content;
+  max-width: calc(100vw - 2em);
+}
+
+content-window > .container .permissions .origin {
+  padding-bottom: 1em;
+  font-style: italic;
+}
+
+content-window > .container .permissions .items {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+content-window > .container .permissions .items div {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
 }

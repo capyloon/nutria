@@ -102,6 +102,142 @@ class ProcessManager {
   }
 }
 
+// Class helper to manage the permission request panel.
+// TODO: Move to a self contained component.
+//
+// Example of geolocation request from Google Maps:
+// {
+//   requestAction:"prompt",
+//   permissions: {
+//     geolocation: {
+//       action: "prompt",
+//       options:[]
+//     }
+//   },
+//   requestId: "permission-prompt-{79d5952e-6174-4475-8f5a-7fbd577241c3}",
+//   origin:"https://www.google.com"
+//  }
+
+// Example of webrtc permission prompt from whereby.com:
+// {
+//   "requestAction": "prompt",
+//   "permissions": {
+//     "audio-capture": { "action": "prompt", "options": ["default"] },
+//     "video-capture": { "action": "prompt", "options": ["front", "back"] }
+//   },
+//   "requestId": "permission-prompt-{88c6cb76-f250-4747-ad1b-8a06b906286a}",
+//   "origin": "https://whereby.com"
+// }
+class PermissionsHelper {
+  constructor(drawer, dispatcher) {
+    this.drawer = drawer;
+    this.dispatcher = dispatcher;
+    this.list = drawer.querySelector(".items");
+    this.origin = drawer.querySelector(".origin");
+    this.btnAllow = drawer.querySelector("#permission-allow");
+    this.btnBlock = drawer.querySelector("#permission-block");
+    this.btnAllow.addEventListener("click", this);
+    this.btnBlock.addEventListener("click", this);
+    this.current = null;
+  }
+
+  dispatchResult(detail) {
+    this.dispatcher.dispatchEvent(
+      new CustomEvent(this.current.requestId, { detail })
+    );
+    this.cancel();
+  }
+
+  handleEvent(event) {
+    if (!this.current) {
+      console.error(`No current permission request!`);
+      return;
+    }
+
+    if (event.target === this.btnBlock) {
+      let detail = {
+        origin: this.current.origin,
+        granted: false,
+        remember: false,
+        choices: {},
+      };
+      this.dispatchResult(detail);
+    } else if (event.target === this.btnAllow) {
+      let choices = {};
+      for (let permName in this.current.permissions) {
+        let permission = this.current.permissions[permName];
+        if (permission.options.length > 0) {
+          let selector = this.drawer.querySelector(
+            `sl-select[perm=${permName}]`
+          );
+          choices[permName] = permission.options[selector.value];
+        }
+      }
+      let detail = {
+        origin: this.current.origin,
+        granted: true,
+        remember: false,
+        choices,
+      };
+      // console.log(`Will dispatch ${JSON.stringify(detail)}`);
+      this.dispatchResult(detail);
+    }
+  }
+
+  iconFor(permName) {
+    // Use the same icons as the status icons from status_icons.js
+    let icons = {
+      geolocation: "map-pin",
+      "audio-capture": "mic",
+      "video-capture": "video",
+    };
+    return icons[permName] || "help-circle";
+  }
+
+  prompt(data) {
+    this.current = data;
+    this.list.innerHTML = "";
+    let origin = new URL(data.origin);
+    this.origin.textContent = origin.hostname;
+
+    for (let name in data.permissions) {
+      let permission = data.permissions[name];
+
+      let item = document.createElement("div");
+      let icon = document.createElement("sl-icon");
+      icon.setAttribute("name", this.iconFor(name));
+      item.append(icon);
+      if (permission.options.length == 0) {
+        // When there are no options, just display an icon an the permission name.
+        let text = document.createElement("span");
+        text.setAttribute("data-l10n-id", `permissions-name-${name}`);
+        item.append(text);
+      } else {
+        // Otherwise, use a dropdown selector.
+        let dropdown = document.createElement("sl-select");
+        dropdown.setAttribute("perm", name);
+        dropdown.hoist = true;
+        permission.options.forEach((option, index) => {
+          let opt = document.createElement("sl-option");
+          opt.value = `${index}`;
+          opt.textContent = option;
+          dropdown.append(opt);
+        });
+        dropdown.value = "0";
+        item.append(dropdown);
+      }
+      this.list.append(item);
+    }
+
+    this.drawer.show();
+  }
+
+  cancel() {
+    this.current = null;
+    this.drawer.hide();
+  }
+}
+
 window.processManager = new ProcessManager();
 
 const kSiteInfoEvents = [
@@ -280,6 +416,16 @@ class ContentWindow extends HTMLElement {
       <div class="inline-activity hidden">
         <sl-button variant="primary" circle><sl-icon name="x"></sl-icon></sl-button>
       </div>
+      <sl-drawer contained class="permissions" placement="bottom">
+        <span slot="label" data-l10n-id="permissions-title">Choose what you want</span>
+        <header class="origin"></header>
+        <div class="items">
+        </div>
+        <div slot="footer">
+          <sl-button id="permission-allow" variant="success" data-l10n-id="permissions-allow"></sl-button>
+          <sl-button id="permission-block" variant="danger" data-l10n-id="permissions-block"></sl-button>
+        </div>
+      </sl-drawer>
       `;
 
     this.container = container;
@@ -290,6 +436,10 @@ class ContentWindow extends HTMLElement {
     this.maybeSetUA(src);
 
     this.loader = this.querySelector(".loader");
+    this.permissions = new PermissionsHelper(
+      this.querySelector(".permissions"),
+      this.webView
+    );
     this.contentCrash = this.querySelector(".content-crash");
     this.selectUiContainer = this.querySelector(".select-ui");
     this.inlineActivity = this.querySelector(".inline-activity");
@@ -975,54 +1125,10 @@ class ContentWindow extends HTMLElement {
         }
         break;
       case "promptpermission":
-        console.log(
-          `PPP permission prompt request for ${
-            this.state.url
-          }: ${JSON.stringify(detail)}`
-        );
-        // Example of geolocation request from Google Maps:
-        // {
-        //   requestAction:"prompt",
-        //   permissions: {
-        //     geolocation: {
-        //       action: "prompt",
-        //       options:[]
-        //     }
-        //   },
-        //   requestId: "permission-prompt-{79d5952e-6174-4475-8f5a-7fbd577241c3}",
-        //   origin:"https://www.google.com"
-        //  }
-
-        // Example of webrtc permission prompt from whereby.com:
-        // {
-        //   "requestAction": "prompt",
-        //   "permissions": {
-        //     "audio-capture": { "action": "prompt", "options": ["default"] },
-        //     "video-capture": { "action": "prompt", "options": ["front", "back"] }
-        //   },
-        //   "requestId": "permission-prompt-{88c6cb76-f250-4747-ad1b-8a06b906286a}",
-        //   "origin": "https://whereby.com"
-        // }
-        if (detail.requestAction === "prompt") {
-          // For permissions that have options, choose the first one.
-          let choices = {};
-          for (let permName in detail.permissions) {
-            let permission = detail.permissions[permName];
-            if (permission.options.length > 0) {
-              choices[permName] = permission.options[0];
-            }
-          }
-
-          let answer = {
-            origin: detail.origin,
-            granted: true,
-            remember: true,
-            choices,
-          };
-          console.log(`PPP answer: ${JSON.stringify(answer)}`);
-          this.webView.dispatchEvent(
-            new CustomEvent(detail.requestId, { detail: answer })
-          );
+        if (detail.requestAction == "prompt") {
+          this.permissions.prompt(detail);
+        } else {
+          this.permissions.cancel();
         }
         break;
       case "readermodestate":
