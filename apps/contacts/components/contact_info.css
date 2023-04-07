@@ -51,3 +51,7 @@
 :host .flex-fill {
   flex: 1;
 }
+
+:host sl-button.no-apps {
+  display: none;
+}

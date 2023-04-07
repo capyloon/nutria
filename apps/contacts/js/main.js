@@ -68,7 +68,7 @@ class PeerWatcher {
     this.peers = new Map(); // Maps peer key to Peer
     this.sessions = new Map(); // Maps sessionId to session
 
-    this.watchers = new Map(); // Maps did to [ContactInfo]
+    this.watchers = new Map(); // Maps DID to [ContactInfo]
   }
 
   peerKey(peer) {
@@ -106,6 +106,10 @@ class PeerWatcher {
       this.dweb.SESSIONREMOVED_EVENT,
       this.onSessionRemoved.bind(this)
     );
+
+    let appHandler = this.updatePeerApps.bind(this);
+    window.appsManager.addEventListener("app-installed", appHandler);
+    window.appsManager.addEventListener("app-uninstalled", appHandler);
   }
 
   clearWatchers() {
@@ -140,6 +144,16 @@ class PeerWatcher {
     // Set the proper contact state.
     let { known, paired } = this.getInfo(did);
     contact.updatePeerInfo(known, paired);
+  }
+
+  async updatePeerApps() {
+    let apps = await navigator.b2g.activityUtils.getInstalled("p2p-tile-start");
+    let enabled = apps.length !== 0;
+    for (let watchers of this.watchers.values()) {
+      watchers.forEach((watcher) => {
+        watcher.updatePeerApps(enabled);
+      });
+    }
   }
 
   updateContactsFor(did) {
@@ -283,10 +297,13 @@ async function manageList(wrappers) {
 
     didWatcher.clearWatchers();
 
+    let apps = await navigator.b2g.activityUtils.getInstalled("p2p-tile-start");
+    let appsEnabled = apps.length !== 0;
+
     let list = elem("contact-list");
     list.innerHTML = "";
     for (let contact of contacts) {
-      let el = list.appendChild(new ContactInfo(contact));
+      let el = list.appendChild(new ContactInfo(contact, appsEnabled));
       let dids = contact.did || [];
       dids.forEach((did) => {
         didWatcher.addWatcher(did.uri, el);

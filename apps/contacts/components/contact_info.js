@@ -1,13 +1,14 @@
 // Custom element for a <contact-info> element
 
 export class ContactInfo extends LitElement {
-  constructor(contact) {
+  constructor(contact, apps) {
     super();
     this.contact = contact;
     this.known = [];
     this.paired = [];
     this.log(`constructor: ${contact.id} ${contact.photoUrl}`);
     this.opened = false;
+    this.apps = apps;
   }
 
   log(msg) {
@@ -19,6 +20,7 @@ export class ContactInfo extends LitElement {
       contact: { state: true },
       known: { state: true },
       paired: { state: true },
+      apps: { state: true },
     };
   }
 
@@ -46,6 +48,10 @@ export class ContactInfo extends LitElement {
     this.paired = paired;
   }
 
+  updatePeerApps(enabled) {
+    this.apps = enabled;
+  }
+
   launchTile(event) {
     let index = event.target.dataset.pairedIndex;
     let session = this.paired[index];
@@ -71,7 +77,7 @@ export class ContactInfo extends LitElement {
     let res = true;
     array.forEach((item) => {
       if (item.length > 0) {
-        console.log(`Found ${item}, len=${item.length}`);
+        // console.log(`Found ${item}, len=${item.length}`);
         res = false;
       }
     });
@@ -97,6 +103,7 @@ export class ContactInfo extends LitElement {
             data-l10n-id="contact-launch-app"
             data-paired-index="${index}"
             @click="${this.launchTile}"
+            class="${this.apps ? "" : "no-apps"}"
             size="small"
             variant="success"
           ></sl-button>`;

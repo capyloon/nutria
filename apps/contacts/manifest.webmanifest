@@ -18,7 +18,8 @@
     "permissions": {
       "content-manager": {},
       "dweb": {},
-      "themeable": {}
+      "themeable": {},
+      "webapps-manage": {}
     },
     "serviceworker": {
       "script_url": "sw.js"

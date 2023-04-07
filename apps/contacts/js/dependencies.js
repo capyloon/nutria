@@ -2,7 +2,7 @@ const kDeps = [
   {
     name: "setup",
     kind: "virtual",
-    deps: ["content manager", "activity manager"],
+    deps: ["content manager", "activity manager", "apps manager"],
   },
   {
     name: "intro",
@@ -57,6 +57,12 @@ const kDeps = [
     name: "activity manager",
     kind: "sharedModule",
     param: ["js/activity_manager.js", ["ActivityManager"]],
+  },
+  {
+    name: "apps manager",
+    kind: "sharedWindowModule",
+    param: ["js/apps_manager.js", "appsManager", "AppsManager"],
+    deps: ["shared-api-daemon"],
   },
   { name: "dummy", kind: "virtual", deps: ["shoelace-drawer"] },
 ];
