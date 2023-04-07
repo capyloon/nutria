@@ -382,6 +382,7 @@ const kDeps = [
       "shoelace-button",
       "shoelace-icon-button",
       "shoelace-dialog",
+      "shoelace-switch",
     ],
   },
   {

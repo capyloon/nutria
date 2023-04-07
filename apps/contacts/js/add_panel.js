@@ -64,6 +64,8 @@ class AddContactPanel {
     } else {
       elem("did-section").classList.add("hidden");
     }
+
+    this.autoconnectBehavior.value = contact.autoconnect || "prompt";
   }
 
   setAvatar() {
@@ -83,6 +85,7 @@ class AddContactPanel {
       contact.phone = [this.inputs["phone"].value];
       contact.email = [this.inputs["email"].value];
       contact.photo = this.photo;
+      contact.autoconnect = this.autoconnectBehavior.value;
       contact.did = [];
       elem("did-list")
         .querySelectorAll("li")
@@ -165,6 +168,8 @@ class AddContactPanel {
 
     this.btnUpdateDid = elem("update-dids");
     this.btnUpdateDid.addEventListener("click", this);
+
+    this.autoconnectBehavior = elem("autoconnect-select");
 
     ALL_INPUTS.forEach((item) => {
       this.inputs[item] = elem(item);

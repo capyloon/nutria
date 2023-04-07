@@ -76,6 +76,29 @@
             <span data-l10n-id="add-contact-identity"></span>
             <ul id="add-contact-did-list"></ul>
           </div>
+          <div id="add-contact-autoconnect-section">
+            <sl-select value="prompt" id="add-contact-autoconnect-select">
+              <span
+                slot="label"
+                data-l10n-id="add-contact-autoconnect-title"
+              ></span>
+              <sl-option
+                value="prompt"
+                data-l10n-id="add-contact-autoconnect-prompt"
+                >Prompt</sl-option
+              >
+              <sl-option
+                value="accept"
+                data-l10n-id="add-contact-autoconnect-accept"
+                >Always Accept</sl-option
+              >
+              <sl-option
+                value="reject"
+                data-l10n-id="add-contact-autoconnect-reject"
+                >Always Reject</sl-option
+              >
+            </sl-select>
+          </div>
           <sl-switch
             id="add-contact-personnal-card-switch"
             data-l10n-id="personnal-card"

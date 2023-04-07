@@ -25,3 +25,11 @@
   gap: 0.5em;
   margin-top: 0.5em;
 }
+
+:host sl-switch {
+  margin: 1em;
+}
+
+:host .hidden {
+  display: none;
+}

@@ -31,3 +31,9 @@ update-dids = Update Identity
 
 # ContactInfo
 contact-launch-app = Launch app
+
+# Autoconnect section
+add-contact-autoconnect-title = Autoconnect Behavior
+add-contact-autoconnect-prompt = Prompt
+add-contact-autoconnect-accept = Always Accept
+add-contact-autoconnect-reject = Always Reject

@@ -26,10 +26,12 @@ class ConfirmDialog extends LitElement {
   }
 
   updated() {
+    document.l10n.translateFragment(this.shadowRoot);
+    this.shadowRoot.querySelector("sl-switch").checked = false;
+
     if (!this.data.focused) {
       return;
     }
-    document.l10n.translateFragment(this.shadowRoot);
 
     let button = this.shadowRoot.querySelector("sl-button.initial-focus");
     if (button) {
@@ -40,10 +42,16 @@ class ConfirmDialog extends LitElement {
 
   render() {
     this.log(`render`);
+    let hasRememberMe = !!this.data.rememberMe;
+
     return html` <link rel="stylesheet" href="components/confirm_dialog.css" />
       <sl-dialog label="${this.data.title}">
         <div class="container">
           <div class="text">${this.data.text}</div>
+          <sl-switch
+            class="${hasRememberMe ? "remember-me" : "hidden"}"
+            data-l10n-id="confirm-remember-my-choice"
+          ></sl-switch>
           <div class="buttons">
             ${this.data.buttons.map(
               (button) =>
@@ -73,9 +81,20 @@ class ConfirmDialog extends LitElement {
 
   buttonClick(event) {
     let id = event.target.dataset.id;
+    let hasRememberMe = !!this.data.rememberMe;
+    let rememberMe = this.shadowRoot.querySelector("sl-switch").checked;
     this.dialog.addEventListener(
       "sl-after-hide",
-      () => this.deferred.resolve(id),
+      () => {
+        if (hasRememberMe) {
+          this.deferred.resolve({
+            button: id,
+            rememberMe,
+          });
+        } else {
+          this.deferred.resolve(id);
+        }
+      },
       { once: true }
     );
     this.close();
@@ -86,11 +105,14 @@ class ConfirmDialog extends LitElement {
   //   title: "some title",
   //   text: "some text",
   //   buttons: [ { id: "button-1", label: "First Choice", variant: "primary" }],
-  //   focused: <id of button to focus when the dialog is opened>
+  //   focused: <id of button to focus when the dialog is opened>,
+  //   rememberMe: boolean, if true will display a "remember my choice" toggle.
   // }
 
   // This function returns a promise that resolves with the id of the button
   // that was clicked, or reject if the dialog is dismissed.
+  // If the "remember my choice" toggle is displayed, the resolved value is an
+  // object instead: { button: <id>, rememberMe: <toggle checked state> }
   open(data) {
     this.log(`open dialog=${this.dialog}`);
     if (!data || !data.buttons || !data.buttons.length) {

@@ -186,3 +186,5 @@ permissions-allow = Allow
 permissions-name-geolocation = Geolocation
 permissions-name-audio-capture = Audio Recording
 permissions-name-video-capture = Video Recording
+
+confirm-remember-my-choice = Remember My Choice

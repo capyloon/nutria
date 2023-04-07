@@ -61,7 +61,7 @@ class P2pDiscovery {
         console.log(`P2pProvider: ${msg}`);
       }
 
-      async contactNameForDid(did) {
+      async contactForDid(did) {
         // Use the contact name instead of the DID if possible.
         if (!this.contacts) {
           this.contacts = contentManager.getContactsManager();
@@ -69,6 +69,11 @@ class P2pDiscovery {
         }
 
         let contact = await this.contacts.contactWithDid(did);
+        return contact;
+      }
+
+      async contactNameForDid(did) {
+        let contact = await this.contactForDid(did);
         if (contact) {
           return contact.name;
         }
@@ -79,8 +84,19 @@ class P2pDiscovery {
         this.log(`Hello from ${JSON.stringify(peer)}`);
         let dialog = document.querySelector("confirm-dialog");
 
-        let name = await this.contactNameForDid(peer.did);
-        let source = name || peer.did;
+        let source = peer.did;
+        let contact = await this.contactForDid(peer.did);
+        if (contact) {
+          source = contact.name;
+          // this.log(`contact=${JSON.stringify(contact)}`);
+          if (contact.autoconnect === "accept") {
+            return Promise.resolve(true);
+          }
+
+          if (contact.autoconnect === "reject") {
+            return Promise.resolve(false);
+          }
+        }
 
         const [title, text, accept, reject] = await document.l10n.formatValues([
           "p2p-connect-request-title",
@@ -89,16 +105,23 @@ class P2pDiscovery {
           "p2p-connect-request-reject",
         ]);
 
-        let result = await dialog.open({
+        let { button, rememberMe } = await dialog.open({
           title,
           text,
           buttons: [
             { id: "accept", label: accept, variant: "success" },
             { id: "reject", label: reject, variant: "danger" },
           ],
+          rememberMe: !!contact,
         });
 
-        return Promise.resolve(result == "accept");
+        if (rememberMe) {
+          // Update the contact autoconnect state.
+          contact.autoconnect = button;
+          await this.contacts.update(contact.id, contact);
+        }
+
+        return Promise.resolve(button == "accept");
       }
 
       async onUrlAction(peer, url) {

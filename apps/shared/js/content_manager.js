@@ -1063,6 +1063,7 @@ class Contact {
     this.email = init?.email || [];
     this.did = init?.did || [];
     this.photo = init?.photo || null;
+    this.autoconnect = init?.autoconnect || "";
 
     this.isOwn = tags.includes("own-card");
   }
@@ -1077,6 +1078,7 @@ class Contact {
     contact.phone = json.phone;
     contact.email = json.email;
     contact.did = json.did;
+    contact.autoconnect = json.autoconnect || "prompt";
 
     contact.isOwn = tags.includes("own-card");
     return contact;
@@ -1089,6 +1091,7 @@ class Contact {
       phone: this.phone,
       email: this.email,
       did: this.did,
+      autoconnect: this.autoconnect,
     };
   }
 }

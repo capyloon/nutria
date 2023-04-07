@@ -116,6 +116,10 @@ header span {
   width: 2em;
 }
 
+#add-contact-autoconnect-section {
+  display: flex;
+}
+
 /*
 Generic style to create containers with the Shoelace style
 TODO: consider moving to shared/
