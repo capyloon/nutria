@@ -54,6 +54,7 @@ class QuickSettings extends HTMLElement {
     this.initBrightness();
     this.initTelephony();
     this.initTor();
+    this.initP2P();
 
     let logoutIcon = shadow.querySelector("#logout-icon");
     if (
@@ -267,6 +268,23 @@ class QuickSettings extends HTMLElement {
     }
   }
 
+  initP2P() {
+    let appHandler = this.updatePeerApps.bind(this);
+    window.appsManager.addEventListener("app-installed", appHandler);
+    window.appsManager.addEventListener("app-uninstalled", appHandler);
+  }
+
+  async updatePeerApps() {
+    let apps = await navigator.b2g.activityUtils.getInstalled("p2p-tile-start");
+    let disabled = apps.length == 0;
+    let container = this.shadowRoot.querySelector(".peers");
+    if (disabled) {
+      container.classList.add("not-launchable");
+    } else {
+      container.classList.remove("not-launchable");
+    }
+  }
+
   async addPeer(peer, handler) {
     let node = document.createElement("div");
     node.classList.add("peer");
@@ -302,6 +320,7 @@ class QuickSettings extends HTMLElement {
     document.l10n.translateFragment(node);
 
     this.shadowRoot.querySelector(".peers").appendChild(node);
+    await this.updatePeerApps();
   }
 
   removePeer(peer) {
@@ -320,7 +339,9 @@ class QuickSettings extends HTMLElement {
       node.querySelector(".launch").onclick = () => {
         this.drawer.hide();
         try {
-          let act = new WebActivity("p2p-tile-start", { sessionId: session.id });
+          let act = new WebActivity("p2p-tile-start", {
+            sessionId: session.id,
+          });
           act.start();
         } catch (e) {
           console.error(
@@ -481,7 +502,7 @@ class QuickSettings extends HTMLElement {
   }
 
   // Turn an extension id into a string usable in css selectors.
-  safeId(id) {
+  safeExtensionId(id) {
     let a = encodeURIComponent(id).replace(/%([0-9A-F]{2})/g, (match, p1) => {
       return p1.toString(16);
     });
@@ -489,7 +510,7 @@ class QuickSettings extends HTMLElement {
   }
 
   addBrowserAction(extensionId, node) {
-    let id = `browser-action-${this.safeId(extensionId)}`;
+    let id = `browser-action-${this.safeExtensionId(extensionId)}`;
     // console.log(`addBrowserAction ${extensionId} -> ${id}`);
     if (!this.shadowRoot.querySelector(`#${id}`)) {
       this.shadowRoot.querySelector(".browser-actions").append(node);
@@ -505,7 +526,7 @@ class QuickSettings extends HTMLElement {
   getBrowserAction(extensionId) {
     // console.log(`getBrowserAction ${extensionId}`);
     return this.shadowRoot.querySelector(
-      `#browser-action-${this.safeId(extensionId)}`
+      `#browser-action-${this.safeExtensionId(extensionId)}`
     );
   }
 }

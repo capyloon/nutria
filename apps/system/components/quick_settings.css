@@ -155,3 +155,7 @@
 :host .peer.paired > .when-unpaired {
   display: none;
 }
+
+:host .peers.not-launchable sl-button.launch {
+  display: none;
+}
