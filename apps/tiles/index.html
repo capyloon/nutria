@@ -96,8 +96,12 @@
     <sl-dialog id="fork-chooser">
       <span slot="label" data-l10n-id="fork-dialog-title"></span>
       <div id="fork-content">
-        <sl-select hoist id="fork-list">
-          <span slot="label" data-l10n-id="fork-chooser-library"></span>
+        <sl-select
+          hoist
+          id="fork-list"
+          data-l10n-id="fork-chooser-library"
+          data-l10n-attrs="label"
+        >
         </sl-select>
         <sl-input
           id="fork-url"
@@ -108,9 +112,12 @@
           <span slot="label" data-l10n-id="fork-chooser-input-url"></span>
         </sl-input>
         <sl-dropdown>
-          <sl-button slot="trigger" caret data-l10n-id="fork-chooser-recent"></sl-button>
-          <sl-menu id="fork-chooser-recents">
-          </sl-menu>
+          <sl-button
+            slot="trigger"
+            caret
+            data-l10n-id="fork-chooser-recent"
+          ></sl-button>
+          <sl-menu id="fork-chooser-recents"> </sl-menu>
         </sl-dropdown>
       </div>
       <div slot="footer">

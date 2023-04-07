@@ -13,7 +13,8 @@ action-publish = Publish
 
 # Fork dialog
 fork-dialog-title = Choose a Tile to Fork
-fork-chooser-library = From Your Library
+fork-chooser-library =
+    .label = From Your Library
 fork-chooser-input-placeholder =
     .placeholder = tile://.../manifest.webmanifest or https://.../manifest.webmanifest
 fork-chooser-input-url = Or Enter the Tile's Manifest URL

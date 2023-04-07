@@ -100,7 +100,7 @@ class ForkDialog {
 
       let apps = await appsManager.getAll();
       let list = this.dialog.querySelector("#fork-list");
-      // list.innerHTML = "";
+      list.innerHTML = "";
       for (let app of apps) {
         let summary = await appsManager.getSummary(app);
         const isTile = summary.url?.startsWith("tile://");
