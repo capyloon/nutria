@@ -94,11 +94,13 @@ class ForkDialog {
     this.promiseDone = false;
     return new Promise(async (resolve, reject) => {
       this.promise = { resolve, reject };
+      this.dialog.show();
+
       await graph.waitForDeps("apps manager");
 
       let apps = await appsManager.getAll();
       let list = this.dialog.querySelector("#fork-list");
-      list.innerHTML = "";
+      // list.innerHTML = "";
       for (let app of apps) {
         let summary = await appsManager.getSummary(app);
         const isTile = summary.url?.startsWith("tile://");
@@ -116,7 +118,25 @@ class ForkDialog {
           list.append(option);
         }
       }
-      this.dialog.show();
+
+      // Add entries from the Tiles repo
+      let response = await fetch(
+        "https://raw.githubusercontent.com/capyloon/tiles/main/tiles.json"
+      );
+      let remoteList = await response.json();
+      remoteList.forEach((item) => {
+        let option = document.createElement("sl-option");
+        option.value = item.manifestUrl;
+        let icon = document.createElement("img");
+        icon.src = item.icon;
+        icon.setAttribute("slot", "prefix");
+        let desc = document.createElement("span");
+        desc.textContent = item.description;
+        option.append(icon);
+        option.append(desc);
+
+        list.append(option);
+      });
     });
   }
 }
