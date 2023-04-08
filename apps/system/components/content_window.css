@@ -60,6 +60,8 @@ content-window .inline-activity sl-button {
   position: absolute;
   bottom: 3em;
   right: 3em;
+  /* TODO: figure out why this z-index is needed */
+  z-index: 1;
 }
 
 content-window .content-crash .message {
