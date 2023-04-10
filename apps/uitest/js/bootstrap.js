@@ -154,6 +154,26 @@ document.addEventListener(
         console.log(`The 'pick' activity was canceled: ${e}`);
       }
     };
+
+    let promptResult = (msg) => {
+      console.log(`PromptResult: ${msg}`);
+      window["prompt-result"].textContent = msg;
+    }
+  
+    window["test-alert"].onclick = () => {
+      window.alert("This is an alert!");
+      promptResult("Alert done!");
+    }
+
+    window["test-confirm"].onclick = () => {
+      let confirm = window.confirm("1 + 1 = 2. Do you agree?");
+      promptResult(`confirm=${confirm}`);
+    }
+
+    window["test-prompt"].onclick = () => {
+      let value = window.prompt("Type something");
+      promptResult(`prompt=${value}`);
+    }
   },
   { once: true }
 );
