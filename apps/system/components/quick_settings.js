@@ -56,18 +56,17 @@ class QuickSettings extends HTMLElement {
     this.initTor();
     this.initP2P();
 
+    let sessionType = embedder.sessionType;
+
     let logoutIcon = shadow.querySelector("#logout-icon");
-    if (
-      embedder.sessionType == "session" ||
-      embedder.sessionType == "desktop"
-    ) {
+    if (sessionType == "session" || sessionType == "desktop") {
       logoutIcon.onclick = embedder.logOut;
     } else {
       logoutIcon.remove();
     }
 
     let lockIcon = shadow.querySelector("#lock-icon");
-    if (embedder.sessionType == "mobile") {
+    if (sessionType == "mobile" || sessionType == "desktop") {
       lockIcon.remove();
     } else {
       lockIcon.onclick = () => {

@@ -63,7 +63,7 @@ class StatusBar extends HTMLElement {
 
     this.shadow.innerHTML = `
     <link rel="stylesheet" href="components/status_bar.css">
-      <div class="container homescreen">
+      <div class="container homescreen session-${embedder.sessionType}">
         <div class="left">
           <sl-icon class="static battery-icon homescreen-icon" name="battery-charging"></sl-icon>
           <img class="favicon" />

@@ -8,6 +8,10 @@
   transition: background-color 0.25s;
 }
 
+:host .homescreen.session-desktop .left > * {
+  display: none;
+}
+
 :host(.ftu) {
   display: none;
 }
