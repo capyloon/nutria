@@ -238,6 +238,75 @@ class PermissionsHelper {
   }
 }
 
+class PromptHelper {
+  constructor(container, detail) {
+    this.drawer = container.querySelector(".modal-prompt");
+    this.btnCancel = container.querySelector("#modal-prompt-btn-cancel");
+    this.btnOk = container.querySelector("#modal-prompt-btn-ok");
+    this.input = container.querySelector("#modal-prompt-input");
+
+    this.input.value = "";
+    container.querySelector("#modal-prompt-title").textContent = detail.title;
+    container.querySelector("#modal-prompt-text").textContent = detail.text;
+
+    // console.log(`detail=${JSON.stringify(detail)}`);
+
+    // Show the relevant UI items based on the prompt type.
+    if (detail.promptType === "alert" || detail.promptType === "alertCheck") {
+      this.input.classList.add("hidden");
+      this.btnCancel.classList.add("hidden");
+    } else if (
+      detail.promptType === "confirm" ||
+      detail.promptType === "confirmCheck"
+    ) {
+      this.input.classList.add("hidden");
+      this.btnCancel.classList.remove("hidden");
+    } else {
+      this.input.classList.remove("hidden");
+      this.btnCancel.classList.remove("hidden");
+    }
+
+    this.drawer.addEventListener("sl-request-close", this);
+    this.btnCancel.addEventListener("click", this);
+    this.btnOk.addEventListener("click", this);
+
+    this.drawer.show();
+  }
+
+  handleEvent(event) {
+    if (!this.deferred) {
+      return;
+    }
+
+    if (event.type === "sl-request-close" || event.target === this.btnCancel) {
+      this.deferred({ ok: false });
+    } else if (event.target === this.btnOk) {
+      this.deferred({
+        ok: true,
+        value: this.input.value,
+        // TODO: add checked support
+      });
+    }
+
+    if (event.type !== "sl-request-close") {
+      this.drawer.hide();
+    }
+  }
+
+  done() {
+    return new Promise((resolve) => {
+      this.deferred = resolve;
+    });
+  }
+
+  reset() {
+    this.deferred = null;
+    this.drawer.removeEventListener("sl-request-close", this);
+    this.btnCancel.removeEventListener("click", this);
+    this.btnOk.removeEventListener("click", this);
+  }
+}
+
 window.processManager = new ProcessManager();
 
 const kSiteInfoEvents = [
@@ -416,7 +485,7 @@ class ContentWindow extends HTMLElement {
       <div class="inline-activity hidden">
         <sl-button variant="primary" circle><sl-icon name="x"></sl-icon></sl-button>
       </div>
-      <sl-drawer contained class="permissions" placement="bottom">
+      <sl-drawer contained class="modal-drawer permissions" placement="bottom">
         <span slot="label" data-l10n-id="permissions-title">Choose what you want</span>
         <header class="origin"></header>
         <div class="items">
@@ -424,6 +493,15 @@ class ContentWindow extends HTMLElement {
         <div slot="footer">
           <sl-button id="permission-allow" variant="success" data-l10n-id="permissions-allow"></sl-button>
           <sl-button id="permission-block" variant="danger" data-l10n-id="permissions-block"></sl-button>
+        </div>
+      </sl-drawer>
+      <sl-drawer contained class="modal-drawer modal-prompt" placement="bottom">
+        <span slot="label" id="modal-prompt-title"></span>
+        <header id="modal-prompt-text"></header>
+        <sl-input id="modal-prompt-input"></sl-input>
+        <div slot="footer">
+          <sl-button id="modal-prompt-btn-ok" variant="success" data-l10n-id="button-ok"></sl-button>
+          <sl-button id="modal-prompt-btn-cancel" variant="danger" data-l10n-id="button-cancel"></sl-button>
         </div>
       </sl-drawer>
       `;
@@ -911,6 +989,14 @@ class ContentWindow extends HTMLElement {
     this.updateScreenshot();
   }
 
+  async manageModalPrompt(detail) {
+    let promptHelper = new PromptHelper(this, detail);
+    let result = await promptHelper.done();
+    detail.unblock(result);
+    promptHelper.reset();
+    promptHelper = null;
+  }
+
   async handleBrowserEvent(event) {
     let detail = event.detail;
     let uiUpdateNeeded = false;
@@ -1130,6 +1216,9 @@ class ContentWindow extends HTMLElement {
         } else {
           this.permissions.cancel();
         }
+        break;
+      case "showmodalprompt":
+        this.manageModalPrompt(detail);
         break;
       case "readermodestate":
         this.state.readerMode = detail;

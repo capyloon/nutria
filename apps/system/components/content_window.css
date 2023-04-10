@@ -184,16 +184,22 @@ content-window .overscroll sl-icon {
   transition: transform 1s, color 2s, background-color 2s;
 }
 
-content-window > .container .permissions {
+content-window > .container .modal-drawer {
   color: var(--sl-color-neutral-700);
   --size: fit-content;
 }
 
-content-window > .container .permissions::part(panel) {
+content-window > .container .modal-drawer::part(panel) {
   border-radius: var(--sl-border-radius-x-large);
   margin-left: 1em;
   width: fit-content;
   max-width: calc(100vw - 2em);
+}
+
+content-window > .container .modal-prompt::part(panel) {
+  /* TODO: figure out how to center the prompt panel */
+  margin-left: 3em;
+  margin-bottom: 3em;
 }
 
 content-window > .container .permissions .origin {
