@@ -188,6 +188,29 @@ export class ContainerRenderer extends LitElement {
     this.iconLayout = !this.iconLayout;
   }
 
+  async createDirectory() {
+    let title = await document.l10n.formatValue("new-dir-name");
+    let newDirName = prompt(title);
+    if (newDirName) {
+      let svc = await contentManager.getService();
+      let lib = await contentManager.lib();
+      try {
+        await svc.createobj(
+          {
+            parent: this.id,
+            name: newDirName,
+            kind: lib.ResourceKind.CONTAINER,
+            tags: [],
+          },
+          ""
+        );
+        await this.getItems();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
   async deleteSelected() {
     // this.log(`deleteSelected`);
     let toDelete = [];
@@ -231,6 +254,9 @@ export class ContainerRenderer extends LitElement {
           <sl-icon-button
             name="${this.iconLayout ? "list" : "layout-grid"}"
           ></sl-icon-button>
+        </div>
+        <div @click="${this.createDirectory}">
+          <sl-icon-button name="folder-plus"></sl-icon-button>
         </div>
         ${optionalDelete}
         <div @click="${this.closeApp}">

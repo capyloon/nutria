@@ -6,7 +6,8 @@ page-title = Files
 root-resource = Home
 
 # Generic
-close = close
+close = Close
 
 # <container-renderer>
 empty-container = This Folder is Empty
+new-dir-name = Enter New Directory Name:
