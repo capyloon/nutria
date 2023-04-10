@@ -329,6 +329,9 @@ const UAHelper = {
   );
 
   let sessionType = Services.prefs.getCharPref("b2g.session-type", "mobile");
+
+  log(`session type is '${sessionType}'`);
+
   // Set some prefs based on the session type.
   if (sessionType == "desktop" || sessionType == "session") {
     Services.prefs.setBoolPref("dom.inputmethod.enabled", false);

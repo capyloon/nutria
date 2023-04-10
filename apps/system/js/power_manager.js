@@ -183,7 +183,13 @@ class PowerManagement {
     this.powerOn = true;
     this.service.turnOn();
     this.powerMenu = document.body.querySelector("reboot-menu");
-    this.idleCallback = this.onIdle.bind(this);
+
+    // On "desktop" session, don't do on/off or lockscreen management.
+    if (embedder.sessionType === "desktop") {
+      this.idleCallback = () => {};
+    } else {
+      this.idleCallback = this.onIdle.bind(this);
+    }
 
     embedder.userIdle.addObserver(this.idleCallback, kDefaultIdleTimeoutSec);
 
@@ -199,7 +205,10 @@ class PowerManagement {
         this.powerOn ? "set-screen-on" : "set-screen-off"
       );
       if (this.powerOn) {
-        embedder.userIdle.addObserver(this.idleCallback, kDefaultIdleTimeoutSec);
+        embedder.userIdle.addObserver(
+          this.idleCallback,
+          kDefaultIdleTimeoutSec
+        );
       }
       // TODO: add embedding support to throttle the system app when the screen is off.
     });
@@ -238,7 +247,9 @@ class PowerManagement {
     // Don't turn off the screen if the device is plugged in and is not a
     // full screen session.
     if (this.service.isCharging && embedder.sessionType !== "session") {
-      console.log(`PowerManagement: don't turn off the screen of a plugged in device.`);
+      console.log(
+        `PowerManagement: don't turn off the screen of a plugged in device.`
+      );
       return;
     }
 

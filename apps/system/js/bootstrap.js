@@ -422,7 +422,9 @@ document.addEventListener(
     // Start with the lock screen on before we load the homescreen to avoid a
     // flash of the homescreen.
     await graph.waitForDeps("lockscreen comp");
-    window.lockscreen.lock();
+    if (embedder.sessionType !== "desktop") {
+      window.lockscreen.lock();
+    }
 
     await graph.waitForDeps("phase1");
     await graph.waitForDeps("launch");
