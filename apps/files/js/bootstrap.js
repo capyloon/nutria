@@ -26,6 +26,9 @@ const kDeps = [
       "shoelace-button",
       "shoelace-breadcrumb",
       "shoelace-breadcrumb-item",
+      "shoelace-dropdown",
+      "shoelace-menu",
+      "shoelace-menu-item",
     ],
   },
   {

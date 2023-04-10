@@ -33,6 +33,7 @@
 :host #list sl-icon {
   font-size: 2em;
 }
+
 :host #list .details {
   display: flex;
   flex-direction: column;
@@ -103,4 +104,9 @@
   display: block;
   margin-top: 2em;
   color: var(--sl-color-neutral-500);
+}
+
+/* TODO: find a better way to center the dropdown icon */
+:host sl-dropdown sl-icon {
+  margin-top: 0.3em;
 }

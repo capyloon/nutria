@@ -188,6 +188,11 @@ export class ContainerRenderer extends LitElement {
     this.iconLayout = !this.iconLayout;
   }
 
+  clearSelected() {
+    this.selected.clear();
+    this.selectedCount = 0;
+  }
+
   async createDirectory() {
     let title = await document.l10n.formatValue("new-dir-name");
     let newDirName = prompt(title);
@@ -204,6 +209,7 @@ export class ContainerRenderer extends LitElement {
           },
           ""
         );
+        this.clearSelected();
         await this.getItems();
       } catch (e) {
         console.error(e);
@@ -219,8 +225,24 @@ export class ContainerRenderer extends LitElement {
       toDelete.push(svc.delete(selected));
     }
     await Promise.allSettled(toDelete);
-    this.selected.clear();
-    this.selectedCount = 0;
+    this.clearSelected();
+    await this.getItems();
+  }
+
+  async renameResource() {
+    // Bail out if called with multiple resources selected.
+    if (this.selectedCount != 1) {
+      return;
+    }
+
+    let resourceId = this.selected.values().next().value;
+    /* TODO: use a different string for files vs. directories */
+    let title = await document.l10n.formatValue("new-resource-name");
+    let svc = await contentManager.getService();
+    let meta = await svc.getMetadata(resourceId);
+    let newName = prompt(title, meta.name);
+    await svc.renameResource(resourceId, newName);
+    this.clearSelected();
     await this.getItems();
   }
 
@@ -233,6 +255,23 @@ export class ContainerRenderer extends LitElement {
     if (this.selected.size > 0) {
       optionalDelete = html`<div @click="${this.deleteSelected}">
         <sl-icon-button name="trash-2"></sl-icon-button>
+      </div>`;
+    }
+
+    let optionalSingle;
+    if (this.selected.size === 1) {
+      optionalSingle = html`<div>
+        <sl-dropdown placement="top-end">
+          <sl-icon slot="trigger" name="more-vertical"></sl-icon>
+          <sl-menu>
+            <sl-menu-item data-l10n-id="menu-resource-move"></sl-menu-item>
+            <sl-menu-item
+              @click="${this.renameResource}"
+              data-l10n-id="menu-resource-rename"
+            ></sl-menu-item>
+            <sl-menu-item data-l10n-id="menu-resource-details"></sl-menu-item>
+          </sl-menu>
+        </sl-dropdown>
       </div>`;
     }
 
@@ -258,7 +297,7 @@ export class ContainerRenderer extends LitElement {
         <div @click="${this.createDirectory}">
           <sl-icon-button name="folder-plus"></sl-icon-button>
         </div>
-        ${optionalDelete}
+        ${optionalDelete} ${optionalSingle}
         <div @click="${this.closeApp}">
           <sl-icon-button name="x"></sl-icon-button>
         </div>
