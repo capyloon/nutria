@@ -262,8 +262,12 @@ class PromptHelper {
       this.input.classList.add("hidden");
       this.btnCancel.classList.remove("hidden");
     } else {
+      if (detail.value !== undefined) {
+        this.input.value = detail.value;
+      }
       this.input.classList.remove("hidden");
       this.btnCancel.classList.remove("hidden");
+      this.input.focus();
     }
 
     this.drawer.addEventListener("sl-request-close", this);
