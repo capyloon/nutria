@@ -72,7 +72,7 @@ impl AdbCommand for ResetDataCommand {
             "rm -r /data/b2g",
             "rm -r /cache/cache2",
             "stop api-daemon",
-            "rm -r /mnt/runtime/default/emulated/costaeres",
+            "rm -r /data/local/costaeres",
             "rm /data/local/service/api-daemon/*.sqlite*",
             "rm -r /data/local/webapps",
             "start api-daemon",
