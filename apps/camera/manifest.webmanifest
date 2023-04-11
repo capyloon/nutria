@@ -15,10 +15,12 @@
       "name": "The Capyloon team"
     },
     "permissions": {
+      "audio-capture": {},
       "camera": {},
       "content-manager": {},
       "dweb": {},
-      "themeable": {}
+      "themeable": {},
+      "video-capture": {}
     },
     "serviceworker": {
       "script_url": "sw.js"
