@@ -1,1 +1,0 @@
-import{a}from"./chunk.MWDEA25W.js";var o=new Map;async function r(n){if(o.has(n))return o.get(n);let e=await a(n),s={ok:e.ok,status:e.status,svg:null};if(e.ok){let i=document.createElement("div");i.innerHTML=e.html;let t=i.firstElementChild;s.svg=(t==null?void 0:t.tagName.toLowerCase())==="svg"?t.outerHTML:""}return o.set(n,s),s}export{r as a};
