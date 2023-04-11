@@ -47,6 +47,17 @@ const kDeps = [
     kind: "sharedModule",
     param: ["js/activity_manager.js", ["ActivityManager"]],
   },
+  {
+    name: "directory picker",
+    kind: "module",
+    param: ["./components/directory_picker.js"],
+    deps: [
+      "shoelace-drawer",
+      "shoelace-button",
+      "shoelace-tree",
+      "shoelace-tree-item",
+    ],
+  },
 ];
 
 function log(msg) {
@@ -58,13 +69,15 @@ let _p = new Promise((resolve) => {
   ready = resolve;
 });
 
+var graph;
+
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
     log(`DOMContentLoaded`);
     await depGraphLoaded;
 
-    let graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
+    graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
     await Promise.all(
       ["shared-fluent", "shared-api-daemon", "main"].map((dep) =>
         graph.waitForDeps(dep)

@@ -1,0 +1,8 @@
+/* styling for <directory-picker> */
+
+:host sl-tree-item.selected::part(label) {
+  background-color: var(--sl-color-primary-100);
+  outline: var(--sl-color-primary-500) ridge 2px;
+  border-radius: var(--sl-border-radius-medium);
+  transition: all 0.2s;
+}

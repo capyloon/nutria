@@ -148,13 +148,12 @@ export class ContainerRenderer extends LitElement {
     event.stopPropagation();
     event.preventDefault();
 
-    const { id } = node.dataset;
     // this.log(`toggleSelection for ${id}`);
     node.classList.toggle("selected");
     if (node.classList.contains("selected")) {
-      this.selected.add(id);
+      this.selected.add(node.dataset);
     } else {
-      this.selected.delete(id);
+      this.selected.delete(node.dataset);
     }
     this.selectedCount = this.selected.size;
   }
@@ -221,8 +220,8 @@ export class ContainerRenderer extends LitElement {
     // this.log(`deleteSelected`);
     let toDelete = [];
     let svc = await contentManager.getService();
-    for (let selected of this.selected) {
-      toDelete.push(svc.delete(selected));
+    for (let item of this.selected) {
+      toDelete.push(svc.delete(item.id));
     }
     await Promise.allSettled(toDelete);
     this.clearSelected();
@@ -235,7 +234,7 @@ export class ContainerRenderer extends LitElement {
       return;
     }
 
-    let resourceId = this.selected.values().next().value;
+    let resourceId = this.selected.values().next().value.id;
     /* TODO: use a different string for files vs. directories */
     let title = await document.l10n.formatValue("new-resource-name");
     let svc = await contentManager.getService();
@@ -244,6 +243,44 @@ export class ContainerRenderer extends LitElement {
     await svc.renameResource(resourceId, newName);
     this.clearSelected();
     await this.getItems();
+  }
+
+  async applyToSingleResourceWithDir(action, callback) {
+    // Bail out if called with multiple resources selected.
+    if (this.selectedCount != 1) {
+      return;
+    }
+
+    let { kind, id } = this.selected.values().next().value;
+    this.log(`Will ${action} ${kind} ${id}`);
+    if (kind !== "leaf") {
+      let title = await document.l10n.formatValue(`cant-${action}-directory`);
+      alert(title);
+      return;
+    }
+
+    await graph.waitForDeps("directory picker");
+    let picker = document.getElementById("directory-picker");
+    try {
+      let container = await picker.pick();
+      this.log(`About to ${action} to ${container}`);
+      let svc = await contentManager.getService();
+      await callback(svc, id, container);
+      this.clearSelected();
+      await this.getItems();
+    } catch (e) {}
+  }
+
+  async moveResource() {
+    await this.applyToSingleResourceWithDir("move", async (svc, id, container) => {
+      await svc.moveResource(id, container);
+    });
+  }
+
+  async copyResource() {
+    await this.applyToSingleResourceWithDir("copy", async (svc, id, container) => {
+      await svc.copyResource(id, container);
+    });
   }
 
   updated() {
@@ -264,12 +301,19 @@ export class ContainerRenderer extends LitElement {
         <sl-dropdown placement="top-end">
           <sl-icon slot="trigger" name="more-vertical"></sl-icon>
           <sl-menu>
-            <sl-menu-item data-l10n-id="menu-resource-move"></sl-menu-item>
+            <sl-menu-item
+              @click="${this.moveResource}"
+              data-l10n-id="menu-resource-move"
+            ></sl-menu-item>
+            <sl-menu-item
+              @click="${this.copyResource}"
+              data-l10n-id="menu-resource-copy"
+            ></sl-menu-item>
             <sl-menu-item
               @click="${this.renameResource}"
               data-l10n-id="menu-resource-rename"
             ></sl-menu-item>
-            <sl-menu-item data-l10n-id="menu-resource-details"></sl-menu-item>
+            <!-- <sl-menu-item data-l10n-id="menu-resource-details"></sl-menu-item> -->
           </sl-menu>
         </sl-dropdown>
       </div>`;
