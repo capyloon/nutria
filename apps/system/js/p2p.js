@@ -105,15 +105,24 @@ class P2pDiscovery {
           "p2p-connect-request-reject",
         ]);
 
-        let { button, rememberMe } = await dialog.open({
+        let hasRememberMe = !!contact;
+
+        let result = await dialog.open({
           title,
           text,
           buttons: [
             { id: "accept", label: accept, variant: "success" },
             { id: "reject", label: reject, variant: "danger" },
           ],
-          rememberMe: !!contact,
+          rememberMe: hasRememberMe,
         });
+
+        let rememberMe = false;
+        let button = result;
+        if (hasRememberMe) {
+          rememberMe = result.rememberMe;
+          button = result.button;
+        }
 
         if (rememberMe) {
           // Update the contact autoconnect state.
