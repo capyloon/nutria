@@ -147,6 +147,7 @@ class Apps extends Favorites {
     let node = document.createElement("div");
     node.setAttribute("tabindex", "0");
     node.classList.add("app");
+    // TODO: add encoded details.
     node.onclick = () => {
       window.open(content.url, "_blank");
     };

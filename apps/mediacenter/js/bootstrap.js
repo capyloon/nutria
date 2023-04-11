@@ -78,7 +78,7 @@ const gSearchPanel = new SearchPanel();
 
 // Helper to decide how to process an window.open url parameter.
 // Returns true if window.open() was called, false otherwise.
-function maybeOpenURL(url, search = null) {
+function maybeOpenURL(url, details = {}) {
   console.log(`maybeOpenURL ${url}`);
   if (!url || url.length == 0) {
     return false;
@@ -108,9 +108,6 @@ function maybeOpenURL(url, search = null) {
     url = `https://${url}`;
   }
 
-  let details = {
-    search,
-  };
   let encoded = encodeURIComponent(JSON.stringify(details));
   window.open(url, "_blank", `details=${encoded}`);
   console.log(`maybeOpenURL called window.open(...)`);
@@ -156,7 +153,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     searchBox.blur();
     if (!maybeOpenURL(input)) {
       // Keyword search, redirect to the current search engine.
-      maybeOpenURL(opensearchEngine.getSearchUrlFor(input), input);
+      maybeOpenURL(opensearchEngine.getSearchUrlFor(input), { search: input });
     }
   });
 

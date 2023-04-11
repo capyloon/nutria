@@ -36,8 +36,9 @@ class AppsSearch {
           let iconUrl = new URL(manifest.icons[0].src, manifestUrl);
           icon = iconUrl.href;
         }
+        let display = manifest.display || "browser";
         console.log(`AppsSearch::updateApps adding ${name} ${url}`);
-        this.apps.push({ name, desc, url, icon });
+        this.apps.push({ name, desc, url, icon, display });
       });
     } catch (e) {
       console.error(`AppsSearch::updateApps error: ${e}`);
@@ -46,7 +47,7 @@ class AppsSearch {
   }
 
   // Returns a Promise that resolves to a result set.
-  async search(what, count) {
+  search(what, count) {
     console.log(`AppsSearch::search ${what} in ${this.apps.length} apps`);
     let res = [];
     for (let i = 0; i < this.apps.length && res.length <= count; i++) {
@@ -82,6 +83,10 @@ class AppsSource extends SearchSource {
   }
 
   activate(result) {
-    maybeOpenURL(result.url.href);
+    maybeOpenURL(result.url.href, {
+      display: result.display,
+      icon: result.icon,
+      title: result.name,
+    });
   }
 }

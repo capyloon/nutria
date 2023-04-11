@@ -32,6 +32,7 @@ class ActionBookmark extends HTMLElement {
         title: data.title,
         icon: this.icon,
         backgroundColor: data.backgroundColor,
+        display: data.display || "browser",
       };
       let encoded = encodeURIComponent(JSON.stringify(details));
       window.open(data.url, "_blank", `details=${encoded}`);

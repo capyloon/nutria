@@ -12,7 +12,7 @@
   display: none;
 }
 
-:host(.ftu) {
+:host(.fullscreen) {
   display: none;
 }
 

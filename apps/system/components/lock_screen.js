@@ -182,9 +182,9 @@ class LockScreen extends HTMLElement {
       let statustop;
       if (options.ftu) {
         statusbar = document.getElementById("statusbar");
-        statusbar.classList.add("ftu");
+        statusbar.classList.add("fullscreen");
         statustop = document.getElementById("status-top");
-        statustop.classList.add("ftu");
+        statustop.classList.add("fullscreen");
       }
 
       // Call into the window manager to launch an app in lockscreen mode.
@@ -196,8 +196,8 @@ class LockScreen extends HTMLElement {
           window.wm.unlockSwipe();
           await this.lock();
           if (options.ftu) {
-            statusbar.classList.remove("ftu");
-            statustop.classList.remove("ftu");
+            statusbar.classList.remove("fullscreen");
+            statustop.classList.remove("fullscreen");
           }
           resolve();
         },

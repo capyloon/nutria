@@ -370,6 +370,7 @@ class ContentWindow extends HTMLElement {
     this.state.isHomescreen = config.isHomescreen;
     this.state.fromLockscreen = config.fromLockscreen;
     this.state.whenClosed = config.whenClosed;
+    this.state.display = config.details?.display;
     if (!config.isHomescreen) {
       this.classList.add("not-homescreen");
     }
@@ -564,6 +565,7 @@ class ContentWindow extends HTMLElement {
       }
 
       this.state.search = this.config.details.search;
+      this.state.display = this.config.details.display;
     }
 
     // If loading about:blank, no need for a loader.
@@ -620,8 +622,9 @@ class ContentWindow extends HTMLElement {
       this.keyboardOpen = false;
     };
 
-    this.navigateTo = (_name, { url, search }) => {
+    this.navigateTo = (_name, { url, display, search }) => {
       this.state.search = search;
+      this.state.display = display;
       this.webView.src = url;
     };
 

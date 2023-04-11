@@ -53,7 +53,7 @@ export class SearchPanel {
   }
 
   openURL(url, search) {
-    return maybeOpenURL(url, search);
+    return maybeOpenURL(url, { search });
   }
 
   clearAllResults() {

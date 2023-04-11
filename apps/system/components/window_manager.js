@@ -653,12 +653,12 @@ class WindowManager extends HTMLElement {
   }
 
   // Load a new homescreen url.
-  switchHome(url) {
+  switchHome(url, display) {
     if (!this.homescreenId) {
       return;
     }
 
-    this.frames[this.homescreenId].navigateTo("home", { url });
+    this.frames[this.homescreenId].navigateTo("home", { url, display });
   }
 
   homescreenFrame() {

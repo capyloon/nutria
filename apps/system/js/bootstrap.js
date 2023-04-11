@@ -65,29 +65,37 @@ class HomescreenManager {
     this.homescreenUrl = null;
   }
 
-  async url() {
+  async launchInfo() {
     if (!this.homescreenUrl) {
       await this.init();
     }
 
-    return this.homescreenUrl;
+    return { url: this.homescreenUrl, display: this.display };
+  }
+
+  async setInfo(manifestUrl) {
+    let port = window.config.isDevice ? "" : ":8081";
+    let url = new URL(manifestUrl.replace("$PORT", port));
+    // TODO: don't hardcode index.html as the starting url.
+    this.homescreenUrl = `${url.origin}/index.html`;
+
+    // Get the display mode from the manifest.
+    let response = await fetch(url);
+    let manifest = await response.json();
+    this.display = manifest.display || "browser";
   }
 
   async init() {
     let settings = await apiDaemon.getSettings();
     try {
       let result = await settings.get("homescreen.manifestUrl");
-      let port = window.config.isDevice ? "" : ":8081";
-      let url = new URL(result.value.replace("$PORT", port));
-      // TODO: don't hardcode index.html as the starting url.
-      this.homescreenUrl = `${url.origin}/index.html`;
+      await this.setInfo(result.value);
     } catch (e) {}
 
     settings.addObserver("homescreen.manifestUrl", async (setting) => {
-      let url = new URL(setting.value);
-      this.homescreenUrl = `${url.origin}/index.html`;
+      await this.setInfo(setting.value);
       // Load the new homescreen
-      window.wm.switchHome(this.homescreenUrl);
+      window.wm.switchHome(this.homescreenUrl, this.display);
     });
   }
 }
@@ -98,8 +106,8 @@ const customRunner = {
   homescreenLauncher: () => {
     return async () => {
       timingFromStart("wm.openFrame for homescreen");
-      let url = await homescreenManager.url();
-      window.wm.openFrame(url, { isHomescreen: true });
+      let { url, display } = await homescreenManager.launchInfo();
+      window.wm.openFrame(url, { isHomescreen: true, details: { display } });
       return Promise.resolve();
     };
   },

@@ -316,13 +316,27 @@ class StatusBar extends HTMLElement {
     return this.timeFormat.format(now);
   }
 
+  updateDisplayState(state) {
+    let display = state.display || "browser";
+    let statustop = document.getElementById("status-top");
+    if (display === "fullscreen") {
+      this.classList.add("fullscreen");
+      statustop.classList.add("fullscreen");
+    } else {
+      this.classList.remove("fullscreen");
+      statustop.classList.remove("fullscreen");
+    }
+  }
+
   updateHomescreenState(state) {
+    this.updateDisplayState(state);
     let left = this.getElem(".left-text");
     left.classList.remove("insecure");
     this.updateClock(true);
   }
 
   updateContentState(state) {
+    this.updateDisplayState(state);
     let left = this.getElem(".left-text");
     left.textContent = state.title || state.url;
 
