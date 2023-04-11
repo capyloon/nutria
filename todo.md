@@ -11,8 +11,7 @@ P1:
 - CI: docker images for daily builds
 - CI: better integration avec Estuary/web3.storage
 - Better generic VFS api.
-- cross device experience
-- permission prompts: tab modals + permissions in page-info
+- permission prompts: permissions in page-info
 - revamp website (eg. similar to https://regolith-linux.org/)
 - be in good standing in https://github.com/arthuredelstein/privacytests.org
 

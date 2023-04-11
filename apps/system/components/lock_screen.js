@@ -178,27 +178,15 @@ class LockScreen extends HTMLElement {
     return new Promise((resolve) => {
       this.temporaryUnlock();
 
-      let statusbar;
-      let statustop;
-      if (options.ftu) {
-        statusbar = document.getElementById("statusbar");
-        statusbar.classList.add("fullscreen");
-        statustop = document.getElementById("status-top");
-        statustop.classList.add("fullscreen");
-      }
-
       // Call into the window manager to launch an app in lockscreen mode.
       window.wm.openFrame(url, {
         activate: true,
         fromLockscreen: true,
         isFtu: options.ftu,
+        details: { display: options.ftu ? "fullscreen" : "browser" },
         whenClosed: async () => {
           window.wm.unlockSwipe();
           await this.lock();
-          if (options.ftu) {
-            statusbar.classList.remove("fullscreen");
-            statustop.classList.remove("fullscreen");
-          }
           resolve();
         },
       });
@@ -320,7 +308,7 @@ class LockScreen extends HTMLElement {
     // Force closing the virtual keyboard if it was opened.
     try {
       inputMethod.close();
-    } catch(e) {}
+    } catch (e) {}
 
     actionsDispatcher.dispatch("lockscreen-locked");
     this.reset();
