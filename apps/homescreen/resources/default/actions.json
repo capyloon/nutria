@@ -11,10 +11,10 @@
   {
     "id": "default-1",
     "kind": "bookmark",
-    "title": "Mastodon",
-    "url": "https://pinafore.social/",
-    "icon": "./resources/pinafore.png",
-    "backgroundColor": "#5263af",
+    "title": "Elk",
+    "url": "https://elk.zone/",
+    "icon": "./resources/elk.png",
+    "backgroundColor": "#111111",
     "position": "0, 1"
   },
   {
