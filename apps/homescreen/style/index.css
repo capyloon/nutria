@@ -94,7 +94,6 @@ body {
   color: lightgray;
   border-radius: 8px;
   padding: 0.5em;
-  font-family: var(--sl-font-sans);
 }
 
 /* Desktop mode */
@@ -116,6 +115,7 @@ body {
   border: none;
   color: white;
   outline: none;
+  font-family: var(--sl-font-sans);
 }
 
 #search-box {
