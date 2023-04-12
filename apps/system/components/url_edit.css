@@ -50,6 +50,7 @@
   border: none;
   outline: none;
   padding: 0.5em;
+  font-family: var(--sl-font-sans);
 }
 
 :host #results {
