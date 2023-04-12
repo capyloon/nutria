@@ -158,6 +158,10 @@ class P2pDiscovery {
         });
 
         if (result == "accept") {
+          // Rewrite ticket: urls to local dweb/$ticket ones.
+          if (url.startsWith("ticket:")) {
+            url = `http://localhost:${config.port}/dweb/${url.substring(7)}`;
+          }
           window.wm.openFrame(url, { activate: true });
         }
       }
