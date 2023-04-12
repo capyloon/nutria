@@ -38,8 +38,10 @@ const UAHelper = {
 };
 
 (async (exports) => {
+  // Keep in sync with dom/interfaces/base/nsIBrowserDOMWindow.idl
   const OPEN_ACTIVITYWINDOW = 16;
   const OPEN_ATTENTIONWINDOW = 17;
+  const OPEN_FULLSCREENWINDOW = 18;
 
   // Setup a promise that will resolve once we are done here.
   let defferedDone = null;
@@ -81,6 +83,8 @@ const UAHelper = {
         disposition = "inline";
       } else if (aWhere == OPEN_ATTENTIONWINDOW) {
         disposition = "attention";
+      } else if (aWhere == OPEN_FULLSCREENWINDOW) {
+        disposition = "fullscreen";
       }
 
       let webView = exports.wm.openFrame(aURI, {

@@ -426,6 +426,14 @@ class WindowManager extends HTMLElement {
 
     config.startUrl = url;
 
+    // Activities can use the "fullscreen" disposition to launch
+    // in fullscreen mode.
+    if (config.disposition === "fullscreen") {
+      let details = config.details || {};
+      details.display = "fullscreen";
+      config.details = details;
+    }
+
     if (config.isHomescreen) {
       this.homescreenId = attrId;
       config.disableContentBlocking = true;
@@ -634,7 +642,7 @@ class WindowManager extends HTMLElement {
   }
 
   goHome() {
-    if (this.homescreenId) {
+    if (this.homescreenId && this.activeFrame != this.homescreenId) {
       let activeFrame = this.frames[this.activeFrame];
       if (!activeFrame) {
         return;
