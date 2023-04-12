@@ -95,7 +95,7 @@ document.addEventListener(
 
     log(`Starting at ${document.location}`);
 
-    if (document.location.hash == "#root") {
+    if (document.location.hash == "") {
       document.querySelector("main-screen").openRoot();
     }
 
