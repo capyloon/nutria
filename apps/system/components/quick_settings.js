@@ -91,7 +91,7 @@ class QuickSettings extends HTMLElement {
 
   async initBrightness() {
     let slider = this.shadowRoot.querySelector("#brightness");
-    slider.addEventListener("sl-change", (event) => {
+    slider.addEventListener("sl-input", (event) => {
       // console.log(`Brightness changed to ${event.target.value}`);
       window.powerManager.service.brightness = event.target.value;
     });
