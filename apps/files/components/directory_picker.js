@@ -79,6 +79,7 @@ class DirectoryPicker extends LitElement {
             await this.addSubtree(treeItem, item.id);
           } catch (e) {}
           treeItem.lazy = false;
+          treeItem.loading = false;
         },
         { once: true }
       );
