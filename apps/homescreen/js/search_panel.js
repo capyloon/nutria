@@ -21,7 +21,8 @@ export class SearchPanel {
       new ContactsSource("contacts"),
       new AppsSource("apps"),
       new TopSitesSource("top-sites"),
-      new FendConverterSource("fend-converter"),
+      new SearchActivitySource("activities"),
+      // new FendConverterSource("fend-converter"),
       // new OpenSearchSource("suggestions"),
     ];
   }

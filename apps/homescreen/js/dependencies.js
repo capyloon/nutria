@@ -99,6 +99,7 @@ const kDeps = [
       "fend engine",
       "places engine",
       "media engine",
+      "search activity engine",
       "default results comp",
     ],
   },
@@ -136,6 +137,12 @@ const kDeps = [
     kind: "script",
     param: "js/search/top_sites.js",
     deps: ["search source", "top sites data"],
+  },
+  {
+    name: "search activity engine",
+    kind: "script",
+    param: "js/search/search_activity.js",
+    deps: ["search source"],
   },
   {
     name: "top sites data",

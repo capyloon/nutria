@@ -12,6 +12,7 @@ contacts-title = Contacts
 fend-converter-title = Universal Converter
 places-title = History
 media-title = Media
+activities-title = Miscellaneous
 
 # QR Code result dialog
 qr-dialog-title =

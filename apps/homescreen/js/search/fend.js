@@ -1,5 +1,5 @@
 // A search engine powered by https://github.com/printfn/fend
-// Currently using revision 106102dea7236e342fbf6a914e178db6f0b23c62
+// Currently using revision 685110de575f54a872a64a20b9a17abb1b4a457b
 //
 // Generate by running `wasm-pack build --release --no-typescript --target no-modules` in the
 // wasm directory and replacing wasm_bindgen with fend_wasm in fend_wasm.js
