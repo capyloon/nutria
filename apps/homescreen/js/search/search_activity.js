@@ -28,8 +28,39 @@ class SearchActivitySource extends SearchSource {
   }
 
   domForResult(result) {
-    let node = document.createElement("li");
-    node.textContent = result.text;
+    let node = document.createElement("div");
+    node.classList.add("skill");
+
+    let doc = document.createElement("span");
+    doc.classList.add("flex-fill");
+    doc.textContent = `→ ${result.text}`;
+    node.appendChild(doc);
+
+    let icons = document.createElement("div");
+    icons.classList.add("icons");
+    let clipboard = document.createElement("sl-icon");
+    clipboard.setAttribute("name", "clipboard");
+    icons.appendChild(clipboard);
+    node.appendChild(icons);
+
+    icons.addEventListener(
+      "click",
+      (event) => {
+        // Copy the result to the clipboard, and keep the search interface open.
+        event.preventDefault();
+        event.stopPropagation();
+        navigator.clipboard.writeText(result.text).then(
+          () => {},
+          (err) => {
+            console.error(
+              `Failure copying '${result}' to the clipboard: ${err}`
+            );
+          }
+        );
+      },
+      { once: true, capture: true }
+    );
+
     return node;
   }
 
