@@ -101,6 +101,11 @@ class ForkDialog {
       let apps = await appsManager.getAll();
       let list = this.dialog.querySelector("#fork-list");
       list.innerHTML = "";
+
+      let subtitle = document.createElement("small")
+      subtitle.dataset.l10nId = "fork-chooser-your-library";
+      list.append(subtitle);
+
       for (let app of apps) {
         let summary = await appsManager.getSummary(app);
         const isTile = summary.url?.startsWith("tile://");
@@ -118,6 +123,11 @@ class ForkDialog {
           list.append(option);
         }
       }
+
+      list.append(document.createElement("sl-divider"));
+      subtitle = document.createElement("small")
+      subtitle.dataset.l10nId = "fork-chooser-public-library";
+      list.append(subtitle);
 
       // Add entries from the Tiles repo
       let response = await fetch(
