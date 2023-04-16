@@ -114,3 +114,8 @@ div.text-editor {
   position: absolute;
   z-index: 100; /* required to show on top of the ACE UI */
 }
+
+#files,
+#main {
+  overflow-y: scroll;
+}
