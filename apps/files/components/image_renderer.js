@@ -58,6 +58,10 @@ export class ImageRenderer extends LitElement {
     await this.ensureModules();
   }
 
+  updateResource() {
+    this.src = this.src + `?r=${Math.random()}`;
+  }
+
   enterEditMode() {
     this.editMode = true;
   }
@@ -205,7 +209,9 @@ export class ImageRenderer extends LitElement {
         <div @click="${this.effects}">
           <sl-icon-button name="image"></sl-icon-button>
         </div>
-        <div @click="${this.undo}"><sl-icon-button name="undo"></sl-icon-button></div>
+        <div @click="${this.undo}">
+          <sl-icon-button name="undo"></sl-icon-button>
+        </div>
       </footer>
       <dialog>
         <ul>
@@ -219,7 +225,10 @@ export class ImageRenderer extends LitElement {
             </li>`;
           })}
         </ul>
-        <sl-button @click="${this.closeDialog}" data-l10n-id="close"></sl-button>
+        <sl-button
+          @click="${this.closeDialog}"
+          data-l10n-id="close"
+        ></sl-button>
       </dialog> `;
   }
 

@@ -142,7 +142,25 @@ class MainScreen extends LitElement {
     this.buildBreadCrumb(data.id);
   }
 
-  enterEditMode() {
+  async enterEditMode() {
+    // Trigger an activity to process the resource.
+    try {
+      let resource = await contentManager.resourceFromId(this.data.id);
+      let response = await fetch(resource.variantUrl());
+      let blob = await response.blob();
+
+      let suffix = blob.type.split("/")[0];
+      let activity = new WebActivity(`process-${suffix}`, { blob });
+      let result = await activity.start();
+      await resource.update(result);
+      // Update the rendered resource.
+      this.renderer?.updateResource();
+    } catch (e) {
+      console.error(`Error during resource edition: ${e}`);
+    }
+  }
+
+  enterEditMode_old() {
     this.log(`Entering edit mode`);
     // Use the history api to be able to exit edit mode by navigating back.
     history.pushState({ mode: "edit" }, "");
@@ -284,7 +302,7 @@ class MainScreen extends LitElement {
       // If we are asked a broadcastable resource, don't fetch the blob.
       if (this.filePickerBroadcast) {
         let ticket = await this.getBroadcastTicket();
-        this.filePicker.resolve({ticket, name: resource.meta.name });
+        this.filePicker.resolve({ ticket, name: resource.meta.name });
       } else {
         let response = await fetch(resource.variantUrl());
         let blob = await response.blob();
