@@ -928,8 +928,8 @@ class ContentWindow extends HTMLElement {
     );
   }
 
-  dispatchStateUpdate() {
-    if (!this.activated) {
+  dispatchStateUpdate(forced = false) {
+    if (!this.activated && !forced) {
       return;
     }
 

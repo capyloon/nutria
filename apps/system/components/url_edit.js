@@ -24,6 +24,18 @@ class UrlEdit extends LitElement {
       this.setUrl(url);
     });
 
+    actionsDispatcher.addListener("open-carousel", () => {
+      this.hide();
+    });
+
+    actionsDispatcher.addListener("go-home", () => {
+      this.hide();
+    });
+
+    actionsDispatcher.addListener("close-url-editor", () => {
+      this.hide();
+    });
+
     this.urlUpdated = false;
     this.url = null;
     this.results = null;

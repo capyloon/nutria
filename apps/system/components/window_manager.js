@@ -252,6 +252,9 @@ class WindowManager extends HTMLElement {
             foundExpected = true;
           }
           frame.activate();
+          if (this.activeFrame != frameId) {
+            actionsDispatcher.dispatch("close-url-editor");
+          }
           this.activeFrame = frameId;
         } else if (frame) {
           // The frame may have been removed if we just closed it.
@@ -632,6 +635,13 @@ class WindowManager extends HTMLElement {
     this.expectedActiveFrame = id;
   }
 
+  forceFrameStateUpdate(id) {
+    let frame = this.frames[id];
+    if (frame){
+      frame.dispatchStateUpdate(true);
+    }
+  }
+
   switchToWebView(webView) {
     for (let id in this.frames) {
       if (webView == this.frames[id].webView) {
@@ -894,6 +904,7 @@ class WindowManager extends HTMLElement {
           this.log(`Will switch to frame ${id}`);
           actionsDispatcher.dispatch("close-carousel");
           this.switchToFrame(id);
+          this.forceFrameStateUpdate(id);
         },
         { once: true }
       );
