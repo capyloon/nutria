@@ -119,7 +119,28 @@ export class TileHelper extends EventTarget {
     });
   }
 
+  async enterDevMode() {
+    let channel = new BroadcastChannel("tile-dev-channel");
+
+    // Make the BroadcastChannel looks like a webrtc DataChannel.
+    channel.send = (msg) => {
+      return channel.postMessage(msg);
+    };
+
+    // Dispatch the open event by default.
+    this.dispatchEvent(new CustomEvent("open", { detail: { channel } }));
+
+    channel.addEventListener("messageerror", () => {
+      this.dispatchEvent(new CustomEvent("error"));
+    });
+  }
+
   async onStart() {
+    if (location.protocol === "http:") {
+      this.enterDevMode();
+      return;
+    }
+
     let dweb = await window.apiDaemon.getDwebService();
 
     let session = await dweb.getSession(this.data.sessionId);
@@ -143,6 +164,11 @@ export class TileHelper extends EventTarget {
   }
 
   async onCalled() {
+    if (location.protocol === "http:") {
+      this.enterDevMode();
+      return;
+    }
+
     let webrtc = new Webrtc(this.data.peer);
     this.peer = this.data.peer;
     webrtc.setRemoteDescription(this.data.offer);
