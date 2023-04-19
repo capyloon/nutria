@@ -2,13 +2,10 @@
 
 :host {
   color: var(--sl-color-neutral-700);
-}
-
-:host .container {
   background-color: var(--sl-panel-background-color);
   padding: 0.5em;
   margin: 0.5em;
-  border-radius: var(--sl-border-radius-medium);
+  border-radius: var(--sl-border-radius-x-large);
   border-color: var(--sl-panel-border-color);
   border-width: var(--sl-panel-border-width);
   box-shadow: var(--sl-shadow-large);
@@ -17,7 +14,7 @@
   align-items: center;
 }
 
-:host .container div {
+:host div {
   display: flex;
   flex-direction: column;
   align-items: center;

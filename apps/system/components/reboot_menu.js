@@ -9,23 +9,20 @@ class RebootMenu extends HTMLElement {
     let shadow = this.attachShadow({ mode: "open" });
     shadow.innerHTML = `
     <link rel="stylesheet" href="components/reboot_menu.css">
-    <div class="container">
-      <div class="shutdown">
-        <sl-icon name="power"></sl-icon>
-        <span data-l10n-id="action-shutdown"></span>
-      </div>
-      <sl-divider></sl-divider>
-      <div class="reboot">
-        <sl-icon name="refresh-cw"></sl-icon>
-        <span data-l10n-id="action-reboot"></span>
-      </div>
-      <sl-divider></sl-divider>
-      <div class="screenshot">
-        <sl-icon name="smartphone"></sl-icon>
-        <span data-l10n-id="action-screenshot"></span>
-      </div>
+    <div class="shutdown">
+      <sl-icon name="power"></sl-icon>
+      <span data-l10n-id="action-shutdown"></span>
     </div>
-    `;
+    <sl-divider></sl-divider>
+    <div class="reboot">
+      <sl-icon name="refresh-cw"></sl-icon>
+      <span data-l10n-id="action-reboot"></span>
+    </div>
+    <sl-divider></sl-divider>
+    <div class="screenshot">
+      <sl-icon name="smartphone"></sl-icon>
+      <span data-l10n-id="action-screenshot"></span>
+    </div>`;
 
     shadow.querySelector(".shutdown").addEventListener("click", () => {
       this.close();
