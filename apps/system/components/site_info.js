@@ -128,26 +128,24 @@ class SiteInfo extends HTMLElement {
       }
     }
 
-    let item = this.tosdrData[domain];
-    if (!item) {
+    let itemId = this.tosdrData[domain];
+    if (!itemId) {
       // Look for a less specific subdomain.
       // For instance www.lemonde.fr is not in tosdr but lemonde.fr is.
       let parts = domain.split(".");
       do {
         parts.splice(0, 1);
-        item = this.tosdrData[parts.join(".")];
-      } while (!item && parts.length >= 2);
+        itemId = this.tosdrData[parts.join(".")];
+      } while (!itemId && parts.length >= 2);
     }
 
     this.tosdrImg.classList.remove("hidden");
-    this.tosdrImg.src = `https://shields.tosdr.org/${lang}_${
-      item ? item.id : 0
-    }.svg`;
+    this.tosdrImg.src = `https://shields.tosdr.org/${lang}_${itemId || 0}.svg`;
 
-    if (item) {
+    if (itemId) {
       this.tosdrImg.onclick = () => {
         this.close();
-        window.wm.openFrame(`https://tosdr.org/${lang}/service/${item.id}`, {
+        window.wm.openFrame(`https://tosdr.org/${lang}/service/${itemId}`, {
           activate: true,
         });
       };
