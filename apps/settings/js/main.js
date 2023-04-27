@@ -44,8 +44,6 @@ class PanelWrapper {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log(`Starting ftu`);
-
   await depGraphLoaded;
 
   graph = new ParallelGraphLoader(addSharedDeps(addShoelaceDeps(kDeps)));
