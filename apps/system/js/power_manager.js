@@ -44,8 +44,9 @@ class PowerManagerService {
     this.locked = false;
     this._ready = new Promise((resolve, reject) => {
       window.apiDaemon.getPowerManager().then(
-        (service) => {
+        async (service) => {
           this.service = service;
+          await this.initBrightness();
           resolve();
         },
         (error) => {
@@ -165,9 +166,19 @@ class PowerManagerService {
     });
   }
 
+  // Initializes the screen brightness setting for the service.
+  async initBrightness() {
+    this._settings = await apiDaemon.getSettings();
+    try {
+      const result = await this._settings.get("display.brightness");
+      this._currentBrighness = result.value;
+    } catch (e) {}
+  }
+
   set brightness(value) {
     if (this.service) {
       this.service.screenBrightness = value;
+      this._settings.set([{ name: "display.brightness", value }]);
     }
   }
 
