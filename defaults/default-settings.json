@@ -1,4 +1,5 @@
 {
+  "display.brightness": 80,
   "ums.enabled": false,
   "ums.volume.external.enabled": true,
   "ums.volume.extsdcard.enabled": true,
