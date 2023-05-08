@@ -377,7 +377,7 @@ class StatusBar extends HTMLElement {
     // If the app was opened from the lock screen, prevent access
     // to the quick settings.
     // Hitting "Home" closes the app instead of going to the home screen.
-    let moreElem = this.getElem(`sl-icon[name="more-vertical"]`);
+    let moreElem = this.getElem(`sl-badge`);
     let homeElem = this.getElem(`sl-icon[name="home"]`);
     if (state.fromLockscreen && homeElem.oncontextmenu) {
       moreElem.classList.add("hidden");
