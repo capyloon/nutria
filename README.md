@@ -61,22 +61,22 @@ SUBCOMMANDS:
 ```
 
 `jackady` also relies on some environment variables to be set to control its behavior:
-| Variable                 | Description                                                                                     | Default value                              |
+| Variable | Description | Default value |
 | ------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| NUTRIA_OUPUT_ROOT        | The path where build artefacts are created.                                                     | `./builder/output`                         |
-| NUTRIA_API_DAEMON_ROOT   | The path to a checkout of the [`api-daemon` crate](https://github.com/capyloon/api-daemon).     |                                            |
-| NUTRIA_API_DAEMON_BINARY | The path to the `api-daemon` executable built for the desktop platform.                         | `./prebuilts/${HOST_TARGET}/api-daemon`    |
-| NUTRIA_API_DAEMON_PORT   | The port on which the api-daemon should run.                                                    | 80 but needs to be set to 8081 on desktop. |
-| NUTRIA_APPS_ROOT         | The path to the apps directory.                                                                 | `./apps`                                   |
-| NUTRIA_APPSCMD_BINARY    | The path to the `appscmd` executable built for the target platform.                             | `./prebuilts/${HOST_TARGET}/appscmd`       |
-| NUTRIA_B2GHALD_BINARY    | The path to a taget version of the `b2ghald` executable. Only required for debian packaging.    |                                            |
-| NUTRIA_B2GHALCTL_BINARY  | The path to a target version of the `b2ghalctl` executable. Only required for debian packaging. |                                            |
-| NUTRIA_B2G_BINARY        | The path to the b2g binary used for running on desktop.                                         | `./b2g`                                    |
-| NUTRIA_B2G_PACKAGE       | The path to a b2g package that will be pushed to a device.                                      |                                            |
-| NUTRIA_PREBUILTS_JSON    | The path to a json file describing where to find prebuilts artifacts.                           |                                            |
-| NUTRIA_LINUX_USER        | The user name to use when connecting to a remote Linux device.                                  | mobian                                     |
-| NUTRIA_LINUX_HOST        | The hostname or ip of the remote Linux device                                                   | pinephone                                  |
-| NUTRIA_LINUX_DISABLED    | Set this variable to any value to disable detection of Linux devices.                           |                                            |
+| NUTRIA_OUPUT_ROOT | The path where build artefacts are created. | `./builder/output` |
+| NUTRIA_API_DAEMON_ROOT | The path to a checkout of the [`api-daemon` crate](https://github.com/capyloon/api-daemon). | |
+| NUTRIA_API_DAEMON_BINARY | The path to the `api-daemon` executable built for the desktop platform. | `./prebuilts/${HOST_TARGET}/api-daemon` |
+| NUTRIA_API_DAEMON_PORT | The port on which the api-daemon should run. | 80 but needs to be set to 8081 on desktop. |
+| NUTRIA_APPS_ROOT | The path to the apps directory. | `./apps` |
+| NUTRIA_APPSCMD_BINARY | The path to the `appscmd` executable built for the target platform. | `./prebuilts/${HOST_TARGET}/appscmd` |
+| NUTRIA_B2GHALD_BINARY | The path to a taget version of the `b2ghald` executable. Only required for debian packaging. | |
+| NUTRIA_B2GHALCTL_BINARY | The path to a target version of the `b2ghalctl` executable. Only required for debian packaging. | |
+| NUTRIA_B2G_BINARY | The path to the b2g binary used for running on desktop. | `./b2g` |
+| NUTRIA_B2G_PACKAGE | The path to a b2g package that will be pushed to a device. | |
+| NUTRIA_PREBUILTS_JSON | The path to a json file describing where to find prebuilts artifacts. | |
+| NUTRIA_LINUX_USER | The user name to use when connecting to a remote Linux device. | mobian |
+| NUTRIA_LINUX_HOST | The hostname or ip of the remote Linux device | pinephone |
+| NUTRIA_LINUX_DISABLED | Set this variable to any value to disable detection of Linux devices. | |
 
 ## The `clean` command
 
@@ -227,3 +227,72 @@ ARGS:
 OPTIONS:
     -h, --help    Print help information
 ```
+
+# Using custom prebuilt binaries and porting to a new target
+
+The `./jackady update-prebuilts` downloads and install a set of needed binaries:
+
+- `b2g`, the web runtime. Built from https://github.com/capyloon/gecko-b2g/tree/capyloon
+- `api-daemon`, a daemon used to expose non standard apis to web pages. Built from https://github.com/capyloon/gecko-b2g/tree/capyloon
+- `ipfsd`, the local IPFS node. Built from https://github.com/capyloon/beetle/tree/capyloon
+- `b2ghald`, a daemon to control some low level apis (eg. screen brightness) on Linux. Built from https://github.com/capyloon/b2ghald
+
+Prebuilts are currently provided for a number of architectures: `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, `x86_64-apple-darwin` and `aarch64-apple-darwin`.
+
+If you want to test a custom version of one of these binaries or build them for a different targets, you can follow similar steps as the shipped prebuilts that are all cross-compiled from a Ubuntu x86_64 host.
+
+## b2g
+
+You first need to create a `mozconfig` file with target specific changes. It is very likely that you can base yours on one of the existing mozconfig:
+
+- `mozconfig-b2g-mobian` targets `aarch64-unknown-linux-gnu` for PinePhone and Librem5.
+- `mozconfig-b2g-desktop` and `mozconfig-b2g-optdesktop` configure debug and release builds for `x86_64-unknown-linux-gnu`.
+- `mozconfig-darwin-*` are cross-compilation setup for MacOS.
+
+Here's an example shell script to drive a debug x86_64 build:
+
+```shell
+#!/bin/bash
+
+export MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE=none
+
+export PATH=$HOME/.mozbuild/clang/bin:$PATH
+
+export RUSTUP_TOOLCHAIN=stable
+
+export MOZCONFIG=./mozconfig-b2g-desktop
+export MOZ_OBJDIR=./obj-b2g-desktop/
+
+./mach build $1
+```
+
+This will provide a b2g binary in `${MOZ_OBJDIR}/dist/bin/b2g`.
+
+## api-daemon
+
+Check https://github.com/capyloon/api-daemon/blob/main/daily.sh to add a new target.
+
+The binary will be under ./target/$TARGET_TRIPLE/release/api-daemon
+
+## ipfsd
+
+Check https://github.com/capyloon/beetle/blob/capyloon/daily.sh to add a new target.
+
+The binary will be under ./target/$TARGET_TRIPLE/release/iroh-one
+
+## b2ghald (optional, even on Linux)
+
+Check https://github.com/capyloon/b2ghald/blob/main/daily.sh to add a new target.
+
+The binary will be under ./target/$TARGET_TRIPLE/release/b2ghald
+
+## Using the new binaries
+
+To use the new binaries, once you have run `./jackady update-prebuilts` you can edit the file `./prebuilts/env` and set the values of the following environement variable to match the paths to your binaries:
+
+- NUTRIA_B2G_BINARY
+- NUTRIA_API_DAEMON_BINARY
+- NUTRIA_IPFSD_BINARY
+- NUTRIA_B2GHALD_BINARY
+
+Happy hacking!
