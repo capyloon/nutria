@@ -127,8 +127,19 @@ export class TileHelper extends EventTarget {
       return channel.postMessage(msg);
     };
 
-    // Dispatch the open event by default.
-    this.dispatchEvent(new CustomEvent("open", { detail: { channel } }));
+    // Wait for a message to be received before sending the "open" event.
+    channel.addEventListener(
+      "message",
+      (event) => {
+        if (event.data == "ping") {
+          channel.postMessage("pong");
+        }
+        this.dispatchEvent(new CustomEvent("open", { detail: { channel } }));
+      },
+      { once: true }
+    );
+    // Give a chance to the other side to answer.
+    channel.postMessage("ping");
 
     channel.addEventListener("messageerror", () => {
       this.dispatchEvent(new CustomEvent("error"));
