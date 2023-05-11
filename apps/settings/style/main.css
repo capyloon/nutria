@@ -3,7 +3,7 @@ body {
   height: 100%;
   width: 100%;
   margin: 0;
-  padding: 1em;
+  padding: 0em;
 }
 
 body {
@@ -17,6 +17,11 @@ body.ready {
 
 * {
   box-sizing: border-box;
+}
+
+.intro {
+  padding-left: 1em;
+  padding-right: 1em;
 }
 
 .center {
