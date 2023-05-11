@@ -111,7 +111,7 @@ export class ContentManager extends EventTarget {
         if (mimeType === PLACES_MIME_TYPE) {
           kind = "link";
         } else if (mimeType === MEDIA_MIME_TYPE) {
-          kind = "video";
+          kind = "film";
         } else if (mimeType === CONTACTS_MIME_TYPE) {
           kind = "contact";
         } else if (
@@ -124,7 +124,7 @@ export class ContentManager extends EventTarget {
         } else if (mimeType.startsWith("audio/")) {
           kind = "music";
         } else if (mimeType.startsWith("video/")) {
-          kind = "video";
+          kind = "film";
         } else {
           console.log(`No specific icon for ${mimeType}`);
         }
