@@ -661,6 +661,11 @@ class ContentWindow extends HTMLElement {
       "supportedkeyschange",
     ].forEach((name) => {
       this.mediaController.addEventListener(name, async (event) => {
+        // For now, prevent media playing in Tiles from being indexed.
+        if (this.state.url.startsWith("tile://")) {
+          return;
+        }
+
         // console.log(
         //   `MediaController: ${event.type}, state=${
         //     this.mediaController.playbackState
