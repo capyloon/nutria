@@ -272,7 +272,7 @@ This will provide a b2g binary in `${MOZ_OBJDIR}/dist/bin/b2g`.
 
 Check https://github.com/capyloon/api-daemon/blob/main/daily.sh to add a new target.
 
-The binary will be under ./target/$TARGET_TRIPLE/release/daemon
+The binary will be under ./target/$TARGET_TRIPLE/release/api-daemon
 
 ## ipfsd
 
