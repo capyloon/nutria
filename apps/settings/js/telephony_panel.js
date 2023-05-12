@@ -142,6 +142,7 @@ class TelephonyPanel {
       let table = this.tables[name];
       let connInfo = conn[name];
       this.appendTo(table, "State", connInfo.state);
+      this.appendTo(table, "Connected", connInfo.connected);
       ["emergencyCallsOnly", "roaming", "type"].forEach((prop) => {
         this.appendTo(table, prop, connInfo[prop]);
       });
@@ -253,51 +254,56 @@ class TelephonyPanel {
     let autoNetworkSwitch = document.getElementById(
       "telephony-auto-network-switch"
     );
-    try {
-      autoNetworkSwitch.checked = this.conn.networkSelectionMode == "automatic";
-      this.log(`Network selection mode: ${this.conn.networkSelectionMode}`);
-      let networksSection = document.getElementById(
-        "telephony-manual-networks"
-      );
+
+    autoNetworkSwitch.checked = this.conn.networkSelectionMode == "automatic";
+    this.log(`Network selection mode: ${this.conn.networkSelectionMode}`);
+    let networksSection = document.getElementById("telephony-manual-networks");
+    if (autoNetworkSwitch.checked) {
+      console.log(`Will hide `, networksSection);
+      networksSection.classList.add("hidden");
+    } else {
+      networksSection.classList.remove("hidden");
+    }
+    autoNetworkSwitch.addEventListener("sl-change", () => {
+      this.log(`Automatic Network Selection: ${autoNetworkSwitch.checked}`);
       if (autoNetworkSwitch.checked) {
-        console.log(`Will hide `, networksSection);
+        // Hide the "Search Networks" section.
         networksSection.classList.add("hidden");
+        this.logDOMRequesterror(
+          this.conn.selectNetworkAutomatically(),
+          "selectNetworkAutomatically"
+        );
       } else {
+        // Display the "Search Networks" section.
         networksSection.classList.remove("hidden");
       }
-      autoNetworkSwitch.addEventListener("sl-change", () => {
-        this.log(`Automatic Network Selection: ${autoNetworkSwitch.checked}`);
-        if (autoNetworkSwitch.checked) {
-          // Hide the "Search Networks" section.
-          networksSection.classList.add("hidden");
-          this.logDOMRequesterror(
-            this.conn.selectNetworkAutomatically(),
-            "selectNetworkAutomatically"
-          );
-        } else {
-          // Display the "Search Networks" section.
-          networksSection.classList.remove("hidden");
-        }
-      });
+    });
 
-      this.networkList = document.getElementById("telephony-networks");
-      this.networkList.classList.add("hidden");
-      this.networks = [];
-      this.networkList.addEventListener("sl-change", () => {
-        let network = this.networks[this.networkList.value];
-        this.log(`Selecting network: ${network.longName}`);
-        this.logDOMRequesterror(
-          this.conn.selectNetwork(network),
-          "selectNetwork"
-        );
-      });
-      this.networkSearchButton = document.getElementById(
-        "telephony-search-network"
+    this.networkList = document.getElementById("telephony-networks");
+    this.networkList.classList.add("hidden");
+    this.networks = [];
+    this.networkList.addEventListener("sl-change", () => {
+      let network = this.networks[this.networkList.value];
+      this.log(`Selecting network: ${network.longName}`);
+      this.logDOMRequesterror(
+        this.conn.selectNetwork(network),
+        "selectNetwork"
       );
-      this.networkSearchButton.onclick = () => this.searchNetworks();
-    } catch (e) {
-      console.error(e);
-    }
+    });
+    this.networkSearchButton = document.getElementById(
+      "telephony-search-network"
+    );
+    this.networkSearchButton.onclick = () => this.searchNetworks();
+
+    // this.logDOMRequesterror(
+    //   this.conn.getPreferredNetworkType(),
+    //   "getPreferredNetworkType"
+    // );
+
+    // this.logDOMRequesterror(
+    //   this.conn.getSupportedNetworkTypes(),
+    //   "getSupportedNetworkTypes"
+    // );
 
     this.updateDetails();
 
