@@ -101,8 +101,8 @@ class TelephonyPanel {
   updateDetails() {
     this.log(`updateDetails`);
     let conn = this.conn;
-    for (let table of this.tables) {
-      table.innerHTML = "";
+    for (let table of Object.keys(this.tables)) {
+      this.tables[table].innerHTML = "";
     }
 
     let table = this.tables["summary"];
@@ -158,7 +158,7 @@ class TelephonyPanel {
       return;
     }
 
-    this.tables = [];
+    this.tables = {};
     this.tables["summary"] = document.getElementById("telephony-summary");
     this.tables["voice"] = document.getElementById("telephony-voice");
     this.tables["data"] = document.getElementById("telephony-data");
