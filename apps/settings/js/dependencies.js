@@ -148,7 +148,14 @@ const kDeps = [
   {
     name: "telephony-panel",
     kind: "virtual",
-    deps: ["shoelace-switch", "telephony-module"],
+    deps: [
+      "shoelace-switch",
+      "shoelace-button",
+      "shoelace-select",
+      "shoelace-option",
+      "shoelace-alert",
+      "telephony-module",
+    ],
   },
   { name: "display-module", kind: "module", param: "js/display_panel.js" },
   { name: "wifi-module", kind: "module", param: "js/wifi_panel.js" },

@@ -220,6 +220,15 @@ sl-input::part(password-toggle-button) {
   background-color: var(--sl-color-neutral-400);
 }
 
+#telephony-manual-networks {
+  display: flex;
+  gap: 0.5em;
+}
+
+#telephony-alert {
+  margin-top: 1em;
+}
+
 #systeminfo-panel sl-input {
   margin-bottom: 1em;
 }
@@ -236,7 +245,8 @@ sl-input::part(password-toggle-button) {
   color: var(--sl-color-danger-500);
 }
 
-#apps-panel .hidden {
+#apps-panel .hidden,
+#telephony-manual-networks.hidden {
   display: none;
 }
 

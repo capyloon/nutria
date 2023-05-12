@@ -106,6 +106,7 @@ telephony-title = Telephony
 telephony-status-enabled = Enabled
 telephony-status-disabled = Disabled
 telephony-data-enabled = Enable Mobile Data
+telephony-use-automatic-network = Automatic Network Selection
 telephony-summary = Summary
 telephony-voice = Voice
 telephony-data = Data

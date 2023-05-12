@@ -68,6 +68,8 @@ class TelephonyPanel {
       } catch (e) {
         this.error(`DataCall: Failed to set apn settings: ${e}`);
       }
+    } else {
+      this.error("No network!");
     }
   }
 
@@ -153,6 +155,53 @@ class TelephonyPanel {
     });
   }
 
+  searchNetworks() {
+    this.log(`Searching networks...`);
+    this.networkSearchButton.loading = true;
+    this.networkList.classList.add("hidden");
+    this.networks = [];
+
+    this.conn.getNetworks().then(
+      (networks) => {
+        this.networkSearchButton.loading = false;
+        console.log(networks);
+        this.networkList.innerHTML = "";
+        this.networkList.value = null;
+        networks.forEach((network, index) => {
+          let option = document.createElement("sl-option");
+          option.textContent = network.longName;
+          option.value = index;
+          this.networkList.append(option);
+        });
+        this.networks = networks;
+        this.networkList.classList.remove("hidden");
+      },
+      (error) => {
+        this.networkSearchButton.loading = false;
+        console.error(error);
+      }
+    );
+  }
+
+  logDOMRequesterror(request, msg) {
+    let alertBox = document.getElementById("telephony-alert");
+    alertBox.open = false;
+    request.then(
+      (result) => {
+        alertBox.setAttribute("variant", "success");
+        alertBox.textContent = `${msg} success: ${result}`;
+        alertBox.open = true;
+        this.error(`${msg} success: ${result}`);
+      },
+      (error) => {
+        alertBox.setAttribute("variant", "danger");
+        alertBox.textContent = `${msg} failed: ${error}`;
+        alertBox.open = true;
+        this.error(`${msg} failed: ${error}`);
+      }
+    );
+  }
+
   async init() {
     if (this.ready) {
       return;
@@ -200,6 +249,55 @@ class TelephonyPanel {
       this.log(`Changing radio state to ${onOffSwitch.checked}`);
       this.conn.setRadioEnabled(onOffSwitch.checked);
     });
+
+    let autoNetworkSwitch = document.getElementById(
+      "telephony-auto-network-switch"
+    );
+    try {
+      autoNetworkSwitch.checked = this.conn.networkSelectionMode == "automatic";
+      this.log(`Network selection mode: ${this.conn.networkSelectionMode}`);
+      let networksSection = document.getElementById(
+        "telephony-manual-networks"
+      );
+      if (autoNetworkSwitch.checked) {
+        console.log(`Will hide `, networksSection);
+        networksSection.classList.add("hidden");
+      } else {
+        networksSection.classList.remove("hidden");
+      }
+      autoNetworkSwitch.addEventListener("sl-change", () => {
+        this.log(`Automatic Network Selection: ${autoNetworkSwitch.checked}`);
+        if (autoNetworkSwitch.checked) {
+          // Hide the "Search Networks" section.
+          networksSection.classList.add("hidden");
+          this.logDOMRequesterror(
+            this.conn.selectNetworkAutomatically(),
+            "selectNetworkAutomatically"
+          );
+        } else {
+          // Display the "Search Networks" section.
+          networksSection.classList.remove("hidden");
+        }
+      });
+
+      this.networkList = document.getElementById("telephony-networks");
+      this.networkList.classList.add("hidden");
+      this.networks = [];
+      this.networkList.addEventListener("sl-change", () => {
+        let network = this.networks[this.networkList.value];
+        this.log(`Selecting network: ${network.longName}`);
+        this.logDOMRequesterror(
+          this.conn.selectNetwork(network),
+          "selectNetwork"
+        );
+      });
+      this.networkSearchButton = document.getElementById(
+        "telephony-search-network"
+      );
+      this.networkSearchButton.onclick = () => this.searchNetworks();
+    } catch (e) {
+      console.error(e);
+    }
 
     this.updateDetails();
 
