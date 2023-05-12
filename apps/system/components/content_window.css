@@ -41,19 +41,18 @@ content-window .inline-activity {
 
 content-window .inline-activity {
   padding: 2em;
-  background-color: transparent;
-  backdrop-filter: blur(10px);
-}
-
-content-window .inline-activity {
-  padding: 2em;
-  background-color: transparent;
+  /* TODO: switch background-color to 'unset' once
+     https://bugzilla.mozilla.org/show_bug.cgi?id=1773402 is fixed */
+  background-color: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
 }
 
 content-window .inline-activity content-window {
   width: 100%;
   height: 100%;
+  /* Shoelace border style */
+  border: solid var(--sl-panel-border-width) var(--sl-panel-border-color);
+  border-radius: var(--sl-border-radius-medium);
 }
 
 content-window .inline-activity sl-button {
