@@ -178,6 +178,7 @@ activity-scan-qr-code = Scan QR Code
 activity-view-resource = View File
 activity-publish-resource = Publish File
 activity-install-wasm-plugin = Install WASM plugin
+activity-process-image = Process image with…
 
 # Permissions prompt panel
 permissions-title = Permission Request
