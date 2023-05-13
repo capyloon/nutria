@@ -3,7 +3,7 @@
 
 const SYSTEM_MESSAGE_TYPES = ["activity"];
 
-const HAS_RETURN_VALUE_ACTIVITIES = [];
+const HAS_RETURN_VALUE_ACTIVITIES = ["install-tile"];
 
 let messageCache = [];
 self.addEventListener("install", (evt) => {

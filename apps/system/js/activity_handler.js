@@ -37,6 +37,12 @@ window.addEventListener("serviceworkermessage", ({ detail }) => {
       case "publish-to-ipfs":
         actionsDispatcher.dispatch("publish-to-ipfs", source.data);
         break;
+      case "install-tile":
+        console.log(`TILE: install-tile ${source.data.manifestUrl}`);
+        registerTile(source.data.manifestUrl).then((activityResult) => {
+          postActivityResult({ activityId, activityResult });
+        });
+        break;
       default:
         console.error(`Unexpected system app activity name: ${source.name}`);
         break;

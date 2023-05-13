@@ -81,7 +81,13 @@ const kDeps = [
     name: "p2p",
     kind: "script",
     param: ["./js/p2p.js"],
-    deps: ["api daemon core", "content manager"],
+    deps: ["api daemon core", "content manager", "tiles"],
+  },
+  {
+    name: "tiles",
+    kind: "script",
+    param: ["./js/tiles.js"],
+    deps: ["api daemon core"],
   },
   {
     name: "hide logo",

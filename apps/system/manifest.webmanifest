@@ -41,6 +41,12 @@
           "name": { "required": true }
         },
         "returnValue": false
+      },
+      "install-tile": {
+        "filters": {
+          "manifestUrl": { "required": true }
+        },
+        "returnValue": true
       }
     }
   },
