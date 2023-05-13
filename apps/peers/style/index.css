@@ -40,3 +40,9 @@ body {
 #peers-section sl-menu-item img {
   width: 2em;
 }
+
+h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90vw;
+}
