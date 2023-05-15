@@ -106,7 +106,12 @@ class SiteInfo extends HTMLElement {
   async updateTosdr() {
     this.tosdrImg.classList.add("hidden");
 
-    let url = new URL(this.state.url);
+    let url;
+    try {
+      url = new URL(this.state.url);
+    } catch (e) {
+      return;
+    }
     let domain = url.hostname;
 
     // For now, consider all local packaged apps as safe.
