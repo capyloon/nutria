@@ -1,14 +1,13 @@
 use crate::builder::{ConfigBuilder, WantsCipherSuites};
-use crate::conn::{CommonState, ConnectionCommon, Side, State};
+use crate::common_state::{CommonState, Context, Side, State};
+use crate::conn::{ConnectionCommon, ConnectionCore};
 use crate::enums::{CipherSuite, ProtocolVersion, SignatureScheme};
 use crate::error::Error;
 use crate::kx::SupportedKxGroup;
 #[cfg(feature = "logging")]
 use crate::log::trace;
-use crate::msgs::base::{Payload, PayloadU8};
-#[cfg(feature = "quic")]
-use crate::msgs::enums::AlertDescription;
-use crate::msgs::handshake::{ClientHelloPayload, ServerExtension};
+use crate::msgs::base::Payload;
+use crate::msgs::handshake::{ClientHelloPayload, ProtocolName, ServerExtension};
 use crate::msgs::message::Message;
 use crate::sign;
 use crate::suites::SupportedCipherSuite;
@@ -17,8 +16,6 @@ use crate::verify;
 #[cfg(feature = "secret_extraction")]
 use crate::ExtractedSecrets;
 use crate::KeyLog;
-#[cfg(feature = "quic")]
-use crate::{conn::Protocol, quic};
 
 use super::hs;
 
@@ -112,7 +109,7 @@ pub trait ResolvesServerCert: Send + Sync {
 pub struct ClientHello<'a> {
     server_name: &'a Option<webpki::DnsName>,
     signature_schemes: &'a [SignatureScheme],
-    alpn: Option<&'a Vec<PayloadU8>>,
+    alpn: Option<&'a Vec<ProtocolName>>,
     cipher_suites: &'a [CipherSuite],
 }
 
@@ -121,7 +118,7 @@ impl<'a> ClientHello<'a> {
     pub(super) fn new(
         server_name: &'a Option<webpki::DnsName>,
         signature_schemes: &'a [SignatureScheme],
-        alpn: Option<&'a Vec<PayloadU8>>,
+        alpn: Option<&'a Vec<ProtocolName>>,
         cipher_suites: &'a [CipherSuite],
     ) -> Self {
         trace!("sni {:?}", server_name);
@@ -174,7 +171,7 @@ impl<'a> ClientHello<'a> {
         self.alpn.map(|protocols| {
             protocols
                 .iter()
-                .map(|proto| proto.0.as_slice())
+                .map(|proto| proto.as_ref())
         })
     }
 
@@ -197,6 +194,7 @@ impl<'a> ClientHello<'a> {
 /// * [`ServerConfig::session_storage`]: the default stores 256 sessions in memory.
 /// * [`ServerConfig::alpn_protocols`]: the default is empty -- no ALPN protocol is negotiated.
 /// * [`ServerConfig::key_log`]: key material is not logged.
+/// * [`ServerConfig::send_tls13_tickets`]: 4 tickets are sent.
 #[derive(Clone)]
 pub struct ServerConfig {
     /// List of ciphersuites, in preference order.
@@ -249,6 +247,7 @@ pub struct ServerConfig {
     /// Allows traffic secrets to be extracted after the handshake,
     /// e.g. for kTLS setup.
     #[cfg(feature = "secret_extraction")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "secret_extraction")))]
     pub enable_secret_extraction: bool,
 
     /// Amount of early data to accept for sessions created by
@@ -284,6 +283,18 @@ pub struct ServerConfig {
     /// sent by the server comes after receiving and validating the client's
     /// handshake up to the `Finished` message.  This is the safest option.
     pub send_half_rtt_data: bool,
+
+    /// How many TLS1.3 tickets to send immediately after a successful
+    /// handshake.
+    ///
+    /// Because TLS1.3 tickets are single-use, this allows
+    /// a client to perform multiple resumptions.
+    ///
+    /// The default is 4.
+    ///
+    /// If this is 0, no tickets are sent and clients will not be able to
+    /// do any resumption.
+    pub send_tls13_tickets: usize,
 }
 
 impl fmt::Debug for ServerConfig {
@@ -294,6 +305,7 @@ impl fmt::Debug for ServerConfig {
             .field("alpn_protocols", &self.alpn_protocols)
             .field("max_early_data_size", &self.max_early_data_size)
             .field("send_half_rtt_data", &self.send_half_rtt_data)
+            .field("send_tls13_tickets", &self.send_tls13_tickets)
             .finish_non_exhaustive()
     }
 }
@@ -309,11 +321,10 @@ impl ServerConfig {
         }
     }
 
-    #[doc(hidden)]
     /// We support a given TLS version if it's quoted in the configured
     /// versions *and* at least one ciphersuite for this version is
     /// also configured.
-    pub fn supports_version(&self, v: ProtocolVersion) -> bool {
+    pub(crate) fn supports_version(&self, v: ProtocolVersion) -> bool {
         self.versions.contains(v)
             && self
                 .cipher_suites
@@ -360,46 +371,28 @@ impl ServerConnection {
     /// Make a new ServerConnection.  `config` controls how
     /// we behave in the TLS protocol.
     pub fn new(config: Arc<ServerConfig>) -> Result<Self, Error> {
-        Self::from_config(config, vec![])
-    }
-
-    fn from_config(
-        config: Arc<ServerConfig>,
-        extra_exts: Vec<ServerExtension>,
-    ) -> Result<Self, Error> {
-        let mut common = CommonState::new(Side::Server);
-        common.set_max_fragment_size(config.max_fragment_size)?;
-        #[cfg(feature = "secret_extraction")]
-        {
-            common.enable_secret_extraction = config.enable_secret_extraction;
-        }
         Ok(Self {
-            inner: ConnectionCommon::new(
-                Box::new(hs::ExpectClientHello::new(config, extra_exts)),
-                ServerConnectionData::default(),
-                common,
-            ),
+            inner: ConnectionCommon::from(ConnectionCore::for_server(config, Vec::new())?),
         })
     }
 
-    /// Retrieves the SNI hostname, if any, used to select the certificate and
+    /// Retrieves the server name, if any, used to select the certificate and
     /// private key.
     ///
-    /// This returns `None` until some time after the client's SNI extension
-    /// value is processed during the handshake. It will never be `None` when
-    /// the connection is ready to send or process application data, unless the
-    /// client does not support SNI.
+    /// This returns `None` until some time after the client's server name indication
+    /// (SNI) extension value is processed during the handshake. It will never be
+    /// `None` when the connection is ready to send or process application data,
+    /// unless the client does not support SNI.
     ///
     /// This is useful for application protocols that need to enforce that the
-    /// SNI hostname matches an application layer protocol hostname. For
+    /// server name matches an application layer protocol hostname. For
     /// example, HTTP/1.1 servers commonly expect the `Host:` header field of
     /// every request on a connection to match the hostname in the SNI extension
     /// when the client provides the SNI extension.
     ///
-    /// The SNI hostname is also used to match sessions during session
-    /// resumption.
-    pub fn sni_hostname(&self) -> Option<&str> {
-        self.inner.data.get_sni_str()
+    /// The server name is also used to match sessions during session resumption.
+    pub fn server_name(&self) -> Option<&str> {
+        self.inner.core.get_sni_str()
     }
 
     /// Application-controlled portion of the resumption ticket supplied by the client, if any.
@@ -409,6 +402,7 @@ impl ServerConnection {
     /// Returns `Some` iff a valid resumption ticket has been received from the client.
     pub fn received_resumption_data(&self) -> Option<&[u8]> {
         self.inner
+            .core
             .data
             .received_resumption_data
             .as_ref()
@@ -425,7 +419,7 @@ impl ServerConnection {
     /// from the client is desired, encrypt the data separately.
     pub fn set_resumption_data(&mut self, data: &[u8]) {
         assert!(data.len() < 2usize.pow(15));
-        self.inner.data.resumption_data = data.into();
+        self.inner.core.data.resumption_data = data.into();
     }
 
     /// Explicitly discard early data, notifying the client
@@ -434,11 +428,7 @@ impl ServerConnection {
     ///
     /// Must be called while `is_handshaking` is true.
     pub fn reject_early_data(&mut self) {
-        assert!(
-            self.is_handshaking(),
-            "cannot retroactively reject early data"
-        );
-        self.inner.data.early_data.reject();
+        self.inner.core.reject_early_data()
     }
 
     /// Returns an `io::Read` implementer you can read bytes from that are
@@ -452,13 +442,9 @@ impl ServerConnection {
     /// - The connection doesn't resume an existing session.
     /// - The client hasn't sent a full ClientHello yet.
     pub fn early_data(&mut self) -> Option<ReadEarlyData> {
-        if self
-            .inner
-            .data
-            .early_data
-            .was_accepted()
-        {
-            Some(ReadEarlyData::new(&mut self.inner.data.early_data))
+        let data = &mut self.inner.core.data;
+        if data.early_data.was_accepted() {
+            Some(ReadEarlyData::new(&mut data.early_data))
         } else {
             None
         }
@@ -466,6 +452,7 @@ impl ServerConnection {
 
     /// Extract secrets, so they can be used when configuring kTLS, for example.
     #[cfg(feature = "secret_extraction")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "secret_extraction")))]
     pub fn extract_secrets(self) -> Result<ExtractedSecrets, Error> {
         self.inner.extract_secrets()
     }
@@ -500,47 +487,69 @@ impl From<ServerConnection> for crate::Connection {
 
 /// Handle on a server-side connection before configuration is available.
 ///
-/// The `Acceptor` allows the caller to provide a [`ServerConfig`] based on the [`ClientHello`] of
-/// the incoming connection.
+/// `Acceptor` allows the caller to choose a [`ServerConfig`] after reading
+/// the [`ClientHello`] of an incoming connection. This is useful for servers
+/// that choose different certificates or cipher suites based on the
+/// characteristics of the `ClientHello`. In particular it is useful for
+/// servers that need to do some I/O to load a certificate and its private key
+/// and don't want to use the blocking interface provided by
+/// [`ResolvesServerCert`].
+///
+/// Create an Acceptor with [`Acceptor::default()`].
+///
+/// # Example
+///
+/// ```no_run
+/// # fn choose_server_config(
+/// #     _: rustls::server::ClientHello,
+/// # ) -> std::sync::Arc<rustls::ServerConfig> {
+/// #     unimplemented!();
+/// # }
+/// # #[allow(unused_variables)]
+/// # fn main() {
+/// use rustls::server::{Acceptor, ServerConfig};
+/// let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+/// for stream in listener.incoming() {
+///     let mut stream = stream.unwrap();
+///     let mut acceptor = Acceptor::default();
+///     let accepted = loop {
+///         acceptor.read_tls(&mut stream).unwrap();
+///         if let Some(accepted) = acceptor.accept().unwrap() {
+///             break accepted;
+///         }
+///     };
+///
+///     // For some user-defined choose_server_config:
+///     let config = choose_server_config(accepted.client_hello());
+///     let conn = accepted
+///         .into_connection(config)
+///         .unwrap();
+
+///     // Proceed with handling the ServerConnection.
+/// }
+/// # }
+//// ```
 pub struct Acceptor {
     inner: Option<ConnectionCommon<ServerConnectionData>>,
 }
 
 impl Default for Acceptor {
+    /// Return an empty Acceptor, ready to receive bytes from a new client connection.
     fn default() -> Self {
         Self {
-            inner: Some(ConnectionCommon::new(
-                Box::new(Accepting),
-                ServerConnectionData::default(),
-                CommonState::new(Side::Server),
-            )),
+            inner: Some(
+                ConnectionCore::new(
+                    Box::new(Accepting),
+                    ServerConnectionData::default(),
+                    CommonState::new(Side::Server),
+                )
+                .into(),
+            ),
         }
     }
 }
 
 impl Acceptor {
-    /// Create a new `Acceptor`.
-    #[deprecated(
-        since = "0.20.7",
-        note = "Use Acceptor::default instead for an infallible constructor"
-    )]
-    pub fn new() -> Result<Self, Error> {
-        Ok(Self::default())
-    }
-
-    /// Returns true if the caller should call [`Connection::read_tls()`] as soon as possible.
-    ///
-    /// Since the purpose of an Acceptor is to read and then parse TLS bytes, this always returns true.
-    ///
-    /// [`Connection::read_tls()`]: crate::Connection::read_tls
-    #[deprecated(since = "0.20.7", note = "Always returns true")]
-    pub fn wants_read(&self) -> bool {
-        self.inner
-            .as_ref()
-            .map(|conn| conn.common_state.wants_read())
-            .unwrap_or(false)
-    }
-
     /// Read TLS content from `rd`.
     ///
     /// Returns an error if this `Acceptor` has already yielded an [`Accepted`]. For more details,
@@ -582,12 +591,8 @@ impl Acceptor {
             }
         };
 
-        let (_, sig_schemes) = hs::process_client_hello(
-            &message,
-            false,
-            &mut connection.common_state,
-            &mut connection.data,
-        )?;
+        let (_, sig_schemes) =
+            hs::process_client_hello(&message, false, &mut Context::from(&mut connection))?;
 
         Ok(Some(Accepted {
             connection,
@@ -611,7 +616,7 @@ impl Accepted {
     pub fn client_hello(&self) -> ClientHello<'_> {
         let payload = Self::client_hello_payload(&self.message);
         ClientHello::new(
-            &self.connection.data.sni,
+            &self.connection.core.data.sni,
             &self.sig_schemes,
             payload.get_alpn_extension(),
             &payload.cipher_suites,
@@ -625,21 +630,15 @@ impl Accepted {
     /// configuration-dependent validation of the received `ClientHello` message fails.
     pub fn into_connection(mut self, config: Arc<ServerConfig>) -> Result<ServerConnection, Error> {
         self.connection
-            .common_state
             .set_max_fragment_size(config.max_fragment_size)?;
 
         #[cfg(feature = "secret_extraction")]
         {
-            self.connection
-                .common_state
-                .enable_secret_extraction = config.enable_secret_extraction;
+            self.connection.enable_secret_extraction = config.enable_secret_extraction;
         }
 
         let state = hs::ExpectClientHello::new(config, Vec::new());
-        let mut cx = hs::ServerContext {
-            common: &mut self.connection.common_state,
-            data: &mut self.connection.data,
-        };
+        let mut cx = hs::ServerContext::from(&mut self.connection);
 
         let new = state.with_certified_key(
             self.sig_schemes,
@@ -756,6 +755,37 @@ fn test_read_buf_in_new_state() {
     );
 }
 
+impl ConnectionCore<ServerConnectionData> {
+    pub(crate) fn for_server(
+        config: Arc<ServerConfig>,
+        extra_exts: Vec<ServerExtension>,
+    ) -> Result<Self, Error> {
+        let mut common = CommonState::new(Side::Server);
+        common.set_max_fragment_size(config.max_fragment_size)?;
+        #[cfg(feature = "secret_extraction")]
+        {
+            common.enable_secret_extraction = config.enable_secret_extraction;
+        }
+        Ok(Self::new(
+            Box::new(hs::ExpectClientHello::new(config, extra_exts)),
+            ServerConnectionData::default(),
+            common,
+        ))
+    }
+
+    pub(crate) fn reject_early_data(&mut self) {
+        assert!(
+            self.common_state.is_handshaking(),
+            "cannot retroactively reject early data"
+        );
+        self.data.early_data.reject();
+    }
+
+    pub(crate) fn get_sni_str(&self) -> Option<&str> {
+        self.data.get_sni_str()
+    }
+}
+
 /// State associated with a server connection.
 #[derive(Default)]
 pub struct ServerConnectionData {
@@ -772,78 +802,3 @@ impl ServerConnectionData {
 }
 
 impl crate::conn::SideData for ServerConnectionData {}
-
-#[cfg(feature = "quic")]
-impl quic::QuicExt for ServerConnection {
-    fn quic_transport_parameters(&self) -> Option<&[u8]> {
-        self.inner
-            .common_state
-            .quic
-            .params
-            .as_ref()
-            .map(|v| v.as_ref())
-    }
-
-    fn zero_rtt_keys(&self) -> Option<quic::DirectionalKeys> {
-        Some(quic::DirectionalKeys::new(
-            self.inner
-                .common_state
-                .suite
-                .and_then(|suite| suite.tls13())?,
-            self.inner
-                .common_state
-                .quic
-                .early_secret
-                .as_ref()?,
-        ))
-    }
-
-    fn read_hs(&mut self, plaintext: &[u8]) -> Result<(), Error> {
-        self.inner.read_quic_hs(plaintext)
-    }
-
-    fn write_hs(&mut self, buf: &mut Vec<u8>) -> Option<quic::KeyChange> {
-        quic::write_hs(&mut self.inner.common_state, buf)
-    }
-
-    fn alert(&self) -> Option<AlertDescription> {
-        self.inner.common_state.quic.alert
-    }
-}
-
-/// Methods specific to QUIC server sessions
-#[cfg(feature = "quic")]
-#[cfg_attr(docsrs, doc(cfg(feature = "quic")))]
-pub trait ServerQuicExt {
-    /// Make a new QUIC ServerConnection. This differs from `ServerConnection::new()`
-    /// in that it takes an extra argument, `params`, which contains the
-    /// TLS-encoded transport parameters to send.
-    fn new_quic(
-        config: Arc<ServerConfig>,
-        quic_version: quic::Version,
-        params: Vec<u8>,
-    ) -> Result<ServerConnection, Error> {
-        if !config.supports_version(ProtocolVersion::TLSv1_3) {
-            return Err(Error::General(
-                "TLS 1.3 support is required for QUIC".into(),
-            ));
-        }
-
-        if config.max_early_data_size != 0 && config.max_early_data_size != 0xffff_ffff {
-            return Err(Error::General(
-                "QUIC sessions must set a max early data of 0 or 2^32-1".into(),
-            ));
-        }
-
-        let ext = match quic_version {
-            quic::Version::V1Draft => ServerExtension::TransportParametersDraft(params),
-            quic::Version::V1 => ServerExtension::TransportParameters(params),
-        };
-        let mut new = ServerConnection::from_config(config, vec![ext])?;
-        new.inner.common_state.protocol = Protocol::Quic;
-        Ok(new)
-    }
-}
-
-#[cfg(feature = "quic")]
-impl ServerQuicExt for ServerConnection {}

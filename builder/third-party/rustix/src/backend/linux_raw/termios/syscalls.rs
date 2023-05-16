@@ -42,6 +42,30 @@ pub(crate) fn tcgetattr(fd: BorrowedFd<'_>) -> io::Result<Termios> {
 }
 
 #[inline]
+#[cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "x32",
+    target_arch = "riscv64",
+    target_arch = "aarch64",
+    target_arch = "arm",
+    target_arch = "mips",
+    target_arch = "mips64",
+))]
+pub(crate) fn tcgetattr2(fd: BorrowedFd<'_>) -> io::Result<crate::termios::Termios2> {
+    unsafe {
+        let mut result = MaybeUninit::<crate::termios::Termios2>::uninit();
+        ret(syscall!(
+            __NR_ioctl,
+            fd,
+            c_uint(linux_raw_sys::ioctl::TCGETS2),
+            &mut result
+        ))?;
+        Ok(result.assume_init())
+    }
+}
+
+#[inline]
 pub(crate) fn tcgetpgrp(fd: BorrowedFd<'_>) -> io::Result<Pid> {
     unsafe {
         let mut result = MaybeUninit::<__kernel_pid_t>::uninit();
@@ -72,6 +96,32 @@ pub(crate) fn tcsetattr(
             __NR_ioctl,
             fd,
             c_uint(request as u32),
+            by_ref(termios)
+        ))
+    }
+}
+
+#[inline]
+#[cfg(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "x32",
+    target_arch = "riscv64",
+    target_arch = "aarch64",
+    target_arch = "arm",
+    target_arch = "mips",
+    target_arch = "mips64",
+))]
+pub(crate) fn tcsetattr2(
+    fd: BorrowedFd,
+    optional_actions: OptionalActions,
+    termios: &crate::termios::Termios2,
+) -> io::Result<()> {
+    unsafe {
+        ret(syscall_readonly!(
+            __NR_ioctl,
+            fd,
+            c_uint(linux_raw_sys::ioctl::TCSETS2 + optional_actions as u32),
             by_ref(termios)
         ))
     }
@@ -157,9 +207,9 @@ pub(crate) fn cfgetispeed(termios: &Termios) -> u32 {
 
 #[inline]
 pub(crate) fn cfmakeraw(termios: &mut Termios) {
-    // From the Linux [`cfmakeraw` man page]:
+    // From the Linux [`cfmakeraw` manual page]:
     //
-    // [`cfmakeraw` man page]: https://man7.org/linux/man-pages/man3/cfmakeraw.3.html
+    // [`cfmakeraw` manual page]: https://man7.org/linux/man-pages/man3/cfmakeraw.3.html
     termios.c_iflag &= !(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
     termios.c_oflag &= !OPOST;
     termios.c_lflag &= !(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
@@ -219,7 +269,7 @@ pub(crate) fn ttyname(fd: BorrowedFd<'_>, buf: &mut [u8]) -> io::Result<usize> {
 
     // Quick check: if `fd` isn't a character device, it's not a tty.
     if FileType::from_raw_mode(fd_stat.st_mode) != FileType::CharacterDevice {
-        return Err(crate::io::Errno::NOTTY);
+        return Err(io::Errno::NOTTY);
     }
 
     // Check that `fd` is really a tty.
@@ -245,7 +295,7 @@ pub(crate) fn ttyname(fd: BorrowedFd<'_>, buf: &mut [u8]) -> io::Result<usize> {
 
     let path_stat = super::super::fs::syscalls::stat(path)?;
     if path_stat.st_dev != fd_stat.st_dev || path_stat.st_ino != fd_stat.st_ino {
-        return Err(crate::io::Errno::NODEV);
+        return Err(io::Errno::NODEV);
     }
 
     Ok(r)

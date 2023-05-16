@@ -10,19 +10,40 @@ use crate::fd::BorrowedFd;
 #[cfg(feature = "procfs")]
 #[cfg(not(any(target_os = "fuchsia", target_os = "wasi")))]
 use crate::ffi::CStr;
-#[cfg(not(target_os = "wasi"))]
-use crate::io;
-#[cfg(not(target_os = "wasi"))]
-use crate::process::{Pid, RawNonZeroPid};
-#[cfg(not(target_os = "wasi"))]
-use crate::termios::{Action, OptionalActions, QueueSelector, Speed, Termios, Winsize};
 use core::mem::MaybeUninit;
+#[cfg(not(target_os = "wasi"))]
+use {
+    crate::io,
+    crate::process::{Pid, RawNonZeroPid},
+    crate::termios::{Action, OptionalActions, QueueSelector, Speed, Termios, Winsize},
+};
 
 #[cfg(not(target_os = "wasi"))]
 pub(crate) fn tcgetattr(fd: BorrowedFd<'_>) -> io::Result<Termios> {
     let mut result = MaybeUninit::<Termios>::uninit();
     unsafe {
         ret(c::tcgetattr(borrowed_fd(fd), result.as_mut_ptr()))?;
+        Ok(result.assume_init())
+    }
+}
+
+#[cfg(all(
+    any(target_os = "android", target_os = "linux"),
+    any(
+        target_arch = "x86",
+        target_arch = "x86_64",
+        target_arch = "x32",
+        target_arch = "riscv64",
+        target_arch = "aarch64",
+        target_arch = "arm",
+        target_arch = "mips",
+        target_arch = "mips64",
+    )
+))]
+pub(crate) fn tcgetattr2(fd: BorrowedFd<'_>) -> io::Result<crate::termios::Termios2> {
+    let mut result = MaybeUninit::<crate::termios::Termios2>::uninit();
+    unsafe {
+        ret(c::ioctl(borrowed_fd(fd), c::TCGETS2, result.as_mut_ptr()))?;
         Ok(result.assume_init())
     }
 }
@@ -51,6 +72,33 @@ pub(crate) fn tcsetattr(
         ret(c::tcsetattr(
             borrowed_fd(fd),
             optional_actions as _,
+            termios,
+        ))
+    }
+}
+
+#[cfg(all(
+    any(target_os = "android", target_os = "linux"),
+    any(
+        target_arch = "x86",
+        target_arch = "x86_64",
+        target_arch = "x32",
+        target_arch = "riscv64",
+        target_arch = "aarch64",
+        target_arch = "arm",
+        target_arch = "mips",
+        target_arch = "mips64",
+    )
+))]
+pub(crate) fn tcsetattr2(
+    fd: BorrowedFd,
+    optional_actions: OptionalActions,
+    termios: &crate::termios::Termios2,
+) -> io::Result<()> {
+    unsafe {
+        ret(c::ioctl(
+            borrowed_fd(fd),
+            (c::TCSETS2 as u32 + optional_actions as u32) as _,
             termios,
         ))
     }
@@ -145,8 +193,8 @@ pub(crate) fn isatty(fd: BorrowedFd<'_>) -> bool {
     // Use the return value of `isatty` alone. We don't check `errno` because
     // we return `bool` rather than `io::Result<bool>`, because we assume
     // `BorrrowedFd` protects us from `EBADF`, and any other reasonably
-    // anticipated errno value would end up interpreted as "assume it's not a
-    // terminal" anyway.
+    // anticipated `errno` value would end up interpreted as “assume it's not a
+    // terminal” anyway.
     unsafe { c::isatty(borrowed_fd(fd)) != 0 }
 }
 

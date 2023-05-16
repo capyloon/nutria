@@ -10,9 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
+edition = "2021"
+rust-version = "1.57"
 name = "hyper-rustls"
-version = "0.23.2"
+version = "0.24.0"
 description = "Rustls+hyper integration for pure rust HTTPS"
 homepage = "https://github.com/ctz/hyper-rustls"
 readme = "README.md"
@@ -52,7 +53,7 @@ version = "0.4.4"
 optional = true
 
 [dependencies.rustls]
-version = "0.20.1"
+version = "0.21.0"
 default-features = false
 
 [dependencies.rustls-native-certs]
@@ -63,11 +64,11 @@ optional = true
 version = "1.0"
 
 [dependencies.tokio-rustls]
-version = "0.23"
+version = "0.24.0"
 default-features = false
 
 [dependencies.webpki-roots]
-version = "0.22"
+version = "0.23"
 optional = true
 
 [dev-dependencies.futures-util]
@@ -79,7 +80,7 @@ version = "0.14"
 features = ["full"]
 
 [dev-dependencies.rustls]
-version = "0.20.1"
+version = "0.21.0"
 features = ["tls12"]
 default-features = false
 

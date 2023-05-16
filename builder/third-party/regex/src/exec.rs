@@ -4,9 +4,9 @@ use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
 #[cfg(feature = "perf-literal")]
-use aho_corasick::{AhoCorasick, AhoCorasickBuilder, MatchKind};
-use regex_syntax::hir::literal::Literals;
-use regex_syntax::hir::Hir;
+use aho_corasick::{AhoCorasick, MatchKind};
+use regex_syntax::hir::literal;
+use regex_syntax::hir::{Hir, Look};
 use regex_syntax::ParserBuilder;
 
 use crate::backtrack;
@@ -78,15 +78,18 @@ struct ExecReadOnly {
     /// not supported.) Note that this program contains an embedded `.*?`
     /// preceding the first capture group, unless the regex is anchored at the
     /// beginning.
+    #[allow(dead_code)]
     dfa: Program,
     /// The same as above, except the program is reversed (and there is no
     /// preceding `.*?`). This is used by the DFA to find the starting location
     /// of matches.
+    #[allow(dead_code)]
     dfa_reverse: Program,
     /// A set of suffix literals extracted from the regex.
     ///
     /// Prefix literals are stored on the `Program`, since they are used inside
     /// the matching engines.
+    #[allow(dead_code)]
     suffixes: LiteralSearcher,
     /// An Aho-Corasick automaton with leftmost-first match semantics.
     ///
@@ -98,7 +101,7 @@ struct ExecReadOnly {
     /// if we were to exhaust the ID space, we probably would have long
     /// surpassed the compilation size limit.
     #[cfg(feature = "perf-literal")]
-    ac: Option<AhoCorasick<u32>>,
+    ac: Option<AhoCorasick>,
     /// match_type encodes as much upfront knowledge about how we're going to
     /// execute a search as possible.
     match_type: MatchType,
@@ -121,8 +124,8 @@ pub struct ExecBuilder {
 /// literals.
 struct Parsed {
     exprs: Vec<Hir>,
-    prefixes: Literals,
-    suffixes: Literals,
+    prefixes: literal::Seq,
+    suffixes: literal::Seq,
     bytes: bool,
 }
 
@@ -228,8 +231,8 @@ impl ExecBuilder {
     /// Parse the current set of patterns into their AST and extract literals.
     fn parse(&self) -> Result<Parsed, Error> {
         let mut exprs = Vec::with_capacity(self.options.pats.len());
-        let mut prefixes = Some(Literals::empty());
-        let mut suffixes = Some(Literals::empty());
+        let mut prefixes = Some(literal::Seq::empty());
+        let mut suffixes = Some(literal::Seq::empty());
         let mut bytes = false;
         let is_set = self.options.pats.len() > 1;
         // If we're compiling a regex set and that set has any anchored
@@ -243,54 +246,103 @@ impl ExecBuilder {
                 .swap_greed(self.options.swap_greed)
                 .ignore_whitespace(self.options.ignore_whitespace)
                 .unicode(self.options.unicode)
-                .allow_invalid_utf8(!self.only_utf8)
+                .utf8(self.only_utf8)
                 .nest_limit(self.options.nest_limit)
                 .build();
             let expr =
                 parser.parse(pat).map_err(|e| Error::Syntax(e.to_string()))?;
-            bytes = bytes || !expr.is_always_utf8();
+            let props = expr.properties();
+            // This used to just check whether the HIR matched valid UTF-8
+            // or not, but in regex-syntax 0.7, we changed our definition of
+            // "matches valid UTF-8" to exclude zero-width matches. And in
+            // particular, previously, we considered WordAsciiNegate (that
+            // is '(?-u:\B)') to be capable of matching invalid UTF-8. Our
+            // matcher engines were built under this assumption and fixing
+            // them is not worth it with the imminent plan to switch over to
+            // regex-automata. So for now, we retain the previous behavior by
+            // just explicitly treating the presence of a negated ASCII word
+            // boundary as forcing use to use a byte oriented automaton.
+            bytes = bytes
+                || !props.is_utf8()
+                || props.look_set().contains(Look::WordAsciiNegate);
 
             if cfg!(feature = "perf-literal") {
-                if !expr.is_anchored_start() && expr.is_any_anchored_start() {
+                if !props.look_set_prefix().contains(Look::Start)
+                    && props.look_set().contains(Look::Start)
+                {
                     // Partial anchors unfortunately make it hard to use
                     // prefixes, so disable them.
                     prefixes = None;
-                } else if is_set && expr.is_anchored_start() {
+                } else if is_set
+                    && props.look_set_prefix_any().contains(Look::Start)
+                {
                     // Regex sets with anchors do not go well with literal
                     // optimizations.
                     prefixes = None;
+                } else if props.look_set_prefix_any().contains_word() {
+                    // The new literal extractor ignores look-around while
+                    // the old one refused to extract prefixes from regexes
+                    // that began with a \b. These old creaky regex internals
+                    // can't deal with it, so we drop it.
+                    prefixes = None;
+                } else if props.look_set_prefix_any().contains(Look::StartLF) {
+                    // Similar to the reasoning for word boundaries, this old
+                    // regex engine can't handle literal prefixes with '(?m:^)'
+                    // at the beginning of a regex.
+                    prefixes = None;
                 }
-                prefixes = prefixes.and_then(|mut prefixes| {
-                    if !prefixes.union_prefixes(&expr) {
-                        None
-                    } else {
-                        Some(prefixes)
-                    }
-                });
 
-                if !expr.is_anchored_end() && expr.is_any_anchored_end() {
+                if !props.look_set_suffix().contains(Look::End)
+                    && props.look_set().contains(Look::End)
+                {
                     // Partial anchors unfortunately make it hard to use
                     // suffixes, so disable them.
                     suffixes = None;
-                } else if is_set && expr.is_anchored_end() {
+                } else if is_set
+                    && props.look_set_suffix_any().contains(Look::End)
+                {
                     // Regex sets with anchors do not go well with literal
                     // optimizations.
                     suffixes = None;
+                } else if props.look_set_suffix_any().contains_word() {
+                    // See the prefix case for reasoning here.
+                    suffixes = None;
+                } else if props.look_set_suffix_any().contains(Look::EndLF) {
+                    // See the prefix case for reasoning here.
+                    suffixes = None;
                 }
-                suffixes = suffixes.and_then(|mut suffixes| {
-                    if !suffixes.union_suffixes(&expr) {
-                        None
+
+                let (mut pres, mut suffs) =
+                    if prefixes.is_none() && suffixes.is_none() {
+                        (literal::Seq::infinite(), literal::Seq::infinite())
                     } else {
-                        Some(suffixes)
-                    }
+                        literal_analysis(&expr)
+                    };
+                // These old creaky regex internals can't handle cases where
+                // the literal sequences are exact but there are look-around
+                // assertions. So we make sure the sequences are inexact if
+                // there are look-around assertions anywhere. This forces the
+                // regex engines to run instead of assuming that a literal
+                // match implies an overall match.
+                if !props.look_set().is_empty() {
+                    pres.make_inexact();
+                    suffs.make_inexact();
+                }
+                prefixes = prefixes.and_then(|mut prefixes| {
+                    prefixes.union(&mut pres);
+                    Some(prefixes)
+                });
+                suffixes = suffixes.and_then(|mut suffixes| {
+                    suffixes.union(&mut suffs);
+                    Some(suffixes)
                 });
             }
             exprs.push(expr);
         }
         Ok(Parsed {
             exprs,
-            prefixes: prefixes.unwrap_or_else(Literals::empty),
-            suffixes: suffixes.unwrap_or_else(Literals::empty),
+            prefixes: prefixes.unwrap_or_else(literal::Seq::empty),
+            suffixes: suffixes.unwrap_or_else(literal::Seq::empty),
             bytes,
         })
     }
@@ -356,7 +408,7 @@ impl ExecBuilder {
     }
 
     #[cfg(feature = "perf-literal")]
-    fn build_aho_corasick(&self, parsed: &Parsed) -> Option<AhoCorasick<u32>> {
+    fn build_aho_corasick(&self, parsed: &Parsed) -> Option<AhoCorasick> {
         if parsed.exprs.len() != 1 {
             return None;
         }
@@ -370,10 +422,9 @@ impl ExecBuilder {
             return None;
         }
         Some(
-            AhoCorasickBuilder::new()
+            AhoCorasick::builder()
                 .match_kind(MatchKind::LeftmostFirst)
-                .auto_configure(&lits)
-                .build_with_size::<u32, _, _>(&lits)
+                .build(&lits)
                 // This should never happen because we'd long exceed the
                 // compilation limit for regexes first.
                 .expect("AC automaton too big"),
@@ -1311,6 +1362,12 @@ impl Exec {
     pub fn capture_name_idx(&self) -> &Arc<HashMap<String, usize>> {
         &self.ro.nfa.capture_name_idx
     }
+
+    /// If the number of capture groups in every match is always the same, then
+    /// return that number. Otherwise return `None`.
+    pub fn static_captures_len(&self) -> Option<usize> {
+        self.ro.nfa.static_captures_len
+    }
 }
 
 impl Clone for Exec {
@@ -1557,7 +1614,7 @@ fn alternation_literals(expr: &Hir) -> Option<Vec<Vec<u8>>> {
     // optimization pipeline, because this is a terribly inflexible way to go
     // about things.
 
-    if !expr.is_alternation_literal() {
+    if !expr.properties().is_alternation_literal() {
         return None;
     }
     let alts = match *expr.kind() {
@@ -1565,25 +1622,19 @@ fn alternation_literals(expr: &Hir) -> Option<Vec<Vec<u8>>> {
         _ => return None, // one literal isn't worth it
     };
 
-    let extendlit = |lit: &Literal, dst: &mut Vec<u8>| match *lit {
-        Literal::Unicode(c) => {
-            let mut buf = [0; 4];
-            dst.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
-        }
-        Literal::Byte(b) => {
-            dst.push(b);
-        }
-    };
-
     let mut lits = vec![];
     for alt in alts {
         let mut lit = vec![];
         match *alt.kind() {
-            HirKind::Literal(ref x) => extendlit(x, &mut lit),
+            HirKind::Literal(Literal(ref bytes)) => {
+                lit.extend_from_slice(bytes)
+            }
             HirKind::Concat(ref exprs) => {
                 for e in exprs {
                     match *e.kind() {
-                        HirKind::Literal(ref x) => extendlit(x, &mut lit),
+                        HirKind::Literal(Literal(ref bytes)) => {
+                            lit.extend_from_slice(bytes);
+                        }
                         _ => unreachable!("expected literal, got {:?}", e),
                     }
                 }
@@ -1593,6 +1644,48 @@ fn alternation_literals(expr: &Hir) -> Option<Vec<Vec<u8>>> {
         lits.push(lit);
     }
     Some(lits)
+}
+
+#[cfg(not(feature = "perf-literal"))]
+fn literal_analysis(_: &Hir) -> (literal::Seq, literal::Seq) {
+    (literal::Seq::infinite(), literal::Seq::infinite())
+}
+
+#[cfg(feature = "perf-literal")]
+fn literal_analysis(expr: &Hir) -> (literal::Seq, literal::Seq) {
+    const ATTEMPTS: [(usize, usize); 3] = [(5, 50), (4, 30), (3, 20)];
+
+    let mut prefixes = literal::Extractor::new()
+        .kind(literal::ExtractKind::Prefix)
+        .extract(expr);
+    for (keep, limit) in ATTEMPTS {
+        let len = match prefixes.len() {
+            None => break,
+            Some(len) => len,
+        };
+        if len <= limit {
+            break;
+        }
+        prefixes.keep_first_bytes(keep);
+        prefixes.minimize_by_preference();
+    }
+
+    let mut suffixes = literal::Extractor::new()
+        .kind(literal::ExtractKind::Suffix)
+        .extract(expr);
+    for (keep, limit) in ATTEMPTS {
+        let len = match suffixes.len() {
+            None => break,
+            Some(len) => len,
+        };
+        if len <= limit {
+            break;
+        }
+        suffixes.keep_last_bytes(keep);
+        suffixes.minimize_by_preference();
+    }
+
+    (prefixes, suffixes)
 }
 
 #[cfg(test)]

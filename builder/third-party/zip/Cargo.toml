@@ -10,9 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
+edition = "2021"
+rust-version = "1.59.0"
 name = "zip"
-version = "0.6.4"
+version = "0.6.6"
 authors = [
     "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
     "Marli Frost <marli@frost.red>",
@@ -38,7 +39,7 @@ name = "read_metadata"
 harness = false
 
 [dependencies.aes]
-version = "0.7.5"
+version = "0.8.2"
 optional = true
 
 [dependencies.byteorder]

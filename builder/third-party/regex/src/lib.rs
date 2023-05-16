@@ -199,6 +199,8 @@ instead.)
 This implementation executes regular expressions **only** on valid UTF-8
 while exposing match locations as byte indices into the search string. (To
 relax this restriction, use the [`bytes`](bytes/index.html) sub-module.)
+Conceptually, the regex engine works by matching a haystack as if it were a
+sequence of Unicode scalar values.
 
 Only simple case folding is supported. Namely, when matching
 case-insensitively, the characters are first mapped using the "simple" case
@@ -285,9 +287,9 @@ a separate crate, [`regex-syntax`](https://docs.rs/regex-syntax).
 .             any character except new line (includes new line with s flag)
 \d            digit (\p{Nd})
 \D            not digit
-\pN           One-letter name Unicode character class
+\pX           Unicode character class identified by a one-letter name
 \p{Greek}     Unicode character class (general category or script)
-\PN           Negated one-letter name Unicode character class
+\PX           Negated Unicode character class identified by a one-letter name
 \P{Greek}     negated Unicode character class (general category or script)
 </pre>
 
@@ -325,6 +327,25 @@ xy    concatenation (x followed by y)
 x|y   alternation (x or y, prefer x)
 </pre>
 
+This example shows how an alternation works, and what it means to prefer a
+branch in the alternation over subsequent branches.
+
+```
+use regex::Regex;
+
+let haystack = "samwise";
+// If 'samwise' comes first in our alternation, then it is
+// preferred as a match, even if the regex engine could
+// technically detect that 'sam' led to a match earlier.
+let re = Regex::new(r"samwise|sam").unwrap();
+assert_eq!("samwise", re.find(haystack).unwrap().as_str());
+// But if 'sam' comes first, then it will match instead.
+// In this case, it is impossible for 'samwise' to match
+// because 'sam' is a prefix of it.
+let re = Regex::new(r"sam|samwise").unwrap();
+assert_eq!("sam", re.find(haystack).unwrap().as_str());
+```
+
 ## Repetitions
 
 <pre class="rust">
@@ -360,11 +381,18 @@ regex matches `abc` at positions `0`, `1`, `2` and `3`.
 
 <pre class="rust">
 (exp)          numbered capture group (indexed by opening parenthesis)
-(?P&lt;name&gt;exp)  named (also numbered) capture group (allowed chars: [_0-9a-zA-Z.\[\]])
+(?P&lt;name&gt;exp)  named (also numbered) capture group (names must be alpha-numeric)
+(?&lt;name&gt;exp)   named (also numbered) capture group (names must be alpha-numeric)
 (?:exp)        non-capturing group
 (?flags)       set flags within current group
 (?flags:exp)   set flags for exp (non-capturing)
 </pre>
+
+Capture group names must be any sequence of alpha-numeric Unicode codepoints,
+in addition to `.`, `_`, `[` and `]`. Names must start with either an `_` or
+an alphabetic codepoint. Alphabetic codepoints correspond to the `Alphabetic`
+Unicode property, while numeric codepoints correspond to the union of the
+`Decimal_Number`, `Letter_Number` and `Other_Number` general categories.
 
 Flags are each a single character. For example, `(?x)` sets the flag `x`
 and `(?-x)` clears the flag `x`. Multiple flags can be set or cleared at
@@ -379,8 +407,12 @@ m     multi-line mode: ^ and $ match begin/end of line
 s     allow . to match \n
 U     swap the meaning of x* and x*?
 u     Unicode support (enabled by default)
-x     ignore whitespace and allow line comments (starting with `#`)
+x     verbose mode, ignores whitespace and allow line comments (starting with `#`)
 </pre>
+
+Note that in verbose mode, whitespace is ignored everywhere, including within
+character classes. To insert whitespace, use its escaped form or a hex literal.
+For example, `\ ` or `\x20` for an ASCII space.
 
 Flags can be toggled within a pattern. Here's an example that matches
 case-insensitively for the first part but case-sensitively for the second part:

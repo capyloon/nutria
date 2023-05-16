@@ -10,9 +10,8 @@ use crate::common::{
 use rustls::client::{
     HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier, WebPkiVerifier,
 };
-use rustls::internal::msgs::handshake::DigitallySignedStruct;
-use rustls::AlertDescription;
-use rustls::{Certificate, Error, SignatureScheme};
+use rustls::DigitallySignedStruct;
+use rustls::{AlertDescription, Certificate, Error, InvalidMessage, SignatureScheme};
 use std::sync::Arc;
 
 #[test]
@@ -39,7 +38,7 @@ fn client_can_override_certificate_verification() {
 fn client_can_override_certificate_verification_and_reject_certificate() {
     for kt in ALL_KEY_TYPES.iter() {
         let verifier = Arc::new(MockServerVerifier::rejects_certificate(
-            Error::CorruptMessage,
+            Error::InvalidMessage(InvalidMessage::HandshakePayloadTooLarge),
         ));
 
         let server_config = Arc::new(make_server_config(*kt));
@@ -56,9 +55,11 @@ fn client_can_override_certificate_verification_and_reject_certificate() {
             assert_eq!(
                 errs,
                 Err(vec![
-                    ErrorFromPeer::Client(Error::CorruptMessage),
-                    ErrorFromPeer::Server(Error::AlertReceived(AlertDescription::BadCertificate))
-                ])
+                    ErrorFromPeer::Client(Error::InvalidMessage(
+                        InvalidMessage::HandshakePayloadTooLarge,
+                    )),
+                    ErrorFromPeer::Server(Error::AlertReceived(AlertDescription::HandshakeFailure)),
+                ]),
             );
         }
     }
@@ -70,7 +71,7 @@ fn client_can_override_certificate_verification_and_reject_tls12_signatures() {
     for kt in ALL_KEY_TYPES.iter() {
         let mut client_config = make_client_config_with_versions(*kt, &[&rustls::version::TLS12]);
         let verifier = Arc::new(MockServerVerifier::rejects_tls12_signatures(
-            Error::CorruptMessage,
+            Error::InvalidMessage(InvalidMessage::HandshakePayloadTooLarge),
         ));
 
         client_config
@@ -85,9 +86,11 @@ fn client_can_override_certificate_verification_and_reject_tls12_signatures() {
         assert_eq!(
             errs,
             Err(vec![
-                ErrorFromPeer::Client(Error::CorruptMessage),
-                ErrorFromPeer::Server(Error::AlertReceived(AlertDescription::BadCertificate))
-            ])
+                ErrorFromPeer::Client(Error::InvalidMessage(
+                    InvalidMessage::HandshakePayloadTooLarge,
+                )),
+                ErrorFromPeer::Server(Error::AlertReceived(AlertDescription::HandshakeFailure)),
+            ]),
         );
     }
 }
@@ -97,7 +100,7 @@ fn client_can_override_certificate_verification_and_reject_tls13_signatures() {
     for kt in ALL_KEY_TYPES.iter() {
         let mut client_config = make_client_config_with_versions(*kt, &[&rustls::version::TLS13]);
         let verifier = Arc::new(MockServerVerifier::rejects_tls13_signatures(
-            Error::CorruptMessage,
+            Error::InvalidMessage(InvalidMessage::HandshakePayloadTooLarge),
         ));
 
         client_config
@@ -112,9 +115,11 @@ fn client_can_override_certificate_verification_and_reject_tls13_signatures() {
         assert_eq!(
             errs,
             Err(vec![
-                ErrorFromPeer::Client(Error::CorruptMessage),
-                ErrorFromPeer::Server(Error::AlertReceived(AlertDescription::BadCertificate))
-            ])
+                ErrorFromPeer::Client(Error::InvalidMessage(
+                    InvalidMessage::HandshakePayloadTooLarge,
+                )),
+                ErrorFromPeer::Server(Error::AlertReceived(AlertDescription::HandshakeFailure)),
+            ]),
         );
     }
 }
@@ -138,8 +143,8 @@ fn client_can_override_certificate_verification_and_offer_no_signature_schemes()
             assert_eq!(
                 errs,
                 Err(vec![
-                    ErrorFromPeer::Server(Error::PeerIncompatibleError(
-                        "no overlapping sigschemes".into()
+                    ErrorFromPeer::Server(Error::PeerIncompatible(
+                        rustls::PeerIncompatible::NoSignatureSchemesInCommon
                     )),
                     ErrorFromPeer::Client(Error::AlertReceived(AlertDescription::HandshakeFailure)),
                 ])

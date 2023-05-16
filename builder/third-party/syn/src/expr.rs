@@ -964,7 +964,10 @@ pub(crate) mod parsing {
     use crate::path;
     use std::cmp::Ordering;
 
-    crate::custom_keyword!(raw);
+    mod kw {
+        crate::custom_keyword!(builtin);
+        crate::custom_keyword!(raw);
+    }
 
     // When we're parsing expressions which occur before blocks, like in an if
     // statement's condition, we cannot parse a struct literal.
@@ -1301,9 +1304,7 @@ pub(crate) mod parsing {
             Precedence::Assign
         } else if input.peek(Token![..]) {
             Precedence::Range
-        } else if input.peek(Token![as])
-            || cfg!(feature = "full") && input.peek(Token![:]) && !input.peek(Token![::])
-        {
+        } else if input.peek(Token![as]) {
             Precedence::Cast
         } else {
             Precedence::Any
@@ -1363,12 +1364,13 @@ pub(crate) mod parsing {
         let attrs = input.call(expr_attrs)?;
         if input.peek(Token![&]) {
             let and_token: Token![&] = input.parse()?;
-            let raw: Option<raw> =
-                if input.peek(raw) && (input.peek2(Token![mut]) || input.peek2(Token![const])) {
-                    Some(input.parse()?)
-                } else {
-                    None
-                };
+            let raw: Option<kw::raw> = if input.peek(kw::raw)
+                && (input.peek2(Token![mut]) || input.peek2(Token![const]))
+            {
+                Some(input.parse()?)
+            } else {
+                None
+            };
             let mutability: Option<Token![mut]> = input.parse()?;
             if raw.is_some() && mutability.is_none() {
                 input.parse::<Token![const]>()?;
@@ -1593,6 +1595,8 @@ pub(crate) mod parsing {
             || input.peek(Token![async]) && (input.peek2(Token![|]) || input.peek2(Token![move]))
         {
             expr_closure(input, allow_struct).map(Expr::Closure)
+        } else if input.peek(kw::builtin) && input.peek2(Token![#]) {
+            expr_builtin(input)
         } else if input.peek(Ident)
             || input.peek(Token![::])
             || input.peek(Token![<])
@@ -1689,6 +1693,21 @@ pub(crate) mod parsing {
         } else {
             Err(input.error("unsupported expression; enable syn's features=[\"full\"]"))
         }
+    }
+
+    #[cfg(feature = "full")]
+    fn expr_builtin(input: ParseStream) -> Result<Expr> {
+        let begin = input.fork();
+
+        input.parse::<kw::builtin>()?;
+        input.parse::<Token![#]>()?;
+        input.parse::<Ident>()?;
+
+        let args;
+        parenthesized!(args in input);
+        args.parse::<TokenStream>()?;
+
+        Ok(Expr::Verbatim(verbatim::between(begin, input)))
     }
 
     fn path_or_macro_or_struct(
@@ -2718,13 +2737,21 @@ pub(crate) mod parsing {
     }
 
     fn multi_index(e: &mut Expr, dot_token: &mut Token![.], float: LitFloat) -> Result<bool> {
-        let mut float_repr = float.to_string();
+        let float_token = float.token();
+        let float_span = float_token.span();
+        let mut float_repr = float_token.to_string();
         let trailing_dot = float_repr.ends_with('.');
         if trailing_dot {
             float_repr.truncate(float_repr.len() - 1);
         }
+
+        let mut offset = 0;
         for part in float_repr.split('.') {
-            let index = crate::parse_str(part).map_err(|err| Error::new(float.span(), err))?;
+            let mut index: Index =
+                crate::parse_str(part).map_err(|err| Error::new(float_span, err))?;
+            let part_end = offset + part.len();
+            index.span = float_token.subspan(offset..part_end).unwrap_or(float_span);
+
             let base = mem::replace(e, Expr::DUMMY);
             *e = Expr::Field(ExprField {
                 attrs: Vec::new(),
@@ -2732,8 +2759,14 @@ pub(crate) mod parsing {
                 dot_token: Token![.](dot_token.span),
                 member: Member::Unnamed(index),
             });
-            *dot_token = Token![.](float.span());
+
+            let dot_span = float_token
+                .subspan(part_end..part_end + 1)
+                .unwrap_or(float_span);
+            *dot_token = Token![.](dot_span);
+            offset = part_end + 1;
         }
+
         Ok(!trailing_dot)
     }
 

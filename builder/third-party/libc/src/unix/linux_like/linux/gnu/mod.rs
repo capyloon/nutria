@@ -730,27 +730,6 @@ pub const PF_NFC: ::c_int = AF_NFC;
 pub const PF_VSOCK: ::c_int = AF_VSOCK;
 pub const PF_XDP: ::c_int = AF_XDP;
 
-/* DCCP socket options */
-pub const DCCP_SOCKOPT_PACKET_SIZE: ::c_int = 1;
-pub const DCCP_SOCKOPT_SERVICE: ::c_int = 2;
-pub const DCCP_SOCKOPT_CHANGE_L: ::c_int = 3;
-pub const DCCP_SOCKOPT_CHANGE_R: ::c_int = 4;
-pub const DCCP_SOCKOPT_GET_CUR_MPS: ::c_int = 5;
-pub const DCCP_SOCKOPT_SERVER_TIMEWAIT: ::c_int = 6;
-pub const DCCP_SOCKOPT_SEND_CSCOV: ::c_int = 10;
-pub const DCCP_SOCKOPT_RECV_CSCOV: ::c_int = 11;
-pub const DCCP_SOCKOPT_AVAILABLE_CCIDS: ::c_int = 12;
-pub const DCCP_SOCKOPT_CCID: ::c_int = 13;
-pub const DCCP_SOCKOPT_TX_CCID: ::c_int = 14;
-pub const DCCP_SOCKOPT_RX_CCID: ::c_int = 15;
-pub const DCCP_SOCKOPT_QPOLICY_ID: ::c_int = 16;
-pub const DCCP_SOCKOPT_QPOLICY_TXQLEN: ::c_int = 17;
-pub const DCCP_SOCKOPT_CCID_RX_INFO: ::c_int = 128;
-pub const DCCP_SOCKOPT_CCID_TX_INFO: ::c_int = 192;
-
-/// maximum number of services provided on the same listening port
-pub const DCCP_SERVICE_LIST_MAX_LEN: ::c_int = 32;
-
 pub const SIGEV_THREAD_ID: ::c_int = 4;
 
 pub const BUFSIZ: ::c_uint = 8192;
@@ -1261,9 +1240,6 @@ extern "C" {
     pub fn reallocarray(ptr: *mut ::c_void, nmemb: ::size_t, size: ::size_t) -> *mut ::c_void;
 
     pub fn ctermid(s: *mut ::c_char) -> *mut ::c_char;
-}
-
-extern "C" {
     pub fn ioctl(fd: ::c_int, request: ::c_ulong, ...) -> ::c_int;
     pub fn backtrace(buf: *mut *mut ::c_void, sz: ::c_int) -> ::c_int;
     pub fn glob64(
@@ -1352,9 +1328,6 @@ extern "C" {
     /// GNU version of `basename(3)`, defined in `string.h`.
     #[link_name = "basename"]
     pub fn gnu_basename(path: *const ::c_char) -> *mut ::c_char;
-}
-
-extern "C" {
     pub fn dlmopen(lmid: Lmid_t, filename: *const ::c_char, flag: ::c_int) -> *mut ::c_void;
     pub fn dlinfo(handle: *mut ::c_void, request: ::c_int, info: *mut ::c_void) -> ::c_int;
     pub fn dladdr1(
@@ -1364,15 +1337,10 @@ extern "C" {
         flags: ::c_int,
     ) -> ::c_int;
     pub fn malloc_trim(__pad: ::size_t) -> ::c_int;
-}
-
-extern "C" {
     pub fn gnu_get_libc_release() -> *const ::c_char;
     pub fn gnu_get_libc_version() -> *const ::c_char;
-}
 
-// posix/spawn.h
-extern "C" {
+    // posix/spawn.h
     // Added in `glibc` 2.29
     pub fn posix_spawn_file_actions_addchdir_np(
         actions: *mut ::posix_spawn_file_actions_t,
@@ -1393,6 +1361,14 @@ extern "C" {
         actions: *mut ::posix_spawn_file_actions_t,
         tcfd: ::c_int,
     ) -> ::c_int;
+
+    // mntent.h
+    pub fn getmntent_r(
+        stream: *mut ::FILE,
+        mntbuf: *mut ::mntent,
+        buf: *mut ::c_char,
+        buflen: ::c_int,
+    ) -> *mut ::mntent;
 }
 
 cfg_if! {

@@ -9,13 +9,13 @@
 //! - an escape followed by whitespace consumes all whitespace between the
 //!   escape and the next non-whitespace character
 
-use winnow::branch::alt;
-use winnow::bytes::{take_till1, take_while_m_n};
-use winnow::character::multispace1;
+use winnow::ascii::multispace1;
+use winnow::combinator::alt;
+use winnow::combinator::fold_repeat;
+use winnow::combinator::{delimited, preceded};
 use winnow::error::{FromExternalError, ParseError};
-use winnow::multi::fold_many0;
 use winnow::prelude::*;
-use winnow::sequence::{delimited, preceded};
+use winnow::token::{take_till1, take_while};
 
 /// Parse a string. Use a loop of `parse_fragment` and push all of the fragments
 /// into an output string.
@@ -23,9 +23,10 @@ pub fn parse_string<'a, E>(input: &'a str) -> IResult<&'a str, String, E>
 where
     E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
-    // fold_many0 is the equivalent of iterator::fold. It runs a parser in a loop,
+    // fold_repeat is the equivalent of iterator::fold. It runs a parser in a loop,
     // and for each output value, calls a folding function on each output value.
-    let build_string = fold_many0(
+    let build_string = fold_repeat(
+        0..,
         // Our parser function – parses a single string fragment
         parse_fragment,
         // Our init value, an empty string
@@ -44,7 +45,7 @@ where
 
     // Finally, parse the string. Note that, if `build_string` could accept a raw
     // " character, the closing delimiter " would never match. When using
-    // `delimited` with a looping parser (like fold_many0), be sure that the
+    // `delimited` with a looping parser (like fold_repeat), be sure that the
     // loop won't accidentally match your closing delimiter!
     delimited('"', build_string, '"').parse_next(input)
 }
@@ -129,9 +130,9 @@ fn parse_unicode<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
 where
     E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
-    // `take_while_m_n` parses between `m` and `n` bytes (inclusive) that match
+    // `take_while` parses between `m` and `n` bytes (inclusive) that match
     // a predicate. `parse_hex` here parses between 1 and 6 hexadecimal numerals.
-    let parse_hex = take_while_m_n(1, 6, |c: char| c.is_ascii_hexdigit());
+    let parse_hex = take_while(1..=6, |c: char| c.is_ascii_hexdigit());
 
     // `preceded` takes a prefix parser, and if it succeeds, returns the result
     // of the body parser. In this case, it parses u{XXXX}.
@@ -143,12 +144,12 @@ where
         delimited('{', parse_hex, '}'),
     );
 
-    // `map_res` takes the result of a parser and applies a function that returns
+    // `try_map` takes the result of a parser and applies a function that returns
     // a Result. In this case we take the hex bytes from parse_hex and attempt to
     // convert them to a u32.
-    let parse_u32 = parse_delimited_hex.map_res(move |hex| u32::from_str_radix(hex, 16));
+    let parse_u32 = parse_delimited_hex.try_map(move |hex| u32::from_str_radix(hex, 16));
 
-    // verify_map is like map_res, but it takes an Option instead of a Result. If
+    // verify_map is like try_map, but it takes an Option instead of a Result. If
     // the function returns None, verify_map returns an error. In this case, because
     // not all u32 values are valid unicode code points, we have to fallibly
     // convert to char with from_u32.

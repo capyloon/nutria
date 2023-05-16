@@ -31,7 +31,7 @@ impl ConfigBuilder<ServerConfig, WantsVerifier> {
 
     /// Disable client authentication.
     pub fn with_no_client_auth(self) -> ConfigBuilder<ServerConfig, WantsServerCert> {
-        self.with_client_cert_verifier(verify::NoClientAuth::new())
+        self.with_client_cert_verifier(verify::NoClientAuth::boxed())
     }
 }
 
@@ -111,6 +111,7 @@ impl ConfigBuilder<ServerConfig, WantsServerCert> {
             enable_secret_extraction: false,
             max_early_data_size: 0,
             send_half_rtt_data: false,
+            send_tls13_tickets: 4,
         }
     }
 }

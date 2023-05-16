@@ -24,7 +24,7 @@
 //! - Resilient maintainership, including
 //!   - Willing to break compatibility rather than batching up breaking changes in large releases
 //!   - Leverage feature flags to keep one active branch
-//! - We will support the last 6 months of rust releases (MSRV, currently 1.60)
+//! - We will support the last 6 months of rust releases (MSRV, currently 1.64.0)
 //!
 //! See also [Special Topic: Why winnow?][crate::_topic::why]
 //!
@@ -48,7 +48,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, feature(extended_key_value_attributes))]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(missing_docs)]
+#![warn(missing_docs)]
 // BEGIN - Embark standard lints v6 for Rust 1.55+
 // do not change or add/remove here, but one can add exceptions after this section
 // for more info see: <https://github.com/EmbarkStudios/rust-ecosystem/issues/59>
@@ -199,6 +199,8 @@ mod parser;
 
 pub mod stream;
 
+pub mod ascii;
+pub mod binary;
 pub mod bits;
 pub mod branch;
 pub mod bytes;
@@ -207,6 +209,7 @@ pub mod combinator;
 pub mod multi;
 pub mod number;
 pub mod sequence;
+pub mod token;
 pub mod trace;
 
 #[cfg(feature = "unstable-doc")]
@@ -227,7 +230,7 @@ pub mod _tutorial;
 ///
 /// fn parse_data(input: &str) -> IResult<&str, u64> {
 ///     // ...
-/// #   winnow::character::dec_uint(input)
+/// #   winnow::ascii::dec_uint(input)
 /// }
 ///
 /// fn main() {

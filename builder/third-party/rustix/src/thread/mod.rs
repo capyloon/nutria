@@ -7,28 +7,20 @@ mod futex;
 #[cfg(any(target_os = "android", target_os = "linux"))]
 mod id;
 #[cfg(any(target_os = "android", target_os = "linux"))]
+mod libcap;
+#[cfg(any(target_os = "android", target_os = "linux"))]
 mod prctl;
 #[cfg(any(target_os = "android", target_os = "linux"))]
 mod setns;
 
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "emscripten",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "wasi",
-)))]
-pub use clock::{clock_nanosleep_absolute, clock_nanosleep_relative, ClockId};
 #[cfg(not(target_os = "redox"))]
-pub use clock::{nanosleep, NanosleepRelativeResult, Timespec};
+pub use clock::*;
 #[cfg(linux_raw)]
 pub use futex::{futex, FutexFlags, FutexOperation};
 #[cfg(any(target_os = "android", target_os = "linux"))]
-pub use id::gettid;
+pub use id::{gettid, set_thread_gid, set_thread_res_gid, set_thread_res_uid, set_thread_uid};
+#[cfg(any(target_os = "android", target_os = "linux"))]
+pub use libcap::{capabilities, set_capabilities, CapabilityFlags, CapabilitySets};
 #[cfg(any(target_os = "android", target_os = "linux"))]
 pub use prctl::*;
 #[cfg(any(target_os = "android", target_os = "linux"))]

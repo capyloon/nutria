@@ -10,10 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
+edition = "2021"
 rust-version = "1.57"
 name = "rustls"
-version = "0.20.8"
+version = "0.21.1"
 build = "build.rs"
 autobenches = false
 description = "Rustls is a modern TLS library written in Rust."
@@ -23,9 +23,8 @@ categories = [
     "network-programming",
     "cryptography",
 ]
-license = "Apache-2.0/ISC/MIT"
+license = "Apache-2.0 OR ISC OR MIT"
 repository = "https://github.com/rustls/rustls"
-resolver = "2"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -41,10 +40,6 @@ required-features = [
     "dangerous_configuration",
     "quic",
 ]
-
-[[example]]
-name = "trytls_shim"
-path = "examples/internal/trytls_shim.rs"
 
 [[example]]
 name = "bench"
@@ -66,17 +61,18 @@ version = "0.16.20"
 version = "0.7.0"
 
 [dependencies.webpki]
-version = "0.22.0"
+version = "0.100.0"
 features = [
     "alloc",
     "std",
 ]
+package = "rustls-webpki"
 
 [dev-dependencies.base64]
-version = "0.13.0"
+version = "0.21"
 
-[dev-dependencies.criterion]
-version = "0.3.0"
+[dev-dependencies.bencher]
+version = "0.1.5"
 
 [dev-dependencies.env_logger]
 version = "0.9.0"
@@ -88,7 +84,7 @@ version = "0.4.4"
 version = "1.0.0"
 
 [dev-dependencies.webpki-roots]
-version = "0.22.0"
+version = "0.23.0"
 
 [build-dependencies.rustversion]
 version = "1.0.6"

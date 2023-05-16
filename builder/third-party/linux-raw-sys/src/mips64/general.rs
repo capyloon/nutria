@@ -137,9 +137,9 @@ true
 }
 }
 impl<T> ::core::cmp::Eq for __BindgenUnionField<T> {}
-pub const LINUX_VERSION_CODE: u32 = 332032;
-pub const LINUX_VERSION_MAJOR: u32 = 5;
-pub const LINUX_VERSION_PATCHLEVEL: u32 = 17;
+pub const LINUX_VERSION_CODE: u32 = 393984;
+pub const LINUX_VERSION_MAJOR: u32 = 6;
+pub const LINUX_VERSION_PATCHLEVEL: u32 = 3;
 pub const LINUX_VERSION_SUBLEVEL: u32 = 0;
 pub const AT_SYSINFO_EHDR: u32 = 33;
 pub const AT_VECTOR_SIZE_ARCH: u32 = 1;
@@ -165,8 +165,11 @@ pub const AT_SECURE: u32 = 23;
 pub const AT_BASE_PLATFORM: u32 = 24;
 pub const AT_RANDOM: u32 = 25;
 pub const AT_HWCAP2: u32 = 26;
+pub const AT_RSEQ_FEATURE_SIZE: u32 = 27;
+pub const AT_RSEQ_ALIGN: u32 = 28;
 pub const AT_EXECFN: u32 = 31;
 pub const AT_MINSIGSTKSZ: u32 = 51;
+pub const __FD_SETSIZE: u32 = 1024;
 pub const _MIPS_ISA_MIPS1: u32 = 1;
 pub const _MIPS_ISA_MIPS2: u32 = 2;
 pub const _MIPS_ISA_MIPS3: u32 = 3;
@@ -177,6 +180,68 @@ pub const _MIPS_ISA_MIPS64: u32 = 7;
 pub const _MIPS_SIM_ABI32: u32 = 1;
 pub const _MIPS_SIM_NABI32: u32 = 2;
 pub const _MIPS_SIM_ABI64: u32 = 3;
+pub const _LINUX_CAPABILITY_VERSION_1: u32 = 429392688;
+pub const _LINUX_CAPABILITY_U32S_1: u32 = 1;
+pub const _LINUX_CAPABILITY_VERSION_2: u32 = 537333798;
+pub const _LINUX_CAPABILITY_U32S_2: u32 = 2;
+pub const _LINUX_CAPABILITY_VERSION_3: u32 = 537396514;
+pub const _LINUX_CAPABILITY_U32S_3: u32 = 2;
+pub const VFS_CAP_REVISION_MASK: u32 = 4278190080;
+pub const VFS_CAP_REVISION_SHIFT: u32 = 24;
+pub const VFS_CAP_FLAGS_MASK: i64 = -4278190081;
+pub const VFS_CAP_FLAGS_EFFECTIVE: u32 = 1;
+pub const VFS_CAP_REVISION_1: u32 = 16777216;
+pub const VFS_CAP_U32_1: u32 = 1;
+pub const VFS_CAP_REVISION_2: u32 = 33554432;
+pub const VFS_CAP_U32_2: u32 = 2;
+pub const VFS_CAP_REVISION_3: u32 = 50331648;
+pub const VFS_CAP_U32_3: u32 = 2;
+pub const VFS_CAP_U32: u32 = 2;
+pub const VFS_CAP_REVISION: u32 = 50331648;
+pub const _LINUX_CAPABILITY_VERSION: u32 = 429392688;
+pub const _LINUX_CAPABILITY_U32S: u32 = 1;
+pub const CAP_CHOWN: u32 = 0;
+pub const CAP_DAC_OVERRIDE: u32 = 1;
+pub const CAP_DAC_READ_SEARCH: u32 = 2;
+pub const CAP_FOWNER: u32 = 3;
+pub const CAP_FSETID: u32 = 4;
+pub const CAP_KILL: u32 = 5;
+pub const CAP_SETGID: u32 = 6;
+pub const CAP_SETUID: u32 = 7;
+pub const CAP_SETPCAP: u32 = 8;
+pub const CAP_LINUX_IMMUTABLE: u32 = 9;
+pub const CAP_NET_BIND_SERVICE: u32 = 10;
+pub const CAP_NET_BROADCAST: u32 = 11;
+pub const CAP_NET_ADMIN: u32 = 12;
+pub const CAP_NET_RAW: u32 = 13;
+pub const CAP_IPC_LOCK: u32 = 14;
+pub const CAP_IPC_OWNER: u32 = 15;
+pub const CAP_SYS_MODULE: u32 = 16;
+pub const CAP_SYS_RAWIO: u32 = 17;
+pub const CAP_SYS_CHROOT: u32 = 18;
+pub const CAP_SYS_PTRACE: u32 = 19;
+pub const CAP_SYS_PACCT: u32 = 20;
+pub const CAP_SYS_ADMIN: u32 = 21;
+pub const CAP_SYS_BOOT: u32 = 22;
+pub const CAP_SYS_NICE: u32 = 23;
+pub const CAP_SYS_RESOURCE: u32 = 24;
+pub const CAP_SYS_TIME: u32 = 25;
+pub const CAP_SYS_TTY_CONFIG: u32 = 26;
+pub const CAP_MKNOD: u32 = 27;
+pub const CAP_LEASE: u32 = 28;
+pub const CAP_AUDIT_WRITE: u32 = 29;
+pub const CAP_AUDIT_CONTROL: u32 = 30;
+pub const CAP_SETFCAP: u32 = 31;
+pub const CAP_MAC_OVERRIDE: u32 = 32;
+pub const CAP_MAC_ADMIN: u32 = 33;
+pub const CAP_SYSLOG: u32 = 34;
+pub const CAP_WAKE_ALARM: u32 = 35;
+pub const CAP_BLOCK_SUSPEND: u32 = 36;
+pub const CAP_AUDIT_READ: u32 = 37;
+pub const CAP_PERFMON: u32 = 38;
+pub const CAP_BPF: u32 = 39;
+pub const CAP_CHECKPOINT_RESTORE: u32 = 40;
+pub const CAP_LAST_CAP: u32 = 40;
 pub const O_APPEND: u32 = 8;
 pub const O_DSYNC: u32 = 16;
 pub const O_NONBLOCK: u32 = 128;
@@ -194,7 +259,6 @@ pub const F_SETLK: u32 = 6;
 pub const F_SETLKW: u32 = 7;
 pub const F_SETOWN: u32 = 24;
 pub const F_GETOWN: u32 = 23;
-pub const __FD_SETSIZE: u32 = 1024;
 pub const O_ACCMODE: u32 = 3;
 pub const O_RDONLY: u32 = 0;
 pub const O_WRONLY: u32 = 1;
@@ -215,9 +279,6 @@ pub const F_GETFL: u32 = 3;
 pub const F_SETFL: u32 = 4;
 pub const F_SETSIG: u32 = 10;
 pub const F_GETSIG: u32 = 11;
-pub const F_GETLK64: u32 = 12;
-pub const F_SETLK64: u32 = 13;
-pub const F_SETLKW64: u32 = 14;
 pub const F_SETOWN_EX: u32 = 15;
 pub const F_GETOWN_EX: u32 = 16;
 pub const F_GETOWNER_UIDS: u32 = 17;
@@ -262,6 +323,7 @@ pub const F_SEAL_SHRINK: u32 = 2;
 pub const F_SEAL_GROW: u32 = 4;
 pub const F_SEAL_WRITE: u32 = 8;
 pub const F_SEAL_FUTURE_WRITE: u32 = 16;
+pub const F_SEAL_EXEC: u32 = 32;
 pub const F_GET_RW_HINT: u32 = 1035;
 pub const F_SET_RW_HINT: u32 = 1036;
 pub const F_GET_FILE_RW_HINT: u32 = 1037;
@@ -354,7 +416,10 @@ pub const FSCRYPT_MODE_AES_256_XTS: u32 = 1;
 pub const FSCRYPT_MODE_AES_256_CTS: u32 = 4;
 pub const FSCRYPT_MODE_AES_128_CBC: u32 = 5;
 pub const FSCRYPT_MODE_AES_128_CTS: u32 = 6;
+pub const FSCRYPT_MODE_SM4_XTS: u32 = 7;
+pub const FSCRYPT_MODE_SM4_CTS: u32 = 8;
 pub const FSCRYPT_MODE_ADIANTUM: u32 = 9;
+pub const FSCRYPT_MODE_AES_256_HCTR2: u32 = 10;
 pub const FSCRYPT_POLICY_V1: u32 = 0;
 pub const FSCRYPT_KEY_DESCRIPTOR_SIZE: u32 = 8;
 pub const FSCRYPT_KEY_DESC_PREFIX: &[u8; 9usize] = b"fscrypt:\0";
@@ -385,8 +450,6 @@ pub const FS_ENCRYPTION_MODE_AES_256_CBC: u32 = 3;
 pub const FS_ENCRYPTION_MODE_AES_256_CTS: u32 = 4;
 pub const FS_ENCRYPTION_MODE_AES_128_CBC: u32 = 5;
 pub const FS_ENCRYPTION_MODE_AES_128_CTS: u32 = 6;
-pub const FS_ENCRYPTION_MODE_SPECK128_256_XTS: u32 = 7;
-pub const FS_ENCRYPTION_MODE_SPECK128_256_CTS: u32 = 8;
 pub const FS_ENCRYPTION_MODE_ADIANTUM: u32 = 9;
 pub const FS_KEY_DESC_PREFIX: &[u8; 9usize] = b"fscrypt:\0";
 pub const FS_KEY_DESC_PREFIX_SIZE: u32 = 8;
@@ -604,6 +667,9 @@ pub const _K_SS_MAXSIZE: u32 = 128;
 pub const SOCK_SNDBUF_LOCK: u32 = 1;
 pub const SOCK_RCVBUF_LOCK: u32 = 2;
 pub const SOCK_BUF_LOCK_MASK: u32 = 3;
+pub const SOCK_TXREHASH_DEFAULT: u32 = 255;
+pub const SOCK_TXREHASH_DISABLED: u32 = 0;
+pub const SOCK_TXREHASH_ENABLED: u32 = 1;
 pub const IP_TOS: u32 = 1;
 pub const IP_TTL: u32 = 2;
 pub const IP_HDRINCL: u32 = 3;
@@ -657,6 +723,7 @@ pub const MCAST_LEAVE_SOURCE_GROUP: u32 = 47;
 pub const MCAST_MSFILTER: u32 = 48;
 pub const IP_MULTICAST_ALL: u32 = 49;
 pub const IP_UNICAST_IF: u32 = 50;
+pub const IP_LOCAL_PORT_RANGE: u32 = 51;
 pub const MCAST_EXCLUDE: u32 = 0;
 pub const MCAST_INCLUDE: u32 = 1;
 pub const IP_DEFAULT_MULTICAST_TTL: u32 = 1;
@@ -959,12 +1026,8 @@ pub const BPF_FS_MAGIC: u32 = 3405662737;
 pub const AAFS_MAGIC: u32 = 1513908720;
 pub const ZONEFS_MAGIC: u32 = 1515144787;
 pub const UDF_SUPER_MAGIC: u32 = 352400198;
-pub const BALLOON_KVM_MAGIC: u32 = 325456742;
-pub const ZSMALLOC_MAGIC: u32 = 1479104553;
 pub const DMA_BUF_MAGIC: u32 = 1145913666;
 pub const DEVMEM_MAGIC: u32 = 1162691661;
-pub const Z3FOLD_MAGIC: u32 = 51;
-pub const PPC_CMM_MAGIC: u32 = 3344373136;
 pub const SECRETMEM_MAGIC: u32 = 1397048141;
 pub const PROT_NONE: u32 = 0;
 pub const PROT_READ: u32 = 1;
@@ -1019,6 +1082,8 @@ pub const MADV_COLD: u32 = 20;
 pub const MADV_PAGEOUT: u32 = 21;
 pub const MADV_POPULATE_READ: u32 = 22;
 pub const MADV_POPULATE_WRITE: u32 = 23;
+pub const MADV_DONTNEED_LOCKED: u32 = 24;
+pub const MADV_COLLAPSE: u32 = 25;
 pub const MAP_FILE: u32 = 0;
 pub const PKEY_DISABLE_ACCESS: u32 = 1;
 pub const PKEY_DISABLE_WRITE: u32 = 2;
@@ -1143,6 +1208,8 @@ pub const SO_BUSY_POLL_BUDGET: u32 = 70;
 pub const SO_NETNS_COOKIE: u32 = 71;
 pub const SO_BUF_LOCK: u32 = 72;
 pub const SO_RESERVE_MEM: u32 = 73;
+pub const SO_TXREHASH: u32 = 74;
+pub const SO_RCVMARK: u32 = 75;
 pub const SO_TIMESTAMP: u32 = 29;
 pub const SO_TIMESTAMPNS: u32 = 35;
 pub const SO_TIMESTAMPING: u32 = 37;
@@ -1327,6 +1394,14 @@ pub const PR_SCHED_CORE_MAX: u32 = 4;
 pub const PR_SCHED_CORE_SCOPE_THREAD: u32 = 0;
 pub const PR_SCHED_CORE_SCOPE_THREAD_GROUP: u32 = 1;
 pub const PR_SCHED_CORE_SCOPE_PROCESS_GROUP: u32 = 2;
+pub const PR_SME_SET_VL: u32 = 63;
+pub const PR_SME_SET_VL_ONEXEC: u32 = 262144;
+pub const PR_SME_GET_VL: u32 = 64;
+pub const PR_SME_VL_LEN_MASK: u32 = 65535;
+pub const PR_SME_VL_INHERIT: u32 = 131072;
+pub const PR_SET_MDWE: u32 = 65;
+pub const PR_MDWE_REFUSE_EXEC_GAIN: u32 = 1;
+pub const PR_GET_MDWE: u32 = 66;
 pub const PR_SET_VMA: u32 = 1398164801;
 pub const PR_SET_VMA_ANON_NAME: u32 = 0;
 pub const GRND_NONBLOCK: u32 = 1;
@@ -1544,6 +1619,7 @@ pub const TRAP_HWBKPT: u32 = 4;
 pub const TRAP_UNK: u32 = 5;
 pub const TRAP_PERF: u32 = 6;
 pub const NSIGTRAP: u32 = 6;
+pub const TRAP_PERF_FLAG_ASYNC: u32 = 1;
 pub const CLD_EXITED: u32 = 1;
 pub const CLD_KILLED: u32 = 2;
 pub const CLD_DUMPED: u32 = 3;
@@ -1609,6 +1685,7 @@ pub const STATX_BLOCKS: u32 = 1024;
 pub const STATX_BASIC_STATS: u32 = 2047;
 pub const STATX_BTIME: u32 = 2048;
 pub const STATX_MNT_ID: u32 = 4096;
+pub const STATX_DIOALIGN: u32 = 8192;
 pub const STATX__RESERVED: u32 = 2147483648;
 pub const STATX_ALL: u32 = 4095;
 pub const STATX_ATTR_COMPRESSED: u32 = 4;
@@ -1808,6 +1885,51 @@ pub const ENOTRECOVERABLE: u32 = 166;
 pub const ERFKILL: u32 = 167;
 pub const EHWPOISON: u32 = 168;
 pub const EDQUOT: u32 = 1133;
+pub const IGNBRK: u32 = 1;
+pub const BRKINT: u32 = 2;
+pub const IGNPAR: u32 = 4;
+pub const PARMRK: u32 = 8;
+pub const INPCK: u32 = 16;
+pub const ISTRIP: u32 = 32;
+pub const INLCR: u32 = 64;
+pub const IGNCR: u32 = 128;
+pub const ICRNL: u32 = 256;
+pub const IXANY: u32 = 2048;
+pub const OPOST: u32 = 1;
+pub const OCRNL: u32 = 8;
+pub const ONOCR: u32 = 16;
+pub const ONLRET: u32 = 32;
+pub const OFILL: u32 = 64;
+pub const OFDEL: u32 = 128;
+pub const B0: u32 = 0;
+pub const B50: u32 = 1;
+pub const B75: u32 = 2;
+pub const B110: u32 = 3;
+pub const B134: u32 = 4;
+pub const B150: u32 = 5;
+pub const B200: u32 = 6;
+pub const B300: u32 = 7;
+pub const B600: u32 = 8;
+pub const B1200: u32 = 9;
+pub const B1800: u32 = 10;
+pub const B2400: u32 = 11;
+pub const B4800: u32 = 12;
+pub const B9600: u32 = 13;
+pub const B19200: u32 = 14;
+pub const B38400: u32 = 15;
+pub const EXTA: u32 = 14;
+pub const EXTB: u32 = 15;
+pub const ADDRB: u32 = 536870912;
+pub const CMSPAR: u32 = 1073741824;
+pub const CRTSCTS: u32 = 2147483648;
+pub const IBSHIFT: u32 = 16;
+pub const TCOOFF: u32 = 0;
+pub const TCOON: u32 = 1;
+pub const TCIOFF: u32 = 2;
+pub const TCION: u32 = 3;
+pub const TCIFLUSH: u32 = 0;
+pub const TCOFLUSH: u32 = 1;
+pub const TCIOFLUSH: u32 = 2;
 pub const NCCS: u32 = 23;
 pub const VINTR: u32 = 0;
 pub const VQUIT: u32 = 1;
@@ -1827,29 +1949,13 @@ pub const VWERASE: u32 = 14;
 pub const VLNEXT: u32 = 15;
 pub const VEOF: u32 = 16;
 pub const VEOL: u32 = 17;
-pub const IGNBRK: u32 = 1;
-pub const BRKINT: u32 = 2;
-pub const IGNPAR: u32 = 4;
-pub const PARMRK: u32 = 8;
-pub const INPCK: u32 = 16;
-pub const ISTRIP: u32 = 32;
-pub const INLCR: u32 = 64;
-pub const IGNCR: u32 = 128;
-pub const ICRNL: u32 = 256;
 pub const IUCLC: u32 = 512;
 pub const IXON: u32 = 1024;
-pub const IXANY: u32 = 2048;
 pub const IXOFF: u32 = 4096;
 pub const IMAXBEL: u32 = 8192;
 pub const IUTF8: u32 = 16384;
-pub const OPOST: u32 = 1;
 pub const OLCUC: u32 = 2;
 pub const ONLCR: u32 = 4;
-pub const OCRNL: u32 = 8;
-pub const ONOCR: u32 = 16;
-pub const ONLRET: u32 = 32;
-pub const OFILL: u32 = 64;
-pub const OFDEL: u32 = 128;
 pub const NLDLY: u32 = 256;
 pub const NL0: u32 = 0;
 pub const NL1: u32 = 256;
@@ -1874,24 +1980,6 @@ pub const FFDLY: u32 = 32768;
 pub const FF0: u32 = 0;
 pub const FF1: u32 = 32768;
 pub const CBAUD: u32 = 4111;
-pub const B0: u32 = 0;
-pub const B50: u32 = 1;
-pub const B75: u32 = 2;
-pub const B110: u32 = 3;
-pub const B134: u32 = 4;
-pub const B150: u32 = 5;
-pub const B200: u32 = 6;
-pub const B300: u32 = 7;
-pub const B600: u32 = 8;
-pub const B1200: u32 = 9;
-pub const B1800: u32 = 10;
-pub const B2400: u32 = 11;
-pub const B4800: u32 = 12;
-pub const B9600: u32 = 13;
-pub const B19200: u32 = 14;
-pub const B38400: u32 = 15;
-pub const EXTA: u32 = 14;
-pub const EXTB: u32 = 15;
 pub const CSIZE: u32 = 48;
 pub const CS5: u32 = 0;
 pub const CS6: u32 = 16;
@@ -1921,9 +2009,6 @@ pub const B3000000: u32 = 4109;
 pub const B3500000: u32 = 4110;
 pub const B4000000: u32 = 4111;
 pub const CIBAUD: u32 = 269418496;
-pub const CMSPAR: u32 = 1073741824;
-pub const CRTSCTS: u32 = 2147483648;
-pub const IBSHIFT: u32 = 16;
 pub const ISIG: u32 = 1;
 pub const ICANON: u32 = 2;
 pub const XCASE: u32 = 4;
@@ -1942,13 +2027,6 @@ pub const TOSTOP: u32 = 32768;
 pub const ITOSTOP: u32 = 32768;
 pub const EXTPROC: u32 = 65536;
 pub const TIOCSER_TEMT: u32 = 1;
-pub const TCOOFF: u32 = 0;
-pub const TCOON: u32 = 1;
-pub const TCIOFF: u32 = 2;
-pub const TCION: u32 = 3;
-pub const TCIFLUSH: u32 = 0;
-pub const TCOFLUSH: u32 = 1;
-pub const TCIOFLUSH: u32 = 2;
 pub const TIOCPKT_DATA: u32 = 0;
 pub const TIOCPKT_FLUSHREAD: u32 = 1;
 pub const TIOCPKT_FLUSHWRITE: u32 = 2;
@@ -2350,9 +2428,47 @@ pub const P_ALL: u32 = 0;
 pub const P_PID: u32 = 1;
 pub const P_PGID: u32 = 2;
 pub const P_PIDFD: u32 = 3;
+pub const XATTR_CREATE: u32 = 1;
+pub const XATTR_REPLACE: u32 = 2;
+pub const XATTR_OS2_PREFIX: &[u8; 5usize] = b"os2.\0";
+pub const XATTR_MAC_OSX_PREFIX: &[u8; 5usize] = b"osx.\0";
+pub const XATTR_BTRFS_PREFIX: &[u8; 7usize] = b"btrfs.\0";
+pub const XATTR_HURD_PREFIX: &[u8; 5usize] = b"gnu.\0";
+pub const XATTR_SECURITY_PREFIX: &[u8; 10usize] = b"security.\0";
+pub const XATTR_SYSTEM_PREFIX: &[u8; 8usize] = b"system.\0";
+pub const XATTR_TRUSTED_PREFIX: &[u8; 9usize] = b"trusted.\0";
+pub const XATTR_USER_PREFIX: &[u8; 6usize] = b"user.\0";
+pub const XATTR_EVM_SUFFIX: &[u8; 4usize] = b"evm\0";
+pub const XATTR_NAME_EVM: &[u8; 13usize] = b"security.evm\0";
+pub const XATTR_IMA_SUFFIX: &[u8; 4usize] = b"ima\0";
+pub const XATTR_NAME_IMA: &[u8; 13usize] = b"security.ima\0";
+pub const XATTR_SELINUX_SUFFIX: &[u8; 8usize] = b"selinux\0";
+pub const XATTR_NAME_SELINUX: &[u8; 17usize] = b"security.selinux\0";
+pub const XATTR_SMACK_SUFFIX: &[u8; 8usize] = b"SMACK64\0";
+pub const XATTR_SMACK_IPIN: &[u8; 12usize] = b"SMACK64IPIN\0";
+pub const XATTR_SMACK_IPOUT: &[u8; 13usize] = b"SMACK64IPOUT\0";
+pub const XATTR_SMACK_EXEC: &[u8; 12usize] = b"SMACK64EXEC\0";
+pub const XATTR_SMACK_TRANSMUTE: &[u8; 17usize] = b"SMACK64TRANSMUTE\0";
+pub const XATTR_SMACK_MMAP: &[u8; 12usize] = b"SMACK64MMAP\0";
+pub const XATTR_NAME_SMACK: &[u8; 17usize] = b"security.SMACK64\0";
+pub const XATTR_NAME_SMACKIPIN: &[u8; 21usize] = b"security.SMACK64IPIN\0";
+pub const XATTR_NAME_SMACKIPOUT: &[u8; 22usize] = b"security.SMACK64IPOUT\0";
+pub const XATTR_NAME_SMACKEXEC: &[u8; 21usize] = b"security.SMACK64EXEC\0";
+pub const XATTR_NAME_SMACKTRANSMUTE: &[u8; 26usize] = b"security.SMACK64TRANSMUTE\0";
+pub const XATTR_NAME_SMACKMMAP: &[u8; 21usize] = b"security.SMACK64MMAP\0";
+pub const XATTR_APPARMOR_SUFFIX: &[u8; 9usize] = b"apparmor\0";
+pub const XATTR_NAME_APPARMOR: &[u8; 18usize] = b"security.apparmor\0";
+pub const XATTR_CAPS_SUFFIX: &[u8; 11usize] = b"capability\0";
+pub const XATTR_NAME_CAPS: &[u8; 20usize] = b"security.capability\0";
+pub const XATTR_POSIX_ACL_ACCESS: &[u8; 17usize] = b"posix_acl_access\0";
+pub const XATTR_NAME_POSIX_ACL_ACCESS: &[u8; 24usize] = b"system.posix_acl_access\0";
+pub const XATTR_POSIX_ACL_DEFAULT: &[u8; 18usize] = b"posix_acl_default\0";
+pub const XATTR_NAME_POSIX_ACL_DEFAULT: &[u8; 25usize] = b"system.posix_acl_default\0";
 pub const MFD_CLOEXEC: u32 = 1;
 pub const MFD_ALLOW_SEALING: u32 = 2;
 pub const MFD_HUGETLB: u32 = 4;
+pub const MFD_NOEXEC_SEAL: u32 = 8;
+pub const MFD_EXEC: u32 = 16;
 pub const MFD_HUGE_SHIFT: u32 = 26;
 pub const MFD_HUGE_MASK: u32 = 63;
 pub const MFD_HUGE_64KB: u32 = 1073741824;
@@ -2371,6 +2487,7 @@ pub const TFD_TIMER_ABSTIME: u32 = 1;
 pub const TFD_TIMER_CANCEL_ON_SET: u32 = 2;
 pub const TFD_CLOEXEC: u32 = 524288;
 pub const TFD_NONBLOCK: u32 = 128;
+pub const USERFAULTFD_IOC: u32 = 170;
 pub const _UFFDIO_REGISTER: u32 = 0;
 pub const _UFFDIO_UNREGISTER: u32 = 1;
 pub const _UFFDIO_WAKE: u32 = 2;
@@ -2399,7 +2516,10 @@ pub const UFFD_FEATURE_SIGBUS: u32 = 128;
 pub const UFFD_FEATURE_THREAD_ID: u32 = 256;
 pub const UFFD_FEATURE_MINOR_HUGETLBFS: u32 = 512;
 pub const UFFD_FEATURE_MINOR_SHMEM: u32 = 1024;
+pub const UFFD_FEATURE_EXACT_ADDRESS: u32 = 2048;
+pub const UFFD_FEATURE_WP_HUGETLBFS_SHMEM: u32 = 4096;
 pub const UFFD_USER_MODE_ONLY: u32 = 1;
+pub const IORING_FILE_INDEX_ALLOC: i32 = -1;
 pub const IORING_SETUP_IOPOLL: u32 = 1;
 pub const IORING_SETUP_SQPOLL: u32 = 2;
 pub const IORING_SETUP_SQ_AFF: u32 = 4;
@@ -2407,6 +2527,14 @@ pub const IORING_SETUP_CQSIZE: u32 = 8;
 pub const IORING_SETUP_CLAMP: u32 = 16;
 pub const IORING_SETUP_ATTACH_WQ: u32 = 32;
 pub const IORING_SETUP_R_DISABLED: u32 = 64;
+pub const IORING_SETUP_SUBMIT_ALL: u32 = 128;
+pub const IORING_SETUP_COOP_TASKRUN: u32 = 256;
+pub const IORING_SETUP_TASKRUN_FLAG: u32 = 512;
+pub const IORING_SETUP_SQE128: u32 = 1024;
+pub const IORING_SETUP_CQE32: u32 = 2048;
+pub const IORING_SETUP_SINGLE_ISSUER: u32 = 4096;
+pub const IORING_SETUP_DEFER_TASKRUN: u32 = 8192;
+pub const IORING_URING_CMD_FIXED: u32 = 1;
 pub const IORING_FSYNC_DATASYNC: u32 = 1;
 pub const IORING_TIMEOUT_ABS: u32 = 1;
 pub const IORING_TIMEOUT_UPDATE: u32 = 2;
@@ -2420,18 +2548,35 @@ pub const SPLICE_F_FD_IN_FIXED: u32 = 2147483648;
 pub const IORING_POLL_ADD_MULTI: u32 = 1;
 pub const IORING_POLL_UPDATE_EVENTS: u32 = 2;
 pub const IORING_POLL_UPDATE_USER_DATA: u32 = 4;
+pub const IORING_POLL_ADD_LEVEL: u32 = 8;
+pub const IORING_ASYNC_CANCEL_ALL: u32 = 1;
+pub const IORING_ASYNC_CANCEL_FD: u32 = 2;
+pub const IORING_ASYNC_CANCEL_ANY: u32 = 4;
+pub const IORING_ASYNC_CANCEL_FD_FIXED: u32 = 8;
+pub const IORING_RECVSEND_POLL_FIRST: u32 = 1;
+pub const IORING_RECV_MULTISHOT: u32 = 2;
+pub const IORING_RECVSEND_FIXED_BUF: u32 = 4;
+pub const IORING_SEND_ZC_REPORT_USAGE: u32 = 8;
+pub const IORING_NOTIF_USAGE_ZC_COPIED: u32 = 2147483648;
+pub const IORING_ACCEPT_MULTISHOT: u32 = 1;
+pub const IORING_MSG_RING_CQE_SKIP: u32 = 1;
+pub const IORING_MSG_RING_FLAGS_PASS: u32 = 2;
 pub const IORING_CQE_F_BUFFER: u32 = 1;
 pub const IORING_CQE_F_MORE: u32 = 2;
+pub const IORING_CQE_F_SOCK_NONEMPTY: u32 = 4;
+pub const IORING_CQE_F_NOTIF: u32 = 8;
 pub const IORING_OFF_SQ_RING: u32 = 0;
 pub const IORING_OFF_CQ_RING: u32 = 134217728;
 pub const IORING_OFF_SQES: u32 = 268435456;
 pub const IORING_SQ_NEED_WAKEUP: u32 = 1;
 pub const IORING_SQ_CQ_OVERFLOW: u32 = 2;
+pub const IORING_SQ_TASKRUN: u32 = 4;
 pub const IORING_CQ_EVENTFD_DISABLED: u32 = 1;
 pub const IORING_ENTER_GETEVENTS: u32 = 1;
 pub const IORING_ENTER_SQ_WAKEUP: u32 = 2;
 pub const IORING_ENTER_SQ_WAIT: u32 = 4;
 pub const IORING_ENTER_EXT_ARG: u32 = 8;
+pub const IORING_ENTER_REGISTERED_RING: u32 = 16;
 pub const IORING_FEAT_SINGLE_MMAP: u32 = 1;
 pub const IORING_FEAT_NODROP: u32 = 2;
 pub const IORING_FEAT_SUBMIT_STABLE: u32 = 4;
@@ -2444,6 +2589,9 @@ pub const IORING_FEAT_EXT_ARG: u32 = 256;
 pub const IORING_FEAT_NATIVE_WORKERS: u32 = 512;
 pub const IORING_FEAT_RSRC_TAGS: u32 = 1024;
 pub const IORING_FEAT_CQE_SKIP: u32 = 2048;
+pub const IORING_FEAT_LINKED_FILE: u32 = 4096;
+pub const IORING_FEAT_REG_REG_RING: u32 = 8192;
+pub const IORING_RSRC_REGISTER_SPARSE: u32 = 1;
 pub const IORING_REGISTER_FILES_SKIP: i32 = -2;
 pub const IO_URING_OP_SUPPORTED: u32 = 1;
 pub const DT_UNKNOWN: u32 = 0;
@@ -2570,6 +2718,11 @@ pub const SPLICE_F_MOVE: u32 = 1;
 pub const SPLICE_F_NONBLOCK: u32 = 2;
 pub const SPLICE_F_MORE: u32 = 4;
 pub const SPLICE_F_GIFT: u32 = 8;
+pub const MNT_FORCE: u32 = 1;
+pub const MNT_DETACH: u32 = 2;
+pub const MNT_EXPIRE: u32 = 4;
+pub const UMOUNT_NOFOLLOW: u32 = 8;
+pub const UMOUNT_UNUSED: u32 = 2147483648;
 pub type size_t = crate::ctypes::c_ulong;
 pub type ssize_t = crate::ctypes::c_long;
 pub type __s8 = crate::ctypes::c_schar;
@@ -2631,6 +2784,46 @@ pub type __be64 = __u64;
 pub type __sum16 = __u16;
 pub type __wsum = __u32;
 pub type __poll_t = crate::ctypes::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct __user_cap_header_struct {
+pub version: __u32,
+pub pid: crate::ctypes::c_int,
+}
+pub type cap_user_header_t = *mut __user_cap_header_struct;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct __user_cap_data_struct {
+pub effective: __u32,
+pub permitted: __u32,
+pub inheritable: __u32,
+}
+pub type cap_user_data_t = *mut __user_cap_data_struct;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct vfs_cap_data {
+pub magic_etc: __le32,
+pub data: [vfs_cap_data__bindgen_ty_1; 2usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct vfs_cap_data__bindgen_ty_1 {
+pub permitted: __le32,
+pub inheritable: __le32,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct vfs_ns_cap_data {
+pub magic_etc: __le32,
+pub data: [vfs_ns_cap_data__bindgen_ty_1; 2usize],
+pub rootid: __le32,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct vfs_ns_cap_data__bindgen_ty_1 {
+pub permitted: __le32,
+pub inheritable: __le32,
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct f_owner_ex {
@@ -2892,6 +3085,7 @@ pub const IPPROTO_BEETPH: _bindgen_ty_1 = _bindgen_ty_1::IPPROTO_BEETPH;
 pub const IPPROTO_ENCAP: _bindgen_ty_1 = _bindgen_ty_1::IPPROTO_ENCAP;
 pub const IPPROTO_PIM: _bindgen_ty_1 = _bindgen_ty_1::IPPROTO_PIM;
 pub const IPPROTO_COMP: _bindgen_ty_1 = _bindgen_ty_1::IPPROTO_COMP;
+pub const IPPROTO_L2TP: _bindgen_ty_1 = _bindgen_ty_1::IPPROTO_L2TP;
 pub const IPPROTO_SCTP: _bindgen_ty_1 = _bindgen_ty_1::IPPROTO_SCTP;
 pub const IPPROTO_UDPLITE: _bindgen_ty_1 = _bindgen_ty_1::IPPROTO_UDPLITE;
 pub const IPPROTO_MPLS: _bindgen_ty_1 = _bindgen_ty_1::IPPROTO_MPLS;
@@ -2924,6 +3118,7 @@ IPPROTO_BEETPH = 94,
 IPPROTO_ENCAP = 98,
 IPPROTO_PIM = 103,
 IPPROTO_COMP = 108,
+IPPROTO_L2TP = 115,
 IPPROTO_SCTP = 132,
 IPPROTO_UDPLITE = 136,
 IPPROTO_MPLS = 137,
@@ -2959,32 +3154,27 @@ pub imr_sourceaddr: __be32,
 }
 #[repr(C)]
 pub struct ip_msfilter {
-pub __bindgen_anon_1: ip_msfilter__bindgen_ty_1,
-}
-#[repr(C)]
-pub struct ip_msfilter__bindgen_ty_1 {
-pub __bindgen_anon_1: __BindgenUnionField<ip_msfilter__bindgen_ty_1__bindgen_ty_1>,
-pub __bindgen_anon_2: __BindgenUnionField<ip_msfilter__bindgen_ty_1__bindgen_ty_2>,
-pub bindgen_union_field: [u32; 5usize],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct ip_msfilter__bindgen_ty_1__bindgen_ty_1 {
-pub imsf_multiaddr_aux: __be32,
-pub imsf_interface_aux: __be32,
-pub imsf_fmode_aux: __u32,
-pub imsf_numsrc_aux: __u32,
-pub imsf_slist: [__be32; 1usize],
-}
-#[repr(C)]
-#[derive(Debug)]
-pub struct ip_msfilter__bindgen_ty_1__bindgen_ty_2 {
 pub imsf_multiaddr: __be32,
 pub imsf_interface: __be32,
 pub imsf_fmode: __u32,
 pub imsf_numsrc: __u32,
+pub __bindgen_anon_1: ip_msfilter__bindgen_ty_1,
+}
+#[repr(C)]
+pub struct ip_msfilter__bindgen_ty_1 {
+pub imsf_slist: __BindgenUnionField<[__be32; 1usize]>,
+pub __bindgen_anon_1: __BindgenUnionField<ip_msfilter__bindgen_ty_1__bindgen_ty_1>,
+pub bindgen_union_field: u32,
+}
+#[repr(C)]
+#[derive(Debug)]
+pub struct ip_msfilter__bindgen_ty_1__bindgen_ty_1 {
+pub __empty_imsf_slist_flex: ip_msfilter__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1,
 pub imsf_slist_flex: __IncompleteArrayField<__be32>,
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ip_msfilter__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 {}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct group_req {
@@ -3050,7 +3240,7 @@ pub len: __u32,
 pub name: __IncompleteArrayField<crate::ctypes::c_char>,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct iphdr {
 pub _bitfield_align_1: [u8; 0],
 pub _bitfield_1: __BindgenBitfieldUnit<[u8; 1usize]>,
@@ -3061,6 +3251,23 @@ pub frag_off: __be16,
 pub ttl: __u8,
 pub protocol: __u8,
 pub check: __sum16,
+pub __bindgen_anon_1: iphdr__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union iphdr__bindgen_ty_1 {
+pub __bindgen_anon_1: iphdr__bindgen_ty_1__bindgen_ty_1,
+pub addrs: iphdr__bindgen_ty_1__bindgen_ty_2,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct iphdr__bindgen_ty_1__bindgen_ty_1 {
+pub saddr: __be32,
+pub daddr: __be32,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct iphdr__bindgen_ty_1__bindgen_ty_2 {
 pub saddr: __be32,
 pub daddr: __be32,
 }
@@ -3307,6 +3514,23 @@ pub flow_lbl: [__u8; 3usize],
 pub payload_len: __be16,
 pub nexthdr: __u8,
 pub hop_limit: __u8,
+pub __bindgen_anon_1: ipv6hdr__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union ipv6hdr__bindgen_ty_1 {
+pub __bindgen_anon_1: ipv6hdr__bindgen_ty_1__bindgen_ty_1,
+pub addrs: ipv6hdr__bindgen_ty_1__bindgen_ty_2,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ipv6hdr__bindgen_ty_1__bindgen_ty_1 {
+pub saddr: in6_addr,
+pub daddr: in6_addr,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ipv6hdr__bindgen_ty_1__bindgen_ty_2 {
 pub saddr: in6_addr,
 pub daddr: in6_addr,
 }
@@ -3404,6 +3628,7 @@ pub const DEVCONF_IOAM6_ENABLED: _bindgen_ty_3 = _bindgen_ty_3::DEVCONF_IOAM6_EN
 pub const DEVCONF_IOAM6_ID: _bindgen_ty_3 = _bindgen_ty_3::DEVCONF_IOAM6_ID;
 pub const DEVCONF_IOAM6_ID_WIDE: _bindgen_ty_3 = _bindgen_ty_3::DEVCONF_IOAM6_ID_WIDE;
 pub const DEVCONF_NDISC_EVICT_NOCARRIER: _bindgen_ty_3 = _bindgen_ty_3::DEVCONF_NDISC_EVICT_NOCARRIER;
+pub const DEVCONF_ACCEPT_UNTRACKED_NA: _bindgen_ty_3 = _bindgen_ty_3::DEVCONF_ACCEPT_UNTRACKED_NA;
 pub const DEVCONF_MAX: _bindgen_ty_3 = _bindgen_ty_3::DEVCONF_MAX;
 #[repr(u32)]
 #[non_exhaustive]
@@ -3466,7 +3691,8 @@ DEVCONF_IOAM6_ENABLED = 53,
 DEVCONF_IOAM6_ID = 54,
 DEVCONF_IOAM6_ID_WIDE = 55,
 DEVCONF_NDISC_EVICT_NOCARRIER = 56,
-DEVCONF_MAX = 57,
+DEVCONF_ACCEPT_UNTRACKED_NA = 57,
+DEVCONF_MAX = 58,
 }
 #[repr(u32)]
 #[non_exhaustive]
@@ -3644,7 +3870,7 @@ pub sa_mask: sigset_t,
 #[derive(Debug, Copy, Clone)]
 pub struct sigaltstack {
 pub ss_sp: *mut crate::ctypes::c_void,
-pub ss_size: size_t,
+pub ss_size: __kernel_size_t,
 pub ss_flags: crate::ctypes::c_int,
 }
 pub type stack_t = sigaltstack;
@@ -3729,6 +3955,7 @@ pub _pkey: __u32,
 pub struct __sifields__bindgen_ty_5__bindgen_ty_1__bindgen_ty_3 {
 pub _data: crate::ctypes::c_ulong,
 pub _type: __u32,
+pub _flags: __u32,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -3816,7 +4043,8 @@ pub stx_rdev_minor: __u32,
 pub stx_dev_major: __u32,
 pub stx_dev_minor: __u32,
 pub stx_mnt_id: __u64,
-pub __spare2: __u64,
+pub stx_dio_mem_align: __u32,
+pub stx_dio_offset_align: __u32,
 pub __spare3: [__u64; 12usize],
 }
 #[repr(C)]
@@ -4142,6 +4370,8 @@ pub tcpi_dsack_dups: __u32,
 pub tcpi_reord_seen: __u32,
 pub tcpi_rcv_ooopack: __u32,
 pub tcpi_snd_wnd: __u32,
+pub tcpi_rcv_wnd: __u32,
+pub tcpi_rehash: __u32,
 }
 impl tcp_info {
 #[inline]
@@ -4237,6 +4467,7 @@ pub const TCP_NLA_TIMEOUT_REHASH: _bindgen_ty_6 = _bindgen_ty_6::TCP_NLA_TIMEOUT
 pub const TCP_NLA_BYTES_NOTSENT: _bindgen_ty_6 = _bindgen_ty_6::TCP_NLA_BYTES_NOTSENT;
 pub const TCP_NLA_EDT: _bindgen_ty_6 = _bindgen_ty_6::TCP_NLA_EDT;
 pub const TCP_NLA_TTL: _bindgen_ty_6 = _bindgen_ty_6::TCP_NLA_TTL;
+pub const TCP_NLA_REHASH: _bindgen_ty_6 = _bindgen_ty_6::TCP_NLA_REHASH;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -4268,6 +4499,7 @@ TCP_NLA_TIMEOUT_REHASH = 23,
 TCP_NLA_BYTES_NOTSENT = 24,
 TCP_NLA_EDT = 25,
 TCP_NLA_TTL = 26,
+TCP_NLA_REHASH = 27,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -4445,6 +4677,7 @@ MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE = 32,
 MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE = 64,
 MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ = 128,
 MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ = 256,
+MEMBARRIER_CMD_GET_REGISTRATIONS = 512,
 }
 #[repr(u32)]
 #[non_exhaustive]
@@ -4557,7 +4790,6 @@ pub mode: __u64,
 pub mapped: __s64,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct io_uring_sqe {
 pub opcode: __u8,
 pub flags: __u8,
@@ -4571,13 +4803,20 @@ pub user_data: __u64,
 pub __bindgen_anon_4: io_uring_sqe__bindgen_ty_4,
 pub personality: __u16,
 pub __bindgen_anon_5: io_uring_sqe__bindgen_ty_5,
-pub __pad2: [__u64; 2usize],
+pub __bindgen_anon_6: io_uring_sqe__bindgen_ty_6,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union io_uring_sqe__bindgen_ty_1 {
 pub off: __u64,
 pub addr2: __u64,
+pub __bindgen_anon_1: io_uring_sqe__bindgen_ty_1__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_sqe__bindgen_ty_1__bindgen_ty_1 {
+pub cmd_op: __u32,
+pub __pad1: __u32,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -4604,6 +4843,9 @@ pub splice_flags: __u32,
 pub rename_flags: __u32,
 pub unlink_flags: __u32,
 pub hardlink_flags: __u32,
+pub xattr_flags: __u32,
+pub msg_ring_flags: __u32,
+pub uring_cmd_flags: __u32,
 }
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
@@ -4616,6 +4858,25 @@ pub buf_group: __u16,
 pub union io_uring_sqe__bindgen_ty_5 {
 pub splice_fd_in: __s32,
 pub file_index: __u32,
+pub __bindgen_anon_1: io_uring_sqe__bindgen_ty_5__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_sqe__bindgen_ty_5__bindgen_ty_1 {
+pub addr_len: __u16,
+pub __pad3: [__u16; 1usize],
+}
+#[repr(C)]
+pub struct io_uring_sqe__bindgen_ty_6 {
+pub __bindgen_anon_1: __BindgenUnionField<io_uring_sqe__bindgen_ty_6__bindgen_ty_1>,
+pub cmd: __BindgenUnionField<[__u8; 0usize]>,
+pub bindgen_union_field: [u64; 2usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_sqe__bindgen_ty_6__bindgen_ty_1 {
+pub addr3: __u64,
+pub __pad2: [__u64; 1usize],
 }
 pub const IOSQE_FIXED_FILE_BIT: _bindgen_ty_7 = _bindgen_ty_7::IOSQE_FIXED_FILE_BIT;
 pub const IOSQE_IO_DRAIN_BIT: _bindgen_ty_7 = _bindgen_ty_7::IOSQE_IO_DRAIN_BIT;
@@ -4636,51 +4897,10 @@ IOSQE_ASYNC_BIT = 4,
 IOSQE_BUFFER_SELECT_BIT = 5,
 IOSQE_CQE_SKIP_SUCCESS_BIT = 6,
 }
-pub const IORING_OP_NOP: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_NOP;
-pub const IORING_OP_READV: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_READV;
-pub const IORING_OP_WRITEV: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_WRITEV;
-pub const IORING_OP_FSYNC: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_FSYNC;
-pub const IORING_OP_READ_FIXED: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_READ_FIXED;
-pub const IORING_OP_WRITE_FIXED: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_WRITE_FIXED;
-pub const IORING_OP_POLL_ADD: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_POLL_ADD;
-pub const IORING_OP_POLL_REMOVE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_POLL_REMOVE;
-pub const IORING_OP_SYNC_FILE_RANGE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_SYNC_FILE_RANGE;
-pub const IORING_OP_SENDMSG: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_SENDMSG;
-pub const IORING_OP_RECVMSG: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_RECVMSG;
-pub const IORING_OP_TIMEOUT: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_TIMEOUT;
-pub const IORING_OP_TIMEOUT_REMOVE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_TIMEOUT_REMOVE;
-pub const IORING_OP_ACCEPT: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_ACCEPT;
-pub const IORING_OP_ASYNC_CANCEL: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_ASYNC_CANCEL;
-pub const IORING_OP_LINK_TIMEOUT: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_LINK_TIMEOUT;
-pub const IORING_OP_CONNECT: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_CONNECT;
-pub const IORING_OP_FALLOCATE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_FALLOCATE;
-pub const IORING_OP_OPENAT: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_OPENAT;
-pub const IORING_OP_CLOSE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_CLOSE;
-pub const IORING_OP_FILES_UPDATE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_FILES_UPDATE;
-pub const IORING_OP_STATX: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_STATX;
-pub const IORING_OP_READ: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_READ;
-pub const IORING_OP_WRITE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_WRITE;
-pub const IORING_OP_FADVISE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_FADVISE;
-pub const IORING_OP_MADVISE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_MADVISE;
-pub const IORING_OP_SEND: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_SEND;
-pub const IORING_OP_RECV: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_RECV;
-pub const IORING_OP_OPENAT2: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_OPENAT2;
-pub const IORING_OP_EPOLL_CTL: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_EPOLL_CTL;
-pub const IORING_OP_SPLICE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_SPLICE;
-pub const IORING_OP_PROVIDE_BUFFERS: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_PROVIDE_BUFFERS;
-pub const IORING_OP_REMOVE_BUFFERS: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_REMOVE_BUFFERS;
-pub const IORING_OP_TEE: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_TEE;
-pub const IORING_OP_SHUTDOWN: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_SHUTDOWN;
-pub const IORING_OP_RENAMEAT: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_RENAMEAT;
-pub const IORING_OP_UNLINKAT: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_UNLINKAT;
-pub const IORING_OP_MKDIRAT: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_MKDIRAT;
-pub const IORING_OP_SYMLINKAT: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_SYMLINKAT;
-pub const IORING_OP_LINKAT: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_LINKAT;
-pub const IORING_OP_LAST: _bindgen_ty_8 = _bindgen_ty_8::IORING_OP_LAST;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_8 {
+pub enum io_uring_op {
 IORING_OP_NOP = 0,
 IORING_OP_READV = 1,
 IORING_OP_WRITEV = 2,
@@ -4721,14 +4941,33 @@ IORING_OP_UNLINKAT = 36,
 IORING_OP_MKDIRAT = 37,
 IORING_OP_SYMLINKAT = 38,
 IORING_OP_LINKAT = 39,
-IORING_OP_LAST = 40,
+IORING_OP_MSG_RING = 40,
+IORING_OP_FSETXATTR = 41,
+IORING_OP_SETXATTR = 42,
+IORING_OP_FGETXATTR = 43,
+IORING_OP_GETXATTR = 44,
+IORING_OP_SOCKET = 45,
+IORING_OP_URING_CMD = 46,
+IORING_OP_SEND_ZC = 47,
+IORING_OP_SENDMSG_ZC = 48,
+IORING_OP_LAST = 49,
+}
+pub const IORING_MSG_DATA: _bindgen_ty_8 = _bindgen_ty_8::IORING_MSG_DATA;
+pub const IORING_MSG_SEND_FD: _bindgen_ty_8 = _bindgen_ty_8::IORING_MSG_SEND_FD;
+#[repr(u32)]
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum _bindgen_ty_8 {
+IORING_MSG_DATA = 0,
+IORING_MSG_SEND_FD = 1,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub struct io_uring_cqe {
 pub user_data: __u64,
 pub res: __s32,
 pub flags: __u32,
+pub big_cqe: __IncompleteArrayField<__u64>,
 }
 pub const IORING_CQE_BUFFER_SHIFT: _bindgen_ty_9 = _bindgen_ty_9::IORING_CQE_BUFFER_SHIFT;
 #[repr(u32)]
@@ -4797,7 +5036,14 @@ pub const IORING_REGISTER_BUFFERS_UPDATE: _bindgen_ty_10 = _bindgen_ty_10::IORIN
 pub const IORING_REGISTER_IOWQ_AFF: _bindgen_ty_10 = _bindgen_ty_10::IORING_REGISTER_IOWQ_AFF;
 pub const IORING_UNREGISTER_IOWQ_AFF: _bindgen_ty_10 = _bindgen_ty_10::IORING_UNREGISTER_IOWQ_AFF;
 pub const IORING_REGISTER_IOWQ_MAX_WORKERS: _bindgen_ty_10 = _bindgen_ty_10::IORING_REGISTER_IOWQ_MAX_WORKERS;
+pub const IORING_REGISTER_RING_FDS: _bindgen_ty_10 = _bindgen_ty_10::IORING_REGISTER_RING_FDS;
+pub const IORING_UNREGISTER_RING_FDS: _bindgen_ty_10 = _bindgen_ty_10::IORING_UNREGISTER_RING_FDS;
+pub const IORING_REGISTER_PBUF_RING: _bindgen_ty_10 = _bindgen_ty_10::IORING_REGISTER_PBUF_RING;
+pub const IORING_UNREGISTER_PBUF_RING: _bindgen_ty_10 = _bindgen_ty_10::IORING_UNREGISTER_PBUF_RING;
+pub const IORING_REGISTER_SYNC_CANCEL: _bindgen_ty_10 = _bindgen_ty_10::IORING_REGISTER_SYNC_CANCEL;
+pub const IORING_REGISTER_FILE_ALLOC_RANGE: _bindgen_ty_10 = _bindgen_ty_10::IORING_REGISTER_FILE_ALLOC_RANGE;
 pub const IORING_REGISTER_LAST: _bindgen_ty_10 = _bindgen_ty_10::IORING_REGISTER_LAST;
+pub const IORING_REGISTER_USE_REGISTERED_RING: _bindgen_ty_10 = _bindgen_ty_10::IORING_REGISTER_USE_REGISTERED_RING;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -4822,7 +5068,14 @@ IORING_REGISTER_BUFFERS_UPDATE = 16,
 IORING_REGISTER_IOWQ_AFF = 17,
 IORING_UNREGISTER_IOWQ_AFF = 18,
 IORING_REGISTER_IOWQ_MAX_WORKERS = 19,
-IORING_REGISTER_LAST = 20,
+IORING_REGISTER_RING_FDS = 20,
+IORING_UNREGISTER_RING_FDS = 21,
+IORING_REGISTER_PBUF_RING = 22,
+IORING_UNREGISTER_PBUF_RING = 23,
+IORING_REGISTER_SYNC_CANCEL = 24,
+IORING_REGISTER_FILE_ALLOC_RANGE = 25,
+IORING_REGISTER_LAST = 26,
+IORING_REGISTER_USE_REGISTERED_RING = 2147483648,
 }
 pub const IO_WQ_BOUND: _bindgen_ty_11 = _bindgen_ty_11::IO_WQ_BOUND;
 pub const IO_WQ_UNBOUND: _bindgen_ty_11 = _bindgen_ty_11::IO_WQ_UNBOUND;
@@ -4844,7 +5097,7 @@ pub fds: __u64,
 #[derive(Debug, Copy, Clone)]
 pub struct io_uring_rsrc_register {
 pub nr: __u32,
-pub resv: __u32,
+pub flags: __u32,
 pub resv2: __u64,
 pub data: __u64,
 pub tags: __u64,
@@ -4865,6 +5118,21 @@ pub data: __u64,
 pub tags: __u64,
 pub nr: __u32,
 pub resv2: __u32,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_notification_slot {
+pub tag: __u64,
+pub resv: [__u64; 3usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_notification_register {
+pub nr_slots: __u32,
+pub resv: __u32,
+pub resv2: __u64,
+pub data: __u64,
+pub resv3: __u64,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -4898,6 +5166,50 @@ pub register_op: __u8,
 pub sqe_op: __u8,
 pub sqe_flags: __u8,
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_buf {
+pub addr: __u64,
+pub len: __u32,
+pub bid: __u16,
+pub resv: __u16,
+}
+#[repr(C)]
+pub struct io_uring_buf_ring {
+pub __bindgen_anon_1: io_uring_buf_ring__bindgen_ty_1,
+}
+#[repr(C)]
+pub struct io_uring_buf_ring__bindgen_ty_1 {
+pub __bindgen_anon_1: __BindgenUnionField<io_uring_buf_ring__bindgen_ty_1__bindgen_ty_1>,
+pub __bindgen_anon_2: __BindgenUnionField<io_uring_buf_ring__bindgen_ty_1__bindgen_ty_2>,
+pub bindgen_union_field: [u64; 2usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_buf_ring__bindgen_ty_1__bindgen_ty_1 {
+pub resv1: __u64,
+pub resv2: __u32,
+pub resv3: __u16,
+pub tail: __u16,
+}
+#[repr(C)]
+#[derive(Debug)]
+pub struct io_uring_buf_ring__bindgen_ty_1__bindgen_ty_2 {
+pub __empty_bufs: io_uring_buf_ring__bindgen_ty_1__bindgen_ty_2__bindgen_ty_1,
+pub bufs: __IncompleteArrayField<io_uring_buf>,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_buf_ring__bindgen_ty_1__bindgen_ty_2__bindgen_ty_1 {}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_buf_reg {
+pub ring_addr: __u64,
+pub ring_entries: __u32,
+pub bgid: __u16,
+pub pad: __u16,
+pub resv: [__u64; 3usize],
+}
 pub const IORING_RESTRICTION_REGISTER_OP: _bindgen_ty_12 = _bindgen_ty_12::IORING_RESTRICTION_REGISTER_OP;
 pub const IORING_RESTRICTION_SQE_OP: _bindgen_ty_12 = _bindgen_ty_12::IORING_RESTRICTION_SQE_OP;
 pub const IORING_RESTRICTION_SQE_FLAGS_ALLOWED: _bindgen_ty_12 = _bindgen_ty_12::IORING_RESTRICTION_SQE_FLAGS_ALLOWED;
@@ -4920,6 +5232,30 @@ pub sigmask: __u64,
 pub sigmask_sz: __u32,
 pub pad: __u32,
 pub ts: __u64,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_sync_cancel_reg {
+pub addr: __u64,
+pub fd: __s32,
+pub flags: __u32,
+pub timeout: __kernel_timespec,
+pub pad: [__u64; 4usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_file_index_range {
+pub off: __u32,
+pub len: __u32,
+pub resv: __u64,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_recvmsg_out {
+pub namelen: __u32,
+pub controllen: __u32,
+pub payloadlen: __u32,
+pub flags: __u32,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -4950,8 +5286,8 @@ pub st_pad0: [crate::ctypes::c_uint; 3usize],
 pub st_ino: crate::ctypes::c_ulong,
 pub st_mode: __kernel_mode_t,
 pub st_nlink: __u32,
-pub st_uid: __kernel_uid_t,
-pub st_gid: __kernel_gid_t,
+pub st_uid: __kernel_uid32_t,
+pub st_gid: __kernel_gid32_t,
 pub st_rdev: crate::ctypes::c_uint,
 pub st_pad1: [crate::ctypes::c_uint; 3usize],
 pub st_size: crate::ctypes::c_long,
@@ -5153,4 +5489,16 @@ pub gid: __u32,
 pub struct mmsghdr {
 pub msg_hdr: msghdr,
 pub msg_len: crate::ctypes::c_uint,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct kernel_sigset_t {
+pub sig: [crate::ctypes::c_ulong; 2usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct kernel_sigaction {
+pub sa_handler_kernel: __kernel_sighandler_t,
+pub sa_flags: crate::ctypes::c_ulong,
+pub sa_mask: kernel_sigset_t,
 }

@@ -4,6 +4,8 @@ use core::ops::{Deref, DerefMut};
 
 use super::error::{Error, Result};
 
+pub const PAGE_SIZE: usize = 4096;
+
 macro_rules! syscall {
     ($($name:ident($a:ident, $($b:ident, $($c:ident, $($d:ident, $($e:ident, $($f:ident, )?)?)?)?)?);)+) => {
         $(

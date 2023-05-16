@@ -249,7 +249,7 @@
 //!   dynamic library libproc_macro from rustc toolchain.
 
 // Syn types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/syn/2.0.9")]
+#![doc(html_root_url = "https://docs.rs/syn/2.0.16")]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![allow(non_camel_case_types)]
 #![allow(
@@ -281,6 +281,7 @@
     clippy::needless_doctest_main,
     clippy::needless_pass_by_value,
     clippy::never_loop,
+    clippy::range_plus_one,
     clippy::redundant_else,
     clippy::return_self_not_must_use,
     clippy::similar_names,
@@ -289,6 +290,7 @@
     clippy::too_many_lines,
     clippy::trivially_copy_pass_by_ref,
     clippy::uninlined_format_args,
+    clippy::unnecessary_box_returns,
     clippy::unnecessary_unwrap,
     clippy::used_underscore_binding,
     clippy::wildcard_imports,

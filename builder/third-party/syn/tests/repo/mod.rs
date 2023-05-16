@@ -5,15 +5,28 @@ mod progress;
 use self::progress::Progress;
 use anyhow::Result;
 use flate2::read::GzDecoder;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use std::collections::BTreeSet;
+use std::ffi::OsStr;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tar::Archive;
-use walkdir::DirEntry;
+use walkdir::{DirEntry, WalkDir};
 
-const REVISION: &str = "22f247c6f3ed388cb702d01c2ff27da658a8b353";
+const REVISION: &str = "5e1d3299a290026b85787bc9c7e72bcc53ac283f";
 
 #[rustfmt::skip]
 static EXCLUDE_FILES: &[&str] = &[
+    // TODO: non-lifetime binders: `where for<'a, T> &'a Struct<T>: Trait`
+    // https://github.com/dtolnay/syn/issues/1435
+    "tests/rustdoc-json/non_lifetime_binders.rs",
+    "tests/rustdoc/non_lifetime_binders.rs",
+
+    // TODO: return type notation: `where T: Trait<method(): Send>`
+    // https://github.com/dtolnay/syn/issues/1434
+    "tests/ui/associated-type-bounds/return-type-notation/basic.rs",
+    "tests/ui/feature-gates/feature-gate-return_type_notation.rs",
+
     // Compile-fail expr parameter in const generic position: f::<1 + 2>()
     "tests/ui/const-generics/early/closing-args-token.rs",
     "tests/ui/const-generics/early/const-expression-parameter.rs",
@@ -188,6 +201,42 @@ static EXCLUDE_DIRS: &[&str] = &[
     "src/tools/rust-analyzer/crates/syntax/test_data/reparse/fuzz-failures",
 ];
 
+// Directories in which a .stderr implies the corresponding .rs is not expected
+// to work.
+static UI_TEST_DIRS: &[&str] = &["tests/ui", "tests/rustdoc-ui"];
+
+pub fn for_each_rust_file(for_each: impl Fn(&Path) + Sync + Send) {
+    let mut rs_files = BTreeSet::new();
+
+    let repo_dir = Path::new("tests/rust");
+    for entry in WalkDir::new(repo_dir)
+        .into_iter()
+        .filter_entry(base_dir_filter)
+    {
+        let entry = entry.unwrap();
+        if !entry.file_type().is_dir() {
+            rs_files.insert(entry.into_path());
+        }
+    }
+
+    for ui_test_dir in UI_TEST_DIRS {
+        for entry in WalkDir::new(repo_dir.join(ui_test_dir)) {
+            let mut path = entry.unwrap().into_path();
+            if path.extension() == Some(OsStr::new("stderr")) {
+                loop {
+                    rs_files.remove(&path.with_extension("rs"));
+                    path = path.with_extension("");
+                    if path.extension().is_none() {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    rs_files.par_iter().map(PathBuf::as_path).for_each(for_each);
+}
+
 pub fn base_dir_filter(entry: &DirEntry) -> bool {
     let path = entry.path();
 
@@ -207,16 +256,8 @@ pub fn base_dir_filter(entry: &DirEntry) -> bool {
         return !EXCLUDE_DIRS.contains(&path_string);
     }
 
-    if path.extension().map_or(true, |e| e != "rs") {
+    if path.extension() != Some(OsStr::new("rs")) {
         return false;
-    }
-
-    if path_string.starts_with("tests/ui") || path_string.starts_with("tests/rustdoc-ui") {
-        let stderr_path = path.with_extension("stderr");
-        if stderr_path.exists() {
-            // Expected to fail in some way
-            return false;
-        }
     }
 
     !EXCLUDE_FILES.contains(&path_string)

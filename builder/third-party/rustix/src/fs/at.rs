@@ -3,19 +3,17 @@
 //! The `dirfd` argument to these functions may be a file descriptor for a
 //! directory, or the special value returned by [`cwd`].
 //!
-//! [`cwd`]: crate::fs::cwd
+//! [`cwd`]: crate::fs::cwd::cwd
 
 use crate::fd::OwnedFd;
 use crate::ffi::{CStr, CString};
-#[cfg(not(any(target_os = "illumos", target_os = "solaris")))]
-use crate::fs::Access;
-#[cfg(any(target_os = "ios", target_os = "macos"))]
+#[cfg(apple)]
 use crate::fs::CloneFlags;
-#[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "wasi")))]
+#[cfg(not(any(apple, target_os = "wasi")))]
 use crate::fs::FileType;
 #[cfg(any(target_os = "android", target_os = "linux"))]
 use crate::fs::RenameFlags;
-use crate::fs::{AtFlags, Mode, OFlags, Stat, Timestamps};
+use crate::fs::{Access, AtFlags, Mode, OFlags, Stat, Timestamps};
 use crate::path::SMALL_PATH_BUFFER_SIZE;
 #[cfg(not(target_os = "wasi"))]
 use crate::process::{Gid, Uid};
@@ -30,13 +28,13 @@ pub use backend::fs::types::{Dev, RawMode};
 ///
 /// [`utimensat`]: crate::fs::utimensat
 #[cfg(not(target_os = "redox"))]
-pub const UTIME_NOW: Nsecs = backend::fs::types::UTIME_NOW as Nsecs;
+pub const UTIME_NOW: Nsecs = backend::c::UTIME_NOW as Nsecs;
 
 /// `UTIME_OMIT` for use with [`utimensat`].
 ///
 /// [`utimensat`]: crate::fs::utimensat
 #[cfg(not(target_os = "redox"))]
-pub const UTIME_OMIT: Nsecs = backend::fs::types::UTIME_OMIT as Nsecs;
+pub const UTIME_OMIT: Nsecs = backend::c::UTIME_OMIT as Nsecs;
 
 /// `openat(dirfd, path, oflags, mode)`—Opens a file.
 ///
@@ -271,7 +269,6 @@ pub fn statat<P: path::Arg, Fd: AsFd>(dirfd: Fd, path: P, flags: AtFlags) -> io:
 ///
 /// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/faccessat.html
 /// [Linux]: https://man7.org/linux/man-pages/man2/faccessat.2.html
-#[cfg(not(any(target_os = "illumos", target_os = "solaris")))]
 #[inline]
 #[doc(alias = "faccessat")]
 pub fn accessat<P: path::Arg, Fd: AsFd>(
@@ -303,11 +300,7 @@ pub fn utimensat<P: path::Arg, Fd: AsFd>(
 
 /// `fchmodat(dirfd, path, mode, 0)`—Sets file or directory permissions.
 ///
-/// The flags argument is fixed to 0, so `AT_SYMLINK_NOFOLLOW` is not
-/// supported. <details>Platform support for this flag varies widely.</details>
-///
-/// This implementation does not support `O_PATH` file descriptors, even on
-/// platforms where the host libc emulates it.
+/// See `fchmodat_with` for a version that does take flags.
 ///
 /// # References
 ///  - [POSIX]
@@ -319,7 +312,31 @@ pub fn utimensat<P: path::Arg, Fd: AsFd>(
 #[inline]
 #[doc(alias = "fchmodat")]
 pub fn chmodat<P: path::Arg, Fd: AsFd>(dirfd: Fd, path: P, mode: Mode) -> io::Result<()> {
-    path.into_with_c_str(|path| backend::fs::syscalls::chmodat(dirfd.as_fd(), path, mode))
+    chmodat_with(dirfd, path, mode, AtFlags::empty())
+}
+
+/// `fchmodat(dirfd, path, mode, flags)`—Sets file or directory permissions.
+///
+/// Platform support for flags varies widely, for example on Linux
+/// [`AtFlags::SYMLINK_NOFOLLOW`] is not implemented and therefore
+/// [`io::Errno::OPNOTSUPP`] will be returned.
+///
+/// # References
+///  - [POSIX]
+///  - [Linux]
+///
+/// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/fchmodat.html
+/// [Linux]: https://man7.org/linux/man-pages/man2/fchmodat.2.html
+#[cfg(not(target_os = "wasi"))]
+#[inline]
+#[doc(alias = "fchmodat_with")]
+pub fn chmodat_with<P: path::Arg, Fd: AsFd>(
+    dirfd: Fd,
+    path: P,
+    mode: Mode,
+    flags: AtFlags,
+) -> io::Result<()> {
+    path.into_with_c_str(|path| backend::fs::syscalls::chmodat(dirfd.as_fd(), path, mode, flags))
 }
 
 /// `fclonefileat(src, dst_dir, dst, flags)`—Efficiently copies between files.
@@ -328,7 +345,7 @@ pub fn chmodat<P: path::Arg, Fd: AsFd>(dirfd: Fd, path: P, mode: Mode) -> io::Re
 ///  - [Apple]
 ///
 /// [Apple]: https://opensource.apple.com/source/xnu/xnu-3789.21.4/bsd/man/man2/clonefile.2.auto.html
-#[cfg(any(target_os = "ios", target_os = "macos"))]
+#[cfg(apple)]
 #[inline]
 pub fn fclonefileat<Fd: AsFd, DstFd: AsFd, P: path::Arg>(
     src: Fd,
@@ -349,7 +366,7 @@ pub fn fclonefileat<Fd: AsFd, DstFd: AsFd, P: path::Arg>(
 ///
 /// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/mknodat.html
 /// [Linux]: https://man7.org/linux/man-pages/man2/mknodat.2.html
-#[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "wasi")))]
+#[cfg(not(any(apple, target_os = "wasi")))]
 #[inline]
 pub fn mknodat<P: path::Arg, Fd: AsFd>(
     dirfd: Fd,

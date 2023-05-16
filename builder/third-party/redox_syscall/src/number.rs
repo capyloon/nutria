@@ -12,7 +12,6 @@ pub const SYS_RET_FILE: usize = 0x0010_0000;
 
 pub const SYS_LINK: usize =     SYS_CLASS_PATH | SYS_ARG_PATH | 9;
 pub const SYS_OPEN: usize =     SYS_CLASS_PATH | SYS_RET_FILE | 5;
-pub const SYS_CHMOD: usize =    SYS_CLASS_PATH | 15;
 pub const SYS_RMDIR: usize =    SYS_CLASS_PATH | 84;
 pub const SYS_UNLINK: usize =   SYS_CLASS_PATH | 10;
 
@@ -26,7 +25,6 @@ pub const SYS_FCHMOD: usize =     SYS_CLASS_FILE | 94;
 pub const SYS_FCHOWN: usize =     SYS_CLASS_FILE | 207;
 pub const SYS_FCNTL: usize =      SYS_CLASS_FILE | 55;
 pub const SYS_FEVENT: usize =     SYS_CLASS_FILE | 927;
-pub const SYS_FEXEC: usize =      SYS_CLASS_FILE | 11;
 pub const SYS_FMAP_OLD: usize =   SYS_CLASS_FILE | SYS_ARG_SLICE | 90;
 pub const SYS_FMAP: usize =       SYS_CLASS_FILE | SYS_ARG_SLICE | 900;
 pub const SYS_FUNMAP_OLD: usize = SYS_CLASS_FILE | 91;
@@ -39,12 +37,9 @@ pub const SYS_FSYNC: usize =      SYS_CLASS_FILE | 118;
 pub const SYS_FTRUNCATE: usize =  SYS_CLASS_FILE | 93;
 pub const SYS_FUTIMENS: usize =   SYS_CLASS_FILE | SYS_ARG_SLICE | 320;
 
-pub const SYS_CHDIR: usize =    12;
 pub const SYS_CLOCK_GETTIME: usize = 265;
-pub const SYS_CLONE: usize =    120;
 pub const SYS_EXIT: usize =     1;
 pub const SYS_FUTEX: usize =    240;
-pub const SYS_GETCWD: usize =   183;
 pub const SYS_GETEGID: usize =  202;
 pub const SYS_GETENS: usize =   951;
 pub const SYS_GETEUID: usize =  201;

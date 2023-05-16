@@ -3,6 +3,8 @@ use core::ops::{Deref, DerefMut};
 
 use super::error::{Error, Result};
 
+pub const PAGE_SIZE: usize = 4096;
+
 macro_rules! syscall {
     ($($name:ident($a:ident, $($b:ident, $($c:ident, $($d:ident, $($e:ident, $($f:ident, )?)?)?)?)?);)+) => {
         $(
@@ -49,13 +51,6 @@ syscall! {
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 pub struct IntRegisters {
-    pub elr_el1: usize,
-    pub tpidr_el0: usize,
-    pub tpidrro_el0: usize,
-    pub spsr_el1: usize,
-    pub esr_el1: usize,
-    pub sp_el0: usize,      // Shouldn't be used if interrupt occurred at EL1
-    pub padding: usize,     // To keep the struct even number aligned
     pub x30: usize,
     pub x29: usize,
     pub x28: usize,
@@ -127,6 +122,29 @@ impl DerefMut for FloatRegisters {
     fn deref_mut(&mut self) -> &mut [u8] {
         unsafe {
             slice::from_raw_parts_mut(self as *mut FloatRegisters as *mut u8, mem::size_of::<FloatRegisters>())
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(packed)]
+pub struct EnvRegisters {
+    pub tpidr_el0: usize,
+    pub tpidrro_el0: usize,
+}
+impl Deref for EnvRegisters {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(self as *const EnvRegisters as *const u8, mem::size_of::<EnvRegisters>())
+        }
+    }
+}
+
+impl DerefMut for EnvRegisters {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        unsafe {
+            slice::from_raw_parts_mut(self as *mut EnvRegisters as *mut u8, mem::size_of::<EnvRegisters>())
         }
     }
 }

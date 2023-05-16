@@ -1,19 +1,18 @@
 use crate::cipher::{make_nonce, Iv, MessageDecrypter, MessageEncrypter};
+use crate::enums::ContentType;
 use crate::enums::{CipherSuite, ProtocolVersion};
-use crate::error::Error;
+use crate::error::{Error, PeerMisbehaved};
 use crate::msgs::base::Payload;
 use crate::msgs::codec::Codec;
-use crate::msgs::enums::ContentType;
 use crate::msgs::fragmenter::MAX_FRAGMENT_LEN;
 use crate::msgs::message::{BorrowedPlainMessage, OpaqueMessage, PlainMessage};
 use crate::suites::{BulkAlgorithm, CipherSuiteCommon, SupportedCipherSuite};
 
-use ring::{aead, hkdf};
+use ring::aead;
 
 use std::fmt;
 
 pub(crate) mod key_schedule;
-use key_schedule::{derive_traffic_iv, derive_traffic_key};
 
 /// The TLS1.3 ciphersuite TLS_CHACHA20_POLY1305_SHA256
 pub static TLS13_CHACHA20_POLY1305_SHA256: SupportedCipherSuite =
@@ -76,28 +75,6 @@ pub struct Tls13CipherSuite {
 }
 
 impl Tls13CipherSuite {
-    pub(crate) fn derive_encrypter(&self, secret: &hkdf::Prk) -> Box<dyn MessageEncrypter> {
-        let key = derive_traffic_key(secret, self.common.aead_algorithm);
-        let iv = derive_traffic_iv(secret);
-
-        Box::new(Tls13MessageEncrypter {
-            enc_key: aead::LessSafeKey::new(key),
-            iv,
-        })
-    }
-
-    /// Derive a `MessageDecrypter` object from the concerned TLS 1.3
-    /// cipher suite.
-    pub fn derive_decrypter(&self, secret: &hkdf::Prk) -> Box<dyn MessageDecrypter> {
-        let key = derive_traffic_key(secret, self.common.aead_algorithm);
-        let iv = derive_traffic_iv(secret);
-
-        Box::new(Tls13MessageDecrypter {
-            dec_key: aead::LessSafeKey::new(key),
-            iv,
-        })
-    }
-
     /// Which hash function to use with this suite.
     pub fn hash_algorithm(&self) -> &'static ring::digest::Algorithm {
         self.hkdf_algorithm
@@ -210,8 +187,7 @@ impl MessageDecrypter for Tls13MessageDecrypter {
 
         msg.typ = unpad_tls13(payload);
         if msg.typ == ContentType::Unknown(0) {
-            let msg = "peer sent bad TLSInnerPlaintext".to_string();
-            return Err(Error::PeerMisbehavedError(msg));
+            return Err(PeerMisbehaved::IllegalTlsInnerPlaintext.into());
         }
 
         if payload.len() > MAX_FRAGMENT_LEN {

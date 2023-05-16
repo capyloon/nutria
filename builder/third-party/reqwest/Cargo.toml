@@ -11,8 +11,9 @@
 
 [package]
 edition = "2018"
+rust-version = "1.57.0"
 name = "reqwest"
-version = "0.11.15"
+version = "0.11.18"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 autotests = true
 description = "higher level HTTP client library"
@@ -35,6 +36,8 @@ all-features = true
 rustdoc-args = [
     "--cfg",
     "docsrs",
+    "--cfg",
+    "reqwest_unstable",
 ]
 targets = [
     "x86_64-unknown-linux-gnu",
@@ -223,7 +226,7 @@ stream = [
 trust-dns = ["trust-dns-resolver"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.async-compression]
-version = "0.3.13"
+version = "0.4.0"
 features = ["tokio"]
 optional = true
 default-features = false
@@ -248,11 +251,11 @@ optional = true
 version = "0.3.10"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.h3]
-version = "0.0.1"
+version = "0.0.2"
 optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.h3-quinn]
-version = "0.0.1"
+version = "0.0.3"
 optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.http-body]
@@ -270,7 +273,7 @@ features = [
 default-features = false
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper-rustls]
-version = "0.23"
+version = "0.24.0"
 optional = true
 default-features = false
 
@@ -302,7 +305,7 @@ version = "2.1"
 version = "0.2.0"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.quinn]
-version = "0.8"
+version = "0.10"
 features = [
     "tls-rustls",
     "ring",
@@ -311,7 +314,7 @@ optional = true
 default-features = false
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.rustls]
-version = "0.20"
+version = "0.21.0"
 features = ["dangerous_configuration"]
 optional = true
 
@@ -336,7 +339,7 @@ version = "0.3.0"
 optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-rustls]
-version = "0.23"
+version = "0.24"
 optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-socks]

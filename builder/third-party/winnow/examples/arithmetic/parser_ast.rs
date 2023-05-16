@@ -5,10 +5,10 @@ use std::str::FromStr;
 
 use winnow::prelude::*;
 use winnow::{
-    branch::alt,
-    character::{digit1 as digit, multispace0 as multispace},
-    multi::many0,
-    sequence::{delimited, preceded},
+    ascii::{digit1 as digit, multispace0 as multispace},
+    combinator::alt,
+    combinator::repeat,
+    combinator::{delimited, preceded},
     IResult,
 };
 
@@ -46,16 +46,19 @@ impl Display for Expr {
 
 pub fn expr(i: &str) -> IResult<&str, Expr> {
     let (i, initial) = term(i)?;
-    let (i, remainder) = many0(alt((
-        |i| {
-            let (i, add) = preceded("+", term).parse_next(i)?;
-            Ok((i, (Oper::Add, add)))
-        },
-        |i| {
-            let (i, sub) = preceded("-", term).parse_next(i)?;
-            Ok((i, (Oper::Sub, sub)))
-        },
-    )))
+    let (i, remainder) = repeat(
+        0..,
+        alt((
+            |i| {
+                let (i, add) = preceded("+", term).parse_next(i)?;
+                Ok((i, (Oper::Add, add)))
+            },
+            |i| {
+                let (i, sub) = preceded("-", term).parse_next(i)?;
+                Ok((i, (Oper::Sub, sub)))
+            },
+        )),
+    )
     .parse_next(i)?;
 
     Ok((i, fold_exprs(initial, remainder)))
@@ -63,16 +66,19 @@ pub fn expr(i: &str) -> IResult<&str, Expr> {
 
 fn term(i: &str) -> IResult<&str, Expr> {
     let (i, initial) = factor(i)?;
-    let (i, remainder) = many0(alt((
-        |i| {
-            let (i, mul) = preceded("*", factor).parse_next(i)?;
-            Ok((i, (Oper::Mul, mul)))
-        },
-        |i| {
-            let (i, div) = preceded("/", factor).parse_next(i)?;
-            Ok((i, (Oper::Div, div)))
-        },
-    )))
+    let (i, remainder) = repeat(
+        0..,
+        alt((
+            |i| {
+                let (i, mul) = preceded("*", factor).parse_next(i)?;
+                Ok((i, (Oper::Mul, mul)))
+            },
+            |i| {
+                let (i, div) = preceded("/", factor).parse_next(i)?;
+                Ok((i, (Oper::Div, div)))
+            },
+        )),
+    )
     .parse_next(i)?;
 
     Ok((i, fold_exprs(initial, remainder)))
@@ -81,7 +87,7 @@ fn term(i: &str) -> IResult<&str, Expr> {
 fn factor(i: &str) -> IResult<&str, Expr> {
     alt((
         delimited(multispace, digit, multispace)
-            .map_res(FromStr::from_str)
+            .try_map(FromStr::from_str)
             .map(Expr::Value),
         parens,
     ))

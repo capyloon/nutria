@@ -1,6 +1,10 @@
 //! Low-level implementation details for libc-like runtime libraries such as
 //! [origin].
 //!
+//! Do not use the functions in this module unless you've read all of their
+//! code, *and* you know all the relevant internal implementation details of
+//! any libc in the process they'll be used.
+//!
 //! These functions are for implementing thread-local storage (TLS), managing
 //! threads, loaded libraries, and other process-wide resources. Most of
 //! `rustix` doesn't care about what other libraries are linked into the
@@ -28,12 +32,44 @@ use crate::fs::AtFlags;
 #[cfg(linux_raw)]
 use crate::io;
 #[cfg(linux_raw)]
-use crate::process::Pid;
+use crate::process::{Pid, Signal};
 #[cfg(linux_raw)]
 #[cfg(feature = "fs")]
 use backend::fd::AsFd;
 #[cfg(linux_raw)]
 use core::ffi::c_void;
+
+/// `sigaction`
+#[cfg(linux_raw)]
+pub type Sigaction = linux_raw_sys::general::kernel_sigaction;
+
+/// `stack_t`
+#[cfg(linux_raw)]
+pub type Stack = linux_raw_sys::general::stack_t;
+
+/// `sigset_t`
+#[cfg(linux_raw)]
+pub type Sigset = linux_raw_sys::general::kernel_sigset_t;
+
+/// `siginfo_t`
+#[cfg(linux_raw)]
+pub type Siginfo = linux_raw_sys::general::siginfo_t;
+
+pub use backend::time::types::{Nsecs, Secs, Timespec};
+
+/// `SIG_*` constants for use with [`sigprocmask`].
+#[cfg(linux_raw)]
+#[repr(u32)]
+pub enum How {
+    /// `SIG_BLOCK`
+    BLOCK = linux_raw_sys::general::SIG_BLOCK,
+
+    /// `SIG_UNBLOCK`
+    UNBLOCK = linux_raw_sys::general::SIG_UNBLOCK,
+
+    /// `SIG_SETMASK`
+    SETMASK = linux_raw_sys::general::SIG_SETMASK,
+}
 
 #[cfg(linux_raw)]
 #[cfg(target_arch = "x86")]
@@ -65,7 +101,7 @@ pub unsafe fn set_tid_address(data: *mut c_void) -> Pid {
 /// `prctl(PR_SET_NAME, name)`
 ///
 /// # References
-///  - [Linux]: https://man7.org/linux/man-pages/man2/prctl.2.html
+///  - [Linux]
 ///
 /// # Safety
 ///
@@ -109,7 +145,7 @@ pub unsafe fn exit_thread(status: i32) -> ! {
 ///
 /// [POSIX `_Exit`]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/_Exit.html
 /// [Linux `exit_group`]: https://man7.org/linux/man-pages/man2/exit_group.2.html
-/// [Linux `_Exit`]: https://man7.org/linux/man-pages/man2/exit.2.html
+/// [Linux `_Exit`]: https://man7.org/linux/man-pages/man2/_Exit.2.html
 #[doc(alias = "_exit")]
 #[doc(alias = "_Exit")]
 #[inline]
@@ -211,7 +247,7 @@ pub use backend::runtime::tls::StartupTlsInfo;
 /// > It is better you
 /// > Do not.
 ///
-/// - "Rules", by Karla Kuskin
+/// - “Rules”, by Karla Kuskin
 ///
 /// [`MAP_SHARED`]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/mmap.html
 /// [not considered unsafe]: https://doc.rust-lang.org/reference/behavior-not-considered-unsafe.html#deadlocks
@@ -266,4 +302,118 @@ pub unsafe fn execveat<Fd: AsFd>(
 #[inline]
 pub unsafe fn execve(path: &CStr, argv: *const *const u8, envp: *const *const u8) -> io::Errno {
     backend::runtime::syscalls::execve(path, argv, envp)
+}
+
+/// `sigaction(signal, &new, &old)`—Modify or query a signal handler.
+///
+/// # Safety
+///
+/// You're on your own. And on top of all the troubles with signal handlers,
+/// this implementation is highly experimental. Even further, it differs from
+/// the libc `sigaction` in several non-obvious and unsafe ways.
+///
+/// # References
+///  - [POSIX]
+///  - [Linux]
+///
+/// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html
+/// [Linux]: https://man7.org/linux/man-pages/man2/sigaction.2.html
+#[cfg(linux_raw)]
+#[inline]
+pub unsafe fn sigaction(signal: Signal, new: Option<Sigaction>) -> io::Result<Sigaction> {
+    backend::runtime::syscalls::sigaction(signal, new)
+}
+
+/// `sigaltstack(new, old)`—Modify or query a signal stack.
+///
+/// # Safety
+///
+/// You're on your own. And on top of all the troubles with signal handlers,
+/// this implementation is highly experimental.
+///
+/// # References
+///  - [POSIX]
+///  - [Linux]
+///
+/// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaltstack.html
+/// [Linux]: https://man7.org/linux/man-pages/man2/sigaltstack.2.html
+#[cfg(linux_raw)]
+#[inline]
+pub unsafe fn sigaltstack(new: Option<Stack>) -> io::Result<Stack> {
+    backend::runtime::syscalls::sigaltstack(new)
+}
+
+/// `tkill(tid, sig)`—Send a signal to a thread.
+///
+/// # Safety
+///
+/// You're on your own. And on top of all the troubles with signal handlers,
+/// this implementation is highly experimental. The warning about the hazard
+/// of recycled thread ID's applies.
+///
+/// # References
+///  - [Linux]
+///
+/// [Linux]: https://man7.org/linux/man-pages/man2/tkill.2.html
+#[cfg(linux_raw)]
+#[inline]
+pub unsafe fn tkill(tid: Pid, sig: Signal) -> io::Result<()> {
+    backend::runtime::syscalls::tkill(tid, sig)
+}
+
+/// `sigprocmask(how, set, oldset)`—Adjust the process signal mask.
+///
+/// # Safety
+///
+/// You're on your own. And on top of all the troubles with signal handlers,
+/// this implementation is highly experimental. Even further, it differs from
+/// the libc `sigprocmask` in several non-obvious and unsafe ways.
+///
+/// # References
+///  - [Linux `sigprocmask`]
+///  - [Linux `pthread_sigmask`]
+///
+/// [Linux `sigprocmask`]: https://man7.org/linux/man-pages/man2/sigprocmask.2.html
+/// [Linux `pthread_sigmask`]: https://man7.org/linux/man-pages/man3/pthread_sigmask.3.html
+#[cfg(linux_raw)]
+#[inline]
+#[doc(alias = "pthread_sigmask")]
+pub unsafe fn sigprocmask(how: How, set: Option<&Sigset>) -> io::Result<Sigset> {
+    backend::runtime::syscalls::sigprocmask(how, set)
+}
+
+/// `sigwait(set)`—Wait for signals.
+///
+/// # References
+///  - [Linux]
+///
+/// [Linux]: https://man7.org/linux/man-pages/man3/sigwait.3.html
+#[cfg(linux_raw)]
+#[inline]
+pub fn sigwait(set: &Sigset) -> io::Result<Signal> {
+    backend::runtime::syscalls::sigwait(set)
+}
+
+/// `sigwait(set)`—Wait for signals, returning a [`Siginfo`].
+///
+/// # References
+///  - [Linux]
+///
+/// [Linux]: https://man7.org/linux/man-pages/man2/sigwaitinfo.2.html
+#[cfg(linux_raw)]
+#[inline]
+pub fn sigwaitinfo(set: &Sigset) -> io::Result<Siginfo> {
+    backend::runtime::syscalls::sigwaitinfo(set)
+}
+
+/// `sigtimedwait(set)`—Wait for signals, optionally with a timeout.
+///
+/// # References
+///  - [Linux]
+///
+/// [Linux]: https://man7.org/linux/man-pages/man2/sigtimedwait.2.html
+#[cfg(linux_raw)]
+#[inline]
+pub fn sigtimedwait(set: &Sigset, timeout: Option<Timespec>) -> io::Result<Siginfo> {
+    backend::runtime::syscalls::sigtimedwait(set, timeout)
 }

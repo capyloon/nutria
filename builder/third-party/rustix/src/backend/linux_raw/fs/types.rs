@@ -122,6 +122,32 @@ impl Mode {
     }
 }
 
+impl From<RawMode> for Mode {
+    /// Support conversions from raw mode values to `Mode`.
+    ///
+    /// ```
+    /// use rustix::fs::{Mode, RawMode};
+    /// assert_eq!(Mode::from(0o700), Mode::RWXU);
+    /// ```
+    #[inline]
+    fn from(st_mode: RawMode) -> Self {
+        Self::from_raw_mode(st_mode)
+    }
+}
+
+impl From<Mode> for RawMode {
+    /// Support conversions from `Mode to raw mode values.
+    ///
+    /// ```
+    /// use rustix::fs::{Mode, RawMode};
+    /// assert_eq!(RawMode::from(Mode::RWXU), 0o700);
+    /// ```
+    #[inline]
+    fn from(mode: Mode) -> Self {
+        mode.as_raw_mode()
+    }
+}
+
 bitflags! {
     /// `O_*` constants for use with [`openat`].
     ///
@@ -262,6 +288,7 @@ pub enum FileType {
     Symlink = linux_raw_sys::general::S_IFLNK as isize,
 
     /// `S_IFIFO`
+    #[doc(alias = "IFO")]
     Fifo = linux_raw_sys::general::S_IFIFO as isize,
 
     /// `S_IFSOCK`
@@ -309,7 +336,7 @@ impl FileType {
         }
     }
 
-    /// Construct a `FileType` from the `d_type` field of a `dirent`.
+    /// Construct a `FileType` from the `d_type` field of a `c::dirent`.
     #[inline]
     pub(crate) const fn from_dirent_d_type(d_type: u8) -> Self {
         match d_type as u32 {
@@ -518,9 +545,10 @@ bitflags! {
     }
 }
 
-/// `LOCK_*` constants for use with [`flock`]
+/// `LOCK_*` constants for use with [`flock`] and [`fcntl_lock`].
 ///
 /// [`flock`]: crate::fs::flock
+/// [`fcntl_lock`]: crate::fs::fcntl_lock
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum FlockOperation {
@@ -618,7 +646,7 @@ pub type StatxTimestamp = linux_raw_sys::general::statx_timestamp;
 )))]
 pub type RawMode = linux_raw_sys::general::__kernel_mode_t;
 
-/// `mode_t
+/// `mode_t`
 #[cfg(any(
     target_arch = "x86",
     target_arch = "sparc",
@@ -640,17 +668,11 @@ pub type FsWord = linux_raw_sys::general::__fsword_t;
 #[cfg(target_arch = "mips64")]
 pub type FsWord = i64;
 
-pub use linux_raw_sys::general::{UTIME_NOW, UTIME_OMIT};
-
-/// `PROC_SUPER_MAGIC`—The magic number for the procfs filesystem.
-pub const PROC_SUPER_MAGIC: FsWord = linux_raw_sys::general::PROC_SUPER_MAGIC as FsWord;
-
-/// `NFS_SUPER_MAGIC`—The magic number for the NFS filesystem.
-pub const NFS_SUPER_MAGIC: FsWord = linux_raw_sys::general::NFS_SUPER_MAGIC as FsWord;
-
 #[cfg(any(target_os = "android", target_os = "linux"))]
 bitflags! {
-    /// `MS_*` constants for use with [`mount`][crate::fs::mount].
+    /// `MS_*` constants for use with [`mount`].
+    ///
+    /// [`mount`]: crate::fs::mount
     pub struct MountFlags: c::c_uint {
         /// `MS_BIND`
         const BIND = linux_raw_sys::general::MS_BIND;
@@ -705,7 +727,9 @@ bitflags! {
 
 #[cfg(any(target_os = "android", target_os = "linux"))]
 bitflags! {
-    /// `MS_*` constants for use with [`change_mount`][crate::fs::mount::change_mount].
+    /// `MS_*` constants for use with [`change_mount`].
+    ///
+    /// [`change_mount`]: crate::fs::mount::change_mount
     pub struct MountPropagationFlags: c::c_uint {
         /// `MS_SHARED`
         const SHARED = linux_raw_sys::general::MS_SHARED;
@@ -730,3 +754,20 @@ bitflags! {
 
 #[cfg(any(target_os = "android", target_os = "linux"))]
 pub(crate) struct MountFlagsArg(pub(crate) c::c_uint);
+
+#[cfg(any(target_os = "android", target_os = "linux"))]
+bitflags! {
+    /// `MNT_*` constants for use with [`unmount`].
+    ///
+    /// [`unmount`]: crate::fs::mount::unmount
+    pub struct UnmountFlags: c::c_uint {
+        /// `MNT_FORCE`
+        const FORCE = linux_raw_sys::general::MNT_FORCE;
+        /// `MNT_DETACH`
+        const DETACH = linux_raw_sys::general::MNT_DETACH;
+        /// `MNT_EXPIRE`
+        const EXPIRE = linux_raw_sys::general::MNT_EXPIRE;
+        /// `UMOUNT_NOFOLLOW`
+        const NOFOLLOW = linux_raw_sys::general::UMOUNT_NOFOLLOW;
+    }
+}

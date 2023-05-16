@@ -28,8 +28,8 @@
 //! use winnow::prelude::*;
 //! use winnow::{
 //!   error::ParseError,
-//!   sequence::delimited,
-//!   character::multispace0,
+//!   combinator::delimited,
+//!   ascii::multispace0,
 //! };
 //!
 //! /// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
@@ -62,7 +62,7 @@
 //! use winnow::prelude::*;
 //! use winnow::{
 //!   error::ParseError,
-//!   bytes::take_till1,
+//!   token::take_till1,
 //! };
 //!
 //! pub fn peol_comment<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, (), E>
@@ -82,7 +82,7 @@
 //! use winnow::prelude::*;
 //! use winnow::{
 //!   error::ParseError,
-//!   bytes::{tag, take_until0},
+//!   token::{tag, take_until0},
 //! };
 //!
 //! pub fn pinline_comment<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, (), E> {
@@ -107,14 +107,14 @@
 //! use winnow::prelude::*;
 //! use winnow::{
 //!   stream::AsChar,
-//!   bytes::take_while0,
-//!   bytes::one_of,
+//!   token::take_while,
+//!   token::one_of,
 //! };
 //!
 //! pub fn identifier(input: &str) -> IResult<&str, &str> {
 //!   (
 //!       one_of(|c: char| c.is_alpha() || c == '_'),
-//!       take_while0(|c: char| c.is_alphanum() || c == '_')
+//!       take_while(0.., |c: char| c.is_alphanum() || c == '_')
 //!   )
 //!   .recognize()
 //!   .parse_next(input)
@@ -122,8 +122,8 @@
 //! ```
 //!
 //! Let's say we apply this to the identifier `hello_world123abc`. The first element of the tuple
-//! would uses [`one_of`][crate::bytes::one_of] which would recognize `h`. The tuple ensures that
-//! `ello_world123abc` will be piped to the next [`take_while0`][crate::bytes::take_while0] parser,
+//! would uses [`one_of`][crate::token::one_of] which would recognize `h`. The tuple ensures that
+//! `ello_world123abc` will be piped to the next [`take_while`][crate::token::take_while] parser,
 //! which recognizes every remaining character. However, the tuple returns a tuple of the results
 //! of its sub-parsers. The [`recognize`][crate::Parser::recognize] parser produces a `&str` of the
 //! input text that was parsed, which in this case is the entire `&str` `hello_world123abc`.
@@ -146,9 +146,6 @@
 //! string slice to an integer value is slightly simpler. You can also strip the `_` from the string
 //! slice that is returned, which is demonstrated in the second hexadecimal number parser.
 //!
-//! If you wish to limit the number of digits in a valid integer literal, replace `many1` with
-//! `many_m_n` in the recipes.
-//!
 //! #### Hexadecimal
 //!
 //! The parser outputs the string slice of the digits without the leading `0x`/`0X`.
@@ -156,18 +153,18 @@
 //! ```rust
 //! use winnow::prelude::*;
 //! use winnow::{
-//!   branch::alt,
-//!   multi::{many0, many1},
-//!   sequence::{preceded, terminated},
-//!   bytes::one_of,
-//!   bytes::tag,
+//!   combinator::alt,
+//!   combinator::{repeat},
+//!   combinator::{preceded, terminated},
+//!   token::one_of,
+//!   token::tag,
 //! };
 //!
 //! fn hexadecimal(input: &str) -> IResult<&str, &str> { // <'a, E: ParseError<&'a str>>
 //!   preceded(
 //!     alt(("0x", "0X")),
-//!     many1(
-//!       terminated(one_of("0123456789abcdefABCDEF"), many0('_').map(|()| ()))
+//!     repeat(1..,
+//!       terminated(one_of("0123456789abcdefABCDEF"), repeat(0.., '_').map(|()| ()))
 //!     ).map(|()| ()).recognize()
 //!   ).parse_next(input)
 //! }
@@ -178,20 +175,20 @@
 //! ```rust
 //! use winnow::prelude::*;
 //! use winnow::{
-//!   branch::alt,
-//!   multi::{many0, many1},
-//!   sequence::{preceded, terminated},
-//!   bytes::one_of,
-//!   bytes::tag,
+//!   combinator::alt,
+//!   combinator::{repeat},
+//!   combinator::{preceded, terminated},
+//!   token::one_of,
+//!   token::tag,
 //! };
 //!
 //! fn hexadecimal_value(input: &str) -> IResult<&str, i64> {
 //!   preceded(
 //!     alt(("0x", "0X")),
-//!     many1(
-//!       terminated(one_of("0123456789abcdefABCDEF"), many0('_').map(|()| ()))
+//!     repeat(1..,
+//!       terminated(one_of("0123456789abcdefABCDEF"), repeat(0.., '_').map(|()| ()))
 //!     ).map(|()| ()).recognize()
-//!   ).map_res(
+//!   ).try_map(
 //!     |out: &str| i64::from_str_radix(&str::replace(&out, "_", ""), 16)
 //!   ).parse_next(input)
 //! }
@@ -202,18 +199,18 @@
 //! ```rust
 //! use winnow::prelude::*;
 //! use winnow::{
-//!   branch::alt,
-//!   multi::{many0, many1},
-//!   sequence::{preceded, terminated},
-//!   bytes::one_of,
-//!   bytes::tag,
+//!   combinator::alt,
+//!   combinator::{repeat},
+//!   combinator::{preceded, terminated},
+//!   token::one_of,
+//!   token::tag,
 //! };
 //!
 //! fn octal(input: &str) -> IResult<&str, &str> {
 //!   preceded(
 //!     alt(("0o", "0O")),
-//!     many1(
-//!       terminated(one_of("01234567"), many0('_').map(|()| ()))
+//!     repeat(1..,
+//!       terminated(one_of("01234567"), repeat(0.., '_').map(|()| ()))
 //!     ).map(|()| ()).recognize()
 //!   ).parse_next(input)
 //! }
@@ -224,18 +221,18 @@
 //! ```rust
 //! use winnow::prelude::*;
 //! use winnow::{
-//!   branch::alt,
-//!   multi::{many0, many1},
-//!   sequence::{preceded, terminated},
-//!   bytes::one_of,
-//!   bytes::tag,
+//!   combinator::alt,
+//!   combinator::{repeat},
+//!   combinator::{preceded, terminated},
+//!   token::one_of,
+//!   token::tag,
 //! };
 //!
 //! fn binary(input: &str) -> IResult<&str, &str> {
 //!   preceded(
 //!     alt(("0b", "0B")),
-//!     many1(
-//!       terminated(one_of("01"), many0('_').map(|()| ()))
+//!     repeat(1..,
+//!       terminated(one_of("01"), repeat(0.., '_').map(|()| ()))
 //!     ).map(|()| ()).recognize()
 //!   ).parse_next(input)
 //! }
@@ -247,14 +244,14 @@
 //! use winnow::prelude::*;
 //! use winnow::{
 //!   IResult,
-//!   multi::{many0, many1},
-//!   sequence::terminated,
-//!   bytes::one_of,
+//!   combinator::{repeat},
+//!   combinator::terminated,
+//!   token::one_of,
 //! };
 //!
 //! fn decimal(input: &str) -> IResult<&str, &str> {
-//!   many1(
-//!     terminated(one_of("0123456789"), many0('_').map(|()| ()))
+//!   repeat(1..,
+//!     terminated(one_of("0123456789"), repeat(0.., '_').map(|()| ()))
 //!   ).map(|()| ())
 //!     .recognize()
 //!     .parse_next(input)
@@ -268,11 +265,11 @@
 //! ```rust
 //! use winnow::prelude::*;
 //! use winnow::{
-//!   branch::alt,
-//!   multi::{many0, many1},
+//!   combinator::alt,
+//!   combinator::{repeat},
 //!   combinator::opt,
-//!   sequence::{preceded, terminated},
-//!   bytes::one_of,
+//!   combinator::{preceded, terminated},
+//!   token::one_of,
 //! };
 //!
 //! fn float(input: &str) -> IResult<&str, &str> {
@@ -308,8 +305,8 @@
 //! }
 //!
 //! fn decimal(input: &str) -> IResult<&str, &str> {
-//!   many1(
-//!     terminated(one_of("0123456789"), many0('_').map(|()| ()))
+//!   repeat(1..,
+//!     terminated(one_of("0123456789"), repeat(0.., '_').map(|()| ()))
 //!   ).
 //!   map(|()| ())
 //!     .recognize()

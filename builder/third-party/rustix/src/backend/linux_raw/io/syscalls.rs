@@ -32,11 +32,13 @@ use linux_raw_sys::general::{
     epoll_event, EPOLL_CTL_ADD, EPOLL_CTL_DEL, EPOLL_CTL_MOD, F_DUPFD_CLOEXEC, F_GETFD, F_SETFD,
     UIO_MAXIOV,
 };
-use linux_raw_sys::ioctl::{BLKPBSZGET, BLKSSZGET, FIONBIO, FIONREAD, TIOCEXCL, TIOCNXCL};
+use linux_raw_sys::ioctl::{
+    BLKPBSZGET, BLKSSZGET, EXT4_IOC_RESIZE_FS, FICLONE, FIONBIO, FIONREAD, TIOCEXCL, TIOCNXCL,
+};
 #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
 use {
     super::super::conv::{opt_ref, size_of},
-    linux_raw_sys::general::{__kernel_timespec, sigset_t},
+    linux_raw_sys::general::{__kernel_timespec, kernel_sigset_t},
 };
 
 #[inline]
@@ -352,6 +354,23 @@ pub(crate) fn ioctl_blkpbszget(fd: BorrowedFd) -> io::Result<u32> {
     }
 }
 
+#[inline]
+pub(crate) fn ioctl_ficlone(fd: BorrowedFd<'_>, src_fd: BorrowedFd<'_>) -> io::Result<()> {
+    unsafe { ret(syscall_readonly!(__NR_ioctl, fd, c_uint(FICLONE), src_fd)) }
+}
+
+#[inline]
+pub(crate) fn ext4_ioc_resize_fs(fd: BorrowedFd<'_>, blocks: u64) -> io::Result<()> {
+    unsafe {
+        ret(syscall_readonly!(
+            __NR_ioctl,
+            fd,
+            c_uint(EXT4_IOC_RESIZE_FS),
+            by_ref(&blocks)
+        ))
+    }
+}
+
 #[cfg(all(feature = "fs", feature = "net"))]
 pub(crate) fn is_read_write(fd: BorrowedFd<'_>) -> io::Result<(bool, bool)> {
     let (mut read, mut write) = crate::fs::fd::_is_file_read_write(fd)?;
@@ -550,7 +569,7 @@ pub(crate) fn poll(fds: &mut [PollFd<'_>], timeout: c::c_int) -> io::Result<usiz
             fds_len,
             opt_ref(timeout.as_ref()),
             zero(),
-            size_of::<sigset_t, _>()
+            size_of::<kernel_sigset_t, _>()
         ))
     }
     #[cfg(not(any(target_arch = "aarch64", target_arch = "riscv64")))]

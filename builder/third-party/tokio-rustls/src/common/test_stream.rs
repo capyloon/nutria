@@ -129,8 +129,6 @@ async fn stream_good() -> io::Result<()> {
     io::copy(&mut Cursor::new(FILE), &mut server.writer())?;
     server.send_close_notify();
 
-    let mut server = Connection::from(server);
-
     {
         let mut good = Good(&mut server);
         let mut stream = Stream::new(&mut good, &mut client);
@@ -286,7 +284,7 @@ fn make_pair() -> (ServerConnection, ClientConnection) {
     let (sconfig, cconfig) = utils::make_configs();
     let server = ServerConnection::new(sconfig).unwrap();
 
-    let domain = rustls::ServerName::try_from("localhost").unwrap();
+    let domain = rustls::ServerName::try_from("foobar.com").unwrap();
     let client = ClientConnection::new(cconfig, domain).unwrap();
 
     (server, client)

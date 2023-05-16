@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.64.0"
 name = "clap"
-version = "4.1.13"
+version = "4.2.7"
 include = [
     "build.rs",
     "src/**/*",
@@ -37,14 +37,14 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/clap-rs/clap"
 
 [package.metadata.docs.rs]
+cargo-args = [
+    "-Zunstable-options",
+    "-Zrustdoc-scrape-examples",
+]
 features = ["unstable-doc"]
 rustdoc-args = [
     "--cfg",
     "docsrs",
-]
-cargo-args = [
-    "-Zunstable-options",
-    "-Zrustdoc-scrape-examples",
 ]
 
 [package.metadata.playground]
@@ -56,48 +56,48 @@ tag-name = "v{{version}}"
 
 [[package.metadata.release.pre-release-replacements]]
 file = "CHANGELOG.md"
-search = "Unreleased"
+min = 1
 replace = "{{version}}"
-min = 1
+search = "Unreleased"
 
 [[package.metadata.release.pre-release-replacements]]
-file = "CHANGELOG.md"
-search = '\.\.\.HEAD'
-replace = "...{{tag_name}}"
 exactly = 1
+file = "CHANGELOG.md"
+replace = "...{{tag_name}}"
+search = '\.\.\.HEAD'
 
 [[package.metadata.release.pre-release-replacements]]
 file = "CHANGELOG.md"
-search = "ReleaseDate"
-replace = "{{date}}"
 min = 1
+replace = "{{date}}"
+search = "ReleaseDate"
 
 [[package.metadata.release.pre-release-replacements]]
+exactly = 1
 file = "CHANGELOG.md"
-search = "<!-- next-header -->"
 replace = """
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 """
-exactly = 1
+search = "<!-- next-header -->"
 
 [[package.metadata.release.pre-release-replacements]]
+exactly = 1
 file = "CHANGELOG.md"
-search = "<!-- next-url -->"
 replace = """
 <!-- next-url -->
 [Unreleased]: https://github.com/clap-rs/clap/compare/{{tag_name}}...HEAD"""
-exactly = 1
+search = "<!-- next-url -->"
 
 [[package.metadata.release.pre-release-replacements]]
 file = "CITATION.cff"
-search = "^date-released: ....-..-.."
 replace = "date-released: {{date}}"
+search = "^date-released: ....-..-.."
 
 [[package.metadata.release.pre-release-replacements]]
 file = "CITATION.cff"
-search = '^version: .+\..+\..+'
 replace = "version: {{version}}"
+search = '^version: .+\..+\..+'
 
 [profile.bench]
 lto = true
@@ -365,46 +365,16 @@ name = "interop_flatten_hand_args"
 path = "examples/derive_ref/flatten_hand_args.rs"
 required-features = ["derive"]
 
-[dependencies.backtrace]
-version = "0.3.67"
-optional = true
-
-[dependencies.bitflags]
-version = "1.2.0"
+[dependencies.clap_builder]
+version = "=4.2.7"
+default-features = false
 
 [dependencies.clap_derive]
-version = "=4.1.12"
-optional = true
-
-[dependencies.clap_lex]
-version = "0.3.0"
-
-[dependencies.is-terminal]
-version = "0.4.1"
+version = "=4.2.0"
 optional = true
 
 [dependencies.once_cell]
 version = "1.12.0"
-optional = true
-
-[dependencies.strsim]
-version = "0.10.0"
-optional = true
-
-[dependencies.termcolor]
-version = "1.1.1"
-optional = true
-
-[dependencies.terminal_size]
-version = "0.2.1"
-optional = true
-
-[dependencies.unicase]
-version = "2.6.0"
-optional = true
-
-[dependencies.unicode-width]
-version = "0.1.9"
 optional = true
 
 [dev-dependencies.humantime]
@@ -438,14 +408,11 @@ default-features = false
 version = "0.9.0"
 
 [features]
-cargo = ["dep:once_cell"]
-color = [
-    "dep:is-terminal",
-    "dep:termcolor",
-]
+cargo = ["clap_builder/cargo"]
+color = ["clap_builder/color"]
 debug = [
+    "clap_builder/debug",
     "clap_derive?/debug",
-    "dep:backtrace",
 ]
 default = [
     "std",
@@ -455,41 +422,30 @@ default = [
     "error-context",
     "suggestions",
 ]
-deprecated = ["clap_derive?/deprecated"]
+deprecated = [
+    "clap_builder/deprecated",
+    "clap_derive?/deprecated",
+]
 derive = [
     "dep:clap_derive",
     "dep:once_cell",
 ]
-env = []
-error-context = []
-help = []
-std = []
-string = []
-suggestions = [
-    "dep:strsim",
-    "error-context",
-]
-unicode = [
-    "dep:unicode-width",
-    "dep:unicase",
-]
+env = ["clap_builder/env"]
+error-context = ["clap_builder/error-context"]
+help = ["clap_builder/help"]
+std = ["clap_builder/std"]
+string = ["clap_builder/string"]
+suggestions = ["clap_builder/suggestions"]
+unicode = ["clap_builder/unicode"]
 unstable-doc = [
+    "clap_builder/unstable-doc",
     "derive",
-    "cargo",
-    "wrap_help",
-    "env",
-    "unicode",
-    "string",
-    "unstable-replace",
 ]
-unstable-grouped = []
-unstable-replace = []
+unstable-styles = ["clap_builder/unstable-styles"]
 unstable-v5 = [
+    "clap_builder/unstable-v5",
     "clap_derive?/unstable-v5",
     "deprecated",
 ]
-usage = []
-wrap_help = [
-    "help",
-    "dep:terminal_size",
-]
+usage = ["clap_builder/usage"]
+wrap_help = ["clap_builder/wrap_help"]

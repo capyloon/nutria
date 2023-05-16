@@ -4,7 +4,7 @@
 //!
 //! With rustix, you can write code like this:
 //!
-//! ```rust
+//! ```
 //! # #[cfg(feature = "net")]
 //! # fn read(sock: std::net::TcpStream, buf: &mut [u8]) -> std::io::Result<()> {
 //! # use rustix::net::RecvFlags;
@@ -16,7 +16,7 @@
 //!
 //! instead of like this:
 //!
-//! ```rust
+//! ```
 //! # #[cfg(feature = "net")]
 //! # fn read(sock: std::net::TcpStream, buf: &mut [u8]) -> std::io::Result<()> {
 //! # use std::convert::TryInto;
@@ -60,8 +60,8 @@
 //!  - Multiplexed functions (eg. `fcntl`, `ioctl`, etc.) are de-multiplexed.
 //!  - Variadic functions (eg. `openat`, etc.) are presented as non-variadic.
 //!  - Functions and types which need `l` prefixes or `64` suffixes to enable
-//!    large-file support are used automatically, and file sizes and offsets
-//!    are presented as `u64` and `i64`.
+//!    large-file support (LFS) are used automatically. File sizes and offsets
+//!    are always presented as `u64` and `i64`.
 //!  - Behaviors that depend on the sizes of C types like `long` are hidden.
 //!  - In some places, more human-friendly and less historical-accident names
 //!    are used (and documentation aliases are used so that the original names
@@ -86,19 +86,18 @@
 //! [`io-streams`]: https://crates.io/crates/io-streams
 //! [`getrandom`]: https://crates.io/crates/getrandom
 //! [`bitflags`]: https://crates.io/crates/bitflags
-//! [`AsFd`]: https://doc.rust-lang.org/stable/std/os/unix/io/trait.AsFd.html
-//! [`OwnedFd`]: https://docs.rs/io-lifetimes/latest/io_lifetimes/struct.OwnedFd.html
-//! [io-lifetimes crate]: https://crates.io/crates/io-lifetimes
+//! [`AsFd`]: https://doc.rust-lang.org/stable/std/os/fd/trait.AsFd.html
+//! [`OwnedFd`]: https://doc.rust-lang.org/stable/std/os/fd/struct.OwnedFd.html
 //! [I/O-safe]: https://github.com/rust-lang/rfcs/blob/master/text/3128-io-safety.md
-//! [`Result`]: https://docs.rs/rustix/latest/rustix/io/type.Result.html
-//! [`Arg`]: https://docs.rs/rustix/latest/rustix/path/trait.Arg.html
+//! [`Result`]: https://doc.rust-lang.org/stable/std/result/enum.Result.html
+//! [`Arg`]: https://docs.rs/rustix/*/rustix/path/trait.Arg.html
 
 #![deny(missing_docs)]
 #![allow(stable_features)]
 #![cfg_attr(linux_raw, deny(unsafe_code))]
 #![cfg_attr(rustc_attrs, feature(rustc_attrs))]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
-#![cfg_attr(all(target_os = "wasi", feature = "std"), feature(wasi_ext))]
+#![cfg_attr(all(wasi_ext, target_os = "wasi", feature = "std"), feature(wasi_ext))]
 #![cfg_attr(
     all(linux_raw, naked_functions, target_arch = "x86"),
     feature(naked_functions)
@@ -123,6 +122,9 @@
 #![allow(clippy::unnecessary_cast)]
 // It is common in linux and libc APIs for types to vary between platforms.
 #![allow(clippy::useless_conversion)]
+// Redox and WASI have enough differences that it isn't worth
+// precisely conditionallizing all the `use`s for them.
+#![cfg_attr(any(target_os = "redox", target_os = "wasi"), allow(unused_imports))]
 
 #[cfg(not(feature = "rustc-dep-of-std"))]
 extern crate alloc;
@@ -134,6 +136,18 @@ pub(crate) mod cstr;
 #[macro_use]
 pub(crate) mod const_assert;
 pub(crate) mod utils;
+
+// linux_raw: Weak symbols are used by the use-libc-auxv feature for
+// glibc 2.15 support.
+//
+// libc: Weak symbols are used to call various functions available in some
+// versions of libc and not others.
+#[cfg(any(
+    all(linux_raw, feature = "use-libc-auxv"),
+    all(libc, not(any(windows, target_os = "wasi")))
+))]
+#[macro_use]
+mod weak;
 
 // Pick the backend implementation to use.
 #[cfg_attr(libc, path = "backend/libc/mod.rs")]

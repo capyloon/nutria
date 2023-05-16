@@ -6,7 +6,7 @@
 // - atomic-maybe-uninit https://github.com/taiki-e/atomic-maybe-uninit
 //
 // Generated asm:
-// - riscv64gc https://godbolt.org/z/6z47vqj5v
+// - riscv64gc https://godbolt.org/z/1dbvWsMxT
 
 #[cfg(not(portable_atomic_no_asm))]
 use core::arch::asm;
@@ -14,6 +14,7 @@ use core::{cell::UnsafeCell, sync::atomic::Ordering};
 
 #[repr(transparent)]
 pub(crate) struct AtomicBool {
+    #[allow(dead_code)]
     v: UnsafeCell<u8>,
 }
 
@@ -21,191 +22,112 @@ pub(crate) struct AtomicBool {
 // SAFETY: any data races are prevented by atomic operations.
 unsafe impl Sync for AtomicBool {}
 
+#[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
 impl AtomicBool {
-    #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
     #[inline]
     pub(crate) const fn new(v: bool) -> Self {
         Self { v: UnsafeCell::new(v as u8) }
     }
 
-    #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
     #[inline]
     pub(crate) fn is_lock_free() -> bool {
         Self::is_always_lock_free()
     }
-    #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
     #[inline]
     pub(crate) const fn is_always_lock_free() -> bool {
         true
     }
 
-    #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
     #[inline]
     pub(crate) fn get_mut(&mut self) -> &mut bool {
         // SAFETY: the mutable reference guarantees unique ownership.
-        unsafe { &mut *(self.v.get() as *mut bool) }
+        unsafe { &mut *self.v.get().cast::<bool>() }
     }
 
-    #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
     #[inline]
     pub(crate) fn into_inner(self) -> bool {
         self.v.into_inner() != 0
     }
 
     #[inline]
+    pub(crate) const fn as_ptr(&self) -> *mut bool {
+        self.v.get().cast::<bool>()
+    }
+}
+impl AtomicBool {
+    #[inline]
     #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
     pub(crate) fn load(&self, order: Ordering) -> bool {
-        crate::utils::assert_load_ordering(order);
-        // SAFETY: any data races are prevented by atomic intrinsics and the raw
-        // pointer passed in is valid because we got it from a reference.
-        unsafe { u8::atomic_load(self.v.get(), order) != 0 }
+        self.as_atomic_u8().load(order) != 0
     }
 
     #[inline]
     #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
     pub(crate) fn store(&self, val: bool, order: Ordering) {
-        crate::utils::assert_store_ordering(order);
-        // SAFETY: any data races are prevented by atomic intrinsics and the raw
-        // pointer passed in is valid because we got it from a reference.
-        unsafe {
-            u8::atomic_store(self.v.get(), val as u8, order);
-        }
+        self.as_atomic_u8().store(val as u8, order);
+    }
+
+    #[inline]
+    fn as_atomic_u8(&self) -> &AtomicU8 {
+        // SAFETY: AtomicBool and AtomicU8 have the same layout,
+        unsafe { &*(self as *const AtomicBool).cast::<AtomicU8>() }
     }
 }
 
-#[repr(transparent)]
-pub(crate) struct AtomicPtr<T> {
-    p: UnsafeCell<*mut T>,
-}
-
-// SAFETY: any data races are prevented by atomic operations.
-unsafe impl<T> Send for AtomicPtr<T> {}
-// SAFETY: any data races are prevented by atomic operations.
-unsafe impl<T> Sync for AtomicPtr<T> {}
-
-impl<T> AtomicPtr<T> {
-    #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
-    #[inline]
-    pub(crate) const fn new(p: *mut T) -> Self {
-        Self { p: UnsafeCell::new(p) }
-    }
-
-    #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
-    #[inline]
-    pub(crate) fn is_lock_free() -> bool {
-        Self::is_always_lock_free()
-    }
-    #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
-    #[inline]
-    pub(crate) const fn is_always_lock_free() -> bool {
-        true
-    }
-
-    #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
-    #[inline]
-    pub(crate) fn get_mut(&mut self) -> &mut *mut T {
-        // SAFETY: the mutable reference guarantees unique ownership.
-        // (UnsafeCell::get_mut requires Rust 1.50)
-        unsafe { &mut *self.p.get() }
-    }
-
-    #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
-    #[inline]
-    pub(crate) fn into_inner(self) -> *mut T {
-        self.p.into_inner()
-    }
-
-    #[inline]
-    #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
-    pub(crate) fn load(&self, order: Ordering) -> *mut T {
-        crate::utils::assert_load_ordering(order);
-        // SAFETY: any data races are prevented by atomic intrinsics and the raw
-        // pointer passed in is valid because we got it from a reference.
-        // TODO: remove int to ptr cast
-        unsafe { usize::atomic_load(self.p.get() as *mut usize, order) as *mut T }
-    }
-
-    #[inline]
-    #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
-    pub(crate) fn store(&self, ptr: *mut T, order: Ordering) {
-        crate::utils::assert_store_ordering(order);
-        // SAFETY: any data races are prevented by atomic intrinsics and the raw
-        // pointer passed in is valid because we got it from a reference.
-        // TODO: remove int to ptr cast
-        unsafe {
-            usize::atomic_store(self.p.get() as *mut usize, ptr as usize, order);
-        }
-    }
-}
-
-macro_rules! atomic_int {
-    ($int_type:ident, $atomic_type:ident, $asm_suffix:expr) => {
+macro_rules! atomic {
+    ($([$($generics:tt)*])? $atomic_type:ident, $value_type:ty, $asm_suffix:tt) => {
         #[repr(transparent)]
-        pub(crate) struct $atomic_type {
-            v: UnsafeCell<$int_type>,
+        pub(crate) struct $atomic_type $(<$($generics)*>)? {
+            v: UnsafeCell<$value_type>,
         }
 
-        // Send is implicitly implemented.
+        // Send is implicitly implemented for atomic integers, but not for atomic pointers.
         // SAFETY: any data races are prevented by atomic operations.
-        unsafe impl Sync for $atomic_type {}
+        unsafe impl $(<$($generics)*>)? Send for $atomic_type $(<$($generics)*>)? {}
+        // SAFETY: any data races are prevented by atomic operations.
+        unsafe impl $(<$($generics)*>)? Sync for $atomic_type $(<$($generics)*>)? {}
 
-        impl $atomic_type {
-            #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
+        #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
+        impl $(<$($generics)*>)? $atomic_type $(<$($generics)*>)? {
             #[inline]
-            pub(crate) const fn new(v: $int_type) -> Self {
+            pub(crate) const fn new(v: $value_type) -> Self {
                 Self { v: UnsafeCell::new(v) }
             }
 
-            #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
             #[inline]
             pub(crate) fn is_lock_free() -> bool {
                 Self::is_always_lock_free()
             }
-            #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
             #[inline]
             pub(crate) const fn is_always_lock_free() -> bool {
                 true
             }
 
-            #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
             #[inline]
-            pub(crate) fn get_mut(&mut self) -> &mut $int_type {
+            pub(crate) fn get_mut(&mut self) -> &mut $value_type {
                 // SAFETY: the mutable reference guarantees unique ownership.
                 // (UnsafeCell::get_mut requires Rust 1.50)
                 unsafe { &mut *self.v.get() }
             }
 
-            #[cfg(any(test, not(portable_atomic_unsafe_assume_single_core)))]
             #[inline]
-            pub(crate) fn into_inner(self) -> $int_type {
+            pub(crate) fn into_inner(self) -> $value_type {
                  self.v.into_inner()
             }
 
             #[inline]
-            #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
-            pub(crate) fn load(&self, order: Ordering) -> $int_type {
-                crate::utils::assert_load_ordering(order);
-                // SAFETY: any data races are prevented by atomic intrinsics and the raw
-                // pointer passed in is valid because we got it from a reference.
-                unsafe { $int_type::atomic_load(self.v.get(), order) }
-            }
-
-            #[inline]
-            #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
-            pub(crate) fn store(&self, val: $int_type, order: Ordering) {
-                crate::utils::assert_store_ordering(order);
-                // SAFETY: any data races are prevented by atomic intrinsics and the raw
-                // pointer passed in is valid because we got it from a reference.
-                unsafe {
-                    $int_type::atomic_store(self.v.get(), val, order);
-                }
+            pub(crate) const fn as_ptr(&self) -> *mut $value_type {
+                self.v.get()
             }
         }
-
-        impl AtomicOperations for $int_type {
+        impl $(<$($generics)*>)? $atomic_type $(<$($generics)*>)? {
             #[inline]
-            unsafe fn atomic_load(src: *const Self, order: Ordering) -> Self {
-                // SAFETY: the caller must uphold the safety contract for `atomic_load`.
+            #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
+            pub(crate) fn load(&self, order: Ordering) -> $value_type {
+                crate::utils::assert_load_ordering(order);
+                let src = self.v.get();
+                // SAFETY: any data races are prevented by atomic intrinsics and the raw
+                // pointer passed in is valid because we got it from a reference.
                 unsafe {
                     let out;
                     match order {
@@ -243,8 +165,12 @@ macro_rules! atomic_int {
             }
 
             #[inline]
-            unsafe fn atomic_store(dst: *mut Self, val: Self, order: Ordering) {
-                // SAFETY: the caller must uphold the safety contract for `atomic_store`.
+            #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
+            pub(crate) fn store(&self, val: $value_type, order: Ordering) {
+                crate::utils::assert_store_ordering(order);
+                let dst = self.v.get();
+                // SAFETY: any data races are prevented by atomic intrinsics and the raw
+                // pointer passed in is valid because we got it from a reference.
                 unsafe {
                     match order {
                         Ordering::Relaxed => {
@@ -270,32 +196,31 @@ macro_rules! atomic_int {
                 }
             }
         }
-    }
+    };
 }
 
-atomic_int!(i8, AtomicI8, "b");
-atomic_int!(u8, AtomicU8, "b");
-atomic_int!(i16, AtomicI16, "h");
-atomic_int!(u16, AtomicU16, "h");
-atomic_int!(i32, AtomicI32, "w");
-atomic_int!(u32, AtomicU32, "w");
+atomic!(AtomicI8, i8, "b");
+atomic!(AtomicU8, u8, "b");
+atomic!(AtomicI16, i16, "h");
+atomic!(AtomicU16, u16, "h");
+atomic!(AtomicI32, i32, "w");
+atomic!(AtomicU32, u32, "w");
 #[cfg(target_arch = "riscv64")]
-atomic_int!(i64, AtomicI64, "d");
+atomic!(AtomicI64, i64, "d");
 #[cfg(target_arch = "riscv64")]
-atomic_int!(u64, AtomicU64, "d");
+atomic!(AtomicU64, u64, "d");
 #[cfg(target_pointer_width = "32")]
-atomic_int!(isize, AtomicIsize, "w");
+atomic!(AtomicIsize, isize, "w");
 #[cfg(target_pointer_width = "32")]
-atomic_int!(usize, AtomicUsize, "w");
+atomic!(AtomicUsize, usize, "w");
+#[cfg(target_pointer_width = "32")]
+atomic!([T] AtomicPtr, *mut T, "w");
 #[cfg(target_pointer_width = "64")]
-atomic_int!(isize, AtomicIsize, "d");
+atomic!(AtomicIsize, isize, "d");
 #[cfg(target_pointer_width = "64")]
-atomic_int!(usize, AtomicUsize, "d");
-
-trait AtomicOperations: Sized {
-    unsafe fn atomic_load(src: *const Self, order: Ordering) -> Self;
-    unsafe fn atomic_store(dst: *mut Self, val: Self, order: Ordering);
-}
+atomic!(AtomicUsize, usize, "d");
+#[cfg(target_pointer_width = "64")]
+atomic!([T] AtomicPtr, *mut T, "d");
 
 #[cfg(test)]
 mod tests {

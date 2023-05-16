@@ -2,11 +2,11 @@ use std::str::FromStr;
 
 use winnow::prelude::*;
 use winnow::{
-    branch::alt,
-    bytes::one_of,
-    character::{digit1 as digits, space0 as spaces},
-    multi::fold_many0,
-    sequence::delimited,
+    ascii::{digit1 as digits, space0 as spaces},
+    combinator::alt,
+    combinator::delimited,
+    combinator::fold_repeat,
+    token::one_of,
     IResult,
 };
 
@@ -15,7 +15,8 @@ use winnow::{
 pub fn expr(i: &str) -> IResult<&str, i64> {
     let (i, init) = term(i)?;
 
-    fold_many0(
+    fold_repeat(
+        0..,
         (one_of("+-"), term),
         move || init,
         |acc, (op, val): (char, i64)| {
@@ -35,7 +36,8 @@ pub fn expr(i: &str) -> IResult<&str, i64> {
 fn term(i: &str) -> IResult<&str, i64> {
     let (i, init) = factor(i)?;
 
-    fold_many0(
+    fold_repeat(
+        0..,
         (one_of("*/"), factor),
         move || init,
         |acc, (op, val): (char, i64)| {
@@ -57,7 +59,7 @@ fn factor(i: &str) -> IResult<&str, i64> {
     delimited(
         spaces,
         alt((
-            digits.map_res(FromStr::from_str),
+            digits.try_map(FromStr::from_str),
             delimited('(', expr, ')'),
             parens,
         )),

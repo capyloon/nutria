@@ -1,14 +1,13 @@
 //! Bindings for the Linux `prctl` system call.
 //!
-//! There are similarities (but also differences) with FreeBSD's `procctl` system call, whose
-//! interface is located in the `procctl.rs` file.
+//! There are similarities (but also differences) with FreeBSD's `procctl`
+//! system call, whose interface is located in the `procctl.rs` file.
 
 #![allow(unsafe_code)]
 
 use core::convert::{TryFrom, TryInto};
-use core::mem::MaybeUninit;
-use core::ptr::NonNull;
-use core::{mem, ptr};
+use core::mem::{size_of, MaybeUninit};
+use core::ptr::{null, null_mut, NonNull};
 
 use bitflags::bitflags;
 
@@ -19,6 +18,7 @@ use crate::fd::{AsRawFd, BorrowedFd};
 use crate::ffi::CStr;
 use crate::io;
 use crate::process::{Pid, RawPid};
+use crate::utils::{as_mut_ptr, as_ptr};
 
 //
 // Helper functions.
@@ -26,13 +26,13 @@ use crate::process::{Pid, RawPid};
 
 #[inline]
 pub(crate) unsafe fn prctl_1arg(option: c_int) -> io::Result<c_int> {
-    const NULL: *mut c_void = ptr::null_mut();
+    const NULL: *mut c_void = null_mut();
     syscalls::prctl(option, NULL, NULL, NULL, NULL)
 }
 
 #[inline]
 pub(crate) unsafe fn prctl_2args(option: c_int, arg2: *mut c_void) -> io::Result<c_int> {
-    const NULL: *mut c_void = ptr::null_mut();
+    const NULL: *mut c_void = null_mut();
     syscalls::prctl(option, arg2, NULL, NULL, NULL)
 }
 
@@ -42,7 +42,7 @@ pub(crate) unsafe fn prctl_3args(
     arg2: *mut c_void,
     arg3: *mut c_void,
 ) -> io::Result<c_int> {
-    syscalls::prctl(option, arg2, arg3, ptr::null_mut(), ptr::null_mut())
+    syscalls::prctl(option, arg2, arg3, null_mut(), null_mut())
 }
 
 #[inline]
@@ -59,7 +59,7 @@ where
     T: TryFrom<P, Error = io::Errno>,
 {
     let mut value: P = Default::default();
-    prctl_2args(option, ((&mut value) as *mut P).cast())?;
+    prctl_2args(option, as_mut_ptr(&mut value).cast())?;
     TryFrom::try_from(value)
 }
 
@@ -72,11 +72,11 @@ const PR_GET_PDEATHSIG: c_int = 2;
 /// Get the current value of the parent process death signal.
 ///
 /// # References
-/// - [Linux: `prctl(PR_GET_PDEATHSIG,...)`]
-/// - [FreeBSD: `procctl(PROC_PDEATHSIG_STATUS,...)`]
+///  - [Linux: `prctl(PR_GET_PDEATHSIG,...)`]
+///  - [FreeBSD: `procctl(PROC_PDEATHSIG_STATUS,...)`]
 ///
 /// [Linux: `prctl(PR_GET_PDEATHSIG,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
-/// [FreeBSD: `procctl(PROC_PDEATHSIG_STATUS,...)`]: https://www.freebsd.org/cgi/man.cgi?query=procctl&sektion=2
+/// [FreeBSD: `procctl(PROC_PDEATHSIG_STATUS,...)`]: https://man.freebsd.org/cgi/man.cgi?query=procctl&sektion=2
 #[inline]
 pub fn parent_process_death_signal() -> io::Result<Option<Signal>> {
     unsafe { prctl_get_at_arg2_optional::<c_int>(PR_GET_PDEATHSIG) }.map(Signal::from_raw)
@@ -87,11 +87,11 @@ const PR_SET_PDEATHSIG: c_int = 1;
 /// Set the parent-death signal of the calling process.
 ///
 /// # References
-/// - [Linux: `prctl(PR_SET_PDEATHSIG,...)`]
-/// - [FreeBSD: `procctl(PROC_PDEATHSIG_CTL,...)`]
+///  - [Linux: `prctl(PR_SET_PDEATHSIG,...)`]
+///  - [FreeBSD: `procctl(PROC_PDEATHSIG_CTL,...)`]
 ///
 /// [Linux: `prctl(PR_SET_PDEATHSIG,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
-/// [FreeBSD: `procctl(PROC_PDEATHSIG_CTL,...)`]: https://www.freebsd.org/cgi/man.cgi?query=procctl&sektion=2
+/// [FreeBSD: `procctl(PROC_PDEATHSIG_CTL,...)`]: https://man.freebsd.org/cgi/man.cgi?query=procctl&sektion=2
 #[inline]
 pub fn set_parent_process_death_signal(signal: Option<Signal>) -> io::Result<()> {
     let signal = signal.map_or(0_usize, |signal| signal as usize);
@@ -136,7 +136,7 @@ impl TryFrom<i32> for DumpableBehavior {
 /// Get the current state of the calling process's `dumpable` attribute.
 ///
 /// # References
-/// - [`prctl(PR_GET_DUMPABLE,...)`]
+///  - [`prctl(PR_GET_DUMPABLE,...)`]
 ///
 /// [`prctl(PR_GET_DUMPABLE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -146,16 +146,17 @@ pub fn dumpable_behavior() -> io::Result<DumpableBehavior> {
 
 const PR_SET_DUMPABLE: c_int = 4;
 
-/// Set the state of the `dumpable` attribute, which determines whether the process can be traced
-/// and whether core dumps are produced for the calling process upon delivery of a signal whose
-/// default behavior is to produce a core dump.
+/// Set the state of the `dumpable` attribute, which determines whether the
+/// process can be traced and whether core dumps are produced for the calling
+/// process upon delivery of a signal whose default behavior is to produce a
+/// core dump.
 ///
-/// A similar function with the same name is available on FreeBSD (as part of the `procctl`
-/// interface), but it has an extra argument which allows to select a process other then the
-/// current process.
+/// A similar function with the same name is available on FreeBSD (as part of
+/// the `procctl` interface), but it has an extra argument which allows to
+/// select a process other then the current process.
 ///
 /// # References
-/// - [`prctl(PR_SET_DUMPABLE,...)`]
+///  - [`prctl(PR_SET_DUMPABLE,...)`]
 ///
 /// [`prctl(PR_SET_DUMPABLE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -174,7 +175,7 @@ bitflags! {
     pub struct UnalignedAccessControl: u32 {
         /// Silently fix up unaligned user accesses.
         const NO_PRINT = 1;
-        /// Generate `SIGBUS` on unaligned user access.
+        /// Generate a [`Signal::Bus`] signal on unaligned user access.
         const SIGBUS = 2;
     }
 }
@@ -182,7 +183,7 @@ bitflags! {
 /// Get unaligned access control bits.
 ///
 /// # References
-/// - [`prctl(PR_GET_UNALIGN,...)`]
+///  - [`prctl(PR_GET_UNALIGN,...)`]
 ///
 /// [`prctl(PR_GET_UNALIGN,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -196,7 +197,7 @@ const PR_SET_UNALIGN: c_int = 6;
 /// Set unaligned access control bits.
 ///
 /// # References
-/// - [`prctl(PR_SET_UNALIGN,...)`]
+///  - [`prctl(PR_SET_UNALIGN,...)`]
 ///
 /// [`prctl(PR_SET_UNALIGN,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -215,7 +216,8 @@ bitflags! {
     pub struct FloatingPointEmulationControl: u32 {
         /// Silently emulate floating point operations accesses.
         const NO_PRINT = 1;
-        /// Don't emulate floating point operations, send `SIGFPE` instead.
+        /// Don't emulate floating point operations, send a [`Signal::Fpe`]
+        /// signal instead.
         const SIGFPE = 2;
     }
 }
@@ -223,7 +225,7 @@ bitflags! {
 /// Get floating point emulation control bits.
 ///
 /// # References
-/// - [`prctl(PR_GET_FPEMU,...)`]
+///  - [`prctl(PR_GET_FPEMU,...)`]
 ///
 /// [`prctl(PR_GET_FPEMU,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -237,7 +239,7 @@ const PR_SET_FPEMU: c_int = 10;
 /// Set floating point emulation control bits.
 ///
 /// # References
-/// - [`prctl(PR_SET_FPEMU,...)`]
+///  - [`prctl(PR_SET_FPEMU,...)`]
 ///
 /// [`prctl(PR_SET_FPEMU,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -281,7 +283,7 @@ bitflags! {
 /// Get floating point exception mode.
 ///
 /// # References
-/// - [`prctl(PR_GET_FPEXC,...)`]
+///  - [`prctl(PR_GET_FPEXC,...)`]
 ///
 /// [`prctl(PR_GET_FPEXC,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -295,7 +297,7 @@ const PR_SET_FPEXC: c_int = 12;
 /// Set floating point exception mode.
 ///
 /// # References
-/// - [`prctl(PR_SET_FPEXC,...)`]
+///  - [`prctl(PR_SET_FPEXC,...)`]
 ///
 /// [`prctl(PR_SET_FPEXC,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -340,7 +342,7 @@ impl TryFrom<i32> for TimingMethod {
 /// Get which process timing method is currently in use.
 ///
 /// # References
-/// - [`prctl(PR_GET_TIMING,...)`]
+///  - [`prctl(PR_GET_TIMING,...)`]
 ///
 /// [`prctl(PR_GET_TIMING,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -350,11 +352,11 @@ pub fn timing_method() -> io::Result<TimingMethod> {
 
 const PR_SET_TIMING: c_int = 14;
 
-/// Set whether to use (normal, traditional) statistical process timing or accurate
-/// timestamp-based process timing.
+/// Set whether to use (normal, traditional) statistical process timing or
+/// accurate timestamp-based process timing.
 ///
 /// # References
-/// - [`prctl(PR_SET_TIMING,...)`]
+///  - [`prctl(PR_SET_TIMING,...)`]
 ///
 /// [`prctl(PR_SET_TIMING,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -400,7 +402,7 @@ impl TryFrom<u32> for EndianMode {
 /// Get the endianness of the calling process.
 ///
 /// # References
-/// - [`prctl(PR_GET_ENDIAN,...)`]
+///  - [`prctl(PR_GET_ENDIAN,...)`]
 ///
 /// [`prctl(PR_GET_ENDIAN,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -413,7 +415,7 @@ const PR_SET_ENDIAN: c_int = 20;
 /// Set the endianness of the calling process.
 ///
 /// # References
-/// - [`prctl(PR_SET_ENDIAN,...)`]
+///  - [`prctl(PR_SET_ENDIAN,...)`]
 ///
 /// # Safety
 ///
@@ -441,7 +443,7 @@ const PR_TSC_SIGSEGV: u32 = 2;
 pub enum TimeStampCounterReadability {
     /// Allow the use of the timestamp counter.
     Readable = PR_TSC_ENABLE,
-    /// Throw a `SIGSEGV` instead of reading the TSC.
+    /// Throw a [`Signal::Segv`] signal instead of reading the TSC.
     RaiseSIGSEGV = PR_TSC_SIGSEGV,
 }
 
@@ -460,7 +462,7 @@ impl TryFrom<u32> for TimeStampCounterReadability {
 /// Get the state of the flag determining if the timestamp counter can be read.
 ///
 /// # References
-/// - [`prctl(PR_GET_TSC,...)`]
+///  - [`prctl(PR_GET_TSC,...)`]
 ///
 /// [`prctl(PR_GET_TSC,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -470,10 +472,11 @@ pub fn time_stamp_counter_readability() -> io::Result<TimeStampCounterReadabilit
 
 const PR_SET_TSC: c_int = 26;
 
-/// Set the state of the flag determining if the timestamp counter can be read by the process.
+/// Set the state of the flag determining if the timestamp counter can be read
+/// by the process.
 ///
 /// # References
-/// - [`prctl(PR_SET_TSC,...)`]
+///  - [`prctl(PR_SET_TSC,...)`]
 ///
 /// [`prctl(PR_SET_TSC,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -493,8 +496,8 @@ const PR_TASK_PERF_EVENTS_ENABLE: c_int = 32;
 /// Enable or disable all performance counters attached to the calling process.
 ///
 /// # References
-/// - [`prctl(PR_TASK_PERF_EVENTS_ENABLE,...)`]
-/// - [`prctl(PR_TASK_PERF_EVENTS_DISABLE,...)`]
+///  - [`prctl(PR_TASK_PERF_EVENTS_ENABLE,...)`]
+///  - [`prctl(PR_TASK_PERF_EVENTS_DISABLE,...)`]
 ///
 /// [`prctl(PR_TASK_PERF_EVENTS_ENABLE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 /// [`prctl(PR_TASK_PERF_EVENTS_DISABLE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
@@ -547,7 +550,7 @@ impl TryFrom<u32> for MachineCheckMemoryCorruptionKillPolicy {
 /// Get the current per-process machine check kill policy.
 ///
 /// # References
-/// - [`prctl(PR_MCE_KILL_GET,...)`]
+///  - [`prctl(PR_MCE_KILL_GET,...)`]
 ///
 /// [`prctl(PR_MCE_KILL_GET,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -565,7 +568,7 @@ const PR_MCE_KILL_SET: usize = 1;
 /// Set the machine check memory corruption kill policy for the calling thread.
 ///
 /// # References
-/// - [`prctl(PR_MCE_KILL,...)`]
+///  - [`prctl(PR_MCE_KILL,...)`]
 ///
 /// [`prctl(PR_MCE_KILL,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -575,7 +578,7 @@ pub fn set_machine_check_memory_corruption_kill_policy(
     let (sub_operation, policy) = if let Some(policy) = policy {
         (PR_MCE_KILL_SET, policy as usize as *mut _)
     } else {
-        (PR_MCE_KILL_CLEAR, ptr::null_mut())
+        (PR_MCE_KILL_CLEAR, null_mut())
     };
 
     unsafe { prctl_3args(PR_MCE_KILL, sub_operation as *mut _, policy) }.map(|_r| ())
@@ -611,13 +614,16 @@ pub enum VirtualMemoryMapAddress {
     CodeStart = PR_SET_MM_START_CODE,
     /// Set the address below which the program text can run.
     CodeEnd = PR_SET_MM_END_CODE,
-    /// Set the address above which initialized and uninitialized (bss) data are placed.
+    /// Set the address above which initialized and uninitialized (bss) data
+    /// are placed.
     DataStart = PR_SET_MM_START_DATA,
-    /// Set the address below which initialized and uninitialized (bss) data are placed.
+    /// Set the address below which initialized and uninitialized (bss) data
+    /// are placed.
     DataEnd = PR_SET_MM_END_DATA,
     /// Set the start address of the stack.
     StackStart = PR_SET_MM_START_STACK,
-    /// Set the address above which the program heap can be expanded with `brk` call.
+    /// Set the address above which the program heap can be expanded with `brk`
+    /// call.
     BrkStart = PR_SET_MM_START_BRK,
     /// Set the current `brk` value.
     BrkCurrent = PR_SET_MM_BRK,
@@ -631,10 +637,11 @@ pub enum VirtualMemoryMapAddress {
     EnvironmentEnd = PR_SET_MM_ENV_END,
 }
 
-/// Modify certain kernel memory map descriptor addresses of the calling process.
+/// Modify certain kernel memory map descriptor addresses of the calling
+/// process.
 ///
 /// # References
-/// - [`prctl(PR_SET_MM,...)`]
+///  - [`prctl(PR_SET_MM,...)`]
 ///
 /// # Safety
 ///
@@ -647,14 +654,15 @@ pub unsafe fn set_virtual_memory_map_address(
     option: VirtualMemoryMapAddress,
     address: Option<NonNull<c_void>>,
 ) -> io::Result<()> {
-    let address = address.map_or_else(ptr::null_mut, NonNull::as_ptr);
+    let address = address.map_or_else(null_mut, NonNull::as_ptr);
     prctl_3args(PR_SET_MM, option as usize as *mut _, address).map(|_r| ())
 }
 
-/// Supersede the `/proc/pid/exe` symbolic link with a new one pointing to a new executable file.
+/// Supersede the `/proc/pid/exe` symbolic link with a new one pointing to a
+/// new executable file.
 ///
 /// # References
-/// - [`prctl(PR_SET_MM,PR_SET_MM_EXE_FILE,...)`]
+///  - [`prctl(PR_SET_MM,PR_SET_MM_EXE_FILE,...)`]
 ///
 /// [`prctl(PR_SET_MM,PR_SET_MM_EXE_FILE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -666,7 +674,7 @@ pub fn set_executable_file(fd: BorrowedFd) -> io::Result<()> {
 /// Set a new auxiliary vector.
 ///
 /// # References
-/// - [`prctl(PR_SET_MM,PR_SET_MM_AUXV,...)`]
+///  - [`prctl(PR_SET_MM,PR_SET_MM_AUXV,...)`]
 ///
 /// # Safety
 ///
@@ -681,7 +689,7 @@ pub unsafe fn set_auxiliary_vector(auxv: &[*const c_void]) -> io::Result<()> {
         PR_SET_MM_AUXV as *mut _,
         auxv.as_ptr() as *mut _,
         auxv.len() as *mut _,
-        ptr::null_mut(),
+        null_mut(),
     )
     .map(|_r| ())
 }
@@ -689,19 +697,19 @@ pub unsafe fn set_auxiliary_vector(auxv: &[*const c_void]) -> io::Result<()> {
 /// Get the size of the [`PrctlMmMap`] the kernel expects.
 ///
 /// # References
-/// - [`prctl(PR_SET_MM,PR_SET_MM_MAP_SIZE,...)`]
+///  - [`prctl(PR_SET_MM,PR_SET_MM_MAP_SIZE,...)`]
 ///
 /// [`prctl(PR_SET_MM,PR_SET_MM_MAP_SIZE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
 pub fn virtual_memory_map_config_struct_size() -> io::Result<usize> {
     let mut value: c_uint = 0;
-    let value_ptr = (&mut value) as *mut c_uint;
+    let value_ptr = as_mut_ptr(&mut value);
     unsafe { prctl_3args(PR_SET_MM, PR_SET_MM_MAP_SIZE as *mut _, value_ptr.cast())? };
     Ok(value as usize)
 }
 
-/// This structure provides new memory descriptor map which mostly modifies `/proc/pid/stat[m]`
-/// output for a task.
+/// This structure provides new memory descriptor map which mostly modifies
+/// `/proc/pid/stat[m]` output for a task.
 /// This mostly done in a sake of checkpoint/restore functionality.
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -714,9 +722,9 @@ pub struct PrctlMmMap {
     pub start_data: u64,
     /// Data section end address.
     pub end_data: u64,
-    /// brk() start address.
+    /// `brk` start address.
     pub start_brk: u64,
-    /// brk() current address.
+    /// `brk` current address.
     pub brk: u64,
     /// Stack start address.
     pub start_stack: u64,
@@ -732,14 +740,16 @@ pub struct PrctlMmMap {
     pub auxv: *mut u64,
     /// Auxiliary vector size.
     pub auxv_size: u32,
-    /// File descriptor of executable file that was used to create this process.
+    /// File descriptor of executable file that was used to create this
+    /// process.
     pub exe_fd: u32,
 }
 
-/// Provides one-shot access to all the addresses by passing in a [`PrctlMmMap`].
+/// Provides one-shot access to all the addresses by passing in a
+/// [`PrctlMmMap`].
 ///
 /// # References
-/// - [`prctl(PR_SET_MM,PR_SET_MM_MAP,...)`]
+///  - [`prctl(PR_SET_MM,PR_SET_MM_MAP,...)`]
 ///
 /// # Safety
 ///
@@ -752,9 +762,9 @@ pub unsafe fn configure_virtual_memory_map(config: &PrctlMmMap) -> io::Result<()
     syscalls::prctl(
         PR_SET_MM,
         PR_SET_MM_MAP as *mut _,
-        config as *const PrctlMmMap as *mut _,
-        mem::size_of::<PrctlMmMap>() as *mut _,
-        ptr::null_mut(),
+        as_ptr(config) as *mut _,
+        size_of::<PrctlMmMap>() as *mut _,
+        null_mut(),
     )
     .map(|_r| ())
 }
@@ -778,17 +788,17 @@ pub enum PTracer {
     ProcessID(Pid),
 }
 
-/// Declare that the ptracer process can `ptrace` the calling process as if it were a direct
-/// process ancestor.
+/// Declare that the ptracer process can `ptrace` the calling process as if it
+/// were a direct process ancestor.
 ///
 /// # References
-/// - [`prctl(PR_SET_PTRACER,...)`]
+///  - [`prctl(PR_SET_PTRACER,...)`]
 ///
 /// [`prctl(PR_SET_PTRACER,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
 pub fn set_ptracer(tracer: PTracer) -> io::Result<()> {
     let pid = match tracer {
-        PTracer::None => ptr::null_mut(),
+        PTracer::None => null_mut(),
         PTracer::Any => PR_SET_PTRACER_ANY as *mut _,
         PTracer::ProcessID(pid) => pid.as_raw_nonzero().get() as usize as *mut _,
     };
@@ -805,7 +815,7 @@ const PR_GET_CHILD_SUBREAPER: c_int = 37;
 /// Get the `child subreaper` setting of the calling process.
 ///
 /// # References
-/// - [`prctl(PR_GET_CHILD_SUBREAPER,...)`]
+///  - [`prctl(PR_GET_CHILD_SUBREAPER,...)`]
 ///
 /// [`prctl(PR_GET_CHILD_SUBREAPER,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -821,7 +831,7 @@ const PR_SET_CHILD_SUBREAPER: c_int = 36;
 /// Set the `child subreaper` attribute of the calling process.
 ///
 /// # References
-/// - [`prctl(PR_SET_CHILD_SUBREAPER,...)`]
+///  - [`prctl(PR_SET_CHILD_SUBREAPER,...)`]
 ///
 /// [`prctl(PR_SET_CHILD_SUBREAPER,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -864,7 +874,7 @@ impl TryFrom<u32> for FloatingPointMode {
 /// Get the current floating point mode.
 ///
 /// # References
-/// - [`prctl(PR_GET_FP_MODE,...)`]
+///  - [`prctl(PR_GET_FP_MODE,...)`]
 ///
 /// [`prctl(PR_GET_FP_MODE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -878,7 +888,7 @@ const PR_SET_FP_MODE: c_int = 45;
 /// Allow control of the floating point mode from user space.
 ///
 /// # References
-/// - [`prctl(PR_SET_FP_MODE,...)`]
+///  - [`prctl(PR_SET_FP_MODE,...)`]
 ///
 /// [`prctl(PR_SET_FP_MODE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -954,7 +964,7 @@ bitflags! {
 /// Get the state of the speculation misfeature.
 ///
 /// # References
-/// - [`prctl(PR_GET_SPECULATION_CTRL,...)`]
+///  - [`prctl(PR_GET_SPECULATION_CTRL,...)`]
 ///
 /// [`prctl(PR_GET_SPECULATION_CTRL,...)`]: https://www.kernel.org/doc/html/v5.18/userspace-api/spec_ctrl.html
 #[inline]
@@ -970,7 +980,7 @@ const PR_SET_SPECULATION_CTRL: c_int = 53;
 /// Sets the state of the speculation misfeature.
 ///
 /// # References
-/// - [`prctl(PR_SET_SPECULATION_CTRL,...)`]
+///  - [`prctl(PR_SET_SPECULATION_CTRL,...)`]
 ///
 /// [`prctl(PR_SET_SPECULATION_CTRL,...)`]: https://www.kernel.org/doc/html/v5.18/userspace-api/spec_ctrl.html
 #[inline]
@@ -992,7 +1002,7 @@ const PR_GET_IO_FLUSHER: c_int = 58;
 /// Get the `IO_FLUSHER` state of the caller.
 ///
 /// # References
-/// - [`prctl(PR_GET_IO_FLUSHER,...)`]
+///  - [`prctl(PR_GET_IO_FLUSHER,...)`]
 ///
 /// [`prctl(PR_GET_IO_FLUSHER,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -1002,11 +1012,11 @@ pub fn is_io_flusher() -> io::Result<bool> {
 
 const PR_SET_IO_FLUSHER: c_int = 57;
 
-/// Put the process in the `IO_FLUSHER` state, allowing it to make progress when
-/// allocating memory.
+/// Put the process in the `IO_FLUSHER` state, allowing it to make progress
+/// when allocating memory.
 ///
 /// # References
-/// - [`prctl(PR_SET_IO_FLUSHER,...)`]
+///  - [`prctl(PR_SET_IO_FLUSHER,...)`]
 ///
 /// [`prctl(PR_SET_IO_FLUSHER,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
@@ -1039,7 +1049,7 @@ bitflags! {
 /// Get enabled pointer authentication keys.
 ///
 /// # References
-/// - [`prctl(PR_PAC_GET_ENABLED_KEYS,...)`]
+///  - [`prctl(PR_PAC_GET_ENABLED_KEYS,...)`]
 ///
 /// [`prctl(PR_PAC_GET_ENABLED_KEYS,...)`]: https://www.kernel.org/doc/html/v5.18/arm64/pointer-authentication.html
 #[inline]
@@ -1053,7 +1063,7 @@ const PR_PAC_SET_ENABLED_KEYS: c_int = 60;
 /// Set enabled pointer authentication keys.
 ///
 /// # References
-/// - [`prctl(PR_PAC_SET_ENABLED_KEYS,...)`]
+///  - [`prctl(PR_PAC_SET_ENABLED_KEYS,...)`]
 ///
 /// # Safety
 ///
@@ -1102,7 +1112,7 @@ const PR_SET_VMA_ANON_NAME: usize = 0;
 /// Set the name for a virtual memory region.
 ///
 /// # References
-/// - [`prctl(PR_SET_VMA,PR_SET_VMA_ANON_NAME,...)`]
+///  - [`prctl(PR_SET_VMA,PR_SET_VMA_ANON_NAME,...)`]
 ///
 /// [`prctl(PR_SET_VMA,PR_SET_VMA_ANON_NAME,...)`]: https://lwn.net/Articles/867818/
 #[inline]
@@ -1113,7 +1123,7 @@ pub fn set_virtual_memory_region_name(region: &[u8], name: Option<&CStr>) -> io:
             PR_SET_VMA_ANON_NAME as *mut _,
             region.as_ptr() as *mut _,
             region.len() as *mut _,
-            name.map_or_else(ptr::null, CStr::as_ptr) as *mut _,
+            name.map_or_else(null, CStr::as_ptr) as *mut _,
         )
         .map(|_r| ())
     }

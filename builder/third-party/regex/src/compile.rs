@@ -4,7 +4,7 @@ use std::iter;
 use std::result;
 use std::sync::Arc;
 
-use regex_syntax::hir::{self, Hir};
+use regex_syntax::hir::{self, Hir, Look};
 use regex_syntax::is_word_byte;
 use regex_syntax::utf8::{Utf8Range, Utf8Sequence, Utf8Sequences};
 
@@ -142,8 +142,10 @@ impl Compiler {
         // Other matching engines handle this by baking the logic into the
         // matching engine itself.
         let mut dotstar_patch = Patch { hole: Hole::None, entry: 0 };
-        self.compiled.is_anchored_start = expr.is_anchored_start();
-        self.compiled.is_anchored_end = expr.is_anchored_end();
+        self.compiled.is_anchored_start =
+            expr.properties().look_set_prefix().contains(Look::Start);
+        self.compiled.is_anchored_end =
+            expr.properties().look_set_suffix().contains(Look::End);
         if self.compiled.needs_dotstar() {
             dotstar_patch = self.c_dotstar()?;
             self.compiled.start = dotstar_patch.entry;
@@ -159,6 +161,8 @@ impl Compiler {
         self.fill_to_next(patch.hole);
         self.compiled.matches = vec![self.insts.len()];
         self.push_compiled(Inst::Match(0));
+        self.compiled.static_captures_len =
+            expr.properties().static_explicit_captures_len();
         self.compile_finish()
     }
 
@@ -168,10 +172,12 @@ impl Compiler {
     ) -> result::Result<Program, Error> {
         debug_assert!(exprs.len() > 1);
 
-        self.compiled.is_anchored_start =
-            exprs.iter().all(|e| e.is_anchored_start());
-        self.compiled.is_anchored_end =
-            exprs.iter().all(|e| e.is_anchored_end());
+        self.compiled.is_anchored_start = exprs
+            .iter()
+            .all(|e| e.properties().look_set_prefix().contains(Look::Start));
+        self.compiled.is_anchored_end = exprs
+            .iter()
+            .all(|e| e.properties().look_set_suffix().contains(Look::End));
         let mut dotstar_patch = Patch { hole: Hole::None, entry: 0 };
         if self.compiled.needs_dotstar() {
             dotstar_patch = self.c_dotstar()?;
@@ -272,17 +278,21 @@ impl Compiler {
         self.check_size()?;
         match *expr.kind() {
             Empty => self.c_empty(),
-            Literal(hir::Literal::Unicode(c)) => self.c_char(c),
-            Literal(hir::Literal::Byte(b)) => {
-                assert!(self.compiled.uses_bytes());
-                self.c_byte(b)
+            Literal(hir::Literal(ref bytes)) => {
+                if self.compiled.is_reverse {
+                    let mut bytes = bytes.to_vec();
+                    bytes.reverse();
+                    self.c_literal(&bytes)
+                } else {
+                    self.c_literal(bytes)
+                }
             }
             Class(hir::Class::Unicode(ref cls)) => self.c_class(cls.ranges()),
             Class(hir::Class::Bytes(ref cls)) => {
                 if self.compiled.uses_bytes() {
                     self.c_class_bytes(cls.ranges())
                 } else {
-                    assert!(cls.is_all_ascii());
+                    assert!(cls.is_ascii());
                     let mut char_ranges = vec![];
                     for r in cls.iter() {
                         let (s, e) = (r.start() as char, r.end() as char);
@@ -291,92 +301,94 @@ impl Compiler {
                     self.c_class(&char_ranges)
                 }
             }
-            Anchor(hir::Anchor::StartLine) if self.compiled.is_reverse => {
-                self.byte_classes.set_range(b'\n', b'\n');
-                self.c_empty_look(prog::EmptyLook::EndLine)
-            }
-            Anchor(hir::Anchor::StartLine) => {
-                self.byte_classes.set_range(b'\n', b'\n');
-                self.c_empty_look(prog::EmptyLook::StartLine)
-            }
-            Anchor(hir::Anchor::EndLine) if self.compiled.is_reverse => {
-                self.byte_classes.set_range(b'\n', b'\n');
-                self.c_empty_look(prog::EmptyLook::StartLine)
-            }
-            Anchor(hir::Anchor::EndLine) => {
-                self.byte_classes.set_range(b'\n', b'\n');
-                self.c_empty_look(prog::EmptyLook::EndLine)
-            }
-            Anchor(hir::Anchor::StartText) if self.compiled.is_reverse => {
-                self.c_empty_look(prog::EmptyLook::EndText)
-            }
-            Anchor(hir::Anchor::StartText) => {
-                self.c_empty_look(prog::EmptyLook::StartText)
-            }
-            Anchor(hir::Anchor::EndText) if self.compiled.is_reverse => {
-                self.c_empty_look(prog::EmptyLook::StartText)
-            }
-            Anchor(hir::Anchor::EndText) => {
-                self.c_empty_look(prog::EmptyLook::EndText)
-            }
-            WordBoundary(hir::WordBoundary::Unicode) => {
-                if !cfg!(feature = "unicode-perl") {
+            Look(ref look) => match *look {
+                hir::Look::Start if self.compiled.is_reverse => {
+                    self.c_empty_look(prog::EmptyLook::EndText)
+                }
+                hir::Look::Start => {
+                    self.c_empty_look(prog::EmptyLook::StartText)
+                }
+                hir::Look::End if self.compiled.is_reverse => {
+                    self.c_empty_look(prog::EmptyLook::StartText)
+                }
+                hir::Look::End => self.c_empty_look(prog::EmptyLook::EndText),
+                hir::Look::StartLF if self.compiled.is_reverse => {
+                    self.byte_classes.set_range(b'\n', b'\n');
+                    self.c_empty_look(prog::EmptyLook::EndLine)
+                }
+                hir::Look::StartLF => {
+                    self.byte_classes.set_range(b'\n', b'\n');
+                    self.c_empty_look(prog::EmptyLook::StartLine)
+                }
+                hir::Look::EndLF if self.compiled.is_reverse => {
+                    self.byte_classes.set_range(b'\n', b'\n');
+                    self.c_empty_look(prog::EmptyLook::StartLine)
+                }
+                hir::Look::EndLF => {
+                    self.byte_classes.set_range(b'\n', b'\n');
+                    self.c_empty_look(prog::EmptyLook::EndLine)
+                }
+                hir::Look::StartCRLF | hir::Look::EndCRLF => {
                     return Err(Error::Syntax(
-                        "Unicode word boundaries are unavailable when \
-                         the unicode-perl feature is disabled"
+                        "CRLF-aware line anchors are not supported yet"
                             .to_string(),
                     ));
                 }
-                self.compiled.has_unicode_word_boundary = true;
-                self.byte_classes.set_word_boundary();
-                // We also make sure that all ASCII bytes are in a different
-                // class from non-ASCII bytes. Otherwise, it's possible for
-                // ASCII bytes to get lumped into the same class as non-ASCII
-                // bytes. This in turn may cause the lazy DFA to falsely start
-                // when it sees an ASCII byte that maps to a byte class with
-                // non-ASCII bytes. This ensures that never happens.
-                self.byte_classes.set_range(0, 0x7F);
-                self.c_empty_look(prog::EmptyLook::WordBoundary)
-            }
-            WordBoundary(hir::WordBoundary::UnicodeNegate) => {
-                if !cfg!(feature = "unicode-perl") {
-                    return Err(Error::Syntax(
-                        "Unicode word boundaries are unavailable when \
+                hir::Look::WordAscii => {
+                    self.byte_classes.set_word_boundary();
+                    self.c_empty_look(prog::EmptyLook::WordBoundaryAscii)
+                }
+                hir::Look::WordAsciiNegate => {
+                    self.byte_classes.set_word_boundary();
+                    self.c_empty_look(prog::EmptyLook::NotWordBoundaryAscii)
+                }
+                hir::Look::WordUnicode => {
+                    if !cfg!(feature = "unicode-perl") {
+                        return Err(Error::Syntax(
+                            "Unicode word boundaries are unavailable when \
                          the unicode-perl feature is disabled"
-                            .to_string(),
-                    ));
-                }
-                self.compiled.has_unicode_word_boundary = true;
-                self.byte_classes.set_word_boundary();
-                // See comments above for why we set the ASCII range here.
-                self.byte_classes.set_range(0, 0x7F);
-                self.c_empty_look(prog::EmptyLook::NotWordBoundary)
-            }
-            WordBoundary(hir::WordBoundary::Ascii) => {
-                self.byte_classes.set_word_boundary();
-                self.c_empty_look(prog::EmptyLook::WordBoundaryAscii)
-            }
-            WordBoundary(hir::WordBoundary::AsciiNegate) => {
-                self.byte_classes.set_word_boundary();
-                self.c_empty_look(prog::EmptyLook::NotWordBoundaryAscii)
-            }
-            Group(ref g) => match g.kind {
-                hir::GroupKind::NonCapturing => self.c(&g.hir),
-                hir::GroupKind::CaptureIndex(index) => {
-                    if index as usize >= self.compiled.captures.len() {
-                        self.compiled.captures.push(None);
+                                .to_string(),
+                        ));
                     }
-                    self.c_capture(2 * index as usize, &g.hir)
+                    self.compiled.has_unicode_word_boundary = true;
+                    self.byte_classes.set_word_boundary();
+                    // We also make sure that all ASCII bytes are in a different
+                    // class from non-ASCII bytes. Otherwise, it's possible for
+                    // ASCII bytes to get lumped into the same class as non-ASCII
+                    // bytes. This in turn may cause the lazy DFA to falsely start
+                    // when it sees an ASCII byte that maps to a byte class with
+                    // non-ASCII bytes. This ensures that never happens.
+                    self.byte_classes.set_range(0, 0x7F);
+                    self.c_empty_look(prog::EmptyLook::WordBoundary)
                 }
-                hir::GroupKind::CaptureName { index, ref name } => {
-                    if index as usize >= self.compiled.captures.len() {
-                        let n = name.to_string();
-                        self.compiled.captures.push(Some(n.clone()));
-                        self.capture_name_idx.insert(n, index as usize);
+                hir::Look::WordUnicodeNegate => {
+                    if !cfg!(feature = "unicode-perl") {
+                        return Err(Error::Syntax(
+                            "Unicode word boundaries are unavailable when \
+                         the unicode-perl feature is disabled"
+                                .to_string(),
+                        ));
                     }
-                    self.c_capture(2 * index as usize, &g.hir)
+                    self.compiled.has_unicode_word_boundary = true;
+                    self.byte_classes.set_word_boundary();
+                    // See comments above for why we set the ASCII range here.
+                    self.byte_classes.set_range(0, 0x7F);
+                    self.c_empty_look(prog::EmptyLook::NotWordBoundary)
                 }
             },
+            Capture(hir::Capture { index, ref name, ref sub }) => {
+                if index as usize >= self.compiled.captures.len() {
+                    let name = match *name {
+                        None => None,
+                        Some(ref boxed_str) => Some(boxed_str.to_string()),
+                    };
+                    self.compiled.captures.push(name.clone());
+                    if let Some(name) = name {
+                        self.capture_name_idx.insert(name, index as usize);
+                    }
+                }
+                self.c_capture(2 * index as usize, sub)
+            }
             Concat(ref es) => {
                 if self.compiled.is_reverse {
                     self.c_concat(es.iter().rev())
@@ -420,21 +432,19 @@ impl Compiler {
     }
 
     fn c_dotstar(&mut self) -> Result {
-        Ok(if !self.compiled.only_utf8() {
-            self.c(&Hir::repetition(hir::Repetition {
-                kind: hir::RepetitionKind::ZeroOrMore,
-                greedy: false,
-                hir: Box::new(Hir::any(true)),
-            }))?
-            .unwrap()
+        let hir = if self.compiled.only_utf8() {
+            Hir::dot(hir::Dot::AnyChar)
         } else {
-            self.c(&Hir::repetition(hir::Repetition {
-                kind: hir::RepetitionKind::ZeroOrMore,
+            Hir::dot(hir::Dot::AnyByte)
+        };
+        Ok(self
+            .c(&Hir::repetition(hir::Repetition {
+                min: 0,
+                max: None,
                 greedy: false,
-                hir: Box::new(Hir::any(false)),
+                sub: Box::new(hir),
             }))?
-            .unwrap()
-        })
+            .unwrap())
     }
 
     fn c_char(&mut self, c: char) -> ResultOrEmpty {
@@ -457,7 +467,11 @@ impl Compiler {
     fn c_class(&mut self, ranges: &[hir::ClassUnicodeRange]) -> ResultOrEmpty {
         use std::mem::size_of;
 
-        assert!(!ranges.is_empty());
+        if ranges.is_empty() {
+            return Err(Error::Syntax(
+                "empty character classes are not allowed".to_string(),
+            ));
+        }
         if self.compiled.uses_bytes() {
             Ok(Some(CompileClass { c: self, ranges }.compile()?))
         } else {
@@ -482,7 +496,11 @@ impl Compiler {
         &mut self,
         ranges: &[hir::ClassBytesRange],
     ) -> ResultOrEmpty {
-        debug_assert!(!ranges.is_empty());
+        if ranges.is_empty() {
+            return Err(Error::Syntax(
+                "empty character classes are not allowed".to_string(),
+            ));
+        }
 
         let first_split_entry = self.insts.len();
         let mut holes = vec![];
@@ -511,6 +529,52 @@ impl Compiler {
     fn c_empty_look(&mut self, look: EmptyLook) -> ResultOrEmpty {
         let hole = self.push_hole(InstHole::EmptyLook { look });
         Ok(Some(Patch { hole, entry: self.insts.len() - 1 }))
+    }
+
+    fn c_literal(&mut self, bytes: &[u8]) -> ResultOrEmpty {
+        match core::str::from_utf8(bytes) {
+            Ok(string) => {
+                let mut it = string.chars();
+                let Patch { mut hole, entry } = loop {
+                    match it.next() {
+                        None => return self.c_empty(),
+                        Some(ch) => {
+                            if let Some(p) = self.c_char(ch)? {
+                                break p;
+                            }
+                        }
+                    }
+                };
+                for ch in it {
+                    if let Some(p) = self.c_char(ch)? {
+                        self.fill(hole, p.entry);
+                        hole = p.hole;
+                    }
+                }
+                Ok(Some(Patch { hole, entry }))
+            }
+            Err(_) => {
+                assert!(self.compiled.uses_bytes());
+                let mut it = bytes.iter().copied();
+                let Patch { mut hole, entry } = loop {
+                    match it.next() {
+                        None => return self.c_empty(),
+                        Some(byte) => {
+                            if let Some(p) = self.c_byte(byte)? {
+                                break p;
+                            }
+                        }
+                    }
+                };
+                for byte in it {
+                    if let Some(p) = self.c_byte(byte)? {
+                        self.fill(hole, p.entry);
+                        hole = p.hole;
+                    }
+                }
+                Ok(Some(Patch { hole, entry }))
+            }
+        }
     }
 
     fn c_concat<'a, I>(&mut self, exprs: I) -> ResultOrEmpty
@@ -587,19 +651,15 @@ impl Compiler {
     }
 
     fn c_repeat(&mut self, rep: &hir::Repetition) -> ResultOrEmpty {
-        use regex_syntax::hir::RepetitionKind::*;
-        match rep.kind {
-            ZeroOrOne => self.c_repeat_zero_or_one(&rep.hir, rep.greedy),
-            ZeroOrMore => self.c_repeat_zero_or_more(&rep.hir, rep.greedy),
-            OneOrMore => self.c_repeat_one_or_more(&rep.hir, rep.greedy),
-            Range(hir::RepetitionRange::Exactly(min_max)) => {
-                self.c_repeat_range(&rep.hir, rep.greedy, min_max, min_max)
+        match (rep.min, rep.max) {
+            (0, Some(1)) => self.c_repeat_zero_or_one(&rep.sub, rep.greedy),
+            (0, None) => self.c_repeat_zero_or_more(&rep.sub, rep.greedy),
+            (1, None) => self.c_repeat_one_or_more(&rep.sub, rep.greedy),
+            (min, None) => {
+                self.c_repeat_range_min_or_more(&rep.sub, rep.greedy, min)
             }
-            Range(hir::RepetitionRange::AtLeast(min)) => {
-                self.c_repeat_range_min_or_more(&rep.hir, rep.greedy, min)
-            }
-            Range(hir::RepetitionRange::Bounded(min, max)) => {
-                self.c_repeat_range(&rep.hir, rep.greedy, min, max)
+            (min, Some(max)) => {
+                self.c_repeat_range(&rep.sub, rep.greedy, min, max)
             }
         }
     }

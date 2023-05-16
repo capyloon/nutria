@@ -2,9 +2,9 @@
 Defines an abstract syntax for regular expressions.
 */
 
-use std::cmp::Ordering;
-use std::error;
-use std::fmt;
+use core::cmp::Ordering;
+
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 
 pub use crate::ast::visitor::{visit, Visitor};
 
@@ -65,6 +65,10 @@ impl Error {
 }
 
 /// The type of an error that occurred while building an AST.
+///
+/// This error type is marked as `non_exhaustive`. This means that adding a
+/// new variant is not considered a breaking change.
+#[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ErrorKind {
     /// The capturing group limit was exceeded.
@@ -169,71 +173,26 @@ pub enum ErrorKind {
     /// `(?<!re)`. Note that all of these syntaxes are otherwise invalid; this
     /// error is used to improve the user experience.
     UnsupportedLookAround,
-    /// Hints that destructuring should not be exhaustive.
-    ///
-    /// This enum may grow additional variants, so this makes sure clients
-    /// don't count on exhaustive matching. (Otherwise, adding a new variant
-    /// could break existing code.)
-    #[doc(hidden)]
-    __Nonexhaustive,
 }
 
-impl error::Error for Error {
-    // TODO: Remove this method entirely on the next breaking semver release.
-    #[allow(deprecated)]
-    fn description(&self) -> &str {
-        use self::ErrorKind::*;
-        match self.kind {
-            CaptureLimitExceeded => "capture group limit exceeded",
-            ClassEscapeInvalid => "invalid escape sequence in character class",
-            ClassRangeInvalid => "invalid character class range",
-            ClassRangeLiteral => "invalid range boundary, must be a literal",
-            ClassUnclosed => "unclosed character class",
-            DecimalEmpty => "empty decimal literal",
-            DecimalInvalid => "invalid decimal literal",
-            EscapeHexEmpty => "empty hexadecimal literal",
-            EscapeHexInvalid => "invalid hexadecimal literal",
-            EscapeHexInvalidDigit => "invalid hexadecimal digit",
-            EscapeUnexpectedEof => "unexpected eof (escape sequence)",
-            EscapeUnrecognized => "unrecognized escape sequence",
-            FlagDanglingNegation => "dangling flag negation operator",
-            FlagDuplicate { .. } => "duplicate flag",
-            FlagRepeatedNegation { .. } => "repeated negation",
-            FlagUnexpectedEof => "unexpected eof (flag)",
-            FlagUnrecognized => "unrecognized flag",
-            GroupNameDuplicate { .. } => "duplicate capture group name",
-            GroupNameEmpty => "empty capture group name",
-            GroupNameInvalid => "invalid capture group name",
-            GroupNameUnexpectedEof => "unclosed capture group name",
-            GroupUnclosed => "unclosed group",
-            GroupUnopened => "unopened group",
-            NestLimitExceeded(_) => "nest limit exceeded",
-            RepetitionCountInvalid => "invalid repetition count range",
-            RepetitionCountUnclosed => "unclosed counted repetition",
-            RepetitionMissing => "repetition operator missing expression",
-            UnicodeClassInvalid => "invalid Unicode character class",
-            UnsupportedBackreference => "backreferences are not supported",
-            UnsupportedLookAround => "look-around is not supported",
-            _ => unreachable!(),
-        }
-    }
-}
+#[cfg(feature = "std")]
+impl std::error::Error for Error {}
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         crate::error::Formatter::from(self).fmt(f)
     }
 }
 
-impl fmt::Display for ErrorKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl core::fmt::Display for ErrorKind {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use self::ErrorKind::*;
         match *self {
             CaptureLimitExceeded => write!(
                 f,
                 "exceeded the maximum number of \
                  capturing groups ({})",
-                ::std::u32::MAX
+                u32::MAX
             ),
             ClassEscapeInvalid => {
                 write!(f, "invalid escape sequence found in character class")
@@ -310,7 +269,6 @@ impl fmt::Display for ErrorKind {
                 "look-around, including look-ahead and look-behind, \
                  is not supported"
             ),
-            _ => unreachable!(),
         }
     }
 }
@@ -327,8 +285,8 @@ pub struct Span {
     pub end: Position,
 }
 
-impl fmt::Debug for Span {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl core::fmt::Debug for Span {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Span({:?}, {:?})", self.start, self.end)
     }
 }
@@ -360,8 +318,8 @@ pub struct Position {
     pub column: usize,
 }
 
-impl fmt::Debug for Position {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl core::fmt::Debug for Position {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "Position(o: {:?}, l: {:?}, c: {:?})",
@@ -541,8 +499,8 @@ impl Ast {
 ///
 /// This implementation uses constant stack space and heap space proportional
 /// to the size of the `Ast`.
-impl fmt::Display for Ast {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl core::fmt::Display for Ast {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use crate::ast::print::Printer;
         Printer::new().print(self, f)
     }
@@ -615,11 +573,11 @@ impl Literal {
     /// If this literal was written as a `\x` hex escape, then this returns
     /// the corresponding byte value. Otherwise, this returns `None`.
     pub fn byte(&self) -> Option<u8> {
-        let short_hex = LiteralKind::HexFixed(HexLiteralKind::X);
-        if self.c as u32 <= 255 && self.kind == short_hex {
-            Some(self.c as u8)
-        } else {
-            None
+        match self.kind {
+            LiteralKind::HexFixed(HexLiteralKind::X) => {
+                u8::try_from(self.c).ok()
+            }
+            _ => None,
         }
     }
 }
@@ -629,9 +587,12 @@ impl Literal {
 pub enum LiteralKind {
     /// The literal is written verbatim, e.g., `a` or `☃`.
     Verbatim,
-    /// The literal is written as an escape because it is punctuation, e.g.,
-    /// `\*` or `\[`.
-    Punctuation,
+    /// The literal is written as an escape because it is otherwise a special
+    /// regex meta character, e.g., `\*` or `\[`.
+    Meta,
+    /// The literal is written as an escape despite the fact that the escape is
+    /// unnecessary, e.g., `\%` or `\/`.
+    Superfluous,
     /// The literal is written as an octal escape, e.g., `\141`.
     Octal,
     /// The literal is written as a hex code with a fixed number of digits
@@ -1203,7 +1164,7 @@ impl Group {
     /// Returns true if and only if this group is capturing.
     pub fn is_capturing(&self) -> bool {
         match self.kind {
-            GroupKind::CaptureIndex(_) | GroupKind::CaptureName(_) => true,
+            GroupKind::CaptureIndex(_) | GroupKind::CaptureName { .. } => true,
             GroupKind::NonCapturing(_) => false,
         }
     }
@@ -1214,7 +1175,7 @@ impl Group {
     pub fn capture_index(&self) -> Option<u32> {
         match self.kind {
             GroupKind::CaptureIndex(i) => Some(i),
-            GroupKind::CaptureName(ref x) => Some(x.index),
+            GroupKind::CaptureName { ref name, .. } => Some(name.index),
             GroupKind::NonCapturing(_) => None,
         }
     }
@@ -1225,8 +1186,13 @@ impl Group {
 pub enum GroupKind {
     /// `(a)`
     CaptureIndex(u32),
-    /// `(?P<name>a)`
-    CaptureName(CaptureName),
+    /// `(?<name>a)` or `(?P<name>a)`
+    CaptureName {
+        /// True if the `?P<` syntax is used and false if the `?<` syntax is used.
+        starts_with_p: bool,
+        /// The capture name.
+        name: CaptureName,
+    },
     /// `(?:a)` and `(?i:a)`
     NonCapturing(Flags),
 }
@@ -1350,6 +1316,8 @@ pub enum Flag {
     SwapGreed,
     /// `u`
     Unicode,
+    /// `R`
+    CRLF,
     /// `x`
     IgnoreWhitespace,
 }
@@ -1358,7 +1326,7 @@ pub enum Flag {
 /// space but heap space proportional to the depth of the `Ast`.
 impl Drop for Ast {
     fn drop(&mut self) {
-        use std::mem;
+        use core::mem;
 
         match *self {
             Ast::Empty(_)
@@ -1408,7 +1376,7 @@ impl Drop for Ast {
 /// stack space but heap space proportional to the depth of the `ClassSet`.
 impl Drop for ClassSet {
     fn drop(&mut self) {
-        use std::mem;
+        use core::mem;
 
         match *self {
             ClassSet::Item(ref item) => match *item {

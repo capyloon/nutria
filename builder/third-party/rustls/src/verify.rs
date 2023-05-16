@@ -3,15 +3,16 @@ use std::fmt;
 use crate::anchors::{OwnedTrustAnchor, RootCertStore};
 use crate::client::ServerName;
 use crate::enums::SignatureScheme;
-use crate::error::Error;
+use crate::error::{CertificateError, Error, InvalidMessage, PeerMisbehaved};
 use crate::key::Certificate;
 #[cfg(feature = "logging")]
 use crate::log::{debug, trace, warn};
-use crate::msgs::handshake::{DigitallySignedStruct, DistinguishedNames};
+use crate::msgs::base::PayloadU16;
+use crate::msgs::codec::{Codec, Reader};
+use crate::msgs::handshake::DistinguishedName;
 
 use ring::digest::Digest;
 
-use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -105,7 +106,7 @@ pub trait ServerCertVerifier: Send + Sync {
     ///
     /// Note that none of the certificates have been parsed yet, so it is the responsibility of
     /// the implementor to handle invalid data. It is recommended that the implementor returns
-    /// [`Error::InvalidCertificateEncoding`] when these cases are encountered.
+    /// [`Error::InvalidCertificate(CertificateError::BadEncoding)`] when these cases are encountered.
     ///
     /// `scts` contains the Signed Certificate Timestamps (SCTs) the server
     /// sent with the end-entity certificate, if any.
@@ -203,13 +204,22 @@ impl fmt::Debug for dyn ServerCertVerifier {
 }
 
 /// A type which encapsulates a string that is a syntactically valid DNS name.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 #[cfg_attr(docsrs, doc(cfg(feature = "dangerous_configuration")))]
 pub struct DnsName(pub(crate) webpki::DnsName);
 
 impl AsRef<str> for DnsName {
     fn as_ref(&self) -> &str {
         AsRef::<str>::as_ref(&self.0)
+    }
+}
+
+impl fmt::Debug for DnsName {
+    // Workaround solution for ServerName debug formatting:
+    // Just show the string contents here, as verify::DnsName is only
+    // used in ServerName which has some more verbose debug output
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", &self.as_ref())
     }
 }
 
@@ -223,11 +233,11 @@ pub trait ClientCertVerifier: Send + Sync {
         true
     }
 
-    /// Return `Some(true)` to require a client certificate and `Some(false)` to make
-    /// client authentication optional. Return `None` to abort the connection.
+    /// Return `true` to require a client certificate and `false` to make
+    /// client authentication optional.
     /// Defaults to `Some(self.offer_client_auth())`.
-    fn client_auth_mandatory(&self) -> Option<bool> {
-        Some(self.offer_client_auth())
+    fn client_auth_mandatory(&self) -> bool {
+        self.offer_client_auth()
     }
 
     /// Returns the [Subjects] of the client authentication trust anchors to
@@ -241,9 +251,8 @@ pub trait ClientCertVerifier: Send + Sync {
     /// [`CertificateRequest`]: https://datatracker.ietf.org/doc/html/rfc8446#section-4.3.2
     /// [`certificate_authorities`]: https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.4
     ///
-    /// Return `None` to abort the connection. Return an empty `Vec` to continue
-    /// the handshake without sending a CertificateRequest message.
-    fn client_auth_root_subjects(&self) -> Option<DistinguishedNames>;
+    /// If the return value is empty, no CertificateRequest message will be sent.
+    fn client_auth_root_subjects(&self) -> &[DistinguishedName];
 
     /// Verify the end-entity certificate `end_entity` is valid, acceptable,
     /// and chains to at least one of the trust anchors trusted by
@@ -255,7 +264,10 @@ pub trait ClientCertVerifier: Send + Sync {
     ///
     /// Note that none of the certificates have been parsed yet, so it is the responsibility of
     /// the implementor to handle invalid data. It is recommended that the implementor returns
-    /// [`Error::InvalidCertificateEncoding`] when these cases are encountered.
+    /// an [InvalidCertificate] error with the [BadEncoding] variant when these cases are encountered.
+    ///
+    /// [InvalidCertificate]: Error#variant.InvalidCertificate
+    /// [BadEncoding]: CertificateError#variant.BadEncoding
     fn verify_client_cert(
         &self,
         end_entity: &Certificate,
@@ -346,13 +358,6 @@ impl ServerCertVerifier for WebPkiVerifier {
         let (cert, chain, trustroots) = prepare(end_entity, intermediates, &self.roots)?;
         let webpki_now = webpki::Time::try_from(now).map_err(|_| Error::FailedToGetCurrentTime)?;
 
-        let dns_name = match server_name {
-            ServerName::DnsName(dns_name) => dns_name,
-            ServerName::IpAddress(_) => {
-                return Err(Error::UnsupportedNameType);
-            }
-        };
-
         let cert = cert
             .verify_is_valid_tls_server_cert(
                 SUPPORTED_SIG_ALGS,
@@ -371,9 +376,22 @@ impl ServerCertVerifier for WebPkiVerifier {
             trace!("Unvalidated OCSP response: {:?}", ocsp_response.to_vec());
         }
 
-        cert.verify_is_valid_for_dns_name(dns_name.0.as_ref())
-            .map_err(pki_error)
-            .map(|_| ServerCertVerified::assertion())
+        match server_name {
+            ServerName::DnsName(dns_name) => {
+                let name = webpki::SubjectNameRef::DnsName(dns_name.0.as_ref());
+                cert.verify_is_valid_for_subject_name(name)
+                    .map_err(pki_error)
+                    .map(|_| ServerCertVerified::assertion())
+            }
+            ServerName::IpAddress(ip_addr) => {
+                let ip_addr = webpki::IpAddr::from(*ip_addr);
+                cert.verify_is_valid_for_subject_name(webpki::SubjectNameRef::IpAddress(
+                    webpki::IpAddrRef::from(&ip_addr),
+                ))
+                .map_err(pki_error)
+                .map(|_| ServerCertVerified::assertion())
+            }
+        }
     }
 }
 
@@ -524,14 +542,30 @@ fn prepare<'a, 'b>(
 /// certificate, without any name checking.
 pub struct AllowAnyAuthenticatedClient {
     roots: RootCertStore,
+    subjects: Vec<DistinguishedName>,
 }
 
 impl AllowAnyAuthenticatedClient {
     /// Construct a new `AllowAnyAuthenticatedClient`.
     ///
     /// `roots` is the list of trust anchors to use for certificate validation.
-    pub fn new(roots: RootCertStore) -> Arc<dyn ClientCertVerifier> {
-        Arc::new(Self { roots })
+    pub fn new(roots: RootCertStore) -> Self {
+        Self {
+            subjects: roots
+                .roots
+                .iter()
+                .map(|r| r.subject().clone())
+                .collect(),
+            roots,
+        }
+    }
+
+    /// Wrap this verifier in an [`Arc`] and coerce it to `dyn ClientCertVerifier`
+    #[inline(always)]
+    pub fn boxed(self) -> Arc<dyn ClientCertVerifier> {
+        // This function is needed because `ClientCertVerifier` is only reachable if the
+        // `dangerous_configuration` feature is enabled, which makes coercing hard to outside users
+        Arc::new(self)
     }
 }
 
@@ -540,9 +574,8 @@ impl ClientCertVerifier for AllowAnyAuthenticatedClient {
         true
     }
 
-    #[allow(deprecated)]
-    fn client_auth_root_subjects(&self) -> Option<DistinguishedNames> {
-        Some(self.roots.subjects())
+    fn client_auth_root_subjects(&self) -> &[DistinguishedName] {
+        &self.subjects
     }
 
     fn verify_client_cert(
@@ -578,10 +611,18 @@ impl AllowAnyAnonymousOrAuthenticatedClient {
     /// Construct a new `AllowAnyAnonymousOrAuthenticatedClient`.
     ///
     /// `roots` is the list of trust anchors to use for certificate validation.
-    pub fn new(roots: RootCertStore) -> Arc<dyn ClientCertVerifier> {
-        Arc::new(Self {
-            inner: AllowAnyAuthenticatedClient { roots },
-        })
+    pub fn new(roots: RootCertStore) -> Self {
+        Self {
+            inner: AllowAnyAuthenticatedClient::new(roots),
+        }
+    }
+
+    /// Wrap this verifier in an [`Arc`] and coerce it to `dyn ClientCertVerifier`
+    #[inline(always)]
+    pub fn boxed(self) -> Arc<dyn ClientCertVerifier> {
+        // This function is needed because `ClientCertVerifier` is only reachable if the
+        // `dangerous_configuration` feature is enabled, which makes coercing hard to outside users
+        Arc::new(self)
     }
 }
 
@@ -590,11 +631,11 @@ impl ClientCertVerifier for AllowAnyAnonymousOrAuthenticatedClient {
         self.inner.offer_client_auth()
     }
 
-    fn client_auth_mandatory(&self) -> Option<bool> {
-        Some(false)
+    fn client_auth_mandatory(&self) -> bool {
+        false
     }
 
-    fn client_auth_root_subjects(&self) -> Option<DistinguishedNames> {
+    fn client_auth_root_subjects(&self) -> &[DistinguishedName] {
         self.inner.client_auth_root_subjects()
     }
 
@@ -612,12 +653,16 @@ impl ClientCertVerifier for AllowAnyAnonymousOrAuthenticatedClient {
 fn pki_error(error: webpki::Error) -> Error {
     use webpki::Error::*;
     match error {
-        BadDer | BadDerTime => Error::InvalidCertificateEncoding,
-        InvalidSignatureForPublicKey => Error::InvalidCertificateSignature,
-        UnsupportedSignatureAlgorithm | UnsupportedSignatureAlgorithmForPublicKey => {
-            Error::InvalidCertificateSignatureType
-        }
-        e => Error::InvalidCertificateData(format!("invalid peer certificate: {}", e)),
+        BadDer | BadDerTime => CertificateError::BadEncoding.into(),
+        CertNotValidYet => CertificateError::NotValidYet.into(),
+        CertExpired | InvalidCertValidity => CertificateError::Expired.into(),
+        UnknownIssuer => CertificateError::UnknownIssuer.into(),
+        CertNotValidForName => CertificateError::NotValidForName.into(),
+
+        InvalidSignatureForPublicKey
+        | UnsupportedSignatureAlgorithm
+        | UnsupportedSignatureAlgorithmForPublicKey => CertificateError::BadSignature.into(),
+        _ => CertificateError::Other(Arc::new(error)).into(),
     }
 }
 
@@ -625,8 +670,12 @@ fn pki_error(error: webpki::Error) -> Error {
 pub struct NoClientAuth;
 
 impl NoClientAuth {
-    /// Constructs a `NoClientAuth` and wraps it in an `Arc`.
-    pub fn new() -> Arc<dyn ClientCertVerifier> {
+    /// Construct a [`NoClientAuth`], wrap it in an [`Arc`] and coerce it to
+    /// `dyn ClientCertVerifier`.
+    #[inline(always)]
+    pub fn boxed() -> Arc<dyn ClientCertVerifier> {
+        // This function is needed because `ClientCertVerifier` is only reachable if the
+        // `dangerous_configuration` feature is enabled, which makes coercing hard to outside users
         Arc::new(Self)
     }
 }
@@ -636,7 +685,7 @@ impl ClientCertVerifier for NoClientAuth {
         false
     }
 
-    fn client_auth_root_subjects(&self) -> Option<DistinguishedNames> {
+    fn client_auth_root_subjects(&self) -> &[DistinguishedName] {
         unimplemented!();
     }
 
@@ -647,6 +696,42 @@ impl ClientCertVerifier for NoClientAuth {
         _now: SystemTime,
     ) -> Result<ClientCertVerified, Error> {
         unimplemented!();
+    }
+}
+
+/// This type combines a [`SignatureScheme`] and a signature payload produced with that scheme.
+#[derive(Debug, Clone)]
+pub struct DigitallySignedStruct {
+    /// The [`SignatureScheme`] used to produce the signature.
+    pub scheme: SignatureScheme,
+    sig: PayloadU16,
+}
+
+impl DigitallySignedStruct {
+    pub(crate) fn new(scheme: SignatureScheme, sig: Vec<u8>) -> Self {
+        Self {
+            scheme,
+            sig: PayloadU16::new(sig),
+        }
+    }
+
+    /// Get the signature.
+    pub fn signature(&self) -> &[u8] {
+        &self.sig.0
+    }
+}
+
+impl Codec for DigitallySignedStruct {
+    fn encode(&self, bytes: &mut Vec<u8>) {
+        self.scheme.encode(bytes);
+        self.sig.encode(bytes);
+    }
+
+    fn read(r: &mut Reader) -> Result<Self, InvalidMessage> {
+        let scheme = SignatureScheme::read(r)?;
+        let sig = PayloadU16::read(r)?;
+
+        Ok(Self { scheme, sig })
     }
 }
 
@@ -681,10 +766,7 @@ fn convert_scheme(scheme: SignatureScheme) -> Result<SignatureAlgorithms, Error>
         SignatureScheme::RSA_PSS_SHA384 => Ok(RSA_PSS_SHA384),
         SignatureScheme::RSA_PSS_SHA512 => Ok(RSA_PSS_SHA512),
 
-        _ => {
-            let error_msg = format!("received unadvertised sig scheme {:?}", scheme);
-            Err(Error::PeerMisbehavedError(error_msg))
-        }
+        _ => Err(PeerMisbehaved::SignedHandshakeWithUnadvertisedSigScheme.into()),
     }
 }
 
@@ -731,10 +813,7 @@ fn convert_alg_tls13(
         RSA_PSS_SHA256 => Ok(&webpki::RSA_PSS_2048_8192_SHA256_LEGACY_KEY),
         RSA_PSS_SHA384 => Ok(&webpki::RSA_PSS_2048_8192_SHA384_LEGACY_KEY),
         RSA_PSS_SHA512 => Ok(&webpki::RSA_PSS_2048_8192_SHA512_LEGACY_KEY),
-        _ => {
-            let error_msg = format!("received unsupported sig scheme {:?}", scheme);
-            Err(Error::PeerMisbehavedError(error_msg))
-        }
+        _ => Err(PeerMisbehaved::SignedHandshakeWithUnadvertisedSigScheme.into()),
     }
 }
 

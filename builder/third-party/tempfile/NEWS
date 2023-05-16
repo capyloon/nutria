@@ -1,7 +1,14 @@
+3.5.0
+=====
+
+- Update rustix from 0.36 to 0.37.1. This makes wasi work on rust stable
+- Update `windows-sys`, `redox_syscall`
+- BREAKING: Remove the implementation of `Write for &NamedTempFile<F> where &F: Write`. Unfortunately, this can cause compile issues in unrelated code (https://github.com/Stebalien/tempfile/issues/224).
+
 3.4.0
 =====
 
-SECURITY: Prior `tempfile` releases depended on `remove_dir_all` version 0.5.0 which was vulnerabiel to a [TOCTOU race](https://github.com/XAMPPRocky/remove_dir_all/security/advisories/GHSA-mc8h-8q98-g5hr). This same race is present in rust versions prior to 1.58.1.
+SECURITY: Prior `tempfile` releases depended on `remove_dir_all` version 0.5.0 which was vulnerable to a [TOCTOU race](https://github.com/XAMPPRocky/remove_dir_all/security/advisories/GHSA-mc8h-8q98-g5hr). This same race is present in rust versions prior to 1.58.1.
 
 Features:
 
@@ -235,7 +242,7 @@ Add LFS Support.
 2.0.0
 =====
 
-This release replaces `TempFile` with a `tempfile()` function that returnes
+This release replaces `TempFile` with a `tempfile()` function that returns
 `std::fs::File` objects. These are significantly more useful because most rust
 libraries expect normal `File` objects.
 

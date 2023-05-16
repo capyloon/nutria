@@ -1,5 +1,7 @@
+use crate::enums::AlertDescription;
+use crate::error::InvalidMessage;
 use crate::msgs::codec::{Codec, Reader};
-use crate::msgs::enums::{AlertDescription, AlertLevel};
+use crate::msgs::enums::AlertLevel;
 
 #[derive(Debug)]
 pub struct AlertMessagePayload {
@@ -13,10 +15,10 @@ impl Codec for AlertMessagePayload {
         self.description.encode(bytes);
     }
 
-    fn read(r: &mut Reader) -> Option<Self> {
+    fn read(r: &mut Reader) -> Result<Self, InvalidMessage> {
         let level = AlertLevel::read(r)?;
         let description = AlertDescription::read(r)?;
-
-        Some(Self { level, description })
+        r.expect_empty("AlertMessagePayload")
+            .map(|_| Self { level, description })
     }
 }

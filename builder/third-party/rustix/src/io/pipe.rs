@@ -1,3 +1,9 @@
+//! `pipe` and related APIs.
+//!
+//! # Safety
+//!
+//! `vmsplice` is an unsafe function.
+
 #![allow(unsafe_code)]
 
 use crate::fd::OwnedFd;
@@ -5,7 +11,7 @@ use crate::{backend, io};
 #[cfg(any(target_os = "android", target_os = "linux"))]
 use backend::fd::AsFd;
 
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
+#[cfg(not(apple))]
 pub use backend::io::types::PipeFlags;
 
 #[cfg(any(target_os = "android", target_os = "linux"))]
@@ -20,11 +26,10 @@ pub use backend::io::types::{IoSliceRaw, SpliceFlags};
 /// [Linux]: https://man7.org/linux/man-pages/man7/pipe.7.html
 /// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/write.html
 #[cfg(not(any(
+    solarish,
     windows,
     target_os = "haiku",
-    target_os = "illumos",
     target_os = "redox",
-    target_os = "solaris",
     target_os = "wasi",
 )))]
 pub const PIPE_BUF: usize = backend::io::types::PIPE_BUF;
@@ -37,9 +42,23 @@ pub const PIPE_BUF: usize = backend::io::types::PIPE_BUF;
 /// # References
 ///  - [POSIX]
 ///  - [Linux]
+///  - [Apple]
+///  - [FreeBSD]
+///  - [NetBSD]
+///  - [OpenBSD]
+///  - [DragonFly BSD]
+///  - [illumos]
+///  - [glibc]
 ///
 /// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/pipe.html
 /// [Linux]: https://man7.org/linux/man-pages/man2/pipe.2.html
+/// [Apple]: https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/pipe.2.html
+/// [FreeBSD]: https://man.freebsd.org/cgi/man.cgi?query=pipe&sektion=2
+/// [NetBSD]: https://man.netbsd.org/pipe.2
+/// [OpenBSD]: https://man.openbsd.org/pipe.2
+/// [DragonFly BSD]: https://man.dragonflybsd.org/?command=pipe&section=2
+/// [illumos]: https://illumos.org/man/2/pipe
+/// [glibc]: https://www.gnu.org/software/libc/manual/html_node/Creating-a-Pipe.html
 #[inline]
 pub fn pipe() -> io::Result<(OwnedFd, OwnedFd)> {
     backend::io::syscalls::pipe()
@@ -52,24 +71,30 @@ pub fn pipe() -> io::Result<(OwnedFd, OwnedFd)> {
 ///
 /// # References
 ///  - [Linux]
+///  - [FreeBSD]
+///  - [NetBSD]
+///  - [OpenBSD]
+///  - [DragonFly BSD]
+///  - [illumos]
 ///
 /// [Linux]: https://man7.org/linux/man-pages/man2/pipe2.2.html
-#[cfg(not(any(
-    target_os = "aix",
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos"
-)))]
+/// [FreeBSD]: https://man.freebsd.org/cgi/man.cgi?query=pipe2&sektion=2
+/// [NetBSD]: https://man.netbsd.org/pipe2.2
+/// [OpenBSD]: https://man.openbsd.org/pipe2.2
+/// [DragonFly BSD]: https://man.dragonflybsd.org/?command=pipe2&section=2
+/// [illumos]: https://illumos.org/man/2/pipe2
+#[cfg(not(any(apple, target_os = "aix", target_os = "haiku")))]
 #[inline]
 #[doc(alias = "pipe2")]
 pub fn pipe_with(flags: PipeFlags) -> io::Result<(OwnedFd, OwnedFd)> {
     backend::io::syscalls::pipe_with(flags)
 }
 
-/// `splice(fd_in, off_in, fd_out, off_out, len, flags)`—Transfer data between a file and a pipe.
+/// `splice(fd_in, off_in, fd_out, off_out, len, flags)`—Transfer data between
+/// a file and a pipe.
 ///
-/// This function transfers up to `len` bytes of data from the file descriptor `fd_in`
-/// to the file descriptor `fd_out`, where one of the file descriptors
+/// This function transfers up to `len` bytes of data from the file descriptor
+/// `fd_in` to the file descriptor `fd_out`, where one of the file descriptors
 /// must refer to a pipe.
 ///
 /// `off_*` must be `None` if the corresponding fd refers to a pipe.
@@ -107,8 +132,9 @@ pub fn splice<FdIn: AsFd, FdOut: AsFd>(
 ///
 /// # Safety
 ///
-/// If the memory must not be mutated (such as when `bufs` were originally immutable slices),
-/// it is up to the caller to ensure that the write end of the pipe is placed in `fd`.
+/// If the memory must not be mutated (such as when `bufs` were originally
+/// immutable slices), it is up to the caller to ensure that the write end of
+/// the pipe is placed in `fd`.
 ///
 /// Additionally if `SpliceFlags::GIFT` is set, the caller must also ensure
 /// that the contents of `bufs` in never modified following the call,
@@ -123,7 +149,7 @@ pub fn splice<FdIn: AsFd, FdOut: AsFd>(
 #[inline]
 pub unsafe fn vmsplice<PipeFd: AsFd>(
     fd: PipeFd,
-    bufs: &[io::IoSliceRaw],
+    bufs: &[IoSliceRaw],
     flags: SpliceFlags,
 ) -> io::Result<usize> {
     backend::io::syscalls::vmsplice(fd.as_fd(), bufs, flags)

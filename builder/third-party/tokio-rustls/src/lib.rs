@@ -1,4 +1,4 @@
-//! Asynchronous TLS/SSL streams for Tokio using [Rustls](https://github.com/ctz/rustls).
+//! Asynchronous TLS/SSL streams for Tokio using [Rustls](https://github.com/rustls/rustls).
 //!
 //! # Why do I need to call `poll_flush`?
 //!
@@ -63,7 +63,6 @@ use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 pub use rustls;
-pub use webpki;
 
 /// A wrapper around a `rustls::ClientConfig`, providing an async `connect` method.
 #[derive(Clone)]
@@ -389,6 +388,7 @@ impl<IO: AsyncRead + AsyncWrite + Unpin> Future for FallibleAccept<IO> {
 ///
 /// This abstracts over the inner `client::TlsStream` and `server::TlsStream`, so you can use
 /// a single type to keep both client- and server-initiated TLS-encrypted connections.
+#[allow(clippy::large_enum_variant)] // https://github.com/rust-lang/rust-clippy/issues/9798
 #[derive(Debug)]
 pub enum TlsStream<T> {
     Client(client::TlsStream<T>),
@@ -401,11 +401,11 @@ impl<T> TlsStream<T> {
         match self {
             Client(io) => {
                 let (io, session) = io.get_ref();
-                (io, &*session)
+                (io, session)
             }
             Server(io) => {
                 let (io, session) = io.get_ref();
-                (io, &*session)
+                (io, session)
             }
         }
     }

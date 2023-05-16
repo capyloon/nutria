@@ -52,6 +52,7 @@ pub type RawAddressFamily = c::sa_family_t;
 pub struct AddressFamily(pub(crate) RawAddressFamily);
 
 #[rustfmt::skip]
+#[allow(non_upper_case_globals)]
 impl AddressFamily {
     /// `AF_UNSPEC`
     pub const UNSPEC: Self = Self(c::AF_UNSPEC as _);
@@ -81,7 +82,6 @@ impl AddressFamily {
     /// `AF_ROSE`
     pub const ROSE: Self = Self(c::AF_ROSE as _);
     /// `AF_DECnet`
-    #[allow(non_upper_case_globals)]
     pub const DECnet: Self = Self(c::AF_DECnet as _);
     /// `AF_NETBEUI`
     pub const NETBEUI: Self = Self(c::AF_NETBEUI as _);
@@ -143,7 +143,10 @@ impl AddressFamily {
 #[doc(hidden)]
 pub type RawProtocol = u32;
 
-/// `IPPROTO_*`
+/// `IPPROTO_*` constants for use with [`socket`] and [`socket_with`].
+///
+/// [`socket`]: crate::net::socket
+/// [`socket_with`]: crate::net::socket_with
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct Protocol(pub(crate) RawProtocol);
@@ -232,7 +235,7 @@ impl Protocol {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(u32)]
 pub enum Shutdown {
-    /// `SHUT_WR`—Disable further read operations.
+    /// `SHUT_RD`—Disable further read operations.
     Read = c::SHUT_RD,
     /// `SHUT_WR`—Disable further write operations.
     Write = c::SHUT_WR,
@@ -241,22 +244,12 @@ pub enum Shutdown {
 }
 
 bitflags! {
-    /// `SOCK_*` constants for use with [`accept_with`] and [`acceptfrom_with`].
+    /// `SOCK_*` constants for use with [`socket_with`], [`accept_with`] and
+    /// [`acceptfrom_with`].
     ///
+    /// [`socket_with`]: crate::net::socket_with
     /// [`accept_with`]: crate::net::accept_with
     /// [`acceptfrom_with`]: crate::net::acceptfrom_with
-    pub struct AcceptFlags: c::c_uint {
-        /// `SOCK_NONBLOCK`
-        const NONBLOCK = c::O_NONBLOCK;
-        /// `SOCK_CLOEXEC`
-        const CLOEXEC = c::O_CLOEXEC;
-    }
-}
-
-bitflags! {
-    /// `SOCK_*` constants for use with [`socket`].
-    ///
-    /// [`socket`]: crate::net::socket
     pub struct SocketFlags: c::c_uint {
         /// `SOCK_NONBLOCK`
         const NONBLOCK = c::O_NONBLOCK;

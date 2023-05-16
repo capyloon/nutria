@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "hyper"
-version = "0.14.25"
+version = "0.14.26"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 include = [
     "Cargo.toml",
@@ -194,7 +194,7 @@ version = "0.3"
 default-features = false
 
 [dependencies.h2]
-version = "0.3.9"
+version = "0.3.17"
 optional = true
 
 [dependencies.http]

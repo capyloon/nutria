@@ -19,17 +19,13 @@ use core::mem::MaybeUninit;
 use core::{ptr, slice, str};
 #[cfg(feature = "std")]
 use std::ffi::{OsStr, OsString};
-#[cfg(feature = "std")]
-#[cfg(target_os = "hermit")]
+#[cfg(all(feature = "std", target_os = "hermit"))]
 use std::os::hermit::ext::ffi::{OsStrExt, OsStringExt};
-#[cfg(feature = "std")]
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
-#[cfg(feature = "std")]
-#[cfg(target_os = "vxworks")]
+#[cfg(all(feature = "std", target_os = "vxworks"))]
 use std::os::vxworks::ext::ffi::{OsStrExt, OsStringExt};
-#[cfg(feature = "std")]
-#[cfg(target_os = "wasi")]
+#[cfg(all(feature = "std", target_os = "wasi"))]
 use std::os::wasi::ffi::{OsStrExt, OsStringExt};
 #[cfg(feature = "std")]
 use std::path::{Component, Components, Iter, Path, PathBuf};
@@ -41,7 +37,7 @@ use std::path::{Component, Components, Iter, Path, PathBuf};
 ///
 /// # Example
 ///
-/// ```rust
+/// ```
 /// # #[cfg(any(feature = "fs", feature = "net"))]
 /// use rustix::ffi::CStr;
 /// use rustix::io;
@@ -950,13 +946,15 @@ where
     }
 
     // Taken from
-    // https://github.com/rust-lang/rust/blob/a00f8ba7fcac1b27341679c51bf5a3271fa82df3/library/std/src/sys/common/small_c_string.rs
+    // <https://github.com/rust-lang/rust/blob/a00f8ba7fcac1b27341679c51bf5a3271fa82df3/library/std/src/sys/common/small_c_string.rs>
     let mut buf = MaybeUninit::<[u8; SMALL_PATH_BUFFER_SIZE]>::uninit();
     let buf_ptr = buf.as_mut_ptr() as *mut u8;
 
-    // SAFETY: bytes.len() < SMALL_PATH_BUFFER_SIZE which means we have space for
-    // bytes.len() + 1 u8s:
+    // This helps test our safety condition below.
     debug_assert!(bytes.len() + 1 <= SMALL_PATH_BUFFER_SIZE);
+
+    // SAFETY: `bytes.len() < SMALL_PATH_BUFFER_SIZE` which means we have space
+    // for `bytes.len() + 1` u8s:
     unsafe {
         ptr::copy_nonoverlapping(bytes.as_ptr(), buf_ptr, bytes.len());
         buf_ptr.add(bytes.len()).write(0);

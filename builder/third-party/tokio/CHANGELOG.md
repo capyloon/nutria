@@ -1,3 +1,106 @@
+# 1.28.1 (May 10th, 2023)
+
+This release fixes a mistake in the build script that makes `AsFd`
+implementations unavailable on Rust 1.63. ([#5677])
+
+[#5677]: https://github.com/tokio-rs/tokio/pull/5677
+
+# 1.28.0 (April 25th, 2023)
+
+### Added
+
+- io: add `AsyncFd::async_io` ([#5542])
+- io: impl BufMut for ReadBuf ([#5590])
+- net: add `recv_buf` for `UdpSocket` and `UnixDatagram` ([#5583])
+- sync: add `OwnedSemaphorePermit::semaphore` ([#5618])
+- sync: add `same_channel` to broadcast channel ([#5607])
+- sync: add `watch::Receiver::wait_for` ([#5611])
+- task: add `JoinSet::spawn_blocking` and `JoinSet::spawn_blocking_on` ([#5612])
+
+### Changed
+
+- deps: update windows-sys to 0.48 ([#5591])
+- io: make `read_to_end` not grow unnecessarily ([#5610])
+- macros: make entrypoints more efficient ([#5621])
+- sync: improve Debug impl for `RwLock` ([#5647])
+- sync: reduce contention in `Notify` ([#5503])
+
+### Fixed
+
+- net: support `get_peer_cred` on AIX ([#5065])
+- sync: avoid deadlocks in `broadcast` with custom wakers ([#5578])
+
+### Documented
+
+- sync: fix typo in `Semaphore::MAX_PERMITS` ([#5645])
+- sync: fix typo in `tokio::sync::watch::Sender` docs ([#5587])
+
+[#5065]: https://github.com/tokio-rs/tokio/pull/5065
+[#5503]: https://github.com/tokio-rs/tokio/pull/5503
+[#5542]: https://github.com/tokio-rs/tokio/pull/5542
+[#5578]: https://github.com/tokio-rs/tokio/pull/5578
+[#5583]: https://github.com/tokio-rs/tokio/pull/5583
+[#5587]: https://github.com/tokio-rs/tokio/pull/5587
+[#5590]: https://github.com/tokio-rs/tokio/pull/5590
+[#5591]: https://github.com/tokio-rs/tokio/pull/5591
+[#5607]: https://github.com/tokio-rs/tokio/pull/5607
+[#5610]: https://github.com/tokio-rs/tokio/pull/5610
+[#5611]: https://github.com/tokio-rs/tokio/pull/5611
+[#5612]: https://github.com/tokio-rs/tokio/pull/5612
+[#5618]: https://github.com/tokio-rs/tokio/pull/5618
+[#5621]: https://github.com/tokio-rs/tokio/pull/5621
+[#5645]: https://github.com/tokio-rs/tokio/pull/5645
+[#5647]: https://github.com/tokio-rs/tokio/pull/5647
+
+# 1.27.0 (March 27th, 2023)
+
+This release bumps the MSRV of Tokio to 1.56. ([#5559])
+
+### Added
+
+- io: add `async_io` helper method to sockets ([#5512])
+- io: add implementations of `AsFd`/`AsHandle`/`AsSocket` ([#5514], [#5540])
+- net: add `UdpSocket::peek_sender()` ([#5520])
+- sync: add `RwLockWriteGuard::{downgrade_map, try_downgrade_map}` ([#5527])
+- task: add `JoinHandle::abort_handle` ([#5543])
+
+### Changed
+
+- io: use `memchr` from `libc` ([#5558])
+- macros: accept path as crate rename in `#[tokio::main]` ([#5557])
+- macros: update to syn 2.0.0 ([#5572])
+- time: don't register for a wakeup when `Interval` returns `Ready` ([#5553])
+
+### Fixed
+
+- fs: fuse std iterator in `ReadDir` ([#5555])
+- tracing: fix `spawn_blocking` location fields ([#5573])
+- time: clean up redundant check in `Wheel::poll()` ([#5574])
+
+### Documented
+
+- macros: define cancellation safety ([#5525])
+- io: add details to docs of `tokio::io::copy[_buf]` ([#5575])
+- io: refer to `ReaderStream` and `StreamReader` in module docs ([#5576])
+
+[#5512]: https://github.com/tokio-rs/tokio/pull/5512
+[#5514]: https://github.com/tokio-rs/tokio/pull/5514
+[#5520]: https://github.com/tokio-rs/tokio/pull/5520
+[#5525]: https://github.com/tokio-rs/tokio/pull/5525
+[#5527]: https://github.com/tokio-rs/tokio/pull/5527
+[#5540]: https://github.com/tokio-rs/tokio/pull/5540
+[#5543]: https://github.com/tokio-rs/tokio/pull/5543
+[#5553]: https://github.com/tokio-rs/tokio/pull/5553
+[#5555]: https://github.com/tokio-rs/tokio/pull/5555
+[#5557]: https://github.com/tokio-rs/tokio/pull/5557
+[#5558]: https://github.com/tokio-rs/tokio/pull/5558
+[#5559]: https://github.com/tokio-rs/tokio/pull/5559
+[#5572]: https://github.com/tokio-rs/tokio/pull/5572
+[#5573]: https://github.com/tokio-rs/tokio/pull/5573
+[#5574]: https://github.com/tokio-rs/tokio/pull/5574
+[#5575]: https://github.com/tokio-rs/tokio/pull/5575
+[#5576]: https://github.com/tokio-rs/tokio/pull/5576
+
 # 1.26.0 (March 1st, 2023)
 
 ### Fixed

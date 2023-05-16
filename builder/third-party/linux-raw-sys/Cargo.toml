@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.48"
 name = "linux-raw-sys"
-version = "0.1.4"
+version = "0.3.7"
 authors = ["Dan Gohman <dev@sunfishcode.online>"]
 exclude = [
     "/gen",

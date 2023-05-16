@@ -1,9 +1,9 @@
 use crate::cipher::{make_nonce, Iv, MessageDecrypter, MessageEncrypter};
+use crate::enums::ContentType;
 use crate::enums::ProtocolVersion;
 use crate::error::Error;
 use crate::msgs::base::Payload;
 use crate::msgs::codec;
-use crate::msgs::enums::ContentType;
 use crate::msgs::fragmenter::MAX_FRAGMENT_LEN;
 use crate::msgs::message::{BorrowedPlainMessage, OpaqueMessage, PlainMessage};
 
@@ -155,7 +155,7 @@ impl MessageEncrypter for GcmMessageEncrypter {
         self.enc_key
             .seal_in_place_separate_tag(nonce, aad, &mut payload[GCM_EXPLICIT_NONCE_LEN..])
             .map(|tag| payload.extend(tag.as_ref()))
-            .map_err(|_| Error::General("encrypt failed".to_string()))?;
+            .map_err(|_| Error::EncryptError)?;
 
         Ok(OpaqueMessage {
             typ: msg.typ,
@@ -225,7 +225,7 @@ impl MessageEncrypter for ChaCha20Poly1305MessageEncrypter {
 
         self.enc_key
             .seal_in_place_append_tag(nonce, aad, &mut buf)
-            .map_err(|_| Error::General("encrypt failed".to_string()))?;
+            .map_err(|_| Error::EncryptError)?;
 
         Ok(OpaqueMessage {
             typ: msg.typ,

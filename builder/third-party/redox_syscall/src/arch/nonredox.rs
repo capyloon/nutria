@@ -1,5 +1,8 @@
 use super::error::{Error, Result, ENOSYS};
 
+// Doesn't really matter, but since we will most likely run on an x86_64 host, why not 4096?
+pub const PAGE_SIZE: usize = 4096;
+
 pub unsafe fn syscall0(_a: usize) -> Result<usize> {
     Err(Error::new(ENOSYS))
 }

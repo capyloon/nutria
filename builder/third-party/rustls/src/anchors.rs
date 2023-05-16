@@ -1,13 +1,14 @@
-use crate::key;
 #[cfg(feature = "logging")]
 use crate::log::{debug, trace};
-use crate::msgs::handshake::{DistinguishedName, DistinguishedNames};
 use crate::x509;
+use crate::{key, DistinguishedName};
+use crate::{CertificateError, Error};
 
 /// A trust anchor, commonly known as a "Root Certificate."
 #[derive(Debug, Clone)]
 pub struct OwnedTrustAnchor {
-    subject: Vec<u8>,
+    subject_dn_header_len: usize,
+    subject_dn: DistinguishedName,
     spki: Vec<u8>,
     name_constraints: Option<Vec<u8>>,
 }
@@ -16,7 +17,7 @@ impl OwnedTrustAnchor {
     /// Get a `webpki::TrustAnchor` by borrowing the owned elements.
     pub(crate) fn to_trust_anchor(&self) -> webpki::TrustAnchor {
         webpki::TrustAnchor {
-            subject: &self.subject,
+            subject: &self.subject_dn.as_ref()[self.subject_dn_header_len..],
             spki: &self.spki,
             name_constraints: self.name_constraints.as_deref(),
         }
@@ -26,7 +27,8 @@ impl OwnedTrustAnchor {
     ///
     /// All inputs are DER-encoded.
     ///
-    /// `subject` is the [Subject] field of the trust anchor.
+    /// `subject` is the [Subject] field of the trust anchor *without* the outer SEQUENCE
+    /// encoding.
     ///
     /// `spki` is the [SubjectPublicKeyInfo] field of the trust anchor.
     ///
@@ -41,23 +43,31 @@ impl OwnedTrustAnchor {
         spki: impl Into<Vec<u8>>,
         name_constraints: Option<impl Into<Vec<u8>>>,
     ) -> Self {
+        let (subject_dn, subject_dn_header_len) = {
+            let mut subject = subject.into();
+            let before_len = subject.len();
+            x509::wrap_in_sequence(&mut subject);
+            let header_len = subject.len().saturating_sub(before_len);
+            (DistinguishedName::from(subject), header_len)
+        };
         Self {
-            subject: subject.into(),
+            subject_dn_header_len,
+            subject_dn,
             spki: spki.into(),
             name_constraints: name_constraints.map(|x| x.into()),
         }
     }
 
-    /// Return the subject field.
+    /// Return the subject field including its outer SEQUENCE encoding.
     ///
-    /// This can be decoded using [x509-parser's FromDer trait](https://docs.rs/x509-parser/latest/x509_parser/traits/trait.FromDer.html).
+    /// This can be decoded using [x509-parser's FromDer trait](https://docs.rs/x509-parser/latest/x509_parser/prelude/trait.FromDer.html).
     ///
     /// ```ignore
-    /// use x509_parser::traits::FromDer;
+    /// use x509_parser::prelude::FromDer;
     /// println!("{}", x509_parser::x509::X509Name::from_der(anchor.subject())?.1);
     /// ```
-    pub fn subject(&self) -> &[u8] {
-        &self.subject
+    pub fn subject(&self) -> &DistinguishedName {
+        &self.subject_dn
     }
 }
 
@@ -85,24 +95,18 @@ impl RootCertStore {
         self.roots.len()
     }
 
-    /// Return the Subject Names for certificates in the container.
-    #[deprecated(since = "0.20.7", note = "Use OwnedTrustAnchor::subject() instead")]
-    pub fn subjects(&self) -> DistinguishedNames {
-        let mut r = DistinguishedNames::new();
-
-        for ota in &self.roots {
-            let mut name = Vec::new();
-            name.extend_from_slice(&ota.subject);
-            x509::wrap_in_sequence(&mut name);
-            r.push(DistinguishedName::new(name));
-        }
-
-        r
-    }
-
     /// Add a single DER-encoded certificate to the store.
-    pub fn add(&mut self, der: &key::Certificate) -> Result<(), webpki::Error> {
-        let ta = webpki::TrustAnchor::try_from_cert_der(&der.0)?;
+    ///
+    /// This is suitable for a small set of root certificates that are expected to parse
+    /// successfully. For large collections of roots (for example from a system store) it
+    /// is expected that some of them might not be valid according to the rules rustls
+    /// implements. As long as a relatively limited number of certificates are affected,
+    /// this should not be a cause for concern. Use [`RootCertStore::add_parsable_certificates`]
+    /// in order to add as many valid roots as possible and to understand how many certificates
+    /// have been diagnosed as malformed.
+    pub fn add(&mut self, der: &key::Certificate) -> Result<(), Error> {
+        let ta = webpki::TrustAnchor::try_from_cert_der(&der.0)
+            .map_err(|_| Error::InvalidCertificate(CertificateError::BadEncoding))?;
         let ota = OwnedTrustAnchor::from_subject_spki_name_constraints(
             ta.subject,
             ta.spki,
@@ -118,7 +122,7 @@ impl RootCertStore {
         &mut self,
         trust_anchors: impl Iterator<Item = OwnedTrustAnchor>,
     ) {
-        self.roots.extend(trust_anchors)
+        self.roots.extend(trust_anchors);
     }
 
     /// Parse the given DER-encoded certificates and add all that can be parsed
@@ -139,7 +143,7 @@ impl RootCertStore {
                 Err(err) => {
                     trace!("invalid cert der {:?}", der_cert);
                     debug!("certificate parsing failed: {:?}", err);
-                    invalid_count += 1
+                    invalid_count += 1;
                 }
             }
         }
@@ -150,5 +154,22 @@ impl RootCertStore {
         );
 
         (valid_count, invalid_count)
+    }
+}
+
+mod tests {
+    #[test]
+    fn ownedtrustanchor_subject_is_correctly_encoding_dn() {
+        let subject = b"subject".to_owned();
+        let ota = super::OwnedTrustAnchor::from_subject_spki_name_constraints(
+            subject,
+            b"".to_owned(),
+            None::<Vec<u8>>,
+        );
+        let expected_prefix = vec![ring::io::der::Tag::Sequence as u8, subject.len() as u8];
+        assert_eq!(
+            ota.subject().as_ref(),
+            [expected_prefix, subject.to_vec()].concat()
+        );
     }
 }

@@ -760,6 +760,12 @@ mod gen_CanvasCaptureMediaStream;
 #[cfg(feature = "CanvasCaptureMediaStream")]
 pub use gen_CanvasCaptureMediaStream::*;
 
+#[cfg(feature = "CanvasCaptureMediaStreamTrack")]
+#[allow(non_snake_case)]
+mod gen_CanvasCaptureMediaStreamTrack;
+#[cfg(feature = "CanvasCaptureMediaStreamTrack")]
+pub use gen_CanvasCaptureMediaStreamTrack::*;
+
 #[cfg(feature = "CanvasGradient")]
 #[allow(non_snake_case)]
 mod gen_CanvasGradient;
@@ -2104,11 +2110,23 @@ mod gen_FileSystem;
 #[cfg(feature = "FileSystem")]
 pub use gen_FileSystem::*;
 
+#[cfg(feature = "FileSystemCreateWritableOptions")]
+#[allow(non_snake_case)]
+mod gen_FileSystemCreateWritableOptions;
+#[cfg(feature = "FileSystemCreateWritableOptions")]
+pub use gen_FileSystemCreateWritableOptions::*;
+
 #[cfg(feature = "FileSystemDirectoryEntry")]
 #[allow(non_snake_case)]
 mod gen_FileSystemDirectoryEntry;
 #[cfg(feature = "FileSystemDirectoryEntry")]
 pub use gen_FileSystemDirectoryEntry::*;
+
+#[cfg(feature = "FileSystemDirectoryHandle")]
+#[allow(non_snake_case)]
+mod gen_FileSystemDirectoryHandle;
+#[cfg(feature = "FileSystemDirectoryHandle")]
+pub use gen_FileSystemDirectoryHandle::*;
 
 #[cfg(feature = "FileSystemDirectoryReader")]
 #[allow(non_snake_case)]
@@ -2140,11 +2158,65 @@ mod gen_FileSystemFileEntry;
 #[cfg(feature = "FileSystemFileEntry")]
 pub use gen_FileSystemFileEntry::*;
 
+#[cfg(feature = "FileSystemFileHandle")]
+#[allow(non_snake_case)]
+mod gen_FileSystemFileHandle;
+#[cfg(feature = "FileSystemFileHandle")]
+pub use gen_FileSystemFileHandle::*;
+
 #[cfg(feature = "FileSystemFlags")]
 #[allow(non_snake_case)]
 mod gen_FileSystemFlags;
 #[cfg(feature = "FileSystemFlags")]
 pub use gen_FileSystemFlags::*;
+
+#[cfg(feature = "FileSystemGetDirectoryOptions")]
+#[allow(non_snake_case)]
+mod gen_FileSystemGetDirectoryOptions;
+#[cfg(feature = "FileSystemGetDirectoryOptions")]
+pub use gen_FileSystemGetDirectoryOptions::*;
+
+#[cfg(feature = "FileSystemGetFileOptions")]
+#[allow(non_snake_case)]
+mod gen_FileSystemGetFileOptions;
+#[cfg(feature = "FileSystemGetFileOptions")]
+pub use gen_FileSystemGetFileOptions::*;
+
+#[cfg(feature = "FileSystemHandle")]
+#[allow(non_snake_case)]
+mod gen_FileSystemHandle;
+#[cfg(feature = "FileSystemHandle")]
+pub use gen_FileSystemHandle::*;
+
+#[cfg(feature = "FileSystemHandleKind")]
+#[allow(non_snake_case)]
+mod gen_FileSystemHandleKind;
+#[cfg(feature = "FileSystemHandleKind")]
+pub use gen_FileSystemHandleKind::*;
+
+#[cfg(feature = "FileSystemReadWriteOptions")]
+#[allow(non_snake_case)]
+mod gen_FileSystemReadWriteOptions;
+#[cfg(feature = "FileSystemReadWriteOptions")]
+pub use gen_FileSystemReadWriteOptions::*;
+
+#[cfg(feature = "FileSystemRemoveOptions")]
+#[allow(non_snake_case)]
+mod gen_FileSystemRemoveOptions;
+#[cfg(feature = "FileSystemRemoveOptions")]
+pub use gen_FileSystemRemoveOptions::*;
+
+#[cfg(feature = "FileSystemSyncAccessHandle")]
+#[allow(non_snake_case)]
+mod gen_FileSystemSyncAccessHandle;
+#[cfg(feature = "FileSystemSyncAccessHandle")]
+pub use gen_FileSystemSyncAccessHandle::*;
+
+#[cfg(feature = "FileSystemWritableFileStream")]
+#[allow(non_snake_case)]
+mod gen_FileSystemWritableFileStream;
+#[cfg(feature = "FileSystemWritableFileStream")]
+pub use gen_FileSystemWritableFileStream::*;
 
 #[cfg(feature = "FillMode")]
 #[allow(non_snake_case)]
@@ -2181,6 +2253,12 @@ pub use gen_FocusEvent::*;
 mod gen_FocusEventInit;
 #[cfg(feature = "FocusEventInit")]
 pub use gen_FocusEventInit::*;
+
+#[cfg(feature = "FontData")]
+#[allow(non_snake_case)]
+mod gen_FontData;
+#[cfg(feature = "FontData")]
+pub use gen_FontData::*;
 
 #[cfg(feature = "FontFace")]
 #[allow(non_snake_case)]
@@ -2355,6 +2433,12 @@ pub use gen_GamepadServiceTest::*;
 mod gen_Geolocation;
 #[cfg(feature = "Geolocation")]
 pub use gen_Geolocation::*;
+
+#[cfg(feature = "GetAnimationsOptions")]
+#[allow(non_snake_case)]
+mod gen_GetAnimationsOptions;
+#[cfg(feature = "GetAnimationsOptions")]
+pub use gen_GetAnimationsOptions::*;
 
 #[cfg(feature = "GetNotificationOptions")]
 #[allow(non_snake_case)]
@@ -4024,6 +4108,12 @@ mod gen_ImageDecoderInit;
 #[cfg(feature = "ImageDecoderInit")]
 pub use gen_ImageDecoderInit::*;
 
+#[cfg(feature = "ImageEncodeOptions")]
+#[allow(non_snake_case)]
+mod gen_ImageEncodeOptions;
+#[cfg(feature = "ImageEncodeOptions")]
+pub use gen_ImageEncodeOptions::*;
+
 #[cfg(feature = "ImageOrientation")]
 #[allow(non_snake_case)]
 mod gen_ImageOrientation;
@@ -4143,6 +4233,12 @@ pub use gen_KeyboardEvent::*;
 mod gen_KeyboardEventInit;
 #[cfg(feature = "KeyboardEventInit")]
 pub use gen_KeyboardEventInit::*;
+
+#[cfg(feature = "KeyframeAnimationOptions")]
+#[allow(non_snake_case)]
+mod gen_KeyframeAnimationOptions;
+#[cfg(feature = "KeyframeAnimationOptions")]
+pub use gen_KeyframeAnimationOptions::*;
 
 #[cfg(feature = "KeyframeEffect")]
 #[allow(non_snake_case)]
@@ -4630,6 +4726,30 @@ mod gen_MediaTrackSupportedConstraints;
 #[cfg(feature = "MediaTrackSupportedConstraints")]
 pub use gen_MediaTrackSupportedConstraints::*;
 
+#[cfg(feature = "MemoryAttribution")]
+#[allow(non_snake_case)]
+mod gen_MemoryAttribution;
+#[cfg(feature = "MemoryAttribution")]
+pub use gen_MemoryAttribution::*;
+
+#[cfg(feature = "MemoryAttributionContainer")]
+#[allow(non_snake_case)]
+mod gen_MemoryAttributionContainer;
+#[cfg(feature = "MemoryAttributionContainer")]
+pub use gen_MemoryAttributionContainer::*;
+
+#[cfg(feature = "MemoryBreakdownEntry")]
+#[allow(non_snake_case)]
+mod gen_MemoryBreakdownEntry;
+#[cfg(feature = "MemoryBreakdownEntry")]
+pub use gen_MemoryBreakdownEntry::*;
+
+#[cfg(feature = "MemoryMeasurement")]
+#[allow(non_snake_case)]
+mod gen_MemoryMeasurement;
+#[cfg(feature = "MemoryMeasurement")]
+pub use gen_MemoryMeasurement::*;
+
 #[cfg(feature = "MessageChannel")]
 #[allow(non_snake_case)]
 mod gen_MessageChannel;
@@ -5007,6 +5127,12 @@ pub use gen_OfflineResourceList::*;
 mod gen_OffscreenCanvas;
 #[cfg(feature = "OffscreenCanvas")]
 pub use gen_OffscreenCanvas::*;
+
+#[cfg(feature = "OffscreenCanvasRenderingContext2d")]
+#[allow(non_snake_case)]
+mod gen_OffscreenCanvasRenderingContext2d;
+#[cfg(feature = "OffscreenCanvasRenderingContext2d")]
+pub use gen_OffscreenCanvasRenderingContext2d::*;
 
 #[cfg(feature = "OpenWindowEventDetail")]
 #[allow(non_snake_case)]
@@ -5698,6 +5824,12 @@ mod gen_PushSubscriptionOptionsInit;
 #[cfg(feature = "PushSubscriptionOptionsInit")]
 pub use gen_PushSubscriptionOptionsInit::*;
 
+#[cfg(feature = "QueryOptions")]
+#[allow(non_snake_case)]
+mod gen_QueryOptions;
+#[cfg(feature = "QueryOptions")]
+pub use gen_QueryOptions::*;
+
 #[cfg(feature = "QueuingStrategy")]
 #[allow(non_snake_case)]
 mod gen_QueuingStrategy;
@@ -6220,6 +6352,12 @@ mod gen_RtcPeerConnectionIceEventInit;
 #[cfg(feature = "RtcPeerConnectionIceEventInit")]
 pub use gen_RtcPeerConnectionIceEventInit::*;
 
+#[cfg(feature = "RtcPeerConnectionState")]
+#[allow(non_snake_case)]
+mod gen_RtcPeerConnectionState;
+#[cfg(feature = "RtcPeerConnectionState")]
+pub use gen_RtcPeerConnectionState::*;
+
 #[cfg(feature = "RtcPriorityType")]
 #[allow(non_snake_case)]
 mod gen_RtcPriorityType;
@@ -6543,6 +6681,12 @@ pub use gen_SecurityPolicyViolationEventInit::*;
 mod gen_Selection;
 #[cfg(feature = "Selection")]
 pub use gen_Selection::*;
+
+#[cfg(feature = "SelectionMode")]
+#[allow(non_snake_case)]
+mod gen_SelectionMode;
+#[cfg(feature = "SelectionMode")]
+pub use gen_SelectionMode::*;
 
 #[cfg(feature = "Serial")]
 #[allow(non_snake_case)]
@@ -8590,6 +8734,114 @@ mod gen_WebSocketElement;
 #[cfg(feature = "WebSocketElement")]
 pub use gen_WebSocketElement::*;
 
+#[cfg(feature = "WebTransport")]
+#[allow(non_snake_case)]
+mod gen_WebTransport;
+#[cfg(feature = "WebTransport")]
+pub use gen_WebTransport::*;
+
+#[cfg(feature = "WebTransportBidirectionalStream")]
+#[allow(non_snake_case)]
+mod gen_WebTransportBidirectionalStream;
+#[cfg(feature = "WebTransportBidirectionalStream")]
+pub use gen_WebTransportBidirectionalStream::*;
+
+#[cfg(feature = "WebTransportCloseInfo")]
+#[allow(non_snake_case)]
+mod gen_WebTransportCloseInfo;
+#[cfg(feature = "WebTransportCloseInfo")]
+pub use gen_WebTransportCloseInfo::*;
+
+#[cfg(feature = "WebTransportCongestionControl")]
+#[allow(non_snake_case)]
+mod gen_WebTransportCongestionControl;
+#[cfg(feature = "WebTransportCongestionControl")]
+pub use gen_WebTransportCongestionControl::*;
+
+#[cfg(feature = "WebTransportDatagramDuplexStream")]
+#[allow(non_snake_case)]
+mod gen_WebTransportDatagramDuplexStream;
+#[cfg(feature = "WebTransportDatagramDuplexStream")]
+pub use gen_WebTransportDatagramDuplexStream::*;
+
+#[cfg(feature = "WebTransportDatagramStats")]
+#[allow(non_snake_case)]
+mod gen_WebTransportDatagramStats;
+#[cfg(feature = "WebTransportDatagramStats")]
+pub use gen_WebTransportDatagramStats::*;
+
+#[cfg(feature = "WebTransportError")]
+#[allow(non_snake_case)]
+mod gen_WebTransportError;
+#[cfg(feature = "WebTransportError")]
+pub use gen_WebTransportError::*;
+
+#[cfg(feature = "WebTransportErrorOptions")]
+#[allow(non_snake_case)]
+mod gen_WebTransportErrorOptions;
+#[cfg(feature = "WebTransportErrorOptions")]
+pub use gen_WebTransportErrorOptions::*;
+
+#[cfg(feature = "WebTransportErrorSource")]
+#[allow(non_snake_case)]
+mod gen_WebTransportErrorSource;
+#[cfg(feature = "WebTransportErrorSource")]
+pub use gen_WebTransportErrorSource::*;
+
+#[cfg(feature = "WebTransportHash")]
+#[allow(non_snake_case)]
+mod gen_WebTransportHash;
+#[cfg(feature = "WebTransportHash")]
+pub use gen_WebTransportHash::*;
+
+#[cfg(feature = "WebTransportOptions")]
+#[allow(non_snake_case)]
+mod gen_WebTransportOptions;
+#[cfg(feature = "WebTransportOptions")]
+pub use gen_WebTransportOptions::*;
+
+#[cfg(feature = "WebTransportReceiveStream")]
+#[allow(non_snake_case)]
+mod gen_WebTransportReceiveStream;
+#[cfg(feature = "WebTransportReceiveStream")]
+pub use gen_WebTransportReceiveStream::*;
+
+#[cfg(feature = "WebTransportReceiveStreamStats")]
+#[allow(non_snake_case)]
+mod gen_WebTransportReceiveStreamStats;
+#[cfg(feature = "WebTransportReceiveStreamStats")]
+pub use gen_WebTransportReceiveStreamStats::*;
+
+#[cfg(feature = "WebTransportReliabilityMode")]
+#[allow(non_snake_case)]
+mod gen_WebTransportReliabilityMode;
+#[cfg(feature = "WebTransportReliabilityMode")]
+pub use gen_WebTransportReliabilityMode::*;
+
+#[cfg(feature = "WebTransportSendStream")]
+#[allow(non_snake_case)]
+mod gen_WebTransportSendStream;
+#[cfg(feature = "WebTransportSendStream")]
+pub use gen_WebTransportSendStream::*;
+
+#[cfg(feature = "WebTransportSendStreamOptions")]
+#[allow(non_snake_case)]
+mod gen_WebTransportSendStreamOptions;
+#[cfg(feature = "WebTransportSendStreamOptions")]
+pub use gen_WebTransportSendStreamOptions::*;
+
+#[cfg(feature = "WebTransportSendStreamStats")]
+#[allow(non_snake_case)]
+mod gen_WebTransportSendStreamStats;
+#[cfg(feature = "WebTransportSendStreamStats")]
+pub use gen_WebTransportSendStreamStats::*;
+
+#[cfg(feature = "WebTransportStats")]
+#[allow(non_snake_case)]
+mod gen_WebTransportStats;
+#[cfg(feature = "WebTransportStats")]
+pub use gen_WebTransportStats::*;
+
 #[cfg(feature = "WebglColorBufferFloat")]
 #[allow(non_snake_case)]
 mod gen_WebglColorBufferFloat;
@@ -8787,6 +9039,18 @@ pub use gen_WritableStreamDefaultController::*;
 mod gen_WritableStreamDefaultWriter;
 #[cfg(feature = "WritableStreamDefaultWriter")]
 pub use gen_WritableStreamDefaultWriter::*;
+
+#[cfg(feature = "WriteCommandType")]
+#[allow(non_snake_case)]
+mod gen_WriteCommandType;
+#[cfg(feature = "WriteCommandType")]
+pub use gen_WriteCommandType::*;
+
+#[cfg(feature = "WriteParams")]
+#[allow(non_snake_case)]
+mod gen_WriteParams;
+#[cfg(feature = "WriteParams")]
+pub use gen_WriteParams::*;
 
 #[cfg(feature = "XPathExpression")]
 #[allow(non_snake_case)]

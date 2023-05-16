@@ -32,18 +32,6 @@ macro_rules! bitflags {
     }
 }
 
-bitflags! {
-    pub struct CloneFlags: usize {
-        const CLONE_VM = 0x100;
-        const CLONE_FS = 0x200;
-        const CLONE_FILES = 0x400;
-        const CLONE_SIGHAND = 0x800;
-        const CLONE_VFORK = 0x4000;
-        const CLONE_THREAD = 0x10000;
-        const CLONE_STACK = 0x1000_0000;
-    }
-}
-
 pub const CLOCK_REALTIME: usize = 1;
 pub const CLOCK_MONOTONIC: usize = 4;
 
@@ -213,8 +201,10 @@ bitflags! {
         /// If you don't catch this, the child is started as normal.
         const PTRACE_EVENT_CLONE = 0x0000_0000_0000_0100;
 
-        const PTRACE_EVENT_MASK = 0x0000_0000_0000_0F00;
+        /// Sent when current-addrspace is changed, allowing the tracer to reopen the memory file.
+        const PTRACE_EVENT_ADDRSPACE_SWITCH = 0x0000_0000_0000_0200;
 
+        const PTRACE_EVENT_MASK = 0x0000_0000_0000_0F00;
 
         /// Special meaning, depending on the event. Usually, when fired before
         /// an action, it will skip performing that action.
@@ -292,13 +282,6 @@ bitflags! {
     }
 }
 
-// Auxiliery vector types
-pub const AT_NULL: usize = 0;
-pub const AT_PHDR: usize = 3;
-pub const AT_PHENT: usize = 4;
-pub const AT_PHNUM: usize = 5;
-pub const AT_ENTRY: usize = 9;
-
 bitflags! {
     pub struct WaitFlags: usize {
         const WNOHANG =    0x01;
@@ -306,6 +289,11 @@ bitflags! {
         const WCONTINUED = 0x08;
     }
 }
+
+pub const ADDRSPACE_OP_MMAP: usize = 0;
+pub const ADDRSPACE_OP_MUNMAP: usize = 1;
+pub const ADDRSPACE_OP_MPROTECT: usize = 2;
+pub const ADDRSPACE_OP_TRANSFER: usize = 3;
 
 /// True if status indicates the child is stopped.
 pub fn wifstopped(status: usize) -> bool {

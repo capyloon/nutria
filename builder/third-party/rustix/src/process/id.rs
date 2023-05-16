@@ -8,6 +8,7 @@
 #![allow(unsafe_code)]
 
 use crate::{backend, io};
+use alloc::vec::Vec;
 #[cfg(any(target_os = "android", target_os = "linux"))]
 use backend::process::types::RawCpuid;
 
@@ -105,7 +106,7 @@ impl Gid {
 impl Pid {
     /// A `Pid` corresponding to the init process (pid 1).
     pub const INIT: Self = Self(
-        // Safety: The init process' pid is always valid.
+        // SAFETY: The init process' pid is always valid.
         unsafe { RawNonZeroPid::new_unchecked(1) },
     );
 
@@ -140,7 +141,7 @@ impl Pid {
         let id = child.id();
         debug_assert_ne!(id, 0);
 
-        // Safety: We know the returned ID is valid because it came directly
+        // SAFETY: We know the returned ID is valid because it came directly
         // from an OS API.
         unsafe { Self::from_raw_nonzero(RawNonZeroPid::new_unchecked(id as _)) }
     }
@@ -280,6 +281,19 @@ pub fn getpgid(pid: Option<Pid>) -> io::Result<Pid> {
     backend::process::syscalls::getpgid(pid)
 }
 
+/// `setpgid(pid, pgid)`—Sets the process group ID of the given process.
+///
+/// # References
+///  - [POSIX]
+///  - [Linux]
+///
+/// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/setpgid.html
+/// [Linux]: https://man7.org/linux/man-pages/man2/setpgid.2.html
+#[inline]
+pub fn setpgid(pid: Option<Pid>, pgid: Option<Pid>) -> io::Result<()> {
+    backend::process::syscalls::setpgid(pid, pgid)
+}
+
 /// `getpgrp()`—Returns the process' group ID.
 ///
 /// # References
@@ -292,6 +306,20 @@ pub fn getpgid(pid: Option<Pid>) -> io::Result<Pid> {
 #[must_use]
 pub fn getpgrp() -> Pid {
     backend::process::syscalls::getpgrp()
+}
+
+/// `getsid(pid)`—Get the session ID of the given process.
+///
+/// # References
+///  - [POSIX]
+///  - [Linux]
+///
+/// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/getsid.html
+/// [Linux]: https://man7.org/linux/man-pages/man2/getsid.2.html
+#[cfg(not(target_os = "redox"))]
+#[inline]
+pub fn getsid(pid: Option<Pid>) -> io::Result<Pid> {
+    backend::process::syscalls::getsid(pid)
 }
 
 /// `setsid()`—Create a new session.
@@ -307,9 +335,39 @@ pub fn setsid() -> io::Result<Pid> {
     backend::process::syscalls::setsid()
 }
 
-// translate_fchown_args returns the raw value of the IDs. In case of `None`
-// it returns `u32::MAX` since it has the same bit pattern as `-1` indicating
-// no change to the owner/group ID.
+/// `getgroups()`—Return a list of the current user's groups.
+///
+/// # References
+///  - [POSIX]
+///  - [Linux]
+///
+/// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/getgroups.html
+/// [Linux]: https://man7.org/linux/man-pages/man2/getgroups.2.html
+pub fn getgroups() -> io::Result<Vec<Gid>> {
+    let mut buffer = Vec::new();
+
+    // This code would benefit from having a better way to read into
+    // uninitialized memory, but that requires `unsafe`.
+    buffer.reserve(8);
+    buffer.resize(buffer.capacity(), Gid::ROOT);
+
+    loop {
+        let ngroups = backend::process::syscalls::getgroups(&mut buffer)?;
+
+        let ngroups = ngroups as usize;
+        assert!(ngroups <= buffer.len());
+        if ngroups < buffer.len() {
+            buffer.resize(ngroups, Gid::ROOT);
+            return Ok(buffer);
+        }
+        buffer.reserve(1); // use `Vec` reallocation strategy to grow capacity exponentially
+        buffer.resize(buffer.capacity(), Gid::ROOT);
+    }
+}
+
+// Return the raw value of the IDs. In case of `None` it returns `u32::MAX`
+// since it has the same bit pattern as `-1` indicating no change to the
+// owner/group ID.
 pub(crate) fn translate_fchown_args(owner: Option<Uid>, group: Option<Gid>) -> (u32, u32) {
     let ow = match owner {
         Some(o) => o.as_raw(),

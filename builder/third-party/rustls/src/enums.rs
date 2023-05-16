@@ -3,6 +3,94 @@
 use crate::msgs::codec::{Codec, Reader};
 
 enum_builder! {
+    /// The `AlertDescription` TLS protocol enum.  Values in this enum are taken
+    /// from the various RFCs covering TLS, and are listed by IANA.
+    /// The `Unknown` item is used when processing unrecognised ordinals.
+    @U8
+    EnumName: AlertDescription;
+    EnumVal{
+        CloseNotify => 0x00,
+        UnexpectedMessage => 0x0a,
+        BadRecordMac => 0x14,
+        DecryptionFailed => 0x15,
+        RecordOverflow => 0x16,
+        DecompressionFailure => 0x1e,
+        HandshakeFailure => 0x28,
+        NoCertificate => 0x29,
+        BadCertificate => 0x2a,
+        UnsupportedCertificate => 0x2b,
+        CertificateRevoked => 0x2c,
+        CertificateExpired => 0x2d,
+        CertificateUnknown => 0x2e,
+        IllegalParameter => 0x2f,
+        UnknownCA => 0x30,
+        AccessDenied => 0x31,
+        DecodeError => 0x32,
+        DecryptError => 0x33,
+        ExportRestriction => 0x3c,
+        ProtocolVersion => 0x46,
+        InsufficientSecurity => 0x47,
+        InternalError => 0x50,
+        InappropriateFallback => 0x56,
+        UserCanceled => 0x5a,
+        NoRenegotiation => 0x64,
+        MissingExtension => 0x6d,
+        UnsupportedExtension => 0x6e,
+        CertificateUnobtainable => 0x6f,
+        UnrecognisedName => 0x70,
+        BadCertificateStatusResponse => 0x71,
+        BadCertificateHashValue => 0x72,
+        UnknownPSKIdentity => 0x73,
+        CertificateRequired => 0x74,
+        NoApplicationProtocol => 0x78
+    }
+}
+
+enum_builder! {
+    /// The `HandshakeType` TLS protocol enum.  Values in this enum are taken
+    /// from the various RFCs covering TLS, and are listed by IANA.
+    /// The `Unknown` item is used when processing unrecognised ordinals.
+    @U8
+    EnumName: HandshakeType;
+    EnumVal{
+        HelloRequest => 0x00,
+        ClientHello => 0x01,
+        ServerHello => 0x02,
+        HelloVerifyRequest => 0x03,
+        NewSessionTicket => 0x04,
+        EndOfEarlyData => 0x05,
+        HelloRetryRequest => 0x06,
+        EncryptedExtensions => 0x08,
+        Certificate => 0x0b,
+        ServerKeyExchange => 0x0c,
+        CertificateRequest => 0x0d,
+        ServerHelloDone => 0x0e,
+        CertificateVerify => 0x0f,
+        ClientKeyExchange => 0x10,
+        Finished => 0x14,
+        CertificateURL => 0x15,
+        CertificateStatus => 0x16,
+        KeyUpdate => 0x18,
+        MessageHash => 0xfe
+    }
+}
+
+enum_builder! {
+    /// The `ContentType` TLS protocol enum.  Values in this enum are taken
+    /// from the various RFCs covering TLS, and are listed by IANA.
+    /// The `Unknown` item is used when processing unrecognised ordinals.
+    @U8
+    EnumName: ContentType;
+    EnumVal{
+        ChangeCipherSpec => 0x14,
+        Alert => 0x15,
+        Handshake => 0x16,
+        ApplicationData => 0x17,
+        Heartbeat => 0x18
+    }
+}
+
+enum_builder! {
     /// The `ProtocolVersion` TLS protocol enum.  Values in this enum are taken
     /// from the various RFCs covering TLS, and are listed by IANA.
     /// The `Unknown` item is used when processing unrecognised ordinals.
@@ -427,5 +515,56 @@ enum_builder! {
         RSA_PSS_SHA512 => 0x0806,
         ED25519 => 0x0807,
         ED448 => 0x0808
+    }
+}
+
+impl SignatureScheme {
+    pub(crate) fn sign(&self) -> SignatureAlgorithm {
+        match *self {
+            Self::RSA_PKCS1_SHA1
+            | Self::RSA_PKCS1_SHA256
+            | Self::RSA_PKCS1_SHA384
+            | Self::RSA_PKCS1_SHA512
+            | Self::RSA_PSS_SHA256
+            | Self::RSA_PSS_SHA384
+            | Self::RSA_PSS_SHA512 => SignatureAlgorithm::RSA,
+            Self::ECDSA_NISTP256_SHA256
+            | Self::ECDSA_NISTP384_SHA384
+            | Self::ECDSA_NISTP521_SHA512 => SignatureAlgorithm::ECDSA,
+            _ => SignatureAlgorithm::Unknown(0),
+        }
+    }
+}
+
+enum_builder! {
+    /// The `SignatureAlgorithm` TLS protocol enum.  Values in this enum are taken
+    /// from the various RFCs covering TLS, and are listed by IANA.
+    /// The `Unknown` item is used when processing unrecognised ordinals.
+    @U8
+    EnumName: SignatureAlgorithm;
+    EnumVal{
+        Anonymous => 0x00,
+        RSA => 0x01,
+        DSA => 0x02,
+        ECDSA => 0x03,
+        ED25519 => 0x07,
+        ED448 => 0x08
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::msgs::enums::tests::test_enum8;
+
+    #[test]
+    fn test_enums() {
+        test_enum8::<SignatureAlgorithm>(SignatureAlgorithm::Anonymous, SignatureAlgorithm::ECDSA);
+        test_enum8::<ContentType>(ContentType::ChangeCipherSpec, ContentType::Heartbeat);
+        test_enum8::<HandshakeType>(HandshakeType::HelloRequest, HandshakeType::MessageHash);
+        test_enum8::<AlertDescription>(
+            AlertDescription::CloseNotify,
+            AlertDescription::NoApplicationProtocol,
+        );
     }
 }

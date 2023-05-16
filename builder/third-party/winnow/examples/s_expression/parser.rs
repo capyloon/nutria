@@ -3,13 +3,13 @@
 //! Lisp is a simple type of language made up of Atoms and Lists, forming easily parsable trees.
 
 use winnow::{
-    branch::alt,
-    bytes::one_of,
-    character::{alpha1, digit1, multispace0, multispace1},
+    ascii::{alpha1, digit1, multispace0, multispace1},
+    combinator::alt,
+    combinator::repeat,
     combinator::{cut_err, opt},
+    combinator::{delimited, preceded, terminated},
     error::VerboseError,
-    multi::many0,
-    sequence::{delimited, preceded, terminated},
+    token::one_of,
     IResult, Parser,
 };
 
@@ -97,7 +97,7 @@ fn parse_atom(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
 /// of digits but ending the program if it doesn't fit into an i32.
 fn parse_num(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
     alt((
-        digit1.map_res(|digit_str: &str| digit_str.parse::<i32>().map(Atom::Num)),
+        digit1.try_map(|digit_str: &str| digit_str.parse::<i32>().map(Atom::Num)),
         preceded("-", digit1).map(|digit_str: &str| Atom::Num(-digit_str.parse::<i32>().unwrap())),
     ))
     .parse_next(i)
@@ -168,8 +168,8 @@ fn parse_keyword(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
 /// tuples are themselves a parser, used to sequence parsers together, so we can translate this
 /// directly and then map over it to transform the output into an `Expr::Application`
 fn parse_application(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
-    let application_inner =
-        (parse_expr, many0(parse_expr)).map(|(head, tail)| Expr::Application(Box::new(head), tail));
+    let application_inner = (parse_expr, repeat(0.., parse_expr))
+        .map(|(head, tail)| Expr::Application(Box::new(head), tail));
     // finally, we wrap it in an s-expression
     s_exp(application_inner).parse_next(i)
 }
@@ -212,7 +212,7 @@ fn parse_quote(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
     // this should look very straight-forward after all we've done:
     // we find the `'` (quote) character, use cut_err to say that we're unambiguously
     // looking for an s-expression of 0 or more expressions, and then parse them
-    preceded("'", cut_err(s_exp(many0(parse_expr))))
+    preceded("'", cut_err(s_exp(repeat(0.., parse_expr))))
         .context("quote")
         .map(Expr::Quote)
         .parse_next(i)

@@ -1,11 +1,12 @@
 //! libc syscalls supporting `rustix::io`.
 
 use super::super::c;
-#[cfg(any(target_os = "android", target_os = "linux"))]
-use super::super::conv::syscall_ret_owned_fd;
-use super::super::conv::{
-    borrowed_fd, ret, ret_c_int, ret_discarded_fd, ret_owned_fd, ret_ssize_t,
-};
+#[cfg(any(
+    target_os = "android",
+    all(target_os = "linux", not(target_env = "gnu")),
+))]
+use super::super::conv::syscall_ret_usize;
+use super::super::conv::{borrowed_fd, ret, ret_c_int, ret_discarded_fd, ret_owned_fd, ret_usize};
 use super::super::offset::{libc_pread, libc_pwrite};
 #[cfg(not(any(target_os = "haiku", target_os = "redox", target_os = "solaris")))]
 use super::super::offset::{libc_preadv, libc_pwritev};
@@ -14,45 +15,50 @@ use super::super::offset::{libc_preadv2, libc_pwritev2};
 use crate::fd::{AsFd, BorrowedFd, OwnedFd, RawFd};
 #[cfg(not(any(target_os = "aix", target_os = "wasi")))]
 use crate::io::DupFlags;
-#[cfg(not(any(
-    target_os = "aix",
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "wasi"
-)))]
+#[cfg(any(
+    target_os = "android",
+    target_os = "freebsd",
+    target_os = "illumos",
+    target_os = "linux"
+))]
+use crate::io::EventfdFlags;
+#[cfg(not(any(apple, target_os = "aix", target_os = "haiku", target_os = "wasi")))]
 use crate::io::PipeFlags;
 use crate::io::{self, FdFlags, IoSlice, IoSliceMut, PollFd};
-#[cfg(any(target_os = "android", target_os = "linux"))]
-use crate::io::{EventfdFlags, IoSliceRaw, ReadWriteFlags, SpliceFlags};
 use core::cmp::min;
 use core::convert::TryInto;
 use core::mem::MaybeUninit;
-#[cfg(any(target_os = "android", target_os = "linux"))]
-use core::ptr;
 #[cfg(all(feature = "fs", feature = "net"))]
 use libc_errno::errno;
+#[cfg(any(target_os = "android", target_os = "linux"))]
+use {
+    super::super::conv::syscall_ret_owned_fd,
+    crate::io::{IoSliceRaw, ReadWriteFlags, SpliceFlags},
+    crate::utils::optional_as_mut_ptr,
+};
+#[cfg(bsd)]
+use {crate::io::kqueue::Event, crate::utils::as_ptr, core::ptr::null};
+#[cfg(solarish)]
+use {crate::io::port::Event, crate::utils::as_mut_ptr, core::ptr::null_mut};
 
 pub(crate) fn read(fd: BorrowedFd<'_>, buf: &mut [u8]) -> io::Result<usize> {
-    let nread = unsafe {
-        ret_ssize_t(c::read(
+    unsafe {
+        ret_usize(c::read(
             borrowed_fd(fd),
             buf.as_mut_ptr().cast(),
             min(buf.len(), READ_LIMIT),
-        ))?
-    };
-    Ok(nread as usize)
+        ))
+    }
 }
 
 pub(crate) fn write(fd: BorrowedFd<'_>, buf: &[u8]) -> io::Result<usize> {
-    let nwritten = unsafe {
-        ret_ssize_t(c::write(
+    unsafe {
+        ret_usize(c::write(
             borrowed_fd(fd),
             buf.as_ptr().cast(),
             min(buf.len(), READ_LIMIT),
-        ))?
-    };
-    Ok(nwritten as usize)
+        ))
+    }
 }
 
 pub(crate) fn pread(fd: BorrowedFd<'_>, buf: &mut [u8], offset: u64) -> io::Result<usize> {
@@ -61,15 +67,14 @@ pub(crate) fn pread(fd: BorrowedFd<'_>, buf: &mut [u8], offset: u64) -> io::Resu
     // Silently cast; we'll get `EINVAL` if the value is negative.
     let offset = offset as i64;
 
-    let nread = unsafe {
-        ret_ssize_t(libc_pread(
+    unsafe {
+        ret_usize(libc_pread(
             borrowed_fd(fd),
             buf.as_mut_ptr().cast(),
             len,
             offset,
-        ))?
-    };
-    Ok(nread as usize)
+        ))
+    }
 }
 
 pub(crate) fn pwrite(fd: BorrowedFd<'_>, buf: &[u8], offset: u64) -> io::Result<usize> {
@@ -78,37 +83,34 @@ pub(crate) fn pwrite(fd: BorrowedFd<'_>, buf: &[u8], offset: u64) -> io::Result<
     // Silently cast; we'll get `EINVAL` if the value is negative.
     let offset = offset as i64;
 
-    let nwritten = unsafe {
-        ret_ssize_t(libc_pwrite(
+    unsafe {
+        ret_usize(libc_pwrite(
             borrowed_fd(fd),
             buf.as_ptr().cast(),
             len,
             offset,
-        ))?
-    };
-    Ok(nwritten as usize)
+        ))
+    }
 }
 
 pub(crate) fn readv(fd: BorrowedFd<'_>, bufs: &mut [IoSliceMut]) -> io::Result<usize> {
-    let nread = unsafe {
-        ret_ssize_t(c::readv(
+    unsafe {
+        ret_usize(c::readv(
             borrowed_fd(fd),
             bufs.as_ptr().cast::<c::iovec>(),
             min(bufs.len(), max_iov()) as c::c_int,
-        ))?
-    };
-    Ok(nread as usize)
+        ))
+    }
 }
 
 pub(crate) fn writev(fd: BorrowedFd<'_>, bufs: &[IoSlice]) -> io::Result<usize> {
-    let nwritten = unsafe {
-        ret_ssize_t(c::writev(
+    unsafe {
+        ret_usize(c::writev(
             borrowed_fd(fd),
             bufs.as_ptr().cast::<c::iovec>(),
             min(bufs.len(), max_iov()) as c::c_int,
-        ))?
-    };
-    Ok(nwritten as usize)
+        ))
+    }
 }
 
 #[cfg(not(any(target_os = "haiku", target_os = "redox", target_os = "solaris")))]
@@ -119,30 +121,28 @@ pub(crate) fn preadv(
 ) -> io::Result<usize> {
     // Silently cast; we'll get `EINVAL` if the value is negative.
     let offset = offset as i64;
-    let nread = unsafe {
-        ret_ssize_t(libc_preadv(
+    unsafe {
+        ret_usize(libc_preadv(
             borrowed_fd(fd),
             bufs.as_ptr().cast::<c::iovec>(),
             min(bufs.len(), max_iov()) as c::c_int,
             offset,
-        ))?
-    };
-    Ok(nread as usize)
+        ))
+    }
 }
 
 #[cfg(not(any(target_os = "haiku", target_os = "redox", target_os = "solaris")))]
 pub(crate) fn pwritev(fd: BorrowedFd<'_>, bufs: &[IoSlice], offset: u64) -> io::Result<usize> {
     // Silently cast; we'll get `EINVAL` if the value is negative.
     let offset = offset as i64;
-    let nwritten = unsafe {
-        ret_ssize_t(libc_pwritev(
+    unsafe {
+        ret_usize(libc_pwritev(
             borrowed_fd(fd),
             bufs.as_ptr().cast::<c::iovec>(),
             min(bufs.len(), max_iov()) as c::c_int,
             offset,
-        ))?
-    };
-    Ok(nwritten as usize)
+        ))
+    }
 }
 
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
@@ -154,20 +154,19 @@ pub(crate) fn preadv2(
 ) -> io::Result<usize> {
     // Silently cast; we'll get `EINVAL` if the value is negative.
     let offset = offset as i64;
-    let nread = unsafe {
-        ret_ssize_t(libc_preadv2(
+    unsafe {
+        ret_usize(libc_preadv2(
             borrowed_fd(fd),
             bufs.as_ptr().cast::<c::iovec>(),
             min(bufs.len(), max_iov()) as c::c_int,
             offset,
             flags.bits(),
-        ))?
-    };
-    Ok(nread as usize)
+        ))
+    }
 }
 
 /// At present, `libc` only has `preadv2` defined for glibc. On other
-/// ABIs, use `libc::syscall`.
+/// ABIs, use `c::syscall`.
 #[cfg(any(
     target_os = "android",
     all(target_os = "linux", not(target_env = "gnu")),
@@ -181,17 +180,16 @@ pub(crate) fn preadv2(
 ) -> io::Result<usize> {
     // Silently cast; we'll get `EINVAL` if the value is negative.
     let offset = offset as i64;
-    let nread = unsafe {
-        ret_ssize_t(libc::syscall(
-            libc::SYS_preadv2,
+    unsafe {
+        syscall_ret_usize(c::syscall(
+            c::SYS_preadv2,
             borrowed_fd(fd),
             bufs.as_ptr().cast::<c::iovec>(),
             min(bufs.len(), max_iov()) as c::c_int,
             offset,
             flags.bits(),
-        ) as c::ssize_t)?
-    };
-    Ok(nread as usize)
+        ))
+    }
 }
 
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
@@ -203,20 +201,19 @@ pub(crate) fn pwritev2(
 ) -> io::Result<usize> {
     // Silently cast; we'll get `EINVAL` if the value is negative.
     let offset = offset as i64;
-    let nwritten = unsafe {
-        ret_ssize_t(libc_pwritev2(
+    unsafe {
+        ret_usize(libc_pwritev2(
             borrowed_fd(fd),
             bufs.as_ptr().cast::<c::iovec>(),
             min(bufs.len(), max_iov()) as c::c_int,
             offset,
             flags.bits(),
-        ))?
-    };
-    Ok(nwritten as usize)
+        ))
+    }
 }
 
 /// At present, `libc` only has `pwritev2` defined for glibc. On other
-/// ABIs, use `libc::syscall`.
+/// ABIs, use `c::syscall`.
 #[cfg(any(
     target_os = "android",
     all(target_os = "linux", not(target_env = "gnu")),
@@ -230,25 +227,24 @@ pub(crate) fn pwritev2(
 ) -> io::Result<usize> {
     // Silently cast; we'll get `EINVAL` if the value is negative.
     let offset = offset as i64;
-    let nwritten = unsafe {
-        ret_ssize_t(libc::syscall(
-            libc::SYS_pwritev2,
+    unsafe {
+        syscall_ret_usize(c::syscall(
+            c::SYS_pwritev2,
             borrowed_fd(fd),
             bufs.as_ptr().cast::<c::iovec>(),
             min(bufs.len(), max_iov()) as c::c_int,
             offset,
             flags.bits(),
-        ) as c::ssize_t)?
-    };
-    Ok(nwritten as usize)
+        ))
+    }
 }
 
 // These functions are derived from Rust's library/std/src/sys/unix/fd.rs at
-// revision a77da2d454e6caa227a85b16410b95f93495e7e0.
+// revision 326ef470a8b379a180d6dc4bbef08990698a737a.
 
 // The maximum read limit on most POSIX-like systems is `SSIZE_MAX`, with the
-// man page quoting that if the count of bytes to read is greater than
-// `SSIZE_MAX` the result is "unspecified".
+// manual page quoting that if the count of bytes to read is greater than
+// `SSIZE_MAX` the result is “unspecified”.
 //
 // On macOS, however, apparently the 64-bit libc is either buggy or
 // intentionally showing odd behavior by rejecting any read with a size larger
@@ -259,33 +255,28 @@ const READ_LIMIT: usize = c::c_int::MAX as usize - 1;
 #[cfg(not(target_os = "macos"))]
 const READ_LIMIT: usize = c::ssize_t::MAX as usize;
 
-#[cfg(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-))]
+#[cfg(bsd)]
 const fn max_iov() -> usize {
     c::IOV_MAX as usize
 }
 
-#[cfg(any(target_os = "android", target_os = "emscripten", target_os = "linux"))]
+#[cfg(any(
+    target_os = "android",
+    target_os = "emscripten",
+    target_os = "linux",
+    target_os = "nto"
+))]
 const fn max_iov() -> usize {
     c::UIO_MAXIOV as usize
 }
 
 #[cfg(not(any(
+    bsd,
     target_os = "android",
-    target_os = "dragonfly",
     target_os = "emscripten",
-    target_os = "freebsd",
-    target_os = "ios",
     target_os = "linux",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
+    target_os = "nto",
+    target_os = "horizon",
 )))]
 const fn max_iov() -> usize {
     16 // The minimum value required by POSIX.
@@ -298,6 +289,11 @@ pub(crate) unsafe fn close(raw_fd: RawFd) {
 #[cfg(any(target_os = "android", target_os = "linux"))]
 pub(crate) fn eventfd(initval: u32, flags: EventfdFlags) -> io::Result<OwnedFd> {
     unsafe { syscall_ret_owned_fd(c::syscall(c::SYS_eventfd2, initval, flags.bits())) }
+}
+
+#[cfg(any(target_os = "freebsd", target_os = "illumos"))]
+pub(crate) fn eventfd(initval: u32, flags: EventfdFlags) -> io::Result<OwnedFd> {
+    unsafe { ret_owned_fd(c::eventfd(initval, flags.bits())) }
 }
 
 #[cfg(any(target_os = "android", target_os = "linux"))]
@@ -341,6 +337,53 @@ pub(crate) fn ioctl_fionbio(fd: BorrowedFd<'_>, value: bool) -> io::Result<()> {
         let data = value as c::c_int;
         ret(c::ioctl(borrowed_fd(fd), c::FIONBIO, &data))
     }
+}
+
+#[cfg(any(target_os = "android", target_os = "linux"))]
+pub(crate) fn ioctl_ficlone(fd: BorrowedFd<'_>, src_fd: BorrowedFd<'_>) -> io::Result<()> {
+    // TODO: Enable this on mips and power once libc is updated.
+    #[cfg(not(any(
+        target_arch = "mips",
+        target_arch = "mips64",
+        target_arch = "powerpc",
+        target_arch = "powerpc64",
+        target_arch = "sparc",
+        target_arch = "sparc64"
+    )))]
+    unsafe {
+        ret(c::ioctl(
+            borrowed_fd(fd),
+            c::FICLONE as _,
+            borrowed_fd(src_fd),
+        ))
+    }
+
+    #[cfg(any(
+        target_arch = "mips",
+        target_arch = "mips64",
+        target_arch = "powerpc",
+        target_arch = "powerpc64",
+        target_arch = "sparc",
+        target_arch = "sparc64"
+    ))]
+    {
+        let _ = fd;
+        let _ = src_fd;
+        Err(io::Errno::NOSYS)
+    }
+}
+
+#[cfg(any(target_os = "android", target_os = "linux"))]
+#[inline]
+pub(crate) fn ext4_ioc_resize_fs(fd: BorrowedFd<'_>, blocks: u64) -> io::Result<()> {
+    // TODO: Fix linux-raw-sys to define ioctl codes for sparc.
+    #[cfg(any(target_arch = "sparc", target_arch = "sparc64"))]
+    const EXT4_IOC_RESIZE_FS: u32 = 0x8008_6610;
+
+    #[cfg(not(any(target_arch = "sparc", target_arch = "sparc64")))]
+    use linux_raw_sys::ioctl::EXT4_IOC_RESIZE_FS;
+
+    unsafe { ret(c::ioctl(borrowed_fd(fd), EXT4_IOC_RESIZE_FS as _, &blocks)) }
 }
 
 #[cfg(not(any(target_os = "redox", target_os = "wasi")))]
@@ -420,12 +463,11 @@ pub(crate) fn dup2(fd: BorrowedFd<'_>, new: &mut OwnedFd) -> io::Result<()> {
 }
 
 #[cfg(not(any(
+    apple,
     target_os = "aix",
     target_os = "android",
     target_os = "dragonfly",
     target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
     target_os = "redox",
     target_os = "wasi",
 )))]
@@ -440,11 +482,10 @@ pub(crate) fn dup3(fd: BorrowedFd<'_>, new: &mut OwnedFd, flags: DupFlags) -> io
 }
 
 #[cfg(any(
+    apple,
     target_os = "android",
     target_os = "dragonfly",
     target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
     target_os = "redox",
 ))]
 pub(crate) fn dup3(fd: BorrowedFd<'_>, new: &mut OwnedFd, _flags: DupFlags) -> io::Result<()> {
@@ -455,9 +496,15 @@ pub(crate) fn dup3(fd: BorrowedFd<'_>, new: &mut OwnedFd, _flags: DupFlags) -> i
     dup2(fd, new)
 }
 
-#[cfg(any(target_os = "ios", target_os = "macos"))]
+#[cfg(apple)]
 pub(crate) fn ioctl_fioclex(fd: BorrowedFd<'_>) -> io::Result<()> {
-    unsafe { ret(c::ioctl(borrowed_fd(fd), c::FIOCLEX)) }
+    unsafe {
+        ret(c::ioctl(
+            borrowed_fd(fd),
+            c::FIOCLEX,
+            core::ptr::null_mut::<u8>(),
+        ))
+    }
 }
 
 #[cfg(not(any(target_os = "haiku", target_os = "redox", target_os = "wasi")))]
@@ -470,6 +517,34 @@ pub(crate) fn ioctl_tiocnxcl(fd: BorrowedFd) -> io::Result<()> {
     unsafe { ret(c::ioctl(borrowed_fd(fd), c::TIOCNXCL as _)) }
 }
 
+#[cfg(bsd)]
+pub(crate) fn kqueue() -> io::Result<OwnedFd> {
+    unsafe { ret_owned_fd(c::kqueue()) }
+}
+
+#[cfg(bsd)]
+pub(crate) unsafe fn kevent(
+    kq: BorrowedFd<'_>,
+    changelist: &[Event],
+    eventlist: &mut [MaybeUninit<Event>],
+    timeout: Option<&c::timespec>,
+) -> io::Result<c::c_int> {
+    ret_c_int(c::kevent(
+        borrowed_fd(kq),
+        changelist.as_ptr().cast(),
+        changelist
+            .len()
+            .try_into()
+            .map_err(|_| io::Errno::OVERFLOW)?,
+        eventlist.as_mut_ptr().cast(),
+        eventlist
+            .len()
+            .try_into()
+            .map_err(|_| io::Errno::OVERFLOW)?,
+        timeout.map_or(null(), as_ptr),
+    ))
+}
+
 #[cfg(not(target_os = "wasi"))]
 pub(crate) fn pipe() -> io::Result<(OwnedFd, OwnedFd)> {
     unsafe {
@@ -480,13 +555,7 @@ pub(crate) fn pipe() -> io::Result<(OwnedFd, OwnedFd)> {
     }
 }
 
-#[cfg(not(any(
-    target_os = "aix",
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "wasi"
-)))]
+#[cfg(not(any(apple, target_os = "aix", target_os = "haiku", target_os = "wasi")))]
 pub(crate) fn pipe_with(flags: PipeFlags) -> io::Result<(OwnedFd, OwnedFd)> {
     unsafe {
         let mut result = MaybeUninit::<[OwnedFd; 2]>::uninit();
@@ -517,25 +586,19 @@ pub fn splice(
     len: usize,
     flags: SpliceFlags,
 ) -> io::Result<usize> {
-    let off_in = off_in
-        .map(|off| (off as *mut u64).cast())
-        .unwrap_or(ptr::null_mut());
+    let off_in = optional_as_mut_ptr(off_in).cast();
+    let off_out = optional_as_mut_ptr(off_out).cast();
 
-    let off_out = off_out
-        .map(|off| (off as *mut u64).cast())
-        .unwrap_or(ptr::null_mut());
-
-    ret_ssize_t(unsafe {
-        c::splice(
+    unsafe {
+        ret_usize(c::splice(
             borrowed_fd(fd_in),
             off_in,
             borrowed_fd(fd_out),
             off_out,
             len,
             flags.bits(),
-        )
-    })
-    .map(|spliced| spliced as usize)
+        ))
+    }
 }
 
 #[cfg(any(target_os = "android", target_os = "linux"))]
@@ -545,11 +608,92 @@ pub unsafe fn vmsplice(
     bufs: &[IoSliceRaw],
     flags: SpliceFlags,
 ) -> io::Result<usize> {
-    ret_ssize_t(c::vmsplice(
+    ret_usize(c::vmsplice(
         borrowed_fd(fd),
         bufs.as_ptr().cast::<c::iovec>(),
         min(bufs.len(), max_iov()),
         flags.bits(),
     ))
-    .map(|spliced| spliced as usize)
+}
+
+#[cfg(solarish)]
+pub(crate) fn port_create() -> io::Result<OwnedFd> {
+    unsafe { ret_owned_fd(c::port_create()) }
+}
+
+#[cfg(solarish)]
+pub(crate) unsafe fn port_associate(
+    port: BorrowedFd<'_>,
+    source: c::c_int,
+    object: c::uintptr_t,
+    events: c::c_int,
+    user: *mut c::c_void,
+) -> io::Result<()> {
+    ret(c::port_associate(
+        borrowed_fd(port),
+        source,
+        object,
+        events,
+        user,
+    ))
+}
+
+#[cfg(solarish)]
+pub(crate) unsafe fn port_dissociate(
+    port: BorrowedFd<'_>,
+    source: c::c_int,
+    object: c::uintptr_t,
+) -> io::Result<()> {
+    ret(c::port_dissociate(borrowed_fd(port), source, object))
+}
+
+#[cfg(solarish)]
+pub(crate) fn port_get(
+    port: BorrowedFd<'_>,
+    timeout: Option<&mut c::timespec>,
+) -> io::Result<Event> {
+    let mut event = MaybeUninit::<c::port_event>::uninit();
+    let timeout = timeout.map_or(null_mut(), as_mut_ptr);
+
+    unsafe {
+        ret(c::port_get(borrowed_fd(port), event.as_mut_ptr(), timeout))?;
+    }
+
+    // If we're done, initialize the event and return it.
+    Ok(Event(unsafe { event.assume_init() }))
+}
+
+#[cfg(solarish)]
+pub(crate) fn port_getn(
+    port: BorrowedFd<'_>,
+    timeout: Option<&mut c::timespec>,
+    events: &mut Vec<Event>,
+    mut nget: u32,
+) -> io::Result<()> {
+    let timeout = timeout.map_or(null_mut(), as_mut_ptr);
+    unsafe {
+        ret(c::port_getn(
+            borrowed_fd(port),
+            events.as_mut_ptr().cast(),
+            events.len().try_into().unwrap(),
+            &mut nget,
+            timeout,
+        ))?;
+    }
+
+    // Update the vector length.
+    unsafe {
+        events.set_len(nget.try_into().unwrap());
+    }
+
+    Ok(())
+}
+
+#[cfg(solarish)]
+pub(crate) fn port_send(
+    port: BorrowedFd<'_>,
+    events: c::c_int,
+    userdata: *mut c::c_void,
+) -> io::Result<()> {
+    unsafe { ret(c::port_send(borrowed_fd(port), events, userdata)) }
 }

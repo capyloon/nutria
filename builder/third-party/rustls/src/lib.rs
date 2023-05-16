@@ -133,7 +133,6 @@
 //! # use rustls;
 //! # use webpki;
 //! # use std::sync::Arc;
-//! # use std::convert::TryInto;
 //! # let mut root_store = rustls::RootCertStore::empty();
 //! # root_store.add_server_trust_anchors(
 //! #  webpki_roots::TLS_SERVER_ROOTS
@@ -167,7 +166,7 @@
 //! therefore call `client.process_new_packets()` which parses and processes the messages.
 //! Any error returned from `process_new_packets` is fatal to the connection, and will tell you
 //! why.  For example, if the server's certificate is expired `process_new_packets` will
-//! return `Err(WebPkiError(CertExpired, ValidateServerCert))`.  From this point on,
+//! return `Err(InvalidCertificate(Expired))`.  From this point on,
 //! `process_new_packets` will not do any new work and will return that error continually.
 //!
 //! You can extract newly received data by calling `client.reader()` (which implements the
@@ -311,13 +310,13 @@ mod log {
     macro_rules! trace    ( ($($tt:tt)*) => {{}} );
     macro_rules! debug    ( ($($tt:tt)*) => {{}} );
     macro_rules! warn     ( ($($tt:tt)*) => {{}} );
-    macro_rules! error    ( ($($tt:tt)*) => {{}} );
 }
 
 #[macro_use]
 mod msgs;
 mod anchors;
 mod cipher;
+mod common_state;
 mod conn;
 mod error;
 mod hash_hs;
@@ -357,6 +356,10 @@ pub mod internal {
     pub mod cipher {
         pub use crate::cipher::MessageDecrypter;
     }
+    /// Low-level TLS record layer functions.
+    pub mod record_layer {
+        pub use crate::record_layer::{Decrypted, RecordLayer};
+    }
 }
 
 // The public interface is:
@@ -364,29 +367,31 @@ pub use crate::anchors::{OwnedTrustAnchor, RootCertStore};
 pub use crate::builder::{
     ConfigBuilder, ConfigSide, WantsCipherSuites, WantsKxGroups, WantsVerifier, WantsVersions,
 };
-pub use crate::conn::{
-    CommonState, Connection, ConnectionCommon, IoState, Reader, SideData, Writer,
+pub use crate::common_state::{CommonState, IoState, Side};
+pub use crate::conn::{Connection, ConnectionCommon, Reader, SideData, Writer};
+pub use crate::enums::{
+    AlertDescription, CipherSuite, ContentType, HandshakeType, ProtocolVersion, SignatureAlgorithm,
+    SignatureScheme,
 };
-pub use crate::enums::{CipherSuite, ProtocolVersion, SignatureScheme};
-pub use crate::error::Error;
+pub use crate::error::{CertificateError, Error, InvalidMessage, PeerIncompatible, PeerMisbehaved};
 pub use crate::key::{Certificate, PrivateKey};
 pub use crate::key_log::{KeyLog, NoKeyLog};
 pub use crate::key_log_file::KeyLogFile;
 pub use crate::kx::{SupportedKxGroup, ALL_KX_GROUPS};
-pub use crate::msgs::enums::{
-    AlertDescription, ContentType, HandshakeType, NamedGroup, SignatureAlgorithm,
-};
-pub use crate::msgs::handshake::{DigitallySignedStruct, DistinguishedNames};
+pub use crate::msgs::enums::NamedGroup;
+pub use crate::msgs::handshake::DistinguishedName;
 pub use crate::stream::{Stream, StreamOwned};
 pub use crate::suites::{
     BulkAlgorithm, SupportedCipherSuite, ALL_CIPHER_SUITES, DEFAULT_CIPHER_SUITES,
 };
 #[cfg(feature = "secret_extraction")]
+#[cfg_attr(docsrs, doc(cfg(feature = "secret_extraction")))]
 pub use crate::suites::{ConnectionTrafficSecrets, ExtractedSecrets};
 pub use crate::ticketer::Ticketer;
 #[cfg(feature = "tls12")]
 pub use crate::tls12::Tls12CipherSuite;
 pub use crate::tls13::Tls13CipherSuite;
+pub use crate::verify::DigitallySignedStruct;
 pub use crate::versions::{SupportedProtocolVersion, ALL_VERSIONS, DEFAULT_VERSIONS};
 
 /// Items for use in a client.
@@ -401,14 +406,12 @@ pub mod client {
     mod tls13;
 
     pub use builder::{WantsClientCert, WantsTransparencyPolicyOrClientCert};
-    #[cfg(feature = "quic")]
-    pub use client_conn::ClientQuicExt;
-    pub use client_conn::InvalidDnsNameError;
-    pub use client_conn::ResolvesClientCert;
-    pub use client_conn::ServerName;
-    pub use client_conn::StoresClientSessions;
-    pub use client_conn::{ClientConfig, ClientConnection, ClientConnectionData, WriteEarlyData};
-    pub use handy::{ClientSessionMemoryCache, NoClientSessionStorage};
+    pub use client_conn::{
+        ClientConfig, ClientConnection, ClientConnectionData, ClientSessionStore,
+        InvalidDnsNameError, ResolvesClientCert, Resumption, ServerName, Tls12Resumption,
+        WriteEarlyData,
+    };
+    pub use handy::ClientSessionMemoryCache;
 
     #[cfg(feature = "dangerous_configuration")]
     pub use crate::verify::{
@@ -417,6 +420,9 @@ pub mod client {
     };
     #[cfg(feature = "dangerous_configuration")]
     pub use client_conn::danger::DangerousClientConfig;
+
+    pub use crate::msgs::persist::Tls12ClientSessionValue;
+    pub use crate::msgs::persist::Tls13ClientSessionValue;
 }
 
 pub use client::{ClientConfig, ClientConnection, ServerName};
@@ -438,8 +444,6 @@ pub mod server {
     pub use builder::WantsServerCert;
     pub use handy::ResolvesServerCertUsingSni;
     pub use handy::{NoServerSessionStorage, ServerSessionMemoryCache};
-    #[cfg(feature = "quic")]
-    pub use server_conn::ServerQuicExt;
     pub use server_conn::StoresServerSessions;
     pub use server_conn::{
         Accepted, Acceptor, ReadEarlyData, ServerConfig, ServerConnection, ServerConnectionData,
@@ -502,28 +506,3 @@ pub mod quic;
 
 /// This is the rustls manual.
 pub mod manual;
-
-/** Type renames. */
-#[allow(clippy::upper_case_acronyms)]
-#[doc(hidden)]
-#[deprecated(since = "0.20.0", note = "Use ResolvesServerCertUsingSni")]
-pub type ResolvesServerCertUsingSNI = server::ResolvesServerCertUsingSni;
-#[allow(clippy::upper_case_acronyms)]
-#[cfg(feature = "dangerous_configuration")]
-#[doc(hidden)]
-#[deprecated(since = "0.20.0", note = "Use client::WebPkiVerifier")]
-pub type WebPKIVerifier = client::WebPkiVerifier;
-#[allow(clippy::upper_case_acronyms)]
-#[doc(hidden)]
-#[deprecated(since = "0.20.0", note = "Use Error")]
-pub type TLSError = Error;
-#[doc(hidden)]
-#[deprecated(since = "0.20.0", note = "Use ClientConnection")]
-pub type ClientSession = ClientConnection;
-#[doc(hidden)]
-#[deprecated(since = "0.20.0", note = "Use ServerConnection")]
-pub type ServerSession = ServerConnection;
-
-/* Apologies: would make a trait alias here, but those remain unstable.
-pub trait Session = Connection;
-*/

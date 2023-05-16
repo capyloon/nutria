@@ -17,7 +17,7 @@ use crate::re_trait::{self, RegularExpression, SubCapturesPosIter};
 /// Match represents a single match of a regex in a haystack.
 ///
 /// The lifetime parameter `'t` refers to the lifetime of the matched text.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Match<'t> {
     text: &'t [u8],
     start: usize,
@@ -37,6 +37,18 @@ impl<'t> Match<'t> {
         self.end
     }
 
+    /// Returns true if and only if this match has a length of zero.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.start == self.end
+    }
+
+    /// Returns the length, in bytes, of this match.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.end - self.start
+    }
+
     /// Returns the range over the starting and ending byte offsets of the
     /// match in the haystack.
     #[inline]
@@ -54,6 +66,24 @@ impl<'t> Match<'t> {
     #[inline]
     fn new(haystack: &'t [u8], start: usize, end: usize) -> Match<'t> {
         Match { text: haystack, start, end }
+    }
+}
+
+impl<'t> std::fmt::Debug for Match<'t> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut fmt = f.debug_struct("Match");
+        fmt.field("start", &self.start).field("end", &self.end);
+        if let Ok(s) = std::str::from_utf8(self.as_bytes()) {
+            fmt.field("bytes", &s);
+        } else {
+            // FIXME: It would be nice if this could be printed as a string
+            // with invalid UTF-8 replaced with hex escapes. A alloc would
+            // probably okay if that makes it easier, but regex-automata does
+            // (at time of writing) have internal routines that do this. So
+            // maybe we should expose them.
+            fmt.field("bytes", &self.as_bytes());
+        }
+        fmt.finish()
     }
 }
 
@@ -253,12 +283,7 @@ impl Regex {
     /// The `0`th capture group is always unnamed, so it must always be
     /// accessed with `get(0)` or `[0]`.
     pub fn captures<'t>(&self, text: &'t [u8]) -> Option<Captures<'t>> {
-        let mut locs = self.capture_locations();
-        self.captures_read_at(&mut locs, text, 0).map(move |_| Captures {
-            text,
-            locs: locs.0,
-            named_groups: self.0.capture_name_idx().clone(),
-        })
+        self.captures_at(text, 0)
     }
 
     /// Returns an iterator over all the non-overlapping capture groups matched
@@ -537,7 +562,14 @@ impl Regex {
     /// This method may have the same performance characteristics as
     /// `is_match`, except it provides an end location for a match. In
     /// particular, the location returned *may be shorter* than the proper end
-    /// of the leftmost-first match.
+    /// of the leftmost-first match that you would find via `Regex::find`.
+    ///
+    /// Note that it is not guaranteed that this routine finds the shortest or
+    /// "earliest" possible match. Instead, the main idea of this API is that
+    /// it returns the offset at the point at which the internal regex engine
+    /// has determined that a match has occurred. This may vary depending on
+    /// which internal regex engine is used, and thus, the offset itself may
+    /// change.
     ///
     /// # Example
     ///
@@ -596,6 +628,25 @@ impl Regex {
             .searcher()
             .find_at(text, start)
             .map(|(s, e)| Match::new(text, s, e))
+    }
+
+    /// Returns the same as [`Regex::captures`], but starts the search at the
+    /// given offset.
+    ///
+    /// The significance of the starting point is that it takes the surrounding
+    /// context into consideration. For example, the `\A` anchor can only
+    /// match when `start == 0`.
+    pub fn captures_at<'t>(
+        &self,
+        text: &'t [u8],
+        start: usize,
+    ) -> Option<Captures<'t>> {
+        let mut locs = self.capture_locations();
+        self.captures_read_at(&mut locs, text, start).map(move |_| Captures {
+            text,
+            locs: locs.0,
+            named_groups: self.0.capture_name_idx().clone(),
+        })
     }
 
     /// This is like `captures`, but uses
@@ -665,6 +716,46 @@ impl Regex {
     /// Returns the number of captures.
     pub fn captures_len(&self) -> usize {
         self.0.capture_names().len()
+    }
+
+    /// Returns the total number of capturing groups that appear in every
+    /// possible match.
+    ///
+    /// If the number of capture groups can vary depending on the match, then
+    /// this returns `None`. That is, a value is only returned when the number
+    /// of matching groups is invariant or "static."
+    ///
+    /// Note that like [`Regex::captures_len`], this **does** include the
+    /// implicit capturing group corresponding to the entire match. Therefore,
+    /// when a non-None value is returned, it is guaranteed to be at least `1`.
+    /// Stated differently, a return value of `Some(0)` is impossible.
+    ///
+    /// # Example
+    ///
+    /// This shows a few cases where a static number of capture groups is
+    /// available and a few cases where it is not.
+    ///
+    /// ```
+    /// use regex::bytes::Regex;
+    ///
+    /// let len = |pattern| {
+    ///     Regex::new(pattern).map(|re| re.static_captures_len())
+    /// };
+    ///
+    /// assert_eq!(Some(1), len("a")?);
+    /// assert_eq!(Some(2), len("(a)")?);
+    /// assert_eq!(Some(2), len("(a)|(b)")?);
+    /// assert_eq!(Some(3), len("(a)(b)|(c)(d)")?);
+    /// assert_eq!(None, len("(a)|b")?);
+    /// assert_eq!(None, len("a|(b)")?);
+    /// assert_eq!(None, len("(b)*")?);
+    /// assert_eq!(Some(2), len("(b)+")?);
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    #[inline]
+    pub fn static_captures_len(&self) -> Option<usize> {
+        self.0.static_captures_len().map(|len| len.saturating_add(1))
     }
 
     /// Returns an empty set of capture locations that can be reused in
@@ -856,6 +947,27 @@ impl<'r> FusedIterator for CaptureNames<'r> {}
 /// In order to build a value of this type, you'll need to call the
 /// `capture_locations` method on the `Regex` being used to execute the search.
 /// The value returned can then be reused in subsequent searches.
+///
+/// # Example
+///
+/// This example shows how to create and use `CaptureLocations` in a search.
+///
+/// ```
+/// use regex::bytes::Regex;
+///
+/// let re = Regex::new(r"(?<first>\w+)\s+(?<last>\w+)").unwrap();
+/// let mut locs = re.capture_locations();
+/// let m = re.captures_read(&mut locs, b"Bruce Springsteen").unwrap();
+/// assert_eq!(0..17, m.range());
+/// assert_eq!(Some((0, 17)), locs.get(0));
+/// assert_eq!(Some((0, 5)), locs.get(1));
+/// assert_eq!(Some((6, 17)), locs.get(2));
+///
+/// // Asking for an invalid capture group always returns None.
+/// assert_eq!(None, locs.get(3));
+/// assert_eq!(None, locs.get(34973498648));
+/// assert_eq!(None, locs.get(9944060567225171988));
+/// ```
 #[derive(Clone, Debug)]
 pub struct CaptureLocations(re_trait::Locations);
 

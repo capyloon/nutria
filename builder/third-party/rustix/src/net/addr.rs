@@ -1,13 +1,11 @@
 //! The following is derived from Rust's
 //! library/std/src/net/socket_addr.rs at revision
-//! f7e8ba28a4785e698a55fb95e4b3e803302de0ff.
+//! bd20fc1fd657b32f7aa1d70d8723f04c87f21606.
 //!
 //! All code in this file is licensed MIT or Apache 2.0 at your option.
 //!
 //! This defines `SocketAddr`, `SocketAddrV4`, and `SocketAddrV6` in a
 //! platform-independent way. It is not the native representation.
-
-#![allow(unsafe_code)]
 
 use crate::net::ip::{IpAddr, Ipv4Addr, Ipv6Addr};
 use core::cmp::Ordering;

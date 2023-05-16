@@ -1,5 +1,3 @@
-#![allow(unsafe_code)]
-
 use bitflags::bitflags;
 use linux_raw_sys::general::{
     CLONE_FILES, CLONE_FS, CLONE_NEWCGROUP, CLONE_NEWIPC, CLONE_NEWNET, CLONE_NEWNS, CLONE_NEWPID,
@@ -81,15 +79,16 @@ bitflags! {
     }
 }
 
-/// Reassociate the calling thread with the namespace associated with link referred to by `fd`.
+/// Reassociate the calling thread with the namespace associated with link
+/// referred to by `fd`.
 ///
-/// `fd` must refer to one of the magic links in a `/proc/[pid]/ns/` directory, or a bind mount
-/// to such a link.
+/// `fd` must refer to one of the magic links in a `/proc/[pid]/ns/` directory,
+/// or a bind mount to such a link.
 ///
 /// # References
-/// - [`setns`]
+///  - [Linux]
 ///
-/// [`setns`]: https://man7.org/linux/man-pages/man2/setns.2.html
+/// [Linux]: https://man7.org/linux/man-pages/man2/setns.2.html
 pub fn move_into_link_name_space(
     fd: BorrowedFd,
     allowed_type: Option<LinkNameSpaceType>,
@@ -98,15 +97,15 @@ pub fn move_into_link_name_space(
     syscalls::setns(fd, allowed_type).map(|_r| ())
 }
 
-/// Atomically move the calling thread into one or more of the same namespaces as the thread
-/// referred to by `fd`.
+/// Atomically move the calling thread into one or more of the same namespaces
+/// as the thread referred to by `fd`.
 ///
 /// `fd` must refer to a thread ID. See: `pidfd_open` and `clone`.
 ///
 /// # References
-/// - [`setns`]
+///  - [Linux]
 ///
-/// [`setns`]: https://man7.org/linux/man-pages/man2/setns.2.html
+/// [Linux]: https://man7.org/linux/man-pages/man2/setns.2.html
 pub fn move_into_thread_name_spaces(
     fd: BorrowedFd,
     allowed_types: ThreadNameSpaceType,
@@ -118,9 +117,9 @@ pub fn move_into_thread_name_spaces(
 /// context with other threads.
 ///
 /// # References
-/// - [`unshare`]
+///  - [Linux]
 ///
-/// [`unshare`]: https://man7.org/linux/man-pages/man2/unshare.2.html
+/// [Linux]: https://man7.org/linux/man-pages/man2/unshare.2.html
 pub fn unshare(flags: UnshareFlags) -> io::Result<()> {
     syscalls::unshare(flags)
 }

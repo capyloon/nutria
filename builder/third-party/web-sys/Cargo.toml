@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "web-sys"
-version = "0.3.61"
+version = "0.3.63"
 authors = ["The wasm-bindgen Developers"]
 description = """
 Bindings for all Web APIs, a procedurally generated crate from WebIDL
@@ -22,6 +22,7 @@ documentation = "https://rustwasm.github.io/wasm-bindgen/api/web_sys/"
 readme = "./README.md"
 license = "MIT/Apache-2.0"
 repository = "https://github.com/rustwasm/wasm-bindgen/tree/master/crates/web-sys"
+resolver = "2"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -32,10 +33,10 @@ test = false
 doctest = false
 
 [dependencies.js-sys]
-version = "0.3.61"
+version = "0.3.63"
 
 [dependencies.wasm-bindgen]
-version = "0.2.84"
+version = "0.2.86"
 
 [features]
 AbortController = []
@@ -199,6 +200,10 @@ CanvasCaptureMediaStream = [
     "EventTarget",
     "MediaStream",
 ]
+CanvasCaptureMediaStreamTrack = [
+    "EventTarget",
+    "MediaStreamTrack",
+]
 CanvasGradient = []
 CanvasPattern = []
 CanvasRenderingContext2d = []
@@ -219,8 +224,6 @@ ChannelMergerNode = [
     "EventTarget",
 ]
 ChannelMergerOptions = []
-ChannelPixelLayout = []
-ChannelPixelLayoutDataType = []
 ChannelSplitterNode = [
     "AudioNode",
     "EventTarget",
@@ -504,13 +507,24 @@ FilePropertyBag = []
 FileReader = ["EventTarget"]
 FileReaderSync = []
 FileSystem = []
+FileSystemCreateWritableOptions = []
 FileSystemDirectoryEntry = ["FileSystemEntry"]
+FileSystemDirectoryHandle = ["FileSystemHandle"]
 FileSystemDirectoryReader = []
 FileSystemEntriesCallback = []
 FileSystemEntry = []
 FileSystemEntryCallback = []
 FileSystemFileEntry = ["FileSystemEntry"]
+FileSystemFileHandle = ["FileSystemHandle"]
 FileSystemFlags = []
+FileSystemGetDirectoryOptions = []
+FileSystemGetFileOptions = []
+FileSystemHandle = []
+FileSystemHandleKind = []
+FileSystemReadWriteOptions = []
+FileSystemRemoveOptions = []
+FileSystemSyncAccessHandle = []
+FileSystemWritableFileStream = ["WritableStream"]
 FillMode = []
 FlashClassification = []
 FlexLineGrowthState = []
@@ -520,6 +534,7 @@ FocusEvent = [
     "UiEvent",
 ]
 FocusEventInit = []
+FontData = []
 FontFace = []
 FontFaceDescriptors = []
 FontFaceLoadStatus = []
@@ -558,6 +573,7 @@ GamepadMappingType = []
 GamepadPose = []
 GamepadServiceTest = []
 Geolocation = []
+GetAnimationsOptions = []
 GetNotificationOptions = []
 GetRootNodeOptions = []
 GetUserMediaRequest = []
@@ -1194,7 +1210,6 @@ IirFilterNode = [
 ]
 IirFilterOptions = []
 ImageBitmap = []
-ImageBitmapFormat = []
 ImageBitmapOptions = []
 ImageBitmapRenderingContext = []
 ImageCapture = []
@@ -1206,6 +1221,7 @@ ImageDecodeOptions = []
 ImageDecodeResult = []
 ImageDecoder = []
 ImageDecoderInit = []
+ImageEncodeOptions = []
 ImageOrientation = []
 ImageTrack = ["EventTarget"]
 ImageTrackList = []
@@ -1232,6 +1248,7 @@ KeyboardEvent = [
     "UiEvent",
 ]
 KeyboardEventInit = []
+KeyframeAnimationOptions = []
 KeyframeEffect = ["AnimationEffect"]
 KeyframeEffectOptions = []
 L10nElement = []
@@ -1328,6 +1345,10 @@ MediaTrackConstraintSet = []
 MediaTrackConstraints = []
 MediaTrackSettings = []
 MediaTrackSupportedConstraints = []
+MemoryAttribution = []
+MemoryAttributionContainer = []
+MemoryBreakdownEntry = []
+MemoryMeasurement = []
 MessageChannel = []
 MessageEvent = ["Event"]
 MessageEventInit = []
@@ -1410,6 +1431,7 @@ OfflineAudioContext = [
 OfflineAudioContextOptions = []
 OfflineResourceList = ["EventTarget"]
 OffscreenCanvas = ["EventTarget"]
+OffscreenCanvasRenderingContext2d = []
 OpenWindowEventDetail = []
 OptionalEffectTiming = []
 OrientationLockType = []
@@ -1549,6 +1571,7 @@ PushSubscriptionJson = []
 PushSubscriptionKeys = []
 PushSubscriptionOptions = []
 PushSubscriptionOptionsInit = []
+QueryOptions = []
 QueuingStrategy = []
 QueuingStrategyInit = []
 RadioNodeList = ["NodeList"]
@@ -1636,6 +1659,7 @@ RtcOutboundRtpStreamStats = []
 RtcPeerConnection = ["EventTarget"]
 RtcPeerConnectionIceEvent = ["Event"]
 RtcPeerConnectionIceEventInit = []
+RtcPeerConnectionState = []
 RtcPriorityType = []
 RtcRtcpParameters = []
 RtcRtpCodecParameters = []
@@ -1696,6 +1720,7 @@ SecurityPolicyViolationEvent = ["Event"]
 SecurityPolicyViolationEventDisposition = []
 SecurityPolicyViolationEventInit = []
 Selection = []
+SelectionMode = []
 Serial = ["EventTarget"]
 SerialInputSignals = []
 SerialOptions = []
@@ -2473,6 +2498,24 @@ WebKitCssMatrix = [
 WebSocket = ["EventTarget"]
 WebSocketDict = []
 WebSocketElement = []
+WebTransport = []
+WebTransportBidirectionalStream = []
+WebTransportCloseInfo = []
+WebTransportCongestionControl = []
+WebTransportDatagramDuplexStream = []
+WebTransportDatagramStats = []
+WebTransportError = ["DomException"]
+WebTransportErrorOptions = []
+WebTransportErrorSource = []
+WebTransportHash = []
+WebTransportOptions = []
+WebTransportReceiveStream = ["ReadableStream"]
+WebTransportReceiveStreamStats = []
+WebTransportReliabilityMode = []
+WebTransportSendStream = ["WritableStream"]
+WebTransportSendStreamOptions = []
+WebTransportSendStreamStats = []
+WebTransportStats = []
 WebglColorBufferFloat = []
 WebglCompressedTextureAstc = []
 WebglCompressedTextureAtc = []
@@ -2510,6 +2553,8 @@ WorkletOptions = []
 WritableStream = []
 WritableStreamDefaultController = []
 WritableStreamDefaultWriter = []
+WriteCommandType = []
+WriteParams = []
 XPathExpression = []
 XPathNsResolver = []
 XPathResult = []
@@ -2536,7 +2581,7 @@ XrBoundedReferenceSpace = [
 ]
 XrEye = []
 XrFrame = []
-XrHand = ["XrHandJoint"]
+XrHand = []
 XrHandJoint = []
 XrHandedness = []
 XrInputSource = []
@@ -2545,8 +2590,11 @@ XrInputSourceEvent = ["Event"]
 XrInputSourceEventInit = []
 XrInputSourcesChangeEvent = ["Event"]
 XrInputSourcesChangeEventInit = []
-XrJointPose = []
-XrJointSpace = []
+XrJointPose = ["XrPose"]
+XrJointSpace = [
+    "EventTarget",
+    "XrSpace",
+]
 XrLayer = ["EventTarget"]
 XrPermissionDescriptor = []
 XrPermissionStatus = [
@@ -2592,7 +2640,7 @@ gpu_shader_stage = []
 gpu_texture_usage = []
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-futures]
-version = "0.4.34"
+version = "0.4.36"
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-test]
-version = "0.3.34"
+version = "0.3.36"

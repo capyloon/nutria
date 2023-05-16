@@ -1,13 +1,11 @@
-use crate::enums::SignatureScheme;
+use crate::enums::{SignatureAlgorithm, SignatureScheme};
 use crate::error::Error;
 use crate::key;
-use crate::msgs::enums::SignatureAlgorithm;
 use crate::x509::{wrap_in_asn1_len, wrap_in_sequence};
 
 use ring::io::der;
 use ring::signature::{self, EcdsaKeyPair, Ed25519KeyPair, RsaKeyPair};
 
-use std::convert::TryFrom;
 use std::error::Error as StdError;
 use std::fmt;
 use std::sync::Arc;
@@ -108,7 +106,7 @@ impl CertifiedKey {
             // that the certificate is valid for, if the certificate is
             // valid.
             if end_entity_cert
-                .verify_is_valid_for_dns_name(name)
+                .verify_is_valid_for_subject_name(webpki::SubjectNameRef::DnsName(name))
                 .is_err()
             {
                 return Err(Error::General(
@@ -211,11 +209,6 @@ impl SigningKey for RsaSigningKey {
         SignatureAlgorithm::RSA
     }
 }
-
-#[allow(clippy::upper_case_acronyms)]
-#[doc(hidden)]
-#[deprecated(since = "0.20.0", note = "Use RsaSigningKey")]
-pub type RSASigningKey = RsaSigningKey;
 
 struct RsaSigner {
     key: Arc<RsaKeyPair>,
@@ -355,7 +348,6 @@ impl SigningKey for EcdsaSigningKey {
     }
 
     fn algorithm(&self) -> SignatureAlgorithm {
-        use crate::msgs::handshake::DecomposedSignatureScheme;
         self.scheme.sign()
     }
 }
@@ -421,7 +413,6 @@ impl SigningKey for Ed25519SigningKey {
     }
 
     fn algorithm(&self) -> SignatureAlgorithm {
-        use crate::msgs::handshake::DecomposedSignatureScheme;
         self.scheme.sign()
     }
 }

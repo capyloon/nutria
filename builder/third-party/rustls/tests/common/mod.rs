@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use std::convert::{TryFrom, TryInto};
 use std::io;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -177,7 +176,7 @@ where
     total
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum KeyType {
     Rsa,
     Ecdsa,
@@ -189,9 +188,9 @@ pub static ALL_KEY_TYPES: [KeyType; 3] = [KeyType::Rsa, KeyType::Ecdsa, KeyType:
 impl KeyType {
     fn bytes_for(&self, part: &str) -> &'static [u8] {
         match self {
-            KeyType::Rsa => bytes_for("rsa", part),
-            KeyType::Ecdsa => bytes_for("ecdsa", part),
-            KeyType::Ed25519 => bytes_for("eddsa", part),
+            Self::Rsa => bytes_for("rsa", part),
+            Self::Ecdsa => bytes_for("ecdsa", part),
+            Self::Ed25519 => bytes_for("eddsa", part),
         }
     }
 
@@ -272,7 +271,9 @@ pub fn make_server_config_with_kx_groups(
 }
 
 pub fn get_client_root_store(kt: KeyType) -> RootCertStore {
-    let roots = kt.get_chain();
+    let mut roots = kt.get_chain();
+    // drop server cert
+    roots.drain(0..1);
     let mut client_auth_roots = RootCertStore::empty();
     for root in roots {
         client_auth_roots.add(&root).unwrap();
@@ -287,7 +288,7 @@ pub fn make_server_config_with_mandatory_client_auth(kt: KeyType) -> ServerConfi
 
     ServerConfig::builder()
         .with_safe_defaults()
-        .with_client_cert_verifier(client_auth)
+        .with_client_cert_verifier(Arc::new(client_auth))
         .with_single_cert(kt.get_chain(), kt.get_key())
         .unwrap()
 }
@@ -463,7 +464,7 @@ pub struct FailsReads {
 
 impl FailsReads {
     pub fn new(errkind: io::ErrorKind) -> Self {
-        FailsReads { errkind }
+        Self { errkind }
     }
 }
 

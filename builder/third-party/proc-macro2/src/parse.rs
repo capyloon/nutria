@@ -27,7 +27,18 @@ impl<'a> Cursor<'a> {
         self.rest.starts_with(s)
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn starts_with_char(&self, ch: char) -> bool {
+        self.rest.starts_with(ch)
+    }
+
+    pub fn starts_with_fn<Pattern>(&self, f: Pattern) -> bool
+    where
+        Pattern: FnMut(char) -> bool,
+    {
+        self.rest.starts_with(f)
+    }
+
+    pub fn is_empty(&self) -> bool {
         self.rest.is_empty()
     }
 
@@ -756,7 +767,7 @@ fn digits(mut input: Cursor) -> Result<Cursor, Reject> {
 fn punct(input: Cursor) -> PResult<Punct> {
     let (rest, ch) = punct_char(input)?;
     if ch == '\'' {
-        if ident_any(rest)?.0.starts_with("'") {
+        if ident_any(rest)?.0.starts_with_char('\'') {
             Err(Reject)
         } else {
             Ok((rest, Punct::new('\'', Spacing::Joint)))
@@ -848,7 +859,7 @@ fn doc_comment_contents(input: Cursor) -> PResult<(&str, bool)> {
         Ok((input, (&s[3..s.len() - 2], true)))
     } else if input.starts_with("///") {
         let input = input.advance(3);
-        if input.starts_with("/") {
+        if input.starts_with_char('/') {
             return Err(Reject);
         }
         let (input, s) = take_until_newline_or_eof(input);

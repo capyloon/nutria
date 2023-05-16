@@ -4,27 +4,24 @@
 // https://boringssl.googlesource.com/boringssl/+/master/ssl/test
 //
 
-use base64;
-use env_logger;
-use rustls;
-
-use rustls::internal::msgs::codec::{Codec, Reader};
+use rustls::client::{ClientConfig, ClientConnection, Resumption};
+use rustls::internal::msgs::codec::Codec;
 use rustls::internal::msgs::persist;
-use rustls::quic::{self, ClientQuicExt, QuicExt, ServerQuicExt};
-use rustls::server::ClientHello;
-use rustls::{CipherSuite, ProtocolVersion};
-use rustls::{ClientConnection, Connection, ServerConnection};
+use rustls::server::{ClientHello, ServerConfig, ServerConnection};
+use rustls::{
+    self, client, kx_group, server, sign, version, AlertDescription, Certificate, CertificateError,
+    Connection, DistinguishedName, Error, InvalidMessage, NamedGroup, PeerMisbehaved, PrivateKey,
+    ProtocolVersion, ServerName, Side, SignatureAlgorithm, SignatureScheme, SupportedKxGroup,
+    SupportedProtocolVersion, Ticketer, ALL_KX_GROUPS,
+};
 
-use std::convert::TryInto;
-use std::env;
-use std::fs;
-use std::io;
-use std::io::BufReader;
-use std::io::{Read, Write};
-use std::net;
-use std::process;
+use base64::prelude::{Engine, BASE64_STANDARD};
+use env_logger;
+
+use std::io::{self, BufReader, Read, Write};
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{self, SystemTime};
+use std::{env, fs, net, process, thread};
 
 static BOGO_NACK: i32 = 89;
 
@@ -37,7 +34,7 @@ macro_rules! println_err(
 #[derive(Debug)]
 struct Options {
     port: u16,
-    server: bool,
+    side: Side,
     max_fragment: Option<usize>,
     resumes: usize,
     verify_peer: bool,
@@ -84,7 +81,7 @@ impl Options {
     fn new() -> Self {
         Options {
             port: 0,
-            server: false,
+            side: Side::Client,
             max_fragment: None,
             resumes: 0,
             verify_peer: false,
@@ -141,36 +138,36 @@ impl Options {
         self.support_tls12 && self.version_allowed(ProtocolVersion::TLSv1_2)
     }
 
-    fn supported_versions(&self) -> Vec<&'static rustls::SupportedProtocolVersion> {
+    fn supported_versions(&self) -> Vec<&'static SupportedProtocolVersion> {
         let mut versions = vec![];
 
         if self.tls12_supported() {
-            versions.push(&rustls::version::TLS12);
+            versions.push(&version::TLS12);
         }
 
         if self.tls13_supported() {
-            versions.push(&rustls::version::TLS13);
+            versions.push(&version::TLS13);
         }
         versions
     }
 }
 
-fn load_cert(filename: &str) -> Vec<rustls::Certificate> {
+fn load_cert(filename: &str) -> Vec<Certificate> {
     let certfile = fs::File::open(filename).expect("cannot open certificate file");
     let mut reader = BufReader::new(certfile);
     rustls_pemfile::certs(&mut reader)
         .unwrap()
         .iter()
-        .map(|v| rustls::Certificate(v.clone()))
+        .map(|v| Certificate(v.clone()))
         .collect()
 }
 
-fn load_key(filename: &str) -> rustls::PrivateKey {
+fn load_key(filename: &str) -> PrivateKey {
     let keyfile = fs::File::open(filename).expect("cannot open private key file");
     let mut reader = BufReader::new(keyfile);
     let keys = rustls_pemfile::pkcs8_private_keys(&mut reader).unwrap();
     assert!(keys.len() == 1);
-    rustls::PrivateKey(keys[0].clone())
+    PrivateKey(keys[0].clone())
 }
 
 fn split_protocols(protos: &str) -> Vec<String> {
@@ -191,26 +188,26 @@ struct DummyClientAuth {
     mandatory: bool,
 }
 
-impl rustls::server::ClientCertVerifier for DummyClientAuth {
+impl server::ClientCertVerifier for DummyClientAuth {
     fn offer_client_auth(&self) -> bool {
         true
     }
 
-    fn client_auth_mandatory(&self) -> Option<bool> {
-        Some(self.mandatory)
+    fn client_auth_mandatory(&self) -> bool {
+        self.mandatory
     }
 
-    fn client_auth_root_subjects(&self) -> Option<rustls::DistinguishedNames> {
-        Some(rustls::DistinguishedNames::new())
+    fn client_auth_root_subjects(&self) -> &[DistinguishedName] {
+        &[]
     }
 
     fn verify_client_cert(
         &self,
-        _end_entity: &rustls::Certificate,
-        _intermediates: &[rustls::Certificate],
+        _end_entity: &Certificate,
+        _intermediates: &[Certificate],
         _now: SystemTime,
-    ) -> Result<rustls::server::ClientCertVerified, rustls::Error> {
-        Ok(rustls::server::ClientCertVerified::assertion())
+    ) -> Result<server::ClientCertVerified, Error> {
+        Ok(server::ClientCertVerified::assertion())
     }
 }
 
@@ -218,17 +215,17 @@ struct DummyServerAuth {
     send_sct: bool,
 }
 
-impl rustls::client::ServerCertVerifier for DummyServerAuth {
+impl client::ServerCertVerifier for DummyServerAuth {
     fn verify_server_cert(
         &self,
-        _end_entity: &rustls::Certificate,
-        _certs: &[rustls::Certificate],
-        _hostname: &rustls::ServerName,
+        _end_entity: &Certificate,
+        _certs: &[Certificate],
+        _hostname: &ServerName,
         _scts: &mut dyn Iterator<Item = &[u8]>,
         _ocsp: &[u8],
         _now: SystemTime,
-    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
-        Ok(rustls::client::ServerCertVerified::assertion())
+    ) -> Result<client::ServerCertVerified, Error> {
+        Ok(client::ServerCertVerified::assertion())
     }
 
     fn request_scts(&self) -> bool {
@@ -237,33 +234,30 @@ impl rustls::client::ServerCertVerifier for DummyServerAuth {
 }
 
 struct FixedSignatureSchemeSigningKey {
-    key: Arc<dyn rustls::sign::SigningKey>,
-    scheme: rustls::SignatureScheme,
+    key: Arc<dyn sign::SigningKey>,
+    scheme: SignatureScheme,
 }
 
-impl rustls::sign::SigningKey for FixedSignatureSchemeSigningKey {
-    fn choose_scheme(
-        &self,
-        offered: &[rustls::SignatureScheme],
-    ) -> Option<Box<dyn rustls::sign::Signer>> {
+impl sign::SigningKey for FixedSignatureSchemeSigningKey {
+    fn choose_scheme(&self, offered: &[SignatureScheme]) -> Option<Box<dyn sign::Signer>> {
         if offered.contains(&self.scheme) {
             self.key.choose_scheme(&[self.scheme])
         } else {
             self.key.choose_scheme(&[])
         }
     }
-    fn algorithm(&self) -> rustls::SignatureAlgorithm {
+    fn algorithm(&self) -> SignatureAlgorithm {
         self.key.algorithm()
     }
 }
 
 struct FixedSignatureSchemeServerCertResolver {
-    resolver: Arc<dyn rustls::server::ResolvesServerCert>,
-    scheme: rustls::SignatureScheme,
+    resolver: Arc<dyn server::ResolvesServerCert>,
+    scheme: SignatureScheme,
 }
 
-impl rustls::server::ResolvesServerCert for FixedSignatureSchemeServerCertResolver {
-    fn resolve(&self, client_hello: ClientHello) -> Option<Arc<rustls::sign::CertifiedKey>> {
+impl server::ResolvesServerCert for FixedSignatureSchemeServerCertResolver {
+    fn resolve(&self, client_hello: ClientHello) -> Option<Arc<sign::CertifiedKey>> {
         let mut certkey = self.resolver.resolve(client_hello)?;
         Arc::make_mut(&mut certkey).key = Arc::new(FixedSignatureSchemeSigningKey {
             key: certkey.key.clone(),
@@ -274,16 +268,16 @@ impl rustls::server::ResolvesServerCert for FixedSignatureSchemeServerCertResolv
 }
 
 struct FixedSignatureSchemeClientCertResolver {
-    resolver: Arc<dyn rustls::client::ResolvesClientCert>,
-    scheme: rustls::SignatureScheme,
+    resolver: Arc<dyn client::ResolvesClientCert>,
+    scheme: SignatureScheme,
 }
 
-impl rustls::client::ResolvesClientCert for FixedSignatureSchemeClientCertResolver {
+impl client::ResolvesClientCert for FixedSignatureSchemeClientCertResolver {
     fn resolve(
         &self,
         acceptable_issuers: &[&[u8]],
-        sigschemes: &[rustls::SignatureScheme],
-    ) -> Option<Arc<rustls::sign::CertifiedKey>> {
+        sigschemes: &[SignatureScheme],
+    ) -> Option<Arc<sign::CertifiedKey>> {
         if !sigschemes.contains(&self.scheme) {
             quit(":NO_COMMON_SIGNATURE_ALGORITHMS:");
         }
@@ -302,19 +296,19 @@ impl rustls::client::ResolvesClientCert for FixedSignatureSchemeClientCertResolv
     }
 }
 
-fn lookup_scheme(scheme: u16) -> rustls::SignatureScheme {
+fn lookup_scheme(scheme: u16) -> SignatureScheme {
     match scheme {
-        0x0401 => rustls::SignatureScheme::RSA_PKCS1_SHA256,
-        0x0501 => rustls::SignatureScheme::RSA_PKCS1_SHA384,
-        0x0601 => rustls::SignatureScheme::RSA_PKCS1_SHA512,
-        0x0403 => rustls::SignatureScheme::ECDSA_NISTP256_SHA256,
-        0x0503 => rustls::SignatureScheme::ECDSA_NISTP384_SHA384,
-        0x0804 => rustls::SignatureScheme::RSA_PSS_SHA256,
-        0x0805 => rustls::SignatureScheme::RSA_PSS_SHA384,
-        0x0806 => rustls::SignatureScheme::RSA_PSS_SHA512,
-        0x0807 => rustls::SignatureScheme::ED25519,
+        0x0401 => SignatureScheme::RSA_PKCS1_SHA256,
+        0x0501 => SignatureScheme::RSA_PKCS1_SHA384,
+        0x0601 => SignatureScheme::RSA_PKCS1_SHA512,
+        0x0403 => SignatureScheme::ECDSA_NISTP256_SHA256,
+        0x0503 => SignatureScheme::ECDSA_NISTP384_SHA384,
+        0x0804 => SignatureScheme::RSA_PSS_SHA256,
+        0x0805 => SignatureScheme::RSA_PSS_SHA384,
+        0x0806 => SignatureScheme::RSA_PSS_SHA512,
+        0x0807 => SignatureScheme::ED25519,
         // TODO: add support for Ed448
-        // 0x0808 => rustls::SignatureScheme::ED448,
+        // 0x0808 => SignatureScheme::ED448,
         _ => {
             println_err!("Unsupported signature scheme {:04x}", scheme);
             process::exit(BOGO_NACK);
@@ -322,11 +316,11 @@ fn lookup_scheme(scheme: u16) -> rustls::SignatureScheme {
     }
 }
 
-fn lookup_kx_group(group: u16) -> &'static rustls::SupportedKxGroup {
+fn lookup_kx_group(group: u16) -> &'static SupportedKxGroup {
     match group {
-        0x001d => &rustls::kx_group::X25519,
-        0x0017 => &rustls::kx_group::SECP256R1,
-        0x0018 => &rustls::kx_group::SECP384R1,
+        0x001d => &kx_group::X25519,
+        0x0017 => &kx_group::SECP256R1,
+        0x0018 => &kx_group::SECP384R1,
         _ => {
             println_err!("Unsupported kx group {:04x}", group);
             process::exit(BOGO_NACK);
@@ -336,14 +330,14 @@ fn lookup_kx_group(group: u16) -> &'static rustls::SupportedKxGroup {
 
 struct ServerCacheWithResumptionDelay {
     delay: u32,
-    storage: Arc<dyn rustls::server::StoresServerSessions>,
+    storage: Arc<dyn server::StoresServerSessions>,
 }
 
 impl ServerCacheWithResumptionDelay {
     fn new(delay: u32) -> Arc<Self> {
         Arc::new(Self {
             delay,
-            storage: rustls::server::ServerSessionMemoryCache::new(32),
+            storage: server::ServerSessionMemoryCache::new(32),
         })
     }
 }
@@ -357,8 +351,6 @@ fn align_time() {
      * this function delays until a fresh second ticks, which alleviates
      * this. gross!
      */
-    use std::{thread, time};
-
     fn sample() -> u64 {
         time::SystemTime::now()
             .duration_since(time::SystemTime::UNIX_EPOCH)
@@ -372,7 +364,7 @@ fn align_time() {
     }
 }
 
-impl rustls::server::StoresServerSessions for ServerCacheWithResumptionDelay {
+impl server::StoresServerSessions for ServerCacheWithResumptionDelay {
     fn put(&self, key: Vec<u8>, value: Vec<u8>) -> bool {
         let mut ssv = persist::ServerSessionValue::read_bytes(&value).unwrap();
         ssv.creation_time_sec -= self.delay as u64;
@@ -394,14 +386,14 @@ impl rustls::server::StoresServerSessions for ServerCacheWithResumptionDelay {
     }
 }
 
-fn make_server_cfg(opts: &Options) -> Arc<rustls::ServerConfig> {
+fn make_server_cfg(opts: &Options) -> Arc<ServerConfig> {
     let client_auth =
         if opts.verify_peer || opts.offer_no_client_cas || opts.require_any_client_cert {
             Arc::new(DummyClientAuth {
                 mandatory: opts.require_any_client_cert,
             })
         } else {
-            rustls::server::NoClientAuth::new()
+            server::NoClientAuth::boxed()
         };
 
     let cert = load_cert(&opts.cert_file);
@@ -413,10 +405,10 @@ fn make_server_cfg(opts: &Options) -> Arc<rustls::ServerConfig> {
             .map(|curveid| lookup_kx_group(*curveid))
             .collect()
     } else {
-        rustls::ALL_KX_GROUPS.to_vec()
+        ALL_KX_GROUPS.to_vec()
     };
 
-    let mut cfg = rustls::ServerConfig::builder()
+    let mut cfg = ServerConfig::builder()
         .with_safe_default_cipher_suites()
         .with_kx_groups(&kx_groups)
         .with_protocol_versions(&opts.supported_versions())
@@ -432,6 +424,7 @@ fn make_server_cfg(opts: &Options) -> Arc<rustls::ServerConfig> {
 
     cfg.session_storage = ServerCacheWithResumptionDelay::new(opts.resumption_delay);
     cfg.max_fragment_size = opts.max_fragment;
+    cfg.send_tls13_tickets = 1;
 
     if opts.use_signing_scheme > 0 {
         let scheme = lookup_scheme(opts.use_signing_scheme);
@@ -442,9 +435,9 @@ fn make_server_cfg(opts: &Options) -> Arc<rustls::ServerConfig> {
     }
 
     if opts.tickets {
-        cfg.ticketer = rustls::Ticketer::new().unwrap();
+        cfg.ticketer = Ticketer::new().unwrap();
     } else if opts.resumes == 0 {
-        cfg.session_storage = Arc::new(rustls::server::NoServerSessionStorage {});
+        cfg.session_storage = Arc::new(server::NoServerSessionStorage {});
     }
 
     if !opts.protocols.is_empty() {
@@ -466,61 +459,73 @@ fn make_server_cfg(opts: &Options) -> Arc<rustls::ServerConfig> {
 
 struct ClientCacheWithoutKxHints {
     delay: u32,
-    storage: Arc<rustls::client::ClientSessionMemoryCache>,
+    storage: Arc<client::ClientSessionMemoryCache>,
 }
 
 impl ClientCacheWithoutKxHints {
     fn new(delay: u32) -> Arc<ClientCacheWithoutKxHints> {
         Arc::new(ClientCacheWithoutKxHints {
             delay,
-            storage: rustls::client::ClientSessionMemoryCache::new(32),
+            storage: Arc::new(client::ClientSessionMemoryCache::new(32)),
         })
     }
 }
 
-impl rustls::client::StoresClientSessions for ClientCacheWithoutKxHints {
-    fn put(&self, key: Vec<u8>, value: Vec<u8>) -> bool {
-        if key.len() > 2 && key[0] == b'k' && key[1] == b'x' {
-            return true;
-        }
-
-        let mut reader = Reader::init(&value[2..]);
-        let csv = CipherSuite::read_bytes(&value[..2])
-            .and_then(|suite| {
-                persist::ClientSessionValue::read(&mut reader, suite, &rustls::ALL_CIPHER_SUITES)
-            })
-            .unwrap();
-
-        let value = match csv {
-            persist::ClientSessionValue::Tls13(mut tls13) => {
-                tls13.common.rewind_epoch(self.delay);
-                tls13.get_encoding()
-            }
-            persist::ClientSessionValue::Tls12(mut tls12) => {
-                tls12.common.rewind_epoch(self.delay);
-                tls12.get_encoding()
-            }
-        };
-
-        self.storage.put(key, value)
+impl client::ClientSessionStore for ClientCacheWithoutKxHints {
+    fn set_kx_hint(&self, _: &ServerName, _: NamedGroup) {}
+    fn kx_hint(&self, _: &ServerName) -> Option<NamedGroup> {
+        None
     }
 
-    fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
-        self.storage.get(key)
+    fn set_tls12_session(
+        &self,
+        server_name: &ServerName,
+        mut value: client::Tls12ClientSessionValue,
+    ) {
+        value.rewind_epoch(self.delay);
+        self.storage
+            .set_tls12_session(server_name, value);
+    }
+
+    fn tls12_session(&self, server_name: &ServerName) -> Option<client::Tls12ClientSessionValue> {
+        self.storage.tls12_session(server_name)
+    }
+
+    fn remove_tls12_session(&self, server_name: &ServerName) {
+        self.storage
+            .remove_tls12_session(server_name);
+    }
+
+    fn insert_tls13_ticket(
+        &self,
+        server_name: &ServerName,
+        mut value: client::Tls13ClientSessionValue,
+    ) {
+        value.rewind_epoch(self.delay);
+        self.storage
+            .insert_tls13_ticket(server_name, value)
+    }
+
+    fn take_tls13_ticket(
+        &self,
+        server_name: &ServerName,
+    ) -> Option<client::Tls13ClientSessionValue> {
+        self.storage
+            .take_tls13_ticket(server_name)
     }
 }
 
-fn make_client_cfg(opts: &Options) -> Arc<rustls::ClientConfig> {
+fn make_client_cfg(opts: &Options) -> Arc<ClientConfig> {
     let kx_groups = if let Some(curves) = &opts.curves {
         curves
             .iter()
             .map(|curveid| lookup_kx_group(*curveid))
             .collect()
     } else {
-        rustls::ALL_KX_GROUPS.to_vec()
+        ALL_KX_GROUPS.to_vec()
     };
 
-    let cfg = rustls::ClientConfig::builder()
+    let cfg = ClientConfig::builder()
         .with_safe_default_cipher_suites()
         .with_kx_groups(&kx_groups)
         .with_protocol_versions(&opts.supported_versions())
@@ -545,8 +550,7 @@ fn make_client_cfg(opts: &Options) -> Arc<rustls::ClientConfig> {
         });
     }
 
-    let persist = ClientCacheWithoutKxHints::new(opts.resumption_delay);
-    cfg.session_storage = persist;
+    cfg.resumption = Resumption::store(ClientCacheWithoutKxHints::new(opts.resumption_delay));
     cfg.enable_sni = opts.use_sni;
     cfg.max_fragment_size = opts.max_fragment;
 
@@ -575,11 +579,7 @@ fn quit_err(why: &str) -> ! {
     process::exit(1)
 }
 
-fn handle_err(err: rustls::Error) -> ! {
-    use rustls::Error;
-    use rustls::{AlertDescription, ContentType};
-    use std::{thread, time};
-
+fn handle_err(err: Error) -> ! {
     println!("TLS error: {:?}", err);
     thread::sleep(time::Duration::from_millis(100));
 
@@ -595,27 +595,45 @@ fn handle_err(err: rustls::Error) -> ! {
         Error::AlertReceived(AlertDescription::InternalError) => {
             quit(":PEER_ALERT_INTERNAL_ERROR:")
         }
-        Error::CorruptMessagePayload(ContentType::Alert) => quit(":BAD_ALERT:"),
-        Error::CorruptMessagePayload(ContentType::ChangeCipherSpec) => {
-            quit(":BAD_CHANGE_CIPHER_SPEC:")
-        }
-        Error::CorruptMessagePayload(ContentType::Handshake) => quit(":BAD_HANDSHAKE_MSG:"),
-        Error::CorruptMessagePayload(ContentType::Unknown(42)) => quit(":GARBAGE:"),
-        Error::CorruptMessage => quit(":GARBAGE:"),
+        Error::InvalidMessage(
+            InvalidMessage::MissingData("AlertDescription")
+            | InvalidMessage::TrailingData("AlertMessagePayload"),
+        ) => quit(":BAD_ALERT:"),
+        Error::InvalidMessage(
+            InvalidMessage::TrailingData("ChangeCipherSpecPayload") | InvalidMessage::InvalidCcs,
+        ) => quit(":BAD_CHANGE_CIPHER_SPEC:"),
+        Error::InvalidMessage(
+            InvalidMessage::InvalidKeyUpdate
+            | InvalidMessage::MissingData(_)
+            | InvalidMessage::TrailingData(_)
+            | InvalidMessage::UnexpectedMessage("HelloRetryRequest")
+            | InvalidMessage::NoSignatureSchemes
+            | InvalidMessage::UnsupportedCompression,
+        ) => quit(":BAD_HANDSHAKE_MSG:"),
+        Error::InvalidMessage(InvalidMessage::InvalidCertRequest)
+        | Error::InvalidMessage(InvalidMessage::InvalidDhParams)
+        | Error::InvalidMessage(InvalidMessage::MissingKeyExchange) => quit(":BAD_HANDSHAKE_MSG:"),
+        Error::InvalidMessage(InvalidMessage::InvalidContentType)
+        | Error::InvalidMessage(InvalidMessage::InvalidEmptyPayload)
+        | Error::InvalidMessage(InvalidMessage::UnknownProtocolVersion)
+        | Error::InvalidMessage(InvalidMessage::MessageTooLarge) => quit(":GARBAGE:"),
+        Error::InvalidMessage(InvalidMessage::UnexpectedMessage(_)) => quit(":GARBAGE:"),
         Error::DecryptError => quit(":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:"),
-        Error::PeerIncompatibleError(_) => quit(":INCOMPATIBLE:"),
-        Error::PeerMisbehavedError(s) if s == "too much early_data received" => {
+        Error::PeerIncompatible(_) => quit(":INCOMPATIBLE:"),
+        Error::PeerMisbehaved(PeerMisbehaved::TooMuchEarlyDataReceived) => {
             quit(":TOO_MUCH_READ_EARLY_DATA:")
         }
-        Error::PeerMisbehavedError(_) => quit(":PEER_MISBEHAVIOUR:"),
+        Error::PeerMisbehaved(_) => quit(":PEER_MISBEHAVIOUR:"),
         Error::NoCertificatesPresented => quit(":NO_CERTS:"),
         Error::AlertReceived(AlertDescription::UnexpectedMessage) => quit(":BAD_ALERT:"),
         Error::AlertReceived(AlertDescription::DecompressionFailure) => {
             quit_err(":SSLV3_ALERT_DECOMPRESSION_FAILURE:")
         }
-        Error::InvalidCertificateEncoding => quit(":CANNOT_PARSE_LEAF_CERT:"),
-        Error::InvalidCertificateSignature => quit(":BAD_SIGNATURE:"),
-        Error::InvalidCertificateSignatureType => quit(":WRONG_SIGNATURE_TYPE:"),
+        Error::InvalidCertificate(CertificateError::BadEncoding) => {
+            quit(":CANNOT_PARSE_LEAF_CERT:")
+        }
+        Error::InvalidCertificate(CertificateError::BadSignature) => quit(":BAD_SIGNATURE:"),
+        Error::InvalidCertificate(e) => quit(&format!(":BAD_CERT: ({:?})", e)),
         Error::PeerSentOversizedRecord => quit(":DATA_LENGTH_TOO_LONG:"),
         _ => {
             println_err!("unhandled error: {:?}", err);
@@ -695,7 +713,7 @@ fn exec(opts: &Options, mut sess: Connection, count: usize) {
             }
         }
 
-        if opts.server && opts.enable_early_data {
+        if opts.side == Side::Server && opts.enable_early_data {
             if let Some(ref mut ed) = server(&mut sess).early_data() {
                 let mut data = Vec::new();
                 let data_len = ed
@@ -747,12 +765,17 @@ fn exec(opts: &Options, mut sess: Connection, count: usize) {
             let mut one_byte = [0u8];
             let mut cursor = io::Cursor::new(&mut one_byte[..]);
             sess.write_tls(&mut cursor).unwrap();
-            conn.write(&one_byte).expect("IO error");
+            conn.write_all(&one_byte)
+                .expect("IO error");
 
             quench_writes = true;
         }
 
-        if opts.enable_early_data && !opts.server && !sess.is_handshaking() && count > 0 {
+        if opts.enable_early_data
+            && opts.side == Side::Client
+            && !sess.is_handshaking()
+            && count > 0
+        {
             if opts.expect_accept_early_data && !client(&mut sess).is_early_data_accepted() {
                 quit_err("Early data was not accepted, but we expect the opposite");
             } else if opts.expect_reject_early_data && client(&mut sess).is_early_data_accepted() {
@@ -764,17 +787,6 @@ fn exec(opts: &Options, mut sess: Connection, count: usize) {
                     _ => quit_err("wrong protocol version"),
                 }
             }
-        }
-
-        if !sess.is_handshaking()
-            && !opts
-                .expect_quic_transport_params
-                .is_empty()
-        {
-            let their_transport_params = sess
-                .quic_transport_parameters()
-                .expect("missing peer quic transport params");
-            assert_eq!(opts.expect_quic_transport_params, their_transport_params);
         }
 
         let mut buf = [0u8; 1024];
@@ -842,7 +854,7 @@ fn main() {
                 opts.port = args.remove(0).parse::<u16>().unwrap();
             }
             "-server" => {
-                opts.server = true;
+                opts.side = Side::Server;
             }
             "-key-file" => {
                 opts.key_file = args.remove(0);
@@ -945,20 +957,20 @@ fn main() {
                 opts.export_keying_material_context_used = true;
             }
             "-quic-transport-params" => {
-                opts.quic_transport_params = base64::decode(args.remove(0).as_bytes())
+                opts.quic_transport_params = BASE64_STANDARD.decode(args.remove(0).as_bytes())
                     .expect("invalid base64");
             }
             "-expect-quic-transport-params" => {
-                opts.expect_quic_transport_params = base64::decode(args.remove(0).as_bytes())
+                opts.expect_quic_transport_params = BASE64_STANDARD.decode(args.remove(0).as_bytes())
                     .expect("invalid base64");
             }
 
             "-ocsp-response" => {
-                opts.server_ocsp_response = base64::decode(args.remove(0).as_bytes())
+                opts.server_ocsp_response = BASE64_STANDARD.decode(args.remove(0).as_bytes())
                     .expect("invalid base64");
             }
             "-signed-cert-timestamps" => {
-                opts.server_sct_list = base64::decode(args.remove(0).as_bytes())
+                opts.server_sct_list = BASE64_STANDARD.decode(args.remove(0).as_bytes())
                     .expect("invalid base64");
 
                 if opts.server_sct_list.len() == 2 &&
@@ -1132,35 +1144,26 @@ fn main() {
 
     println!("opts {:?}", opts);
 
-    let mut server_cfg = if opts.server {
-        Some(make_server_cfg(&opts))
-    } else {
-        None
-    };
-    let client_cfg = if !opts.server {
-        Some(make_client_cfg(&opts))
-    } else {
-        None
+    let (client_cfg, mut server_cfg) = match opts.side {
+        Side::Client => (Some(make_client_cfg(&opts)), None),
+        Side::Server => (None, Some(make_server_cfg(&opts))),
     };
 
     fn make_session(
         opts: &Options,
-        scfg: &Option<Arc<rustls::ServerConfig>>,
-        ccfg: &Option<Arc<rustls::ClientConfig>>,
+        scfg: &Option<Arc<ServerConfig>>,
+        ccfg: &Option<Arc<ClientConfig>>,
     ) -> Connection {
-        if opts.server {
+        assert!(opts.quic_transport_params.is_empty());
+        assert!(opts
+            .expect_quic_transport_params
+            .is_empty());
+
+        if opts.side == Side::Server {
             let scfg = Arc::clone(scfg.as_ref().unwrap());
-            let s = if opts.quic_transport_params.is_empty() {
-                rustls::ServerConnection::new(scfg).unwrap()
-            } else {
-                rustls::ServerConnection::new_quic(
-                    scfg,
-                    quic::Version::V1,
-                    opts.quic_transport_params.clone(),
-                )
+            ServerConnection::new(scfg)
                 .unwrap()
-            };
-            s.into()
+                .into()
         } else {
             let server_name = opts
                 .host_name
@@ -1168,25 +1171,16 @@ fn main() {
                 .try_into()
                 .unwrap();
             let ccfg = Arc::clone(ccfg.as_ref().unwrap());
-            let c = if opts.quic_transport_params.is_empty() {
-                rustls::ClientConnection::new(ccfg, server_name)
-            } else {
-                rustls::ClientConnection::new_quic(
-                    ccfg,
-                    quic::Version::V1,
-                    server_name,
-                    opts.quic_transport_params.clone(),
-                )
-            }
-            .unwrap();
-            c.into()
+
+            ClientConnection::new(ccfg, server_name)
+                .unwrap()
+                .into()
         }
     }
 
     for i in 0..opts.resumes + 1 {
         let sess = make_session(&opts, &server_cfg, &client_cfg);
         exec(&opts, sess, i);
-
         if opts.resume_with_tickets_disabled {
             opts.tickets = false;
             server_cfg = Some(make_server_cfg(&opts));

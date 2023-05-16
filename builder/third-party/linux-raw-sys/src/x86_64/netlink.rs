@@ -30,14 +30,17 @@ fn fmt(&self, fmt: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
 fmt.write_str("__IncompleteArrayField")
 }
 }
-pub const LINUX_VERSION_CODE: u32 = 332032;
-pub const LINUX_VERSION_MAJOR: u32 = 5;
-pub const LINUX_VERSION_PATCHLEVEL: u32 = 17;
+pub const LINUX_VERSION_CODE: u32 = 393984;
+pub const LINUX_VERSION_MAJOR: u32 = 6;
+pub const LINUX_VERSION_PATCHLEVEL: u32 = 3;
 pub const LINUX_VERSION_SUBLEVEL: u32 = 0;
 pub const _K_SS_MAXSIZE: u32 = 128;
 pub const SOCK_SNDBUF_LOCK: u32 = 1;
 pub const SOCK_RCVBUF_LOCK: u32 = 2;
 pub const SOCK_BUF_LOCK_MASK: u32 = 3;
+pub const SOCK_TXREHASH_DEFAULT: u32 = 255;
+pub const SOCK_TXREHASH_DISABLED: u32 = 0;
+pub const SOCK_TXREHASH_ENABLED: u32 = 1;
 pub const __BITS_PER_LONG: u32 = 64;
 pub const __FD_SETSIZE: u32 = 1024;
 pub const NETLINK_ROUTE: u32 = 0;
@@ -79,6 +82,7 @@ pub const NLM_F_EXCL: u32 = 512;
 pub const NLM_F_CREATE: u32 = 1024;
 pub const NLM_F_APPEND: u32 = 2048;
 pub const NLM_F_NONREC: u32 = 256;
+pub const NLM_F_BULK: u32 = 512;
 pub const NLM_F_CAPPED: u32 = 256;
 pub const NLM_F_ACK_TLVS: u32 = 512;
 pub const NLMSG_ALIGNTO: u32 = 4;
@@ -109,6 +113,8 @@ pub const MACVLAN_FLAG_NOPROMISC: u32 = 1;
 pub const MACVLAN_FLAG_NODST: u32 = 2;
 pub const IPVLAN_F_PRIVATE: u32 = 1;
 pub const IPVLAN_F_VEPA: u32 = 2;
+pub const TUNNEL_MSG_FLAG_STATS: u32 = 1;
+pub const TUNNEL_MSG_VALID_USER_FLAGS: u32 = 1;
 pub const MAX_VLAN_LIST_LEN: u32 = 1;
 pub const PORT_PROFILE_MAX: u32 = 40;
 pub const PORT_UUID_MAX: u32 = 16;
@@ -139,6 +145,10 @@ pub const IFA_F_MANAGETEMPADDR: u32 = 256;
 pub const IFA_F_NOPREFIXROUTE: u32 = 512;
 pub const IFA_F_MCAUTOJOIN: u32 = 1024;
 pub const IFA_F_STABLE_PRIVACY: u32 = 2048;
+pub const IFAPROT_UNSPEC: u32 = 0;
+pub const IFAPROT_KERNEL_LO: u32 = 1;
+pub const IFAPROT_KERNEL_RA: u32 = 2;
+pub const IFAPROT_KERNEL_LL: u32 = 3;
 pub const NTF_USE: u32 = 1;
 pub const NTF_SELF: u32 = 2;
 pub const NTF_MASTER: u32 = 4;
@@ -148,6 +158,7 @@ pub const NTF_OFFLOADED: u32 = 32;
 pub const NTF_STICKY: u32 = 64;
 pub const NTF_ROUTER: u32 = 128;
 pub const NTF_EXT_MANAGED: u32 = 1;
+pub const NTF_EXT_LOCKED: u32 = 2;
 pub const NUD_INCOMPLETE: u32 = 1;
 pub const NUD_REACHABLE: u32 = 2;
 pub const NUD_STALE: u32 = 4;
@@ -235,6 +246,7 @@ pub const RTEXT_FILTER_SKIP_STATS: u32 = 8;
 pub const RTEXT_FILTER_MRP: u32 = 16;
 pub const RTEXT_FILTER_CFM_CONFIG: u32 = 32;
 pub const RTEXT_FILTER_CFM_STATUS: u32 = 64;
+pub const RTEXT_FILTER_MST: u32 = 128;
 pub type size_t = crate::ctypes::c_ulong;
 pub type ssize_t = crate::ctypes::c_long;
 pub type __kernel_sa_family_t = crate::ctypes::c_ushort;
@@ -338,7 +350,7 @@ pub error: crate::ctypes::c_int,
 pub msg: nlmsghdr,
 }
 impl nlmsgerr_attrs {
-pub const NLMSGERR_ATTR_MAX: nlmsgerr_attrs = nlmsgerr_attrs::NLMSGERR_ATTR_POLICY;
+pub const NLMSGERR_ATTR_MAX: nlmsgerr_attrs = nlmsgerr_attrs::NLMSGERR_ATTR_MISS_NEST;
 }
 #[repr(u32)]
 #[non_exhaustive]
@@ -349,7 +361,9 @@ NLMSGERR_ATTR_MSG = 1,
 NLMSGERR_ATTR_OFFS = 2,
 NLMSGERR_ATTR_COOKIE = 3,
 NLMSGERR_ATTR_POLICY = 4,
-__NLMSGERR_ATTR_MAX = 5,
+NLMSGERR_ATTR_MISS_TYPE = 5,
+NLMSGERR_ATTR_MISS_NEST = 6,
+__NLMSGERR_ATTR_MAX = 7,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -503,6 +517,20 @@ pub tx_window_errors: __u64,
 pub rx_compressed: __u64,
 pub tx_compressed: __u64,
 pub rx_nohandler: __u64,
+pub rx_otherhost_dropped: __u64,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct rtnl_hw_stats64 {
+pub rx_packets: __u64,
+pub tx_packets: __u64,
+pub rx_bytes: __u64,
+pub tx_bytes: __u64,
+pub rx_errors: __u64,
+pub tx_errors: __u64,
+pub rx_dropped: __u64,
+pub tx_dropped: __u64,
+pub multicast: __u64,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -574,6 +602,12 @@ pub const IFLA_PROTO_DOWN_REASON: _bindgen_ty_2 = _bindgen_ty_2::IFLA_PROTO_DOWN
 pub const IFLA_PARENT_DEV_NAME: _bindgen_ty_2 = _bindgen_ty_2::IFLA_PARENT_DEV_NAME;
 pub const IFLA_PARENT_DEV_BUS_NAME: _bindgen_ty_2 = _bindgen_ty_2::IFLA_PARENT_DEV_BUS_NAME;
 pub const IFLA_GRO_MAX_SIZE: _bindgen_ty_2 = _bindgen_ty_2::IFLA_GRO_MAX_SIZE;
+pub const IFLA_TSO_MAX_SIZE: _bindgen_ty_2 = _bindgen_ty_2::IFLA_TSO_MAX_SIZE;
+pub const IFLA_TSO_MAX_SEGS: _bindgen_ty_2 = _bindgen_ty_2::IFLA_TSO_MAX_SEGS;
+pub const IFLA_ALLMULTI: _bindgen_ty_2 = _bindgen_ty_2::IFLA_ALLMULTI;
+pub const IFLA_DEVLINK_PORT: _bindgen_ty_2 = _bindgen_ty_2::IFLA_DEVLINK_PORT;
+pub const IFLA_GSO_IPV4_MAX_SIZE: _bindgen_ty_2 = _bindgen_ty_2::IFLA_GSO_IPV4_MAX_SIZE;
+pub const IFLA_GRO_IPV4_MAX_SIZE: _bindgen_ty_2 = _bindgen_ty_2::IFLA_GRO_IPV4_MAX_SIZE;
 pub const __IFLA_MAX: _bindgen_ty_2 = _bindgen_ty_2::__IFLA_MAX;
 #[repr(u32)]
 #[non_exhaustive]
@@ -638,7 +672,13 @@ IFLA_PROTO_DOWN_REASON = 55,
 IFLA_PARENT_DEV_NAME = 56,
 IFLA_PARENT_DEV_BUS_NAME = 57,
 IFLA_GRO_MAX_SIZE = 58,
-__IFLA_MAX = 59,
+IFLA_TSO_MAX_SIZE = 59,
+IFLA_TSO_MAX_SEGS = 60,
+IFLA_ALLMULTI = 61,
+IFLA_DEVLINK_PORT = 62,
+IFLA_GSO_IPV4_MAX_SIZE = 63,
+IFLA_GRO_IPV4_MAX_SIZE = 64,
+__IFLA_MAX = 65,
 }
 pub const IFLA_PROTO_DOWN_REASON_UNSPEC: _bindgen_ty_3 = _bindgen_ty_3::IFLA_PROTO_DOWN_REASON_UNSPEC;
 pub const IFLA_PROTO_DOWN_REASON_MASK: _bindgen_ty_3 = _bindgen_ty_3::IFLA_PROTO_DOWN_REASON_MASK;
@@ -858,6 +898,10 @@ pub const IFLA_BRPORT_MRP_RING_OPEN: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_
 pub const IFLA_BRPORT_MRP_IN_OPEN: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_MRP_IN_OPEN;
 pub const IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT;
 pub const IFLA_BRPORT_MCAST_EHT_HOSTS_CNT: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_MCAST_EHT_HOSTS_CNT;
+pub const IFLA_BRPORT_LOCKED: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_LOCKED;
+pub const IFLA_BRPORT_MAB: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_MAB;
+pub const IFLA_BRPORT_MCAST_N_GROUPS: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_MCAST_N_GROUPS;
+pub const IFLA_BRPORT_MCAST_MAX_GROUPS: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_MCAST_MAX_GROUPS;
 pub const __IFLA_BRPORT_MAX: _bindgen_ty_8 = _bindgen_ty_8::__IFLA_BRPORT_MAX;
 #[repr(u32)]
 #[non_exhaustive]
@@ -902,7 +946,11 @@ IFLA_BRPORT_MRP_RING_OPEN = 35,
 IFLA_BRPORT_MRP_IN_OPEN = 36,
 IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT = 37,
 IFLA_BRPORT_MCAST_EHT_HOSTS_CNT = 38,
-__IFLA_BRPORT_MAX = 39,
+IFLA_BRPORT_LOCKED = 39,
+IFLA_BRPORT_MAB = 40,
+IFLA_BRPORT_MCAST_N_GROUPS = 41,
+IFLA_BRPORT_MCAST_MAX_GROUPS = 42,
+__IFLA_BRPORT_MAX = 43,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1081,6 +1129,7 @@ __IFLA_MACSEC_MAX = 16,
 pub const IFLA_XFRM_UNSPEC: _bindgen_ty_16 = _bindgen_ty_16::IFLA_XFRM_UNSPEC;
 pub const IFLA_XFRM_LINK: _bindgen_ty_16 = _bindgen_ty_16::IFLA_XFRM_LINK;
 pub const IFLA_XFRM_IF_ID: _bindgen_ty_16 = _bindgen_ty_16::IFLA_XFRM_IF_ID;
+pub const IFLA_XFRM_COLLECT_METADATA: _bindgen_ty_16 = _bindgen_ty_16::IFLA_XFRM_COLLECT_METADATA;
 pub const __IFLA_XFRM_MAX: _bindgen_ty_16 = _bindgen_ty_16::__IFLA_XFRM_MAX;
 #[repr(u32)]
 #[non_exhaustive]
@@ -1089,7 +1138,8 @@ pub enum _bindgen_ty_16 {
 IFLA_XFRM_UNSPEC = 0,
 IFLA_XFRM_LINK = 1,
 IFLA_XFRM_IF_ID = 2,
-__IFLA_XFRM_MAX = 3,
+IFLA_XFRM_COLLECT_METADATA = 3,
+__IFLA_XFRM_MAX = 4,
 }
 impl macsec_validation_type {
 pub const MACSEC_VALIDATE_MAX: macsec_validation_type = macsec_validation_type::MACSEC_VALIDATE_STRICT;
@@ -1137,41 +1187,107 @@ IPVLAN_MODE_L3 = 1,
 IPVLAN_MODE_L3S = 2,
 IPVLAN_MODE_MAX = 3,
 }
-pub const IFLA_VXLAN_UNSPEC: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_UNSPEC;
-pub const IFLA_VXLAN_ID: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_ID;
-pub const IFLA_VXLAN_GROUP: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_GROUP;
-pub const IFLA_VXLAN_LINK: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_LINK;
-pub const IFLA_VXLAN_LOCAL: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_LOCAL;
-pub const IFLA_VXLAN_TTL: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_TTL;
-pub const IFLA_VXLAN_TOS: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_TOS;
-pub const IFLA_VXLAN_LEARNING: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_LEARNING;
-pub const IFLA_VXLAN_AGEING: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_AGEING;
-pub const IFLA_VXLAN_LIMIT: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_LIMIT;
-pub const IFLA_VXLAN_PORT_RANGE: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_PORT_RANGE;
-pub const IFLA_VXLAN_PROXY: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_PROXY;
-pub const IFLA_VXLAN_RSC: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_RSC;
-pub const IFLA_VXLAN_L2MISS: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_L2MISS;
-pub const IFLA_VXLAN_L3MISS: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_L3MISS;
-pub const IFLA_VXLAN_PORT: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_PORT;
-pub const IFLA_VXLAN_GROUP6: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_GROUP6;
-pub const IFLA_VXLAN_LOCAL6: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_LOCAL6;
-pub const IFLA_VXLAN_UDP_CSUM: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_UDP_CSUM;
-pub const IFLA_VXLAN_UDP_ZERO_CSUM6_TX: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_UDP_ZERO_CSUM6_TX;
-pub const IFLA_VXLAN_UDP_ZERO_CSUM6_RX: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_UDP_ZERO_CSUM6_RX;
-pub const IFLA_VXLAN_REMCSUM_TX: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_REMCSUM_TX;
-pub const IFLA_VXLAN_REMCSUM_RX: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_REMCSUM_RX;
-pub const IFLA_VXLAN_GBP: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_GBP;
-pub const IFLA_VXLAN_REMCSUM_NOPARTIAL: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_REMCSUM_NOPARTIAL;
-pub const IFLA_VXLAN_COLLECT_METADATA: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_COLLECT_METADATA;
-pub const IFLA_VXLAN_LABEL: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_LABEL;
-pub const IFLA_VXLAN_GPE: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_GPE;
-pub const IFLA_VXLAN_TTL_INHERIT: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_TTL_INHERIT;
-pub const IFLA_VXLAN_DF: _bindgen_ty_18 = _bindgen_ty_18::IFLA_VXLAN_DF;
-pub const __IFLA_VXLAN_MAX: _bindgen_ty_18 = _bindgen_ty_18::__IFLA_VXLAN_MAX;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct tunnel_msg {
+pub family: __u8,
+pub flags: __u8,
+pub reserved2: __u16,
+pub ifindex: __u32,
+}
+pub const VNIFILTER_ENTRY_STATS_UNSPEC: _bindgen_ty_18 = _bindgen_ty_18::VNIFILTER_ENTRY_STATS_UNSPEC;
+pub const VNIFILTER_ENTRY_STATS_RX_BYTES: _bindgen_ty_18 = _bindgen_ty_18::VNIFILTER_ENTRY_STATS_RX_BYTES;
+pub const VNIFILTER_ENTRY_STATS_RX_PKTS: _bindgen_ty_18 = _bindgen_ty_18::VNIFILTER_ENTRY_STATS_RX_PKTS;
+pub const VNIFILTER_ENTRY_STATS_RX_DROPS: _bindgen_ty_18 = _bindgen_ty_18::VNIFILTER_ENTRY_STATS_RX_DROPS;
+pub const VNIFILTER_ENTRY_STATS_RX_ERRORS: _bindgen_ty_18 = _bindgen_ty_18::VNIFILTER_ENTRY_STATS_RX_ERRORS;
+pub const VNIFILTER_ENTRY_STATS_TX_BYTES: _bindgen_ty_18 = _bindgen_ty_18::VNIFILTER_ENTRY_STATS_TX_BYTES;
+pub const VNIFILTER_ENTRY_STATS_TX_PKTS: _bindgen_ty_18 = _bindgen_ty_18::VNIFILTER_ENTRY_STATS_TX_PKTS;
+pub const VNIFILTER_ENTRY_STATS_TX_DROPS: _bindgen_ty_18 = _bindgen_ty_18::VNIFILTER_ENTRY_STATS_TX_DROPS;
+pub const VNIFILTER_ENTRY_STATS_TX_ERRORS: _bindgen_ty_18 = _bindgen_ty_18::VNIFILTER_ENTRY_STATS_TX_ERRORS;
+pub const VNIFILTER_ENTRY_STATS_PAD: _bindgen_ty_18 = _bindgen_ty_18::VNIFILTER_ENTRY_STATS_PAD;
+pub const __VNIFILTER_ENTRY_STATS_MAX: _bindgen_ty_18 = _bindgen_ty_18::__VNIFILTER_ENTRY_STATS_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum _bindgen_ty_18 {
+VNIFILTER_ENTRY_STATS_UNSPEC = 0,
+VNIFILTER_ENTRY_STATS_RX_BYTES = 1,
+VNIFILTER_ENTRY_STATS_RX_PKTS = 2,
+VNIFILTER_ENTRY_STATS_RX_DROPS = 3,
+VNIFILTER_ENTRY_STATS_RX_ERRORS = 4,
+VNIFILTER_ENTRY_STATS_TX_BYTES = 5,
+VNIFILTER_ENTRY_STATS_TX_PKTS = 6,
+VNIFILTER_ENTRY_STATS_TX_DROPS = 7,
+VNIFILTER_ENTRY_STATS_TX_ERRORS = 8,
+VNIFILTER_ENTRY_STATS_PAD = 9,
+__VNIFILTER_ENTRY_STATS_MAX = 10,
+}
+pub const VXLAN_VNIFILTER_ENTRY_UNSPEC: _bindgen_ty_19 = _bindgen_ty_19::VXLAN_VNIFILTER_ENTRY_UNSPEC;
+pub const VXLAN_VNIFILTER_ENTRY_START: _bindgen_ty_19 = _bindgen_ty_19::VXLAN_VNIFILTER_ENTRY_START;
+pub const VXLAN_VNIFILTER_ENTRY_END: _bindgen_ty_19 = _bindgen_ty_19::VXLAN_VNIFILTER_ENTRY_END;
+pub const VXLAN_VNIFILTER_ENTRY_GROUP: _bindgen_ty_19 = _bindgen_ty_19::VXLAN_VNIFILTER_ENTRY_GROUP;
+pub const VXLAN_VNIFILTER_ENTRY_GROUP6: _bindgen_ty_19 = _bindgen_ty_19::VXLAN_VNIFILTER_ENTRY_GROUP6;
+pub const VXLAN_VNIFILTER_ENTRY_STATS: _bindgen_ty_19 = _bindgen_ty_19::VXLAN_VNIFILTER_ENTRY_STATS;
+pub const __VXLAN_VNIFILTER_ENTRY_MAX: _bindgen_ty_19 = _bindgen_ty_19::__VXLAN_VNIFILTER_ENTRY_MAX;
+#[repr(u32)]
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum _bindgen_ty_19 {
+VXLAN_VNIFILTER_ENTRY_UNSPEC = 0,
+VXLAN_VNIFILTER_ENTRY_START = 1,
+VXLAN_VNIFILTER_ENTRY_END = 2,
+VXLAN_VNIFILTER_ENTRY_GROUP = 3,
+VXLAN_VNIFILTER_ENTRY_GROUP6 = 4,
+VXLAN_VNIFILTER_ENTRY_STATS = 5,
+__VXLAN_VNIFILTER_ENTRY_MAX = 6,
+}
+pub const VXLAN_VNIFILTER_UNSPEC: _bindgen_ty_20 = _bindgen_ty_20::VXLAN_VNIFILTER_UNSPEC;
+pub const VXLAN_VNIFILTER_ENTRY: _bindgen_ty_20 = _bindgen_ty_20::VXLAN_VNIFILTER_ENTRY;
+pub const __VXLAN_VNIFILTER_MAX: _bindgen_ty_20 = _bindgen_ty_20::__VXLAN_VNIFILTER_MAX;
+#[repr(u32)]
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum _bindgen_ty_20 {
+VXLAN_VNIFILTER_UNSPEC = 0,
+VXLAN_VNIFILTER_ENTRY = 1,
+__VXLAN_VNIFILTER_MAX = 2,
+}
+pub const IFLA_VXLAN_UNSPEC: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_UNSPEC;
+pub const IFLA_VXLAN_ID: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_ID;
+pub const IFLA_VXLAN_GROUP: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_GROUP;
+pub const IFLA_VXLAN_LINK: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_LINK;
+pub const IFLA_VXLAN_LOCAL: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_LOCAL;
+pub const IFLA_VXLAN_TTL: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_TTL;
+pub const IFLA_VXLAN_TOS: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_TOS;
+pub const IFLA_VXLAN_LEARNING: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_LEARNING;
+pub const IFLA_VXLAN_AGEING: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_AGEING;
+pub const IFLA_VXLAN_LIMIT: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_LIMIT;
+pub const IFLA_VXLAN_PORT_RANGE: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_PORT_RANGE;
+pub const IFLA_VXLAN_PROXY: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_PROXY;
+pub const IFLA_VXLAN_RSC: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_RSC;
+pub const IFLA_VXLAN_L2MISS: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_L2MISS;
+pub const IFLA_VXLAN_L3MISS: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_L3MISS;
+pub const IFLA_VXLAN_PORT: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_PORT;
+pub const IFLA_VXLAN_GROUP6: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_GROUP6;
+pub const IFLA_VXLAN_LOCAL6: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_LOCAL6;
+pub const IFLA_VXLAN_UDP_CSUM: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_UDP_CSUM;
+pub const IFLA_VXLAN_UDP_ZERO_CSUM6_TX: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_UDP_ZERO_CSUM6_TX;
+pub const IFLA_VXLAN_UDP_ZERO_CSUM6_RX: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_UDP_ZERO_CSUM6_RX;
+pub const IFLA_VXLAN_REMCSUM_TX: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_REMCSUM_TX;
+pub const IFLA_VXLAN_REMCSUM_RX: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_REMCSUM_RX;
+pub const IFLA_VXLAN_GBP: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_GBP;
+pub const IFLA_VXLAN_REMCSUM_NOPARTIAL: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_REMCSUM_NOPARTIAL;
+pub const IFLA_VXLAN_COLLECT_METADATA: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_COLLECT_METADATA;
+pub const IFLA_VXLAN_LABEL: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_LABEL;
+pub const IFLA_VXLAN_GPE: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_GPE;
+pub const IFLA_VXLAN_TTL_INHERIT: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_TTL_INHERIT;
+pub const IFLA_VXLAN_DF: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_DF;
+pub const IFLA_VXLAN_VNIFILTER: _bindgen_ty_21 = _bindgen_ty_21::IFLA_VXLAN_VNIFILTER;
+pub const __IFLA_VXLAN_MAX: _bindgen_ty_21 = _bindgen_ty_21::__IFLA_VXLAN_MAX;
+#[repr(u32)]
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum _bindgen_ty_21 {
 IFLA_VXLAN_UNSPEC = 0,
 IFLA_VXLAN_ID = 1,
 IFLA_VXLAN_GROUP = 2,
@@ -1202,7 +1318,8 @@ IFLA_VXLAN_LABEL = 26,
 IFLA_VXLAN_GPE = 27,
 IFLA_VXLAN_TTL_INHERIT = 28,
 IFLA_VXLAN_DF = 29,
-__IFLA_VXLAN_MAX = 30,
+IFLA_VXLAN_VNIFILTER = 30,
+__IFLA_VXLAN_MAX = 31,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1222,25 +1339,26 @@ VXLAN_DF_SET = 1,
 VXLAN_DF_INHERIT = 2,
 __VXLAN_DF_END = 3,
 }
-pub const IFLA_GENEVE_UNSPEC: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_UNSPEC;
-pub const IFLA_GENEVE_ID: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_ID;
-pub const IFLA_GENEVE_REMOTE: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_REMOTE;
-pub const IFLA_GENEVE_TTL: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_TTL;
-pub const IFLA_GENEVE_TOS: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_TOS;
-pub const IFLA_GENEVE_PORT: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_PORT;
-pub const IFLA_GENEVE_COLLECT_METADATA: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_COLLECT_METADATA;
-pub const IFLA_GENEVE_REMOTE6: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_REMOTE6;
-pub const IFLA_GENEVE_UDP_CSUM: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_UDP_CSUM;
-pub const IFLA_GENEVE_UDP_ZERO_CSUM6_TX: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_UDP_ZERO_CSUM6_TX;
-pub const IFLA_GENEVE_UDP_ZERO_CSUM6_RX: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_UDP_ZERO_CSUM6_RX;
-pub const IFLA_GENEVE_LABEL: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_LABEL;
-pub const IFLA_GENEVE_TTL_INHERIT: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_TTL_INHERIT;
-pub const IFLA_GENEVE_DF: _bindgen_ty_19 = _bindgen_ty_19::IFLA_GENEVE_DF;
-pub const __IFLA_GENEVE_MAX: _bindgen_ty_19 = _bindgen_ty_19::__IFLA_GENEVE_MAX;
+pub const IFLA_GENEVE_UNSPEC: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_UNSPEC;
+pub const IFLA_GENEVE_ID: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_ID;
+pub const IFLA_GENEVE_REMOTE: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_REMOTE;
+pub const IFLA_GENEVE_TTL: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_TTL;
+pub const IFLA_GENEVE_TOS: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_TOS;
+pub const IFLA_GENEVE_PORT: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_PORT;
+pub const IFLA_GENEVE_COLLECT_METADATA: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_COLLECT_METADATA;
+pub const IFLA_GENEVE_REMOTE6: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_REMOTE6;
+pub const IFLA_GENEVE_UDP_CSUM: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_UDP_CSUM;
+pub const IFLA_GENEVE_UDP_ZERO_CSUM6_TX: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_UDP_ZERO_CSUM6_TX;
+pub const IFLA_GENEVE_UDP_ZERO_CSUM6_RX: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_UDP_ZERO_CSUM6_RX;
+pub const IFLA_GENEVE_LABEL: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_LABEL;
+pub const IFLA_GENEVE_TTL_INHERIT: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_TTL_INHERIT;
+pub const IFLA_GENEVE_DF: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_DF;
+pub const IFLA_GENEVE_INNER_PROTO_INHERIT: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GENEVE_INNER_PROTO_INHERIT;
+pub const __IFLA_GENEVE_MAX: _bindgen_ty_22 = _bindgen_ty_22::__IFLA_GENEVE_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_19 {
+pub enum _bindgen_ty_22 {
 IFLA_GENEVE_UNSPEC = 0,
 IFLA_GENEVE_ID = 1,
 IFLA_GENEVE_REMOTE = 2,
@@ -1255,7 +1373,8 @@ IFLA_GENEVE_UDP_ZERO_CSUM6_RX = 10,
 IFLA_GENEVE_LABEL = 11,
 IFLA_GENEVE_TTL_INHERIT = 12,
 IFLA_GENEVE_DF = 13,
-__IFLA_GENEVE_MAX = 14,
+IFLA_GENEVE_INNER_PROTO_INHERIT = 14,
+__IFLA_GENEVE_MAX = 15,
 }
 impl ifla_geneve_df {
 pub const GENEVE_DF_MAX: ifla_geneve_df = ifla_geneve_df::GENEVE_DF_INHERIT;
@@ -1269,16 +1388,16 @@ GENEVE_DF_SET = 1,
 GENEVE_DF_INHERIT = 2,
 __GENEVE_DF_END = 3,
 }
-pub const IFLA_BAREUDP_UNSPEC: _bindgen_ty_20 = _bindgen_ty_20::IFLA_BAREUDP_UNSPEC;
-pub const IFLA_BAREUDP_PORT: _bindgen_ty_20 = _bindgen_ty_20::IFLA_BAREUDP_PORT;
-pub const IFLA_BAREUDP_ETHERTYPE: _bindgen_ty_20 = _bindgen_ty_20::IFLA_BAREUDP_ETHERTYPE;
-pub const IFLA_BAREUDP_SRCPORT_MIN: _bindgen_ty_20 = _bindgen_ty_20::IFLA_BAREUDP_SRCPORT_MIN;
-pub const IFLA_BAREUDP_MULTIPROTO_MODE: _bindgen_ty_20 = _bindgen_ty_20::IFLA_BAREUDP_MULTIPROTO_MODE;
-pub const __IFLA_BAREUDP_MAX: _bindgen_ty_20 = _bindgen_ty_20::__IFLA_BAREUDP_MAX;
+pub const IFLA_BAREUDP_UNSPEC: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BAREUDP_UNSPEC;
+pub const IFLA_BAREUDP_PORT: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BAREUDP_PORT;
+pub const IFLA_BAREUDP_ETHERTYPE: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BAREUDP_ETHERTYPE;
+pub const IFLA_BAREUDP_SRCPORT_MIN: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BAREUDP_SRCPORT_MIN;
+pub const IFLA_BAREUDP_MULTIPROTO_MODE: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BAREUDP_MULTIPROTO_MODE;
+pub const __IFLA_BAREUDP_MAX: _bindgen_ty_23 = _bindgen_ty_23::__IFLA_BAREUDP_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_20 {
+pub enum _bindgen_ty_23 {
 IFLA_BAREUDP_UNSPEC = 0,
 IFLA_BAREUDP_PORT = 1,
 IFLA_BAREUDP_ETHERTYPE = 2,
@@ -1286,13 +1405,13 @@ IFLA_BAREUDP_SRCPORT_MIN = 3,
 IFLA_BAREUDP_MULTIPROTO_MODE = 4,
 __IFLA_BAREUDP_MAX = 5,
 }
-pub const IFLA_PPP_UNSPEC: _bindgen_ty_21 = _bindgen_ty_21::IFLA_PPP_UNSPEC;
-pub const IFLA_PPP_DEV_FD: _bindgen_ty_21 = _bindgen_ty_21::IFLA_PPP_DEV_FD;
-pub const __IFLA_PPP_MAX: _bindgen_ty_21 = _bindgen_ty_21::__IFLA_PPP_MAX;
+pub const IFLA_PPP_UNSPEC: _bindgen_ty_24 = _bindgen_ty_24::IFLA_PPP_UNSPEC;
+pub const IFLA_PPP_DEV_FD: _bindgen_ty_24 = _bindgen_ty_24::IFLA_PPP_DEV_FD;
+pub const __IFLA_PPP_MAX: _bindgen_ty_24 = _bindgen_ty_24::__IFLA_PPP_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_21 {
+pub enum _bindgen_ty_24 {
 IFLA_PPP_UNSPEC = 0,
 IFLA_PPP_DEV_FD = 1,
 __IFLA_PPP_MAX = 2,
@@ -1304,59 +1423,64 @@ pub enum ifla_gtp_role {
 GTP_ROLE_GGSN = 0,
 GTP_ROLE_SGSN = 1,
 }
-pub const IFLA_GTP_UNSPEC: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GTP_UNSPEC;
-pub const IFLA_GTP_FD0: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GTP_FD0;
-pub const IFLA_GTP_FD1: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GTP_FD1;
-pub const IFLA_GTP_PDP_HASHSIZE: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GTP_PDP_HASHSIZE;
-pub const IFLA_GTP_ROLE: _bindgen_ty_22 = _bindgen_ty_22::IFLA_GTP_ROLE;
-pub const __IFLA_GTP_MAX: _bindgen_ty_22 = _bindgen_ty_22::__IFLA_GTP_MAX;
+pub const IFLA_GTP_UNSPEC: _bindgen_ty_25 = _bindgen_ty_25::IFLA_GTP_UNSPEC;
+pub const IFLA_GTP_FD0: _bindgen_ty_25 = _bindgen_ty_25::IFLA_GTP_FD0;
+pub const IFLA_GTP_FD1: _bindgen_ty_25 = _bindgen_ty_25::IFLA_GTP_FD1;
+pub const IFLA_GTP_PDP_HASHSIZE: _bindgen_ty_25 = _bindgen_ty_25::IFLA_GTP_PDP_HASHSIZE;
+pub const IFLA_GTP_ROLE: _bindgen_ty_25 = _bindgen_ty_25::IFLA_GTP_ROLE;
+pub const IFLA_GTP_CREATE_SOCKETS: _bindgen_ty_25 = _bindgen_ty_25::IFLA_GTP_CREATE_SOCKETS;
+pub const IFLA_GTP_RESTART_COUNT: _bindgen_ty_25 = _bindgen_ty_25::IFLA_GTP_RESTART_COUNT;
+pub const __IFLA_GTP_MAX: _bindgen_ty_25 = _bindgen_ty_25::__IFLA_GTP_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_22 {
+pub enum _bindgen_ty_25 {
 IFLA_GTP_UNSPEC = 0,
 IFLA_GTP_FD0 = 1,
 IFLA_GTP_FD1 = 2,
 IFLA_GTP_PDP_HASHSIZE = 3,
 IFLA_GTP_ROLE = 4,
-__IFLA_GTP_MAX = 5,
+IFLA_GTP_CREATE_SOCKETS = 5,
+IFLA_GTP_RESTART_COUNT = 6,
+__IFLA_GTP_MAX = 7,
 }
-pub const IFLA_BOND_UNSPEC: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_UNSPEC;
-pub const IFLA_BOND_MODE: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_MODE;
-pub const IFLA_BOND_ACTIVE_SLAVE: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_ACTIVE_SLAVE;
-pub const IFLA_BOND_MIIMON: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_MIIMON;
-pub const IFLA_BOND_UPDELAY: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_UPDELAY;
-pub const IFLA_BOND_DOWNDELAY: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_DOWNDELAY;
-pub const IFLA_BOND_USE_CARRIER: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_USE_CARRIER;
-pub const IFLA_BOND_ARP_INTERVAL: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_ARP_INTERVAL;
-pub const IFLA_BOND_ARP_IP_TARGET: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_ARP_IP_TARGET;
-pub const IFLA_BOND_ARP_VALIDATE: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_ARP_VALIDATE;
-pub const IFLA_BOND_ARP_ALL_TARGETS: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_ARP_ALL_TARGETS;
-pub const IFLA_BOND_PRIMARY: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_PRIMARY;
-pub const IFLA_BOND_PRIMARY_RESELECT: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_PRIMARY_RESELECT;
-pub const IFLA_BOND_FAIL_OVER_MAC: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_FAIL_OVER_MAC;
-pub const IFLA_BOND_XMIT_HASH_POLICY: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_XMIT_HASH_POLICY;
-pub const IFLA_BOND_RESEND_IGMP: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_RESEND_IGMP;
-pub const IFLA_BOND_NUM_PEER_NOTIF: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_NUM_PEER_NOTIF;
-pub const IFLA_BOND_ALL_SLAVES_ACTIVE: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_ALL_SLAVES_ACTIVE;
-pub const IFLA_BOND_MIN_LINKS: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_MIN_LINKS;
-pub const IFLA_BOND_LP_INTERVAL: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_LP_INTERVAL;
-pub const IFLA_BOND_PACKETS_PER_SLAVE: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_PACKETS_PER_SLAVE;
-pub const IFLA_BOND_AD_LACP_RATE: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_AD_LACP_RATE;
-pub const IFLA_BOND_AD_SELECT: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_AD_SELECT;
-pub const IFLA_BOND_AD_INFO: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_AD_INFO;
-pub const IFLA_BOND_AD_ACTOR_SYS_PRIO: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_AD_ACTOR_SYS_PRIO;
-pub const IFLA_BOND_AD_USER_PORT_KEY: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_AD_USER_PORT_KEY;
-pub const IFLA_BOND_AD_ACTOR_SYSTEM: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_AD_ACTOR_SYSTEM;
-pub const IFLA_BOND_TLB_DYNAMIC_LB: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_TLB_DYNAMIC_LB;
-pub const IFLA_BOND_PEER_NOTIF_DELAY: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_PEER_NOTIF_DELAY;
-pub const IFLA_BOND_AD_LACP_ACTIVE: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_AD_LACP_ACTIVE;
-pub const IFLA_BOND_MISSED_MAX: _bindgen_ty_23 = _bindgen_ty_23::IFLA_BOND_MISSED_MAX;
-pub const __IFLA_BOND_MAX: _bindgen_ty_23 = _bindgen_ty_23::__IFLA_BOND_MAX;
+pub const IFLA_BOND_UNSPEC: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_UNSPEC;
+pub const IFLA_BOND_MODE: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_MODE;
+pub const IFLA_BOND_ACTIVE_SLAVE: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_ACTIVE_SLAVE;
+pub const IFLA_BOND_MIIMON: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_MIIMON;
+pub const IFLA_BOND_UPDELAY: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_UPDELAY;
+pub const IFLA_BOND_DOWNDELAY: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_DOWNDELAY;
+pub const IFLA_BOND_USE_CARRIER: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_USE_CARRIER;
+pub const IFLA_BOND_ARP_INTERVAL: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_ARP_INTERVAL;
+pub const IFLA_BOND_ARP_IP_TARGET: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_ARP_IP_TARGET;
+pub const IFLA_BOND_ARP_VALIDATE: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_ARP_VALIDATE;
+pub const IFLA_BOND_ARP_ALL_TARGETS: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_ARP_ALL_TARGETS;
+pub const IFLA_BOND_PRIMARY: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_PRIMARY;
+pub const IFLA_BOND_PRIMARY_RESELECT: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_PRIMARY_RESELECT;
+pub const IFLA_BOND_FAIL_OVER_MAC: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_FAIL_OVER_MAC;
+pub const IFLA_BOND_XMIT_HASH_POLICY: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_XMIT_HASH_POLICY;
+pub const IFLA_BOND_RESEND_IGMP: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_RESEND_IGMP;
+pub const IFLA_BOND_NUM_PEER_NOTIF: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_NUM_PEER_NOTIF;
+pub const IFLA_BOND_ALL_SLAVES_ACTIVE: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_ALL_SLAVES_ACTIVE;
+pub const IFLA_BOND_MIN_LINKS: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_MIN_LINKS;
+pub const IFLA_BOND_LP_INTERVAL: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_LP_INTERVAL;
+pub const IFLA_BOND_PACKETS_PER_SLAVE: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_PACKETS_PER_SLAVE;
+pub const IFLA_BOND_AD_LACP_RATE: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_AD_LACP_RATE;
+pub const IFLA_BOND_AD_SELECT: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_AD_SELECT;
+pub const IFLA_BOND_AD_INFO: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_AD_INFO;
+pub const IFLA_BOND_AD_ACTOR_SYS_PRIO: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_AD_ACTOR_SYS_PRIO;
+pub const IFLA_BOND_AD_USER_PORT_KEY: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_AD_USER_PORT_KEY;
+pub const IFLA_BOND_AD_ACTOR_SYSTEM: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_AD_ACTOR_SYSTEM;
+pub const IFLA_BOND_TLB_DYNAMIC_LB: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_TLB_DYNAMIC_LB;
+pub const IFLA_BOND_PEER_NOTIF_DELAY: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_PEER_NOTIF_DELAY;
+pub const IFLA_BOND_AD_LACP_ACTIVE: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_AD_LACP_ACTIVE;
+pub const IFLA_BOND_MISSED_MAX: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_MISSED_MAX;
+pub const IFLA_BOND_NS_IP6_TARGET: _bindgen_ty_26 = _bindgen_ty_26::IFLA_BOND_NS_IP6_TARGET;
+pub const __IFLA_BOND_MAX: _bindgen_ty_26 = _bindgen_ty_26::__IFLA_BOND_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_23 {
+pub enum _bindgen_ty_26 {
 IFLA_BOND_UNSPEC = 0,
 IFLA_BOND_MODE = 1,
 IFLA_BOND_ACTIVE_SLAVE = 2,
@@ -1388,19 +1512,20 @@ IFLA_BOND_TLB_DYNAMIC_LB = 27,
 IFLA_BOND_PEER_NOTIF_DELAY = 28,
 IFLA_BOND_AD_LACP_ACTIVE = 29,
 IFLA_BOND_MISSED_MAX = 30,
-__IFLA_BOND_MAX = 31,
+IFLA_BOND_NS_IP6_TARGET = 31,
+__IFLA_BOND_MAX = 32,
 }
-pub const IFLA_BOND_AD_INFO_UNSPEC: _bindgen_ty_24 = _bindgen_ty_24::IFLA_BOND_AD_INFO_UNSPEC;
-pub const IFLA_BOND_AD_INFO_AGGREGATOR: _bindgen_ty_24 = _bindgen_ty_24::IFLA_BOND_AD_INFO_AGGREGATOR;
-pub const IFLA_BOND_AD_INFO_NUM_PORTS: _bindgen_ty_24 = _bindgen_ty_24::IFLA_BOND_AD_INFO_NUM_PORTS;
-pub const IFLA_BOND_AD_INFO_ACTOR_KEY: _bindgen_ty_24 = _bindgen_ty_24::IFLA_BOND_AD_INFO_ACTOR_KEY;
-pub const IFLA_BOND_AD_INFO_PARTNER_KEY: _bindgen_ty_24 = _bindgen_ty_24::IFLA_BOND_AD_INFO_PARTNER_KEY;
-pub const IFLA_BOND_AD_INFO_PARTNER_MAC: _bindgen_ty_24 = _bindgen_ty_24::IFLA_BOND_AD_INFO_PARTNER_MAC;
-pub const __IFLA_BOND_AD_INFO_MAX: _bindgen_ty_24 = _bindgen_ty_24::__IFLA_BOND_AD_INFO_MAX;
+pub const IFLA_BOND_AD_INFO_UNSPEC: _bindgen_ty_27 = _bindgen_ty_27::IFLA_BOND_AD_INFO_UNSPEC;
+pub const IFLA_BOND_AD_INFO_AGGREGATOR: _bindgen_ty_27 = _bindgen_ty_27::IFLA_BOND_AD_INFO_AGGREGATOR;
+pub const IFLA_BOND_AD_INFO_NUM_PORTS: _bindgen_ty_27 = _bindgen_ty_27::IFLA_BOND_AD_INFO_NUM_PORTS;
+pub const IFLA_BOND_AD_INFO_ACTOR_KEY: _bindgen_ty_27 = _bindgen_ty_27::IFLA_BOND_AD_INFO_ACTOR_KEY;
+pub const IFLA_BOND_AD_INFO_PARTNER_KEY: _bindgen_ty_27 = _bindgen_ty_27::IFLA_BOND_AD_INFO_PARTNER_KEY;
+pub const IFLA_BOND_AD_INFO_PARTNER_MAC: _bindgen_ty_27 = _bindgen_ty_27::IFLA_BOND_AD_INFO_PARTNER_MAC;
+pub const __IFLA_BOND_AD_INFO_MAX: _bindgen_ty_27 = _bindgen_ty_27::__IFLA_BOND_AD_INFO_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_24 {
+pub enum _bindgen_ty_27 {
 IFLA_BOND_AD_INFO_UNSPEC = 0,
 IFLA_BOND_AD_INFO_AGGREGATOR = 1,
 IFLA_BOND_AD_INFO_NUM_PORTS = 2,
@@ -1409,20 +1534,21 @@ IFLA_BOND_AD_INFO_PARTNER_KEY = 4,
 IFLA_BOND_AD_INFO_PARTNER_MAC = 5,
 __IFLA_BOND_AD_INFO_MAX = 6,
 }
-pub const IFLA_BOND_SLAVE_UNSPEC: _bindgen_ty_25 = _bindgen_ty_25::IFLA_BOND_SLAVE_UNSPEC;
-pub const IFLA_BOND_SLAVE_STATE: _bindgen_ty_25 = _bindgen_ty_25::IFLA_BOND_SLAVE_STATE;
-pub const IFLA_BOND_SLAVE_MII_STATUS: _bindgen_ty_25 = _bindgen_ty_25::IFLA_BOND_SLAVE_MII_STATUS;
-pub const IFLA_BOND_SLAVE_LINK_FAILURE_COUNT: _bindgen_ty_25 = _bindgen_ty_25::IFLA_BOND_SLAVE_LINK_FAILURE_COUNT;
-pub const IFLA_BOND_SLAVE_PERM_HWADDR: _bindgen_ty_25 = _bindgen_ty_25::IFLA_BOND_SLAVE_PERM_HWADDR;
-pub const IFLA_BOND_SLAVE_QUEUE_ID: _bindgen_ty_25 = _bindgen_ty_25::IFLA_BOND_SLAVE_QUEUE_ID;
-pub const IFLA_BOND_SLAVE_AD_AGGREGATOR_ID: _bindgen_ty_25 = _bindgen_ty_25::IFLA_BOND_SLAVE_AD_AGGREGATOR_ID;
-pub const IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE: _bindgen_ty_25 = _bindgen_ty_25::IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE;
-pub const IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE: _bindgen_ty_25 = _bindgen_ty_25::IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE;
-pub const __IFLA_BOND_SLAVE_MAX: _bindgen_ty_25 = _bindgen_ty_25::__IFLA_BOND_SLAVE_MAX;
+pub const IFLA_BOND_SLAVE_UNSPEC: _bindgen_ty_28 = _bindgen_ty_28::IFLA_BOND_SLAVE_UNSPEC;
+pub const IFLA_BOND_SLAVE_STATE: _bindgen_ty_28 = _bindgen_ty_28::IFLA_BOND_SLAVE_STATE;
+pub const IFLA_BOND_SLAVE_MII_STATUS: _bindgen_ty_28 = _bindgen_ty_28::IFLA_BOND_SLAVE_MII_STATUS;
+pub const IFLA_BOND_SLAVE_LINK_FAILURE_COUNT: _bindgen_ty_28 = _bindgen_ty_28::IFLA_BOND_SLAVE_LINK_FAILURE_COUNT;
+pub const IFLA_BOND_SLAVE_PERM_HWADDR: _bindgen_ty_28 = _bindgen_ty_28::IFLA_BOND_SLAVE_PERM_HWADDR;
+pub const IFLA_BOND_SLAVE_QUEUE_ID: _bindgen_ty_28 = _bindgen_ty_28::IFLA_BOND_SLAVE_QUEUE_ID;
+pub const IFLA_BOND_SLAVE_AD_AGGREGATOR_ID: _bindgen_ty_28 = _bindgen_ty_28::IFLA_BOND_SLAVE_AD_AGGREGATOR_ID;
+pub const IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE: _bindgen_ty_28 = _bindgen_ty_28::IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE;
+pub const IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE: _bindgen_ty_28 = _bindgen_ty_28::IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE;
+pub const IFLA_BOND_SLAVE_PRIO: _bindgen_ty_28 = _bindgen_ty_28::IFLA_BOND_SLAVE_PRIO;
+pub const __IFLA_BOND_SLAVE_MAX: _bindgen_ty_28 = _bindgen_ty_28::__IFLA_BOND_SLAVE_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_25 {
+pub enum _bindgen_ty_28 {
 IFLA_BOND_SLAVE_UNSPEC = 0,
 IFLA_BOND_SLAVE_STATE = 1,
 IFLA_BOND_SLAVE_MII_STATUS = 2,
@@ -1432,38 +1558,39 @@ IFLA_BOND_SLAVE_QUEUE_ID = 5,
 IFLA_BOND_SLAVE_AD_AGGREGATOR_ID = 6,
 IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE = 7,
 IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE = 8,
-__IFLA_BOND_SLAVE_MAX = 9,
+IFLA_BOND_SLAVE_PRIO = 9,
+__IFLA_BOND_SLAVE_MAX = 10,
 }
-pub const IFLA_VF_INFO_UNSPEC: _bindgen_ty_26 = _bindgen_ty_26::IFLA_VF_INFO_UNSPEC;
-pub const IFLA_VF_INFO: _bindgen_ty_26 = _bindgen_ty_26::IFLA_VF_INFO;
-pub const __IFLA_VF_INFO_MAX: _bindgen_ty_26 = _bindgen_ty_26::__IFLA_VF_INFO_MAX;
+pub const IFLA_VF_INFO_UNSPEC: _bindgen_ty_29 = _bindgen_ty_29::IFLA_VF_INFO_UNSPEC;
+pub const IFLA_VF_INFO: _bindgen_ty_29 = _bindgen_ty_29::IFLA_VF_INFO;
+pub const __IFLA_VF_INFO_MAX: _bindgen_ty_29 = _bindgen_ty_29::__IFLA_VF_INFO_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_26 {
+pub enum _bindgen_ty_29 {
 IFLA_VF_INFO_UNSPEC = 0,
 IFLA_VF_INFO = 1,
 __IFLA_VF_INFO_MAX = 2,
 }
-pub const IFLA_VF_UNSPEC: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_UNSPEC;
-pub const IFLA_VF_MAC: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_MAC;
-pub const IFLA_VF_VLAN: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_VLAN;
-pub const IFLA_VF_TX_RATE: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_TX_RATE;
-pub const IFLA_VF_SPOOFCHK: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_SPOOFCHK;
-pub const IFLA_VF_LINK_STATE: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_LINK_STATE;
-pub const IFLA_VF_RATE: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_RATE;
-pub const IFLA_VF_RSS_QUERY_EN: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_RSS_QUERY_EN;
-pub const IFLA_VF_STATS: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_STATS;
-pub const IFLA_VF_TRUST: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_TRUST;
-pub const IFLA_VF_IB_NODE_GUID: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_IB_NODE_GUID;
-pub const IFLA_VF_IB_PORT_GUID: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_IB_PORT_GUID;
-pub const IFLA_VF_VLAN_LIST: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_VLAN_LIST;
-pub const IFLA_VF_BROADCAST: _bindgen_ty_27 = _bindgen_ty_27::IFLA_VF_BROADCAST;
-pub const __IFLA_VF_MAX: _bindgen_ty_27 = _bindgen_ty_27::__IFLA_VF_MAX;
+pub const IFLA_VF_UNSPEC: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_UNSPEC;
+pub const IFLA_VF_MAC: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_MAC;
+pub const IFLA_VF_VLAN: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_VLAN;
+pub const IFLA_VF_TX_RATE: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_TX_RATE;
+pub const IFLA_VF_SPOOFCHK: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_SPOOFCHK;
+pub const IFLA_VF_LINK_STATE: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_LINK_STATE;
+pub const IFLA_VF_RATE: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_RATE;
+pub const IFLA_VF_RSS_QUERY_EN: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_RSS_QUERY_EN;
+pub const IFLA_VF_STATS: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_STATS;
+pub const IFLA_VF_TRUST: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_TRUST;
+pub const IFLA_VF_IB_NODE_GUID: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_IB_NODE_GUID;
+pub const IFLA_VF_IB_PORT_GUID: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_IB_PORT_GUID;
+pub const IFLA_VF_VLAN_LIST: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_VLAN_LIST;
+pub const IFLA_VF_BROADCAST: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_BROADCAST;
+pub const __IFLA_VF_MAX: _bindgen_ty_30 = _bindgen_ty_30::__IFLA_VF_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_27 {
+pub enum _bindgen_ty_30 {
 IFLA_VF_UNSPEC = 0,
 IFLA_VF_MAC = 1,
 IFLA_VF_VLAN = 2,
@@ -1498,13 +1625,13 @@ pub vf: __u32,
 pub vlan: __u32,
 pub qos: __u32,
 }
-pub const IFLA_VF_VLAN_INFO_UNSPEC: _bindgen_ty_28 = _bindgen_ty_28::IFLA_VF_VLAN_INFO_UNSPEC;
-pub const IFLA_VF_VLAN_INFO: _bindgen_ty_28 = _bindgen_ty_28::IFLA_VF_VLAN_INFO;
-pub const __IFLA_VF_VLAN_INFO_MAX: _bindgen_ty_28 = _bindgen_ty_28::__IFLA_VF_VLAN_INFO_MAX;
+pub const IFLA_VF_VLAN_INFO_UNSPEC: _bindgen_ty_31 = _bindgen_ty_31::IFLA_VF_VLAN_INFO_UNSPEC;
+pub const IFLA_VF_VLAN_INFO: _bindgen_ty_31 = _bindgen_ty_31::IFLA_VF_VLAN_INFO;
+pub const __IFLA_VF_VLAN_INFO_MAX: _bindgen_ty_31 = _bindgen_ty_31::__IFLA_VF_VLAN_INFO_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_28 {
+pub enum _bindgen_ty_31 {
 IFLA_VF_VLAN_INFO_UNSPEC = 0,
 IFLA_VF_VLAN_INFO = 1,
 __IFLA_VF_VLAN_INFO_MAX = 2,
@@ -1542,14 +1669,14 @@ pub struct ifla_vf_guid {
 pub vf: __u32,
 pub guid: __u64,
 }
-pub const IFLA_VF_LINK_STATE_AUTO: _bindgen_ty_29 = _bindgen_ty_29::IFLA_VF_LINK_STATE_AUTO;
-pub const IFLA_VF_LINK_STATE_ENABLE: _bindgen_ty_29 = _bindgen_ty_29::IFLA_VF_LINK_STATE_ENABLE;
-pub const IFLA_VF_LINK_STATE_DISABLE: _bindgen_ty_29 = _bindgen_ty_29::IFLA_VF_LINK_STATE_DISABLE;
-pub const __IFLA_VF_LINK_STATE_MAX: _bindgen_ty_29 = _bindgen_ty_29::__IFLA_VF_LINK_STATE_MAX;
+pub const IFLA_VF_LINK_STATE_AUTO: _bindgen_ty_32 = _bindgen_ty_32::IFLA_VF_LINK_STATE_AUTO;
+pub const IFLA_VF_LINK_STATE_ENABLE: _bindgen_ty_32 = _bindgen_ty_32::IFLA_VF_LINK_STATE_ENABLE;
+pub const IFLA_VF_LINK_STATE_DISABLE: _bindgen_ty_32 = _bindgen_ty_32::IFLA_VF_LINK_STATE_DISABLE;
+pub const __IFLA_VF_LINK_STATE_MAX: _bindgen_ty_32 = _bindgen_ty_32::__IFLA_VF_LINK_STATE_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_29 {
+pub enum _bindgen_ty_32 {
 IFLA_VF_LINK_STATE_AUTO = 0,
 IFLA_VF_LINK_STATE_ENABLE = 1,
 IFLA_VF_LINK_STATE_DISABLE = 2,
@@ -1567,20 +1694,20 @@ pub struct ifla_vf_rss_query_en {
 pub vf: __u32,
 pub setting: __u32,
 }
-pub const IFLA_VF_STATS_RX_PACKETS: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_STATS_RX_PACKETS;
-pub const IFLA_VF_STATS_TX_PACKETS: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_STATS_TX_PACKETS;
-pub const IFLA_VF_STATS_RX_BYTES: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_STATS_RX_BYTES;
-pub const IFLA_VF_STATS_TX_BYTES: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_STATS_TX_BYTES;
-pub const IFLA_VF_STATS_BROADCAST: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_STATS_BROADCAST;
-pub const IFLA_VF_STATS_MULTICAST: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_STATS_MULTICAST;
-pub const IFLA_VF_STATS_PAD: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_STATS_PAD;
-pub const IFLA_VF_STATS_RX_DROPPED: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_STATS_RX_DROPPED;
-pub const IFLA_VF_STATS_TX_DROPPED: _bindgen_ty_30 = _bindgen_ty_30::IFLA_VF_STATS_TX_DROPPED;
-pub const __IFLA_VF_STATS_MAX: _bindgen_ty_30 = _bindgen_ty_30::__IFLA_VF_STATS_MAX;
+pub const IFLA_VF_STATS_RX_PACKETS: _bindgen_ty_33 = _bindgen_ty_33::IFLA_VF_STATS_RX_PACKETS;
+pub const IFLA_VF_STATS_TX_PACKETS: _bindgen_ty_33 = _bindgen_ty_33::IFLA_VF_STATS_TX_PACKETS;
+pub const IFLA_VF_STATS_RX_BYTES: _bindgen_ty_33 = _bindgen_ty_33::IFLA_VF_STATS_RX_BYTES;
+pub const IFLA_VF_STATS_TX_BYTES: _bindgen_ty_33 = _bindgen_ty_33::IFLA_VF_STATS_TX_BYTES;
+pub const IFLA_VF_STATS_BROADCAST: _bindgen_ty_33 = _bindgen_ty_33::IFLA_VF_STATS_BROADCAST;
+pub const IFLA_VF_STATS_MULTICAST: _bindgen_ty_33 = _bindgen_ty_33::IFLA_VF_STATS_MULTICAST;
+pub const IFLA_VF_STATS_PAD: _bindgen_ty_33 = _bindgen_ty_33::IFLA_VF_STATS_PAD;
+pub const IFLA_VF_STATS_RX_DROPPED: _bindgen_ty_33 = _bindgen_ty_33::IFLA_VF_STATS_RX_DROPPED;
+pub const IFLA_VF_STATS_TX_DROPPED: _bindgen_ty_33 = _bindgen_ty_33::IFLA_VF_STATS_TX_DROPPED;
+pub const __IFLA_VF_STATS_MAX: _bindgen_ty_33 = _bindgen_ty_33::__IFLA_VF_STATS_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_30 {
+pub enum _bindgen_ty_33 {
 IFLA_VF_STATS_RX_PACKETS = 0,
 IFLA_VF_STATS_TX_PACKETS = 1,
 IFLA_VF_STATS_RX_BYTES = 2,
@@ -1598,30 +1725,30 @@ pub struct ifla_vf_trust {
 pub vf: __u32,
 pub setting: __u32,
 }
-pub const IFLA_VF_PORT_UNSPEC: _bindgen_ty_31 = _bindgen_ty_31::IFLA_VF_PORT_UNSPEC;
-pub const IFLA_VF_PORT: _bindgen_ty_31 = _bindgen_ty_31::IFLA_VF_PORT;
-pub const __IFLA_VF_PORT_MAX: _bindgen_ty_31 = _bindgen_ty_31::__IFLA_VF_PORT_MAX;
+pub const IFLA_VF_PORT_UNSPEC: _bindgen_ty_34 = _bindgen_ty_34::IFLA_VF_PORT_UNSPEC;
+pub const IFLA_VF_PORT: _bindgen_ty_34 = _bindgen_ty_34::IFLA_VF_PORT;
+pub const __IFLA_VF_PORT_MAX: _bindgen_ty_34 = _bindgen_ty_34::__IFLA_VF_PORT_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_31 {
+pub enum _bindgen_ty_34 {
 IFLA_VF_PORT_UNSPEC = 0,
 IFLA_VF_PORT = 1,
 __IFLA_VF_PORT_MAX = 2,
 }
-pub const IFLA_PORT_UNSPEC: _bindgen_ty_32 = _bindgen_ty_32::IFLA_PORT_UNSPEC;
-pub const IFLA_PORT_VF: _bindgen_ty_32 = _bindgen_ty_32::IFLA_PORT_VF;
-pub const IFLA_PORT_PROFILE: _bindgen_ty_32 = _bindgen_ty_32::IFLA_PORT_PROFILE;
-pub const IFLA_PORT_VSI_TYPE: _bindgen_ty_32 = _bindgen_ty_32::IFLA_PORT_VSI_TYPE;
-pub const IFLA_PORT_INSTANCE_UUID: _bindgen_ty_32 = _bindgen_ty_32::IFLA_PORT_INSTANCE_UUID;
-pub const IFLA_PORT_HOST_UUID: _bindgen_ty_32 = _bindgen_ty_32::IFLA_PORT_HOST_UUID;
-pub const IFLA_PORT_REQUEST: _bindgen_ty_32 = _bindgen_ty_32::IFLA_PORT_REQUEST;
-pub const IFLA_PORT_RESPONSE: _bindgen_ty_32 = _bindgen_ty_32::IFLA_PORT_RESPONSE;
-pub const __IFLA_PORT_MAX: _bindgen_ty_32 = _bindgen_ty_32::__IFLA_PORT_MAX;
+pub const IFLA_PORT_UNSPEC: _bindgen_ty_35 = _bindgen_ty_35::IFLA_PORT_UNSPEC;
+pub const IFLA_PORT_VF: _bindgen_ty_35 = _bindgen_ty_35::IFLA_PORT_VF;
+pub const IFLA_PORT_PROFILE: _bindgen_ty_35 = _bindgen_ty_35::IFLA_PORT_PROFILE;
+pub const IFLA_PORT_VSI_TYPE: _bindgen_ty_35 = _bindgen_ty_35::IFLA_PORT_VSI_TYPE;
+pub const IFLA_PORT_INSTANCE_UUID: _bindgen_ty_35 = _bindgen_ty_35::IFLA_PORT_INSTANCE_UUID;
+pub const IFLA_PORT_HOST_UUID: _bindgen_ty_35 = _bindgen_ty_35::IFLA_PORT_HOST_UUID;
+pub const IFLA_PORT_REQUEST: _bindgen_ty_35 = _bindgen_ty_35::IFLA_PORT_REQUEST;
+pub const IFLA_PORT_RESPONSE: _bindgen_ty_35 = _bindgen_ty_35::IFLA_PORT_RESPONSE;
+pub const __IFLA_PORT_MAX: _bindgen_ty_35 = _bindgen_ty_35::__IFLA_PORT_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_32 {
+pub enum _bindgen_ty_35 {
 IFLA_PORT_UNSPEC = 0,
 IFLA_PORT_VF = 1,
 IFLA_PORT_PROFILE = 2,
@@ -1632,36 +1759,36 @@ IFLA_PORT_REQUEST = 6,
 IFLA_PORT_RESPONSE = 7,
 __IFLA_PORT_MAX = 8,
 }
-pub const PORT_REQUEST_PREASSOCIATE: _bindgen_ty_33 = _bindgen_ty_33::PORT_REQUEST_PREASSOCIATE;
-pub const PORT_REQUEST_PREASSOCIATE_RR: _bindgen_ty_33 = _bindgen_ty_33::PORT_REQUEST_PREASSOCIATE_RR;
-pub const PORT_REQUEST_ASSOCIATE: _bindgen_ty_33 = _bindgen_ty_33::PORT_REQUEST_ASSOCIATE;
-pub const PORT_REQUEST_DISASSOCIATE: _bindgen_ty_33 = _bindgen_ty_33::PORT_REQUEST_DISASSOCIATE;
+pub const PORT_REQUEST_PREASSOCIATE: _bindgen_ty_36 = _bindgen_ty_36::PORT_REQUEST_PREASSOCIATE;
+pub const PORT_REQUEST_PREASSOCIATE_RR: _bindgen_ty_36 = _bindgen_ty_36::PORT_REQUEST_PREASSOCIATE_RR;
+pub const PORT_REQUEST_ASSOCIATE: _bindgen_ty_36 = _bindgen_ty_36::PORT_REQUEST_ASSOCIATE;
+pub const PORT_REQUEST_DISASSOCIATE: _bindgen_ty_36 = _bindgen_ty_36::PORT_REQUEST_DISASSOCIATE;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_33 {
+pub enum _bindgen_ty_36 {
 PORT_REQUEST_PREASSOCIATE = 0,
 PORT_REQUEST_PREASSOCIATE_RR = 1,
 PORT_REQUEST_ASSOCIATE = 2,
 PORT_REQUEST_DISASSOCIATE = 3,
 }
-pub const PORT_VDP_RESPONSE_SUCCESS: _bindgen_ty_34 = _bindgen_ty_34::PORT_VDP_RESPONSE_SUCCESS;
-pub const PORT_VDP_RESPONSE_INVALID_FORMAT: _bindgen_ty_34 = _bindgen_ty_34::PORT_VDP_RESPONSE_INVALID_FORMAT;
-pub const PORT_VDP_RESPONSE_INSUFFICIENT_RESOURCES: _bindgen_ty_34 = _bindgen_ty_34::PORT_VDP_RESPONSE_INSUFFICIENT_RESOURCES;
-pub const PORT_VDP_RESPONSE_UNUSED_VTID: _bindgen_ty_34 = _bindgen_ty_34::PORT_VDP_RESPONSE_UNUSED_VTID;
-pub const PORT_VDP_RESPONSE_VTID_VIOLATION: _bindgen_ty_34 = _bindgen_ty_34::PORT_VDP_RESPONSE_VTID_VIOLATION;
-pub const PORT_VDP_RESPONSE_VTID_VERSION_VIOALTION: _bindgen_ty_34 = _bindgen_ty_34::PORT_VDP_RESPONSE_VTID_VERSION_VIOALTION;
-pub const PORT_VDP_RESPONSE_OUT_OF_SYNC: _bindgen_ty_34 = _bindgen_ty_34::PORT_VDP_RESPONSE_OUT_OF_SYNC;
-pub const PORT_PROFILE_RESPONSE_SUCCESS: _bindgen_ty_34 = _bindgen_ty_34::PORT_PROFILE_RESPONSE_SUCCESS;
-pub const PORT_PROFILE_RESPONSE_INPROGRESS: _bindgen_ty_34 = _bindgen_ty_34::PORT_PROFILE_RESPONSE_INPROGRESS;
-pub const PORT_PROFILE_RESPONSE_INVALID: _bindgen_ty_34 = _bindgen_ty_34::PORT_PROFILE_RESPONSE_INVALID;
-pub const PORT_PROFILE_RESPONSE_BADSTATE: _bindgen_ty_34 = _bindgen_ty_34::PORT_PROFILE_RESPONSE_BADSTATE;
-pub const PORT_PROFILE_RESPONSE_INSUFFICIENT_RESOURCES: _bindgen_ty_34 = _bindgen_ty_34::PORT_PROFILE_RESPONSE_INSUFFICIENT_RESOURCES;
-pub const PORT_PROFILE_RESPONSE_ERROR: _bindgen_ty_34 = _bindgen_ty_34::PORT_PROFILE_RESPONSE_ERROR;
+pub const PORT_VDP_RESPONSE_SUCCESS: _bindgen_ty_37 = _bindgen_ty_37::PORT_VDP_RESPONSE_SUCCESS;
+pub const PORT_VDP_RESPONSE_INVALID_FORMAT: _bindgen_ty_37 = _bindgen_ty_37::PORT_VDP_RESPONSE_INVALID_FORMAT;
+pub const PORT_VDP_RESPONSE_INSUFFICIENT_RESOURCES: _bindgen_ty_37 = _bindgen_ty_37::PORT_VDP_RESPONSE_INSUFFICIENT_RESOURCES;
+pub const PORT_VDP_RESPONSE_UNUSED_VTID: _bindgen_ty_37 = _bindgen_ty_37::PORT_VDP_RESPONSE_UNUSED_VTID;
+pub const PORT_VDP_RESPONSE_VTID_VIOLATION: _bindgen_ty_37 = _bindgen_ty_37::PORT_VDP_RESPONSE_VTID_VIOLATION;
+pub const PORT_VDP_RESPONSE_VTID_VERSION_VIOALTION: _bindgen_ty_37 = _bindgen_ty_37::PORT_VDP_RESPONSE_VTID_VERSION_VIOALTION;
+pub const PORT_VDP_RESPONSE_OUT_OF_SYNC: _bindgen_ty_37 = _bindgen_ty_37::PORT_VDP_RESPONSE_OUT_OF_SYNC;
+pub const PORT_PROFILE_RESPONSE_SUCCESS: _bindgen_ty_37 = _bindgen_ty_37::PORT_PROFILE_RESPONSE_SUCCESS;
+pub const PORT_PROFILE_RESPONSE_INPROGRESS: _bindgen_ty_37 = _bindgen_ty_37::PORT_PROFILE_RESPONSE_INPROGRESS;
+pub const PORT_PROFILE_RESPONSE_INVALID: _bindgen_ty_37 = _bindgen_ty_37::PORT_PROFILE_RESPONSE_INVALID;
+pub const PORT_PROFILE_RESPONSE_BADSTATE: _bindgen_ty_37 = _bindgen_ty_37::PORT_PROFILE_RESPONSE_BADSTATE;
+pub const PORT_PROFILE_RESPONSE_INSUFFICIENT_RESOURCES: _bindgen_ty_37 = _bindgen_ty_37::PORT_PROFILE_RESPONSE_INSUFFICIENT_RESOURCES;
+pub const PORT_PROFILE_RESPONSE_ERROR: _bindgen_ty_37 = _bindgen_ty_37::PORT_PROFILE_RESPONSE_ERROR;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_34 {
+pub enum _bindgen_ty_37 {
 PORT_VDP_RESPONSE_SUCCESS = 0,
 PORT_VDP_RESPONSE_INVALID_FORMAT = 1,
 PORT_VDP_RESPONSE_INSUFFICIENT_RESOURCES = 2,
@@ -1684,54 +1811,54 @@ pub vsi_type_id: [__u8; 3usize],
 pub vsi_type_version: __u8,
 pub pad: [__u8; 3usize],
 }
-pub const IFLA_IPOIB_UNSPEC: _bindgen_ty_35 = _bindgen_ty_35::IFLA_IPOIB_UNSPEC;
-pub const IFLA_IPOIB_PKEY: _bindgen_ty_35 = _bindgen_ty_35::IFLA_IPOIB_PKEY;
-pub const IFLA_IPOIB_MODE: _bindgen_ty_35 = _bindgen_ty_35::IFLA_IPOIB_MODE;
-pub const IFLA_IPOIB_UMCAST: _bindgen_ty_35 = _bindgen_ty_35::IFLA_IPOIB_UMCAST;
-pub const __IFLA_IPOIB_MAX: _bindgen_ty_35 = _bindgen_ty_35::__IFLA_IPOIB_MAX;
+pub const IFLA_IPOIB_UNSPEC: _bindgen_ty_38 = _bindgen_ty_38::IFLA_IPOIB_UNSPEC;
+pub const IFLA_IPOIB_PKEY: _bindgen_ty_38 = _bindgen_ty_38::IFLA_IPOIB_PKEY;
+pub const IFLA_IPOIB_MODE: _bindgen_ty_38 = _bindgen_ty_38::IFLA_IPOIB_MODE;
+pub const IFLA_IPOIB_UMCAST: _bindgen_ty_38 = _bindgen_ty_38::IFLA_IPOIB_UMCAST;
+pub const __IFLA_IPOIB_MAX: _bindgen_ty_38 = _bindgen_ty_38::__IFLA_IPOIB_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_35 {
+pub enum _bindgen_ty_38 {
 IFLA_IPOIB_UNSPEC = 0,
 IFLA_IPOIB_PKEY = 1,
 IFLA_IPOIB_MODE = 2,
 IFLA_IPOIB_UMCAST = 3,
 __IFLA_IPOIB_MAX = 4,
 }
-pub const IPOIB_MODE_DATAGRAM: _bindgen_ty_36 = _bindgen_ty_36::IPOIB_MODE_DATAGRAM;
-pub const IPOIB_MODE_CONNECTED: _bindgen_ty_36 = _bindgen_ty_36::IPOIB_MODE_CONNECTED;
+pub const IPOIB_MODE_DATAGRAM: _bindgen_ty_39 = _bindgen_ty_39::IPOIB_MODE_DATAGRAM;
+pub const IPOIB_MODE_CONNECTED: _bindgen_ty_39 = _bindgen_ty_39::IPOIB_MODE_CONNECTED;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_36 {
+pub enum _bindgen_ty_39 {
 IPOIB_MODE_DATAGRAM = 0,
 IPOIB_MODE_CONNECTED = 1,
 }
-pub const HSR_PROTOCOL_HSR: _bindgen_ty_37 = _bindgen_ty_37::HSR_PROTOCOL_HSR;
-pub const HSR_PROTOCOL_PRP: _bindgen_ty_37 = _bindgen_ty_37::HSR_PROTOCOL_PRP;
-pub const HSR_PROTOCOL_MAX: _bindgen_ty_37 = _bindgen_ty_37::HSR_PROTOCOL_MAX;
+pub const HSR_PROTOCOL_HSR: _bindgen_ty_40 = _bindgen_ty_40::HSR_PROTOCOL_HSR;
+pub const HSR_PROTOCOL_PRP: _bindgen_ty_40 = _bindgen_ty_40::HSR_PROTOCOL_PRP;
+pub const HSR_PROTOCOL_MAX: _bindgen_ty_40 = _bindgen_ty_40::HSR_PROTOCOL_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_37 {
+pub enum _bindgen_ty_40 {
 HSR_PROTOCOL_HSR = 0,
 HSR_PROTOCOL_PRP = 1,
 HSR_PROTOCOL_MAX = 2,
 }
-pub const IFLA_HSR_UNSPEC: _bindgen_ty_38 = _bindgen_ty_38::IFLA_HSR_UNSPEC;
-pub const IFLA_HSR_SLAVE1: _bindgen_ty_38 = _bindgen_ty_38::IFLA_HSR_SLAVE1;
-pub const IFLA_HSR_SLAVE2: _bindgen_ty_38 = _bindgen_ty_38::IFLA_HSR_SLAVE2;
-pub const IFLA_HSR_MULTICAST_SPEC: _bindgen_ty_38 = _bindgen_ty_38::IFLA_HSR_MULTICAST_SPEC;
-pub const IFLA_HSR_SUPERVISION_ADDR: _bindgen_ty_38 = _bindgen_ty_38::IFLA_HSR_SUPERVISION_ADDR;
-pub const IFLA_HSR_SEQ_NR: _bindgen_ty_38 = _bindgen_ty_38::IFLA_HSR_SEQ_NR;
-pub const IFLA_HSR_VERSION: _bindgen_ty_38 = _bindgen_ty_38::IFLA_HSR_VERSION;
-pub const IFLA_HSR_PROTOCOL: _bindgen_ty_38 = _bindgen_ty_38::IFLA_HSR_PROTOCOL;
-pub const __IFLA_HSR_MAX: _bindgen_ty_38 = _bindgen_ty_38::__IFLA_HSR_MAX;
+pub const IFLA_HSR_UNSPEC: _bindgen_ty_41 = _bindgen_ty_41::IFLA_HSR_UNSPEC;
+pub const IFLA_HSR_SLAVE1: _bindgen_ty_41 = _bindgen_ty_41::IFLA_HSR_SLAVE1;
+pub const IFLA_HSR_SLAVE2: _bindgen_ty_41 = _bindgen_ty_41::IFLA_HSR_SLAVE2;
+pub const IFLA_HSR_MULTICAST_SPEC: _bindgen_ty_41 = _bindgen_ty_41::IFLA_HSR_MULTICAST_SPEC;
+pub const IFLA_HSR_SUPERVISION_ADDR: _bindgen_ty_41 = _bindgen_ty_41::IFLA_HSR_SUPERVISION_ADDR;
+pub const IFLA_HSR_SEQ_NR: _bindgen_ty_41 = _bindgen_ty_41::IFLA_HSR_SEQ_NR;
+pub const IFLA_HSR_VERSION: _bindgen_ty_41 = _bindgen_ty_41::IFLA_HSR_VERSION;
+pub const IFLA_HSR_PROTOCOL: _bindgen_ty_41 = _bindgen_ty_41::IFLA_HSR_PROTOCOL;
+pub const __IFLA_HSR_MAX: _bindgen_ty_41 = _bindgen_ty_41::__IFLA_HSR_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_38 {
+pub enum _bindgen_ty_41 {
 IFLA_HSR_UNSPEC = 0,
 IFLA_HSR_SLAVE1 = 1,
 IFLA_HSR_SLAVE2 = 2,
@@ -1751,17 +1878,17 @@ pub pad2: __u16,
 pub ifindex: __u32,
 pub filter_mask: __u32,
 }
-pub const IFLA_STATS_UNSPEC: _bindgen_ty_39 = _bindgen_ty_39::IFLA_STATS_UNSPEC;
-pub const IFLA_STATS_LINK_64: _bindgen_ty_39 = _bindgen_ty_39::IFLA_STATS_LINK_64;
-pub const IFLA_STATS_LINK_XSTATS: _bindgen_ty_39 = _bindgen_ty_39::IFLA_STATS_LINK_XSTATS;
-pub const IFLA_STATS_LINK_XSTATS_SLAVE: _bindgen_ty_39 = _bindgen_ty_39::IFLA_STATS_LINK_XSTATS_SLAVE;
-pub const IFLA_STATS_LINK_OFFLOAD_XSTATS: _bindgen_ty_39 = _bindgen_ty_39::IFLA_STATS_LINK_OFFLOAD_XSTATS;
-pub const IFLA_STATS_AF_SPEC: _bindgen_ty_39 = _bindgen_ty_39::IFLA_STATS_AF_SPEC;
-pub const __IFLA_STATS_MAX: _bindgen_ty_39 = _bindgen_ty_39::__IFLA_STATS_MAX;
+pub const IFLA_STATS_UNSPEC: _bindgen_ty_42 = _bindgen_ty_42::IFLA_STATS_UNSPEC;
+pub const IFLA_STATS_LINK_64: _bindgen_ty_42 = _bindgen_ty_42::IFLA_STATS_LINK_64;
+pub const IFLA_STATS_LINK_XSTATS: _bindgen_ty_42 = _bindgen_ty_42::IFLA_STATS_LINK_XSTATS;
+pub const IFLA_STATS_LINK_XSTATS_SLAVE: _bindgen_ty_42 = _bindgen_ty_42::IFLA_STATS_LINK_XSTATS_SLAVE;
+pub const IFLA_STATS_LINK_OFFLOAD_XSTATS: _bindgen_ty_42 = _bindgen_ty_42::IFLA_STATS_LINK_OFFLOAD_XSTATS;
+pub const IFLA_STATS_AF_SPEC: _bindgen_ty_42 = _bindgen_ty_42::IFLA_STATS_AF_SPEC;
+pub const __IFLA_STATS_MAX: _bindgen_ty_42 = _bindgen_ty_42::__IFLA_STATS_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_39 {
+pub enum _bindgen_ty_42 {
 IFLA_STATS_UNSPEC = 0,
 IFLA_STATS_LINK_64 = 1,
 IFLA_STATS_LINK_XSTATS = 2,
@@ -1770,59 +1897,89 @@ IFLA_STATS_LINK_OFFLOAD_XSTATS = 4,
 IFLA_STATS_AF_SPEC = 5,
 __IFLA_STATS_MAX = 6,
 }
-pub const LINK_XSTATS_TYPE_UNSPEC: _bindgen_ty_40 = _bindgen_ty_40::LINK_XSTATS_TYPE_UNSPEC;
-pub const LINK_XSTATS_TYPE_BRIDGE: _bindgen_ty_40 = _bindgen_ty_40::LINK_XSTATS_TYPE_BRIDGE;
-pub const LINK_XSTATS_TYPE_BOND: _bindgen_ty_40 = _bindgen_ty_40::LINK_XSTATS_TYPE_BOND;
-pub const __LINK_XSTATS_TYPE_MAX: _bindgen_ty_40 = _bindgen_ty_40::__LINK_XSTATS_TYPE_MAX;
+pub const IFLA_STATS_GETSET_UNSPEC: _bindgen_ty_43 = _bindgen_ty_43::IFLA_STATS_GETSET_UNSPEC;
+pub const IFLA_STATS_GET_FILTERS: _bindgen_ty_43 = _bindgen_ty_43::IFLA_STATS_GET_FILTERS;
+pub const IFLA_STATS_SET_OFFLOAD_XSTATS_L3_STATS: _bindgen_ty_43 = _bindgen_ty_43::IFLA_STATS_SET_OFFLOAD_XSTATS_L3_STATS;
+pub const __IFLA_STATS_GETSET_MAX: _bindgen_ty_43 = _bindgen_ty_43::__IFLA_STATS_GETSET_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_40 {
+pub enum _bindgen_ty_43 {
+IFLA_STATS_GETSET_UNSPEC = 0,
+IFLA_STATS_GET_FILTERS = 1,
+IFLA_STATS_SET_OFFLOAD_XSTATS_L3_STATS = 2,
+__IFLA_STATS_GETSET_MAX = 3,
+}
+pub const LINK_XSTATS_TYPE_UNSPEC: _bindgen_ty_44 = _bindgen_ty_44::LINK_XSTATS_TYPE_UNSPEC;
+pub const LINK_XSTATS_TYPE_BRIDGE: _bindgen_ty_44 = _bindgen_ty_44::LINK_XSTATS_TYPE_BRIDGE;
+pub const LINK_XSTATS_TYPE_BOND: _bindgen_ty_44 = _bindgen_ty_44::LINK_XSTATS_TYPE_BOND;
+pub const __LINK_XSTATS_TYPE_MAX: _bindgen_ty_44 = _bindgen_ty_44::__LINK_XSTATS_TYPE_MAX;
+#[repr(u32)]
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum _bindgen_ty_44 {
 LINK_XSTATS_TYPE_UNSPEC = 0,
 LINK_XSTATS_TYPE_BRIDGE = 1,
 LINK_XSTATS_TYPE_BOND = 2,
 __LINK_XSTATS_TYPE_MAX = 3,
 }
-pub const IFLA_OFFLOAD_XSTATS_UNSPEC: _bindgen_ty_41 = _bindgen_ty_41::IFLA_OFFLOAD_XSTATS_UNSPEC;
-pub const IFLA_OFFLOAD_XSTATS_CPU_HIT: _bindgen_ty_41 = _bindgen_ty_41::IFLA_OFFLOAD_XSTATS_CPU_HIT;
-pub const __IFLA_OFFLOAD_XSTATS_MAX: _bindgen_ty_41 = _bindgen_ty_41::__IFLA_OFFLOAD_XSTATS_MAX;
+pub const IFLA_OFFLOAD_XSTATS_UNSPEC: _bindgen_ty_45 = _bindgen_ty_45::IFLA_OFFLOAD_XSTATS_UNSPEC;
+pub const IFLA_OFFLOAD_XSTATS_CPU_HIT: _bindgen_ty_45 = _bindgen_ty_45::IFLA_OFFLOAD_XSTATS_CPU_HIT;
+pub const IFLA_OFFLOAD_XSTATS_HW_S_INFO: _bindgen_ty_45 = _bindgen_ty_45::IFLA_OFFLOAD_XSTATS_HW_S_INFO;
+pub const IFLA_OFFLOAD_XSTATS_L3_STATS: _bindgen_ty_45 = _bindgen_ty_45::IFLA_OFFLOAD_XSTATS_L3_STATS;
+pub const __IFLA_OFFLOAD_XSTATS_MAX: _bindgen_ty_45 = _bindgen_ty_45::__IFLA_OFFLOAD_XSTATS_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_41 {
+pub enum _bindgen_ty_45 {
 IFLA_OFFLOAD_XSTATS_UNSPEC = 0,
 IFLA_OFFLOAD_XSTATS_CPU_HIT = 1,
-__IFLA_OFFLOAD_XSTATS_MAX = 2,
+IFLA_OFFLOAD_XSTATS_HW_S_INFO = 2,
+IFLA_OFFLOAD_XSTATS_L3_STATS = 3,
+__IFLA_OFFLOAD_XSTATS_MAX = 4,
 }
-pub const XDP_ATTACHED_NONE: _bindgen_ty_42 = _bindgen_ty_42::XDP_ATTACHED_NONE;
-pub const XDP_ATTACHED_DRV: _bindgen_ty_42 = _bindgen_ty_42::XDP_ATTACHED_DRV;
-pub const XDP_ATTACHED_SKB: _bindgen_ty_42 = _bindgen_ty_42::XDP_ATTACHED_SKB;
-pub const XDP_ATTACHED_HW: _bindgen_ty_42 = _bindgen_ty_42::XDP_ATTACHED_HW;
-pub const XDP_ATTACHED_MULTI: _bindgen_ty_42 = _bindgen_ty_42::XDP_ATTACHED_MULTI;
+pub const IFLA_OFFLOAD_XSTATS_HW_S_INFO_UNSPEC: _bindgen_ty_46 = _bindgen_ty_46::IFLA_OFFLOAD_XSTATS_HW_S_INFO_UNSPEC;
+pub const IFLA_OFFLOAD_XSTATS_HW_S_INFO_REQUEST: _bindgen_ty_46 = _bindgen_ty_46::IFLA_OFFLOAD_XSTATS_HW_S_INFO_REQUEST;
+pub const IFLA_OFFLOAD_XSTATS_HW_S_INFO_USED: _bindgen_ty_46 = _bindgen_ty_46::IFLA_OFFLOAD_XSTATS_HW_S_INFO_USED;
+pub const __IFLA_OFFLOAD_XSTATS_HW_S_INFO_MAX: _bindgen_ty_46 = _bindgen_ty_46::__IFLA_OFFLOAD_XSTATS_HW_S_INFO_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_42 {
+pub enum _bindgen_ty_46 {
+IFLA_OFFLOAD_XSTATS_HW_S_INFO_UNSPEC = 0,
+IFLA_OFFLOAD_XSTATS_HW_S_INFO_REQUEST = 1,
+IFLA_OFFLOAD_XSTATS_HW_S_INFO_USED = 2,
+__IFLA_OFFLOAD_XSTATS_HW_S_INFO_MAX = 3,
+}
+pub const XDP_ATTACHED_NONE: _bindgen_ty_47 = _bindgen_ty_47::XDP_ATTACHED_NONE;
+pub const XDP_ATTACHED_DRV: _bindgen_ty_47 = _bindgen_ty_47::XDP_ATTACHED_DRV;
+pub const XDP_ATTACHED_SKB: _bindgen_ty_47 = _bindgen_ty_47::XDP_ATTACHED_SKB;
+pub const XDP_ATTACHED_HW: _bindgen_ty_47 = _bindgen_ty_47::XDP_ATTACHED_HW;
+pub const XDP_ATTACHED_MULTI: _bindgen_ty_47 = _bindgen_ty_47::XDP_ATTACHED_MULTI;
+#[repr(u32)]
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum _bindgen_ty_47 {
 XDP_ATTACHED_NONE = 0,
 XDP_ATTACHED_DRV = 1,
 XDP_ATTACHED_SKB = 2,
 XDP_ATTACHED_HW = 3,
 XDP_ATTACHED_MULTI = 4,
 }
-pub const IFLA_XDP_UNSPEC: _bindgen_ty_43 = _bindgen_ty_43::IFLA_XDP_UNSPEC;
-pub const IFLA_XDP_FD: _bindgen_ty_43 = _bindgen_ty_43::IFLA_XDP_FD;
-pub const IFLA_XDP_ATTACHED: _bindgen_ty_43 = _bindgen_ty_43::IFLA_XDP_ATTACHED;
-pub const IFLA_XDP_FLAGS: _bindgen_ty_43 = _bindgen_ty_43::IFLA_XDP_FLAGS;
-pub const IFLA_XDP_PROG_ID: _bindgen_ty_43 = _bindgen_ty_43::IFLA_XDP_PROG_ID;
-pub const IFLA_XDP_DRV_PROG_ID: _bindgen_ty_43 = _bindgen_ty_43::IFLA_XDP_DRV_PROG_ID;
-pub const IFLA_XDP_SKB_PROG_ID: _bindgen_ty_43 = _bindgen_ty_43::IFLA_XDP_SKB_PROG_ID;
-pub const IFLA_XDP_HW_PROG_ID: _bindgen_ty_43 = _bindgen_ty_43::IFLA_XDP_HW_PROG_ID;
-pub const IFLA_XDP_EXPECTED_FD: _bindgen_ty_43 = _bindgen_ty_43::IFLA_XDP_EXPECTED_FD;
-pub const __IFLA_XDP_MAX: _bindgen_ty_43 = _bindgen_ty_43::__IFLA_XDP_MAX;
+pub const IFLA_XDP_UNSPEC: _bindgen_ty_48 = _bindgen_ty_48::IFLA_XDP_UNSPEC;
+pub const IFLA_XDP_FD: _bindgen_ty_48 = _bindgen_ty_48::IFLA_XDP_FD;
+pub const IFLA_XDP_ATTACHED: _bindgen_ty_48 = _bindgen_ty_48::IFLA_XDP_ATTACHED;
+pub const IFLA_XDP_FLAGS: _bindgen_ty_48 = _bindgen_ty_48::IFLA_XDP_FLAGS;
+pub const IFLA_XDP_PROG_ID: _bindgen_ty_48 = _bindgen_ty_48::IFLA_XDP_PROG_ID;
+pub const IFLA_XDP_DRV_PROG_ID: _bindgen_ty_48 = _bindgen_ty_48::IFLA_XDP_DRV_PROG_ID;
+pub const IFLA_XDP_SKB_PROG_ID: _bindgen_ty_48 = _bindgen_ty_48::IFLA_XDP_SKB_PROG_ID;
+pub const IFLA_XDP_HW_PROG_ID: _bindgen_ty_48 = _bindgen_ty_48::IFLA_XDP_HW_PROG_ID;
+pub const IFLA_XDP_EXPECTED_FD: _bindgen_ty_48 = _bindgen_ty_48::IFLA_XDP_EXPECTED_FD;
+pub const __IFLA_XDP_MAX: _bindgen_ty_48 = _bindgen_ty_48::__IFLA_XDP_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_43 {
+pub enum _bindgen_ty_48 {
 IFLA_XDP_UNSPEC = 0,
 IFLA_XDP_FD = 1,
 IFLA_XDP_ATTACHED = 2,
@@ -1834,17 +1991,17 @@ IFLA_XDP_HW_PROG_ID = 7,
 IFLA_XDP_EXPECTED_FD = 8,
 __IFLA_XDP_MAX = 9,
 }
-pub const IFLA_EVENT_NONE: _bindgen_ty_44 = _bindgen_ty_44::IFLA_EVENT_NONE;
-pub const IFLA_EVENT_REBOOT: _bindgen_ty_44 = _bindgen_ty_44::IFLA_EVENT_REBOOT;
-pub const IFLA_EVENT_FEATURES: _bindgen_ty_44 = _bindgen_ty_44::IFLA_EVENT_FEATURES;
-pub const IFLA_EVENT_BONDING_FAILOVER: _bindgen_ty_44 = _bindgen_ty_44::IFLA_EVENT_BONDING_FAILOVER;
-pub const IFLA_EVENT_NOTIFY_PEERS: _bindgen_ty_44 = _bindgen_ty_44::IFLA_EVENT_NOTIFY_PEERS;
-pub const IFLA_EVENT_IGMP_RESEND: _bindgen_ty_44 = _bindgen_ty_44::IFLA_EVENT_IGMP_RESEND;
-pub const IFLA_EVENT_BONDING_OPTIONS: _bindgen_ty_44 = _bindgen_ty_44::IFLA_EVENT_BONDING_OPTIONS;
+pub const IFLA_EVENT_NONE: _bindgen_ty_49 = _bindgen_ty_49::IFLA_EVENT_NONE;
+pub const IFLA_EVENT_REBOOT: _bindgen_ty_49 = _bindgen_ty_49::IFLA_EVENT_REBOOT;
+pub const IFLA_EVENT_FEATURES: _bindgen_ty_49 = _bindgen_ty_49::IFLA_EVENT_FEATURES;
+pub const IFLA_EVENT_BONDING_FAILOVER: _bindgen_ty_49 = _bindgen_ty_49::IFLA_EVENT_BONDING_FAILOVER;
+pub const IFLA_EVENT_NOTIFY_PEERS: _bindgen_ty_49 = _bindgen_ty_49::IFLA_EVENT_NOTIFY_PEERS;
+pub const IFLA_EVENT_IGMP_RESEND: _bindgen_ty_49 = _bindgen_ty_49::IFLA_EVENT_IGMP_RESEND;
+pub const IFLA_EVENT_BONDING_OPTIONS: _bindgen_ty_49 = _bindgen_ty_49::IFLA_EVENT_BONDING_OPTIONS;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_44 {
+pub enum _bindgen_ty_49 {
 IFLA_EVENT_NONE = 0,
 IFLA_EVENT_REBOOT = 1,
 IFLA_EVENT_FEATURES = 2,
@@ -1853,21 +2010,21 @@ IFLA_EVENT_NOTIFY_PEERS = 4,
 IFLA_EVENT_IGMP_RESEND = 5,
 IFLA_EVENT_BONDING_OPTIONS = 6,
 }
-pub const IFLA_TUN_UNSPEC: _bindgen_ty_45 = _bindgen_ty_45::IFLA_TUN_UNSPEC;
-pub const IFLA_TUN_OWNER: _bindgen_ty_45 = _bindgen_ty_45::IFLA_TUN_OWNER;
-pub const IFLA_TUN_GROUP: _bindgen_ty_45 = _bindgen_ty_45::IFLA_TUN_GROUP;
-pub const IFLA_TUN_TYPE: _bindgen_ty_45 = _bindgen_ty_45::IFLA_TUN_TYPE;
-pub const IFLA_TUN_PI: _bindgen_ty_45 = _bindgen_ty_45::IFLA_TUN_PI;
-pub const IFLA_TUN_VNET_HDR: _bindgen_ty_45 = _bindgen_ty_45::IFLA_TUN_VNET_HDR;
-pub const IFLA_TUN_PERSIST: _bindgen_ty_45 = _bindgen_ty_45::IFLA_TUN_PERSIST;
-pub const IFLA_TUN_MULTI_QUEUE: _bindgen_ty_45 = _bindgen_ty_45::IFLA_TUN_MULTI_QUEUE;
-pub const IFLA_TUN_NUM_QUEUES: _bindgen_ty_45 = _bindgen_ty_45::IFLA_TUN_NUM_QUEUES;
-pub const IFLA_TUN_NUM_DISABLED_QUEUES: _bindgen_ty_45 = _bindgen_ty_45::IFLA_TUN_NUM_DISABLED_QUEUES;
-pub const __IFLA_TUN_MAX: _bindgen_ty_45 = _bindgen_ty_45::__IFLA_TUN_MAX;
+pub const IFLA_TUN_UNSPEC: _bindgen_ty_50 = _bindgen_ty_50::IFLA_TUN_UNSPEC;
+pub const IFLA_TUN_OWNER: _bindgen_ty_50 = _bindgen_ty_50::IFLA_TUN_OWNER;
+pub const IFLA_TUN_GROUP: _bindgen_ty_50 = _bindgen_ty_50::IFLA_TUN_GROUP;
+pub const IFLA_TUN_TYPE: _bindgen_ty_50 = _bindgen_ty_50::IFLA_TUN_TYPE;
+pub const IFLA_TUN_PI: _bindgen_ty_50 = _bindgen_ty_50::IFLA_TUN_PI;
+pub const IFLA_TUN_VNET_HDR: _bindgen_ty_50 = _bindgen_ty_50::IFLA_TUN_VNET_HDR;
+pub const IFLA_TUN_PERSIST: _bindgen_ty_50 = _bindgen_ty_50::IFLA_TUN_PERSIST;
+pub const IFLA_TUN_MULTI_QUEUE: _bindgen_ty_50 = _bindgen_ty_50::IFLA_TUN_MULTI_QUEUE;
+pub const IFLA_TUN_NUM_QUEUES: _bindgen_ty_50 = _bindgen_ty_50::IFLA_TUN_NUM_QUEUES;
+pub const IFLA_TUN_NUM_DISABLED_QUEUES: _bindgen_ty_50 = _bindgen_ty_50::IFLA_TUN_NUM_DISABLED_QUEUES;
+pub const __IFLA_TUN_MAX: _bindgen_ty_50 = _bindgen_ty_50::__IFLA_TUN_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_45 {
+pub enum _bindgen_ty_50 {
 IFLA_TUN_UNSPEC = 0,
 IFLA_TUN_OWNER = 1,
 IFLA_TUN_GROUP = 2,
@@ -1880,14 +2037,14 @@ IFLA_TUN_NUM_QUEUES = 8,
 IFLA_TUN_NUM_DISABLED_QUEUES = 9,
 __IFLA_TUN_MAX = 10,
 }
-pub const IFLA_RMNET_UNSPEC: _bindgen_ty_46 = _bindgen_ty_46::IFLA_RMNET_UNSPEC;
-pub const IFLA_RMNET_MUX_ID: _bindgen_ty_46 = _bindgen_ty_46::IFLA_RMNET_MUX_ID;
-pub const IFLA_RMNET_FLAGS: _bindgen_ty_46 = _bindgen_ty_46::IFLA_RMNET_FLAGS;
-pub const __IFLA_RMNET_MAX: _bindgen_ty_46 = _bindgen_ty_46::__IFLA_RMNET_MAX;
+pub const IFLA_RMNET_UNSPEC: _bindgen_ty_51 = _bindgen_ty_51::IFLA_RMNET_UNSPEC;
+pub const IFLA_RMNET_MUX_ID: _bindgen_ty_51 = _bindgen_ty_51::IFLA_RMNET_MUX_ID;
+pub const IFLA_RMNET_FLAGS: _bindgen_ty_51 = _bindgen_ty_51::IFLA_RMNET_FLAGS;
+pub const __IFLA_RMNET_MAX: _bindgen_ty_51 = _bindgen_ty_51::__IFLA_RMNET_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_46 {
+pub enum _bindgen_ty_51 {
 IFLA_RMNET_UNSPEC = 0,
 IFLA_RMNET_MUX_ID = 1,
 IFLA_RMNET_FLAGS = 2,
@@ -1899,16 +2056,27 @@ pub struct ifla_rmnet_flags {
 pub flags: __u32,
 pub mask: __u32,
 }
-pub const IFLA_MCTP_UNSPEC: _bindgen_ty_47 = _bindgen_ty_47::IFLA_MCTP_UNSPEC;
-pub const IFLA_MCTP_NET: _bindgen_ty_47 = _bindgen_ty_47::IFLA_MCTP_NET;
-pub const __IFLA_MCTP_MAX: _bindgen_ty_47 = _bindgen_ty_47::__IFLA_MCTP_MAX;
+pub const IFLA_MCTP_UNSPEC: _bindgen_ty_52 = _bindgen_ty_52::IFLA_MCTP_UNSPEC;
+pub const IFLA_MCTP_NET: _bindgen_ty_52 = _bindgen_ty_52::IFLA_MCTP_NET;
+pub const __IFLA_MCTP_MAX: _bindgen_ty_52 = _bindgen_ty_52::__IFLA_MCTP_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_47 {
+pub enum _bindgen_ty_52 {
 IFLA_MCTP_UNSPEC = 0,
 IFLA_MCTP_NET = 1,
 __IFLA_MCTP_MAX = 2,
+}
+pub const IFLA_DSA_UNSPEC: _bindgen_ty_53 = _bindgen_ty_53::IFLA_DSA_UNSPEC;
+pub const IFLA_DSA_MASTER: _bindgen_ty_53 = _bindgen_ty_53::IFLA_DSA_MASTER;
+pub const __IFLA_DSA_MAX: _bindgen_ty_53 = _bindgen_ty_53::__IFLA_DSA_MAX;
+#[repr(u32)]
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum _bindgen_ty_53 {
+IFLA_DSA_UNSPEC = 0,
+IFLA_DSA_MASTER = 1,
+__IFLA_DSA_MAX = 2,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1919,22 +2087,23 @@ pub ifa_flags: __u8,
 pub ifa_scope: __u8,
 pub ifa_index: __u32,
 }
-pub const IFA_UNSPEC: _bindgen_ty_48 = _bindgen_ty_48::IFA_UNSPEC;
-pub const IFA_ADDRESS: _bindgen_ty_48 = _bindgen_ty_48::IFA_ADDRESS;
-pub const IFA_LOCAL: _bindgen_ty_48 = _bindgen_ty_48::IFA_LOCAL;
-pub const IFA_LABEL: _bindgen_ty_48 = _bindgen_ty_48::IFA_LABEL;
-pub const IFA_BROADCAST: _bindgen_ty_48 = _bindgen_ty_48::IFA_BROADCAST;
-pub const IFA_ANYCAST: _bindgen_ty_48 = _bindgen_ty_48::IFA_ANYCAST;
-pub const IFA_CACHEINFO: _bindgen_ty_48 = _bindgen_ty_48::IFA_CACHEINFO;
-pub const IFA_MULTICAST: _bindgen_ty_48 = _bindgen_ty_48::IFA_MULTICAST;
-pub const IFA_FLAGS: _bindgen_ty_48 = _bindgen_ty_48::IFA_FLAGS;
-pub const IFA_RT_PRIORITY: _bindgen_ty_48 = _bindgen_ty_48::IFA_RT_PRIORITY;
-pub const IFA_TARGET_NETNSID: _bindgen_ty_48 = _bindgen_ty_48::IFA_TARGET_NETNSID;
-pub const __IFA_MAX: _bindgen_ty_48 = _bindgen_ty_48::__IFA_MAX;
+pub const IFA_UNSPEC: _bindgen_ty_54 = _bindgen_ty_54::IFA_UNSPEC;
+pub const IFA_ADDRESS: _bindgen_ty_54 = _bindgen_ty_54::IFA_ADDRESS;
+pub const IFA_LOCAL: _bindgen_ty_54 = _bindgen_ty_54::IFA_LOCAL;
+pub const IFA_LABEL: _bindgen_ty_54 = _bindgen_ty_54::IFA_LABEL;
+pub const IFA_BROADCAST: _bindgen_ty_54 = _bindgen_ty_54::IFA_BROADCAST;
+pub const IFA_ANYCAST: _bindgen_ty_54 = _bindgen_ty_54::IFA_ANYCAST;
+pub const IFA_CACHEINFO: _bindgen_ty_54 = _bindgen_ty_54::IFA_CACHEINFO;
+pub const IFA_MULTICAST: _bindgen_ty_54 = _bindgen_ty_54::IFA_MULTICAST;
+pub const IFA_FLAGS: _bindgen_ty_54 = _bindgen_ty_54::IFA_FLAGS;
+pub const IFA_RT_PRIORITY: _bindgen_ty_54 = _bindgen_ty_54::IFA_RT_PRIORITY;
+pub const IFA_TARGET_NETNSID: _bindgen_ty_54 = _bindgen_ty_54::IFA_TARGET_NETNSID;
+pub const IFA_PROTO: _bindgen_ty_54 = _bindgen_ty_54::IFA_PROTO;
+pub const __IFA_MAX: _bindgen_ty_54 = _bindgen_ty_54::__IFA_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_48 {
+pub enum _bindgen_ty_54 {
 IFA_UNSPEC = 0,
 IFA_ADDRESS = 1,
 IFA_LOCAL = 2,
@@ -1946,7 +2115,8 @@ IFA_MULTICAST = 7,
 IFA_FLAGS = 8,
 IFA_RT_PRIORITY = 9,
 IFA_TARGET_NETNSID = 10,
-__IFA_MAX = 11,
+IFA_PROTO = 11,
+__IFA_MAX = 12,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1967,27 +2137,29 @@ pub ndm_state: __u16,
 pub ndm_flags: __u8,
 pub ndm_type: __u8,
 }
-pub const NDA_UNSPEC: _bindgen_ty_49 = _bindgen_ty_49::NDA_UNSPEC;
-pub const NDA_DST: _bindgen_ty_49 = _bindgen_ty_49::NDA_DST;
-pub const NDA_LLADDR: _bindgen_ty_49 = _bindgen_ty_49::NDA_LLADDR;
-pub const NDA_CACHEINFO: _bindgen_ty_49 = _bindgen_ty_49::NDA_CACHEINFO;
-pub const NDA_PROBES: _bindgen_ty_49 = _bindgen_ty_49::NDA_PROBES;
-pub const NDA_VLAN: _bindgen_ty_49 = _bindgen_ty_49::NDA_VLAN;
-pub const NDA_PORT: _bindgen_ty_49 = _bindgen_ty_49::NDA_PORT;
-pub const NDA_VNI: _bindgen_ty_49 = _bindgen_ty_49::NDA_VNI;
-pub const NDA_IFINDEX: _bindgen_ty_49 = _bindgen_ty_49::NDA_IFINDEX;
-pub const NDA_MASTER: _bindgen_ty_49 = _bindgen_ty_49::NDA_MASTER;
-pub const NDA_LINK_NETNSID: _bindgen_ty_49 = _bindgen_ty_49::NDA_LINK_NETNSID;
-pub const NDA_SRC_VNI: _bindgen_ty_49 = _bindgen_ty_49::NDA_SRC_VNI;
-pub const NDA_PROTOCOL: _bindgen_ty_49 = _bindgen_ty_49::NDA_PROTOCOL;
-pub const NDA_NH_ID: _bindgen_ty_49 = _bindgen_ty_49::NDA_NH_ID;
-pub const NDA_FDB_EXT_ATTRS: _bindgen_ty_49 = _bindgen_ty_49::NDA_FDB_EXT_ATTRS;
-pub const NDA_FLAGS_EXT: _bindgen_ty_49 = _bindgen_ty_49::NDA_FLAGS_EXT;
-pub const __NDA_MAX: _bindgen_ty_49 = _bindgen_ty_49::__NDA_MAX;
+pub const NDA_UNSPEC: _bindgen_ty_55 = _bindgen_ty_55::NDA_UNSPEC;
+pub const NDA_DST: _bindgen_ty_55 = _bindgen_ty_55::NDA_DST;
+pub const NDA_LLADDR: _bindgen_ty_55 = _bindgen_ty_55::NDA_LLADDR;
+pub const NDA_CACHEINFO: _bindgen_ty_55 = _bindgen_ty_55::NDA_CACHEINFO;
+pub const NDA_PROBES: _bindgen_ty_55 = _bindgen_ty_55::NDA_PROBES;
+pub const NDA_VLAN: _bindgen_ty_55 = _bindgen_ty_55::NDA_VLAN;
+pub const NDA_PORT: _bindgen_ty_55 = _bindgen_ty_55::NDA_PORT;
+pub const NDA_VNI: _bindgen_ty_55 = _bindgen_ty_55::NDA_VNI;
+pub const NDA_IFINDEX: _bindgen_ty_55 = _bindgen_ty_55::NDA_IFINDEX;
+pub const NDA_MASTER: _bindgen_ty_55 = _bindgen_ty_55::NDA_MASTER;
+pub const NDA_LINK_NETNSID: _bindgen_ty_55 = _bindgen_ty_55::NDA_LINK_NETNSID;
+pub const NDA_SRC_VNI: _bindgen_ty_55 = _bindgen_ty_55::NDA_SRC_VNI;
+pub const NDA_PROTOCOL: _bindgen_ty_55 = _bindgen_ty_55::NDA_PROTOCOL;
+pub const NDA_NH_ID: _bindgen_ty_55 = _bindgen_ty_55::NDA_NH_ID;
+pub const NDA_FDB_EXT_ATTRS: _bindgen_ty_55 = _bindgen_ty_55::NDA_FDB_EXT_ATTRS;
+pub const NDA_FLAGS_EXT: _bindgen_ty_55 = _bindgen_ty_55::NDA_FLAGS_EXT;
+pub const NDA_NDM_STATE_MASK: _bindgen_ty_55 = _bindgen_ty_55::NDA_NDM_STATE_MASK;
+pub const NDA_NDM_FLAGS_MASK: _bindgen_ty_55 = _bindgen_ty_55::NDA_NDM_FLAGS_MASK;
+pub const __NDA_MAX: _bindgen_ty_55 = _bindgen_ty_55::__NDA_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_49 {
+pub enum _bindgen_ty_55 {
 NDA_UNSPEC = 0,
 NDA_DST = 1,
 NDA_LLADDR = 2,
@@ -2004,7 +2176,9 @@ NDA_PROTOCOL = 12,
 NDA_NH_ID = 13,
 NDA_FDB_EXT_ATTRS = 14,
 NDA_FLAGS_EXT = 15,
-__NDA_MAX = 16,
+NDA_NDM_STATE_MASK = 16,
+NDA_NDM_FLAGS_MASK = 17,
+__NDA_MAX = 18,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2029,30 +2203,31 @@ pub ndts_periodic_gc_runs: __u64,
 pub ndts_forced_gc_runs: __u64,
 pub ndts_table_fulls: __u64,
 }
-pub const NDTPA_UNSPEC: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_UNSPEC;
-pub const NDTPA_IFINDEX: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_IFINDEX;
-pub const NDTPA_REFCNT: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_REFCNT;
-pub const NDTPA_REACHABLE_TIME: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_REACHABLE_TIME;
-pub const NDTPA_BASE_REACHABLE_TIME: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_BASE_REACHABLE_TIME;
-pub const NDTPA_RETRANS_TIME: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_RETRANS_TIME;
-pub const NDTPA_GC_STALETIME: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_GC_STALETIME;
-pub const NDTPA_DELAY_PROBE_TIME: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_DELAY_PROBE_TIME;
-pub const NDTPA_QUEUE_LEN: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_QUEUE_LEN;
-pub const NDTPA_APP_PROBES: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_APP_PROBES;
-pub const NDTPA_UCAST_PROBES: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_UCAST_PROBES;
-pub const NDTPA_MCAST_PROBES: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_MCAST_PROBES;
-pub const NDTPA_ANYCAST_DELAY: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_ANYCAST_DELAY;
-pub const NDTPA_PROXY_DELAY: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_PROXY_DELAY;
-pub const NDTPA_PROXY_QLEN: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_PROXY_QLEN;
-pub const NDTPA_LOCKTIME: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_LOCKTIME;
-pub const NDTPA_QUEUE_LENBYTES: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_QUEUE_LENBYTES;
-pub const NDTPA_MCAST_REPROBES: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_MCAST_REPROBES;
-pub const NDTPA_PAD: _bindgen_ty_50 = _bindgen_ty_50::NDTPA_PAD;
-pub const __NDTPA_MAX: _bindgen_ty_50 = _bindgen_ty_50::__NDTPA_MAX;
+pub const NDTPA_UNSPEC: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_UNSPEC;
+pub const NDTPA_IFINDEX: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_IFINDEX;
+pub const NDTPA_REFCNT: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_REFCNT;
+pub const NDTPA_REACHABLE_TIME: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_REACHABLE_TIME;
+pub const NDTPA_BASE_REACHABLE_TIME: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_BASE_REACHABLE_TIME;
+pub const NDTPA_RETRANS_TIME: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_RETRANS_TIME;
+pub const NDTPA_GC_STALETIME: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_GC_STALETIME;
+pub const NDTPA_DELAY_PROBE_TIME: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_DELAY_PROBE_TIME;
+pub const NDTPA_QUEUE_LEN: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_QUEUE_LEN;
+pub const NDTPA_APP_PROBES: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_APP_PROBES;
+pub const NDTPA_UCAST_PROBES: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_UCAST_PROBES;
+pub const NDTPA_MCAST_PROBES: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_MCAST_PROBES;
+pub const NDTPA_ANYCAST_DELAY: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_ANYCAST_DELAY;
+pub const NDTPA_PROXY_DELAY: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_PROXY_DELAY;
+pub const NDTPA_PROXY_QLEN: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_PROXY_QLEN;
+pub const NDTPA_LOCKTIME: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_LOCKTIME;
+pub const NDTPA_QUEUE_LENBYTES: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_QUEUE_LENBYTES;
+pub const NDTPA_MCAST_REPROBES: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_MCAST_REPROBES;
+pub const NDTPA_PAD: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_PAD;
+pub const NDTPA_INTERVAL_PROBE_TIME_MS: _bindgen_ty_56 = _bindgen_ty_56::NDTPA_INTERVAL_PROBE_TIME_MS;
+pub const __NDTPA_MAX: _bindgen_ty_56 = _bindgen_ty_56::__NDTPA_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_50 {
+pub enum _bindgen_ty_56 {
 NDTPA_UNSPEC = 0,
 NDTPA_IFINDEX = 1,
 NDTPA_REFCNT = 2,
@@ -2072,7 +2247,8 @@ NDTPA_LOCKTIME = 15,
 NDTPA_QUEUE_LENBYTES = 16,
 NDTPA_MCAST_REPROBES = 17,
 NDTPA_PAD = 18,
-__NDTPA_MAX = 19,
+NDTPA_INTERVAL_PROBE_TIME_MS = 19,
+__NDTPA_MAX = 20,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2094,21 +2270,21 @@ pub ndtc_hash_mask: __u32,
 pub ndtc_hash_chain_gc: __u32,
 pub ndtc_proxy_qlen: __u32,
 }
-pub const NDTA_UNSPEC: _bindgen_ty_51 = _bindgen_ty_51::NDTA_UNSPEC;
-pub const NDTA_NAME: _bindgen_ty_51 = _bindgen_ty_51::NDTA_NAME;
-pub const NDTA_THRESH1: _bindgen_ty_51 = _bindgen_ty_51::NDTA_THRESH1;
-pub const NDTA_THRESH2: _bindgen_ty_51 = _bindgen_ty_51::NDTA_THRESH2;
-pub const NDTA_THRESH3: _bindgen_ty_51 = _bindgen_ty_51::NDTA_THRESH3;
-pub const NDTA_CONFIG: _bindgen_ty_51 = _bindgen_ty_51::NDTA_CONFIG;
-pub const NDTA_PARMS: _bindgen_ty_51 = _bindgen_ty_51::NDTA_PARMS;
-pub const NDTA_STATS: _bindgen_ty_51 = _bindgen_ty_51::NDTA_STATS;
-pub const NDTA_GC_INTERVAL: _bindgen_ty_51 = _bindgen_ty_51::NDTA_GC_INTERVAL;
-pub const NDTA_PAD: _bindgen_ty_51 = _bindgen_ty_51::NDTA_PAD;
-pub const __NDTA_MAX: _bindgen_ty_51 = _bindgen_ty_51::__NDTA_MAX;
+pub const NDTA_UNSPEC: _bindgen_ty_57 = _bindgen_ty_57::NDTA_UNSPEC;
+pub const NDTA_NAME: _bindgen_ty_57 = _bindgen_ty_57::NDTA_NAME;
+pub const NDTA_THRESH1: _bindgen_ty_57 = _bindgen_ty_57::NDTA_THRESH1;
+pub const NDTA_THRESH2: _bindgen_ty_57 = _bindgen_ty_57::NDTA_THRESH2;
+pub const NDTA_THRESH3: _bindgen_ty_57 = _bindgen_ty_57::NDTA_THRESH3;
+pub const NDTA_CONFIG: _bindgen_ty_57 = _bindgen_ty_57::NDTA_CONFIG;
+pub const NDTA_PARMS: _bindgen_ty_57 = _bindgen_ty_57::NDTA_PARMS;
+pub const NDTA_STATS: _bindgen_ty_57 = _bindgen_ty_57::NDTA_STATS;
+pub const NDTA_GC_INTERVAL: _bindgen_ty_57 = _bindgen_ty_57::NDTA_GC_INTERVAL;
+pub const NDTA_PAD: _bindgen_ty_57 = _bindgen_ty_57::NDTA_PAD;
+pub const __NDTA_MAX: _bindgen_ty_57 = _bindgen_ty_57::__NDTA_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_51 {
+pub enum _bindgen_ty_57 {
 NDTA_UNSPEC = 0,
 NDTA_NAME = 1,
 NDTA_THRESH1 = 2,
@@ -2121,101 +2297,105 @@ NDTA_GC_INTERVAL = 8,
 NDTA_PAD = 9,
 __NDTA_MAX = 10,
 }
-pub const FDB_NOTIFY_BIT: _bindgen_ty_52 = _bindgen_ty_52::FDB_NOTIFY_BIT;
-pub const FDB_NOTIFY_INACTIVE_BIT: _bindgen_ty_52 = _bindgen_ty_52::FDB_NOTIFY_INACTIVE_BIT;
+pub const FDB_NOTIFY_BIT: _bindgen_ty_58 = _bindgen_ty_58::FDB_NOTIFY_BIT;
+pub const FDB_NOTIFY_INACTIVE_BIT: _bindgen_ty_58 = _bindgen_ty_58::FDB_NOTIFY_INACTIVE_BIT;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_52 {
+pub enum _bindgen_ty_58 {
 FDB_NOTIFY_BIT = 1,
 FDB_NOTIFY_INACTIVE_BIT = 2,
 }
-pub const NFEA_UNSPEC: _bindgen_ty_53 = _bindgen_ty_53::NFEA_UNSPEC;
-pub const NFEA_ACTIVITY_NOTIFY: _bindgen_ty_53 = _bindgen_ty_53::NFEA_ACTIVITY_NOTIFY;
-pub const NFEA_DONT_REFRESH: _bindgen_ty_53 = _bindgen_ty_53::NFEA_DONT_REFRESH;
-pub const __NFEA_MAX: _bindgen_ty_53 = _bindgen_ty_53::__NFEA_MAX;
+pub const NFEA_UNSPEC: _bindgen_ty_59 = _bindgen_ty_59::NFEA_UNSPEC;
+pub const NFEA_ACTIVITY_NOTIFY: _bindgen_ty_59 = _bindgen_ty_59::NFEA_ACTIVITY_NOTIFY;
+pub const NFEA_DONT_REFRESH: _bindgen_ty_59 = _bindgen_ty_59::NFEA_DONT_REFRESH;
+pub const __NFEA_MAX: _bindgen_ty_59 = _bindgen_ty_59::__NFEA_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_53 {
+pub enum _bindgen_ty_59 {
 NFEA_UNSPEC = 0,
 NFEA_ACTIVITY_NOTIFY = 1,
 NFEA_DONT_REFRESH = 2,
 __NFEA_MAX = 3,
 }
-pub const RTM_BASE: _bindgen_ty_54 = _bindgen_ty_54::RTM_BASE;
-pub const RTM_NEWLINK: _bindgen_ty_54 = _bindgen_ty_54::RTM_BASE;
-pub const RTM_DELLINK: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELLINK;
-pub const RTM_GETLINK: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETLINK;
-pub const RTM_SETLINK: _bindgen_ty_54 = _bindgen_ty_54::RTM_SETLINK;
-pub const RTM_NEWADDR: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWADDR;
-pub const RTM_DELADDR: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELADDR;
-pub const RTM_GETADDR: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETADDR;
-pub const RTM_NEWROUTE: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWROUTE;
-pub const RTM_DELROUTE: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELROUTE;
-pub const RTM_GETROUTE: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETROUTE;
-pub const RTM_NEWNEIGH: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWNEIGH;
-pub const RTM_DELNEIGH: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELNEIGH;
-pub const RTM_GETNEIGH: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETNEIGH;
-pub const RTM_NEWRULE: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWRULE;
-pub const RTM_DELRULE: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELRULE;
-pub const RTM_GETRULE: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETRULE;
-pub const RTM_NEWQDISC: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWQDISC;
-pub const RTM_DELQDISC: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELQDISC;
-pub const RTM_GETQDISC: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETQDISC;
-pub const RTM_NEWTCLASS: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWTCLASS;
-pub const RTM_DELTCLASS: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELTCLASS;
-pub const RTM_GETTCLASS: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETTCLASS;
-pub const RTM_NEWTFILTER: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWTFILTER;
-pub const RTM_DELTFILTER: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELTFILTER;
-pub const RTM_GETTFILTER: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETTFILTER;
-pub const RTM_NEWACTION: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWACTION;
-pub const RTM_DELACTION: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELACTION;
-pub const RTM_GETACTION: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETACTION;
-pub const RTM_NEWPREFIX: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWPREFIX;
-pub const RTM_GETMULTICAST: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETMULTICAST;
-pub const RTM_GETANYCAST: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETANYCAST;
-pub const RTM_NEWNEIGHTBL: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWNEIGHTBL;
-pub const RTM_GETNEIGHTBL: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETNEIGHTBL;
-pub const RTM_SETNEIGHTBL: _bindgen_ty_54 = _bindgen_ty_54::RTM_SETNEIGHTBL;
-pub const RTM_NEWNDUSEROPT: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWNDUSEROPT;
-pub const RTM_NEWADDRLABEL: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWADDRLABEL;
-pub const RTM_DELADDRLABEL: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELADDRLABEL;
-pub const RTM_GETADDRLABEL: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETADDRLABEL;
-pub const RTM_GETDCB: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETDCB;
-pub const RTM_SETDCB: _bindgen_ty_54 = _bindgen_ty_54::RTM_SETDCB;
-pub const RTM_NEWNETCONF: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWNETCONF;
-pub const RTM_DELNETCONF: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELNETCONF;
-pub const RTM_GETNETCONF: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETNETCONF;
-pub const RTM_NEWMDB: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWMDB;
-pub const RTM_DELMDB: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELMDB;
-pub const RTM_GETMDB: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETMDB;
-pub const RTM_NEWNSID: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWNSID;
-pub const RTM_DELNSID: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELNSID;
-pub const RTM_GETNSID: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETNSID;
-pub const RTM_NEWSTATS: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWSTATS;
-pub const RTM_GETSTATS: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETSTATS;
-pub const RTM_NEWCACHEREPORT: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWCACHEREPORT;
-pub const RTM_NEWCHAIN: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWCHAIN;
-pub const RTM_DELCHAIN: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELCHAIN;
-pub const RTM_GETCHAIN: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETCHAIN;
-pub const RTM_NEWNEXTHOP: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWNEXTHOP;
-pub const RTM_DELNEXTHOP: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELNEXTHOP;
-pub const RTM_GETNEXTHOP: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETNEXTHOP;
-pub const RTM_NEWLINKPROP: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWLINKPROP;
-pub const RTM_DELLINKPROP: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELLINKPROP;
-pub const RTM_GETLINKPROP: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETLINKPROP;
-pub const RTM_NEWVLAN: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWVLAN;
-pub const RTM_DELVLAN: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELVLAN;
-pub const RTM_GETVLAN: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETVLAN;
-pub const RTM_NEWNEXTHOPBUCKET: _bindgen_ty_54 = _bindgen_ty_54::RTM_NEWNEXTHOPBUCKET;
-pub const RTM_DELNEXTHOPBUCKET: _bindgen_ty_54 = _bindgen_ty_54::RTM_DELNEXTHOPBUCKET;
-pub const RTM_GETNEXTHOPBUCKET: _bindgen_ty_54 = _bindgen_ty_54::RTM_GETNEXTHOPBUCKET;
-pub const __RTM_MAX: _bindgen_ty_54 = _bindgen_ty_54::__RTM_MAX;
+pub const RTM_BASE: _bindgen_ty_60 = _bindgen_ty_60::RTM_BASE;
+pub const RTM_NEWLINK: _bindgen_ty_60 = _bindgen_ty_60::RTM_BASE;
+pub const RTM_DELLINK: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELLINK;
+pub const RTM_GETLINK: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETLINK;
+pub const RTM_SETLINK: _bindgen_ty_60 = _bindgen_ty_60::RTM_SETLINK;
+pub const RTM_NEWADDR: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWADDR;
+pub const RTM_DELADDR: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELADDR;
+pub const RTM_GETADDR: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETADDR;
+pub const RTM_NEWROUTE: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWROUTE;
+pub const RTM_DELROUTE: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELROUTE;
+pub const RTM_GETROUTE: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETROUTE;
+pub const RTM_NEWNEIGH: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWNEIGH;
+pub const RTM_DELNEIGH: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELNEIGH;
+pub const RTM_GETNEIGH: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETNEIGH;
+pub const RTM_NEWRULE: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWRULE;
+pub const RTM_DELRULE: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELRULE;
+pub const RTM_GETRULE: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETRULE;
+pub const RTM_NEWQDISC: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWQDISC;
+pub const RTM_DELQDISC: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELQDISC;
+pub const RTM_GETQDISC: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETQDISC;
+pub const RTM_NEWTCLASS: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWTCLASS;
+pub const RTM_DELTCLASS: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELTCLASS;
+pub const RTM_GETTCLASS: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETTCLASS;
+pub const RTM_NEWTFILTER: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWTFILTER;
+pub const RTM_DELTFILTER: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELTFILTER;
+pub const RTM_GETTFILTER: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETTFILTER;
+pub const RTM_NEWACTION: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWACTION;
+pub const RTM_DELACTION: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELACTION;
+pub const RTM_GETACTION: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETACTION;
+pub const RTM_NEWPREFIX: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWPREFIX;
+pub const RTM_GETMULTICAST: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETMULTICAST;
+pub const RTM_GETANYCAST: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETANYCAST;
+pub const RTM_NEWNEIGHTBL: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWNEIGHTBL;
+pub const RTM_GETNEIGHTBL: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETNEIGHTBL;
+pub const RTM_SETNEIGHTBL: _bindgen_ty_60 = _bindgen_ty_60::RTM_SETNEIGHTBL;
+pub const RTM_NEWNDUSEROPT: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWNDUSEROPT;
+pub const RTM_NEWADDRLABEL: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWADDRLABEL;
+pub const RTM_DELADDRLABEL: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELADDRLABEL;
+pub const RTM_GETADDRLABEL: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETADDRLABEL;
+pub const RTM_GETDCB: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETDCB;
+pub const RTM_SETDCB: _bindgen_ty_60 = _bindgen_ty_60::RTM_SETDCB;
+pub const RTM_NEWNETCONF: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWNETCONF;
+pub const RTM_DELNETCONF: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELNETCONF;
+pub const RTM_GETNETCONF: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETNETCONF;
+pub const RTM_NEWMDB: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWMDB;
+pub const RTM_DELMDB: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELMDB;
+pub const RTM_GETMDB: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETMDB;
+pub const RTM_NEWNSID: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWNSID;
+pub const RTM_DELNSID: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELNSID;
+pub const RTM_GETNSID: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETNSID;
+pub const RTM_NEWSTATS: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWSTATS;
+pub const RTM_GETSTATS: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETSTATS;
+pub const RTM_SETSTATS: _bindgen_ty_60 = _bindgen_ty_60::RTM_SETSTATS;
+pub const RTM_NEWCACHEREPORT: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWCACHEREPORT;
+pub const RTM_NEWCHAIN: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWCHAIN;
+pub const RTM_DELCHAIN: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELCHAIN;
+pub const RTM_GETCHAIN: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETCHAIN;
+pub const RTM_NEWNEXTHOP: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWNEXTHOP;
+pub const RTM_DELNEXTHOP: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELNEXTHOP;
+pub const RTM_GETNEXTHOP: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETNEXTHOP;
+pub const RTM_NEWLINKPROP: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWLINKPROP;
+pub const RTM_DELLINKPROP: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELLINKPROP;
+pub const RTM_GETLINKPROP: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETLINKPROP;
+pub const RTM_NEWVLAN: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWVLAN;
+pub const RTM_DELVLAN: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELVLAN;
+pub const RTM_GETVLAN: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETVLAN;
+pub const RTM_NEWNEXTHOPBUCKET: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWNEXTHOPBUCKET;
+pub const RTM_DELNEXTHOPBUCKET: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELNEXTHOPBUCKET;
+pub const RTM_GETNEXTHOPBUCKET: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETNEXTHOPBUCKET;
+pub const RTM_NEWTUNNEL: _bindgen_ty_60 = _bindgen_ty_60::RTM_NEWTUNNEL;
+pub const RTM_DELTUNNEL: _bindgen_ty_60 = _bindgen_ty_60::RTM_DELTUNNEL;
+pub const RTM_GETTUNNEL: _bindgen_ty_60 = _bindgen_ty_60::RTM_GETTUNNEL;
+pub const __RTM_MAX: _bindgen_ty_60 = _bindgen_ty_60::__RTM_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_54 {
+pub enum _bindgen_ty_60 {
 RTM_BASE = 16,
 RTM_DELLINK = 17,
 RTM_GETLINK = 18,
@@ -2267,6 +2447,7 @@ RTM_DELNSID = 89,
 RTM_GETNSID = 90,
 RTM_NEWSTATS = 92,
 RTM_GETSTATS = 94,
+RTM_SETSTATS = 95,
 RTM_NEWCACHEREPORT = 96,
 RTM_NEWCHAIN = 100,
 RTM_DELCHAIN = 101,
@@ -2283,7 +2464,10 @@ RTM_GETVLAN = 114,
 RTM_NEWNEXTHOPBUCKET = 116,
 RTM_DELNEXTHOPBUCKET = 117,
 RTM_GETNEXTHOPBUCKET = 118,
-__RTM_MAX = 119,
+RTM_NEWTUNNEL = 120,
+RTM_DELTUNNEL = 121,
+RTM_GETTUNNEL = 122,
+__RTM_MAX = 123,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2304,23 +2488,23 @@ pub rtm_scope: crate::ctypes::c_uchar,
 pub rtm_type: crate::ctypes::c_uchar,
 pub rtm_flags: crate::ctypes::c_uint,
 }
-pub const RTN_UNSPEC: _bindgen_ty_55 = _bindgen_ty_55::RTN_UNSPEC;
-pub const RTN_UNICAST: _bindgen_ty_55 = _bindgen_ty_55::RTN_UNICAST;
-pub const RTN_LOCAL: _bindgen_ty_55 = _bindgen_ty_55::RTN_LOCAL;
-pub const RTN_BROADCAST: _bindgen_ty_55 = _bindgen_ty_55::RTN_BROADCAST;
-pub const RTN_ANYCAST: _bindgen_ty_55 = _bindgen_ty_55::RTN_ANYCAST;
-pub const RTN_MULTICAST: _bindgen_ty_55 = _bindgen_ty_55::RTN_MULTICAST;
-pub const RTN_BLACKHOLE: _bindgen_ty_55 = _bindgen_ty_55::RTN_BLACKHOLE;
-pub const RTN_UNREACHABLE: _bindgen_ty_55 = _bindgen_ty_55::RTN_UNREACHABLE;
-pub const RTN_PROHIBIT: _bindgen_ty_55 = _bindgen_ty_55::RTN_PROHIBIT;
-pub const RTN_THROW: _bindgen_ty_55 = _bindgen_ty_55::RTN_THROW;
-pub const RTN_NAT: _bindgen_ty_55 = _bindgen_ty_55::RTN_NAT;
-pub const RTN_XRESOLVE: _bindgen_ty_55 = _bindgen_ty_55::RTN_XRESOLVE;
-pub const __RTN_MAX: _bindgen_ty_55 = _bindgen_ty_55::__RTN_MAX;
+pub const RTN_UNSPEC: _bindgen_ty_61 = _bindgen_ty_61::RTN_UNSPEC;
+pub const RTN_UNICAST: _bindgen_ty_61 = _bindgen_ty_61::RTN_UNICAST;
+pub const RTN_LOCAL: _bindgen_ty_61 = _bindgen_ty_61::RTN_LOCAL;
+pub const RTN_BROADCAST: _bindgen_ty_61 = _bindgen_ty_61::RTN_BROADCAST;
+pub const RTN_ANYCAST: _bindgen_ty_61 = _bindgen_ty_61::RTN_ANYCAST;
+pub const RTN_MULTICAST: _bindgen_ty_61 = _bindgen_ty_61::RTN_MULTICAST;
+pub const RTN_BLACKHOLE: _bindgen_ty_61 = _bindgen_ty_61::RTN_BLACKHOLE;
+pub const RTN_UNREACHABLE: _bindgen_ty_61 = _bindgen_ty_61::RTN_UNREACHABLE;
+pub const RTN_PROHIBIT: _bindgen_ty_61 = _bindgen_ty_61::RTN_PROHIBIT;
+pub const RTN_THROW: _bindgen_ty_61 = _bindgen_ty_61::RTN_THROW;
+pub const RTN_NAT: _bindgen_ty_61 = _bindgen_ty_61::RTN_NAT;
+pub const RTN_XRESOLVE: _bindgen_ty_61 = _bindgen_ty_61::RTN_XRESOLVE;
+pub const __RTN_MAX: _bindgen_ty_61 = _bindgen_ty_61::__RTN_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_55 {
+pub enum _bindgen_ty_61 {
 RTN_UNSPEC = 0,
 RTN_UNICAST = 1,
 RTN_LOCAL = 2,
@@ -2419,29 +2603,29 @@ pub rta_id: __u32,
 pub rta_ts: __u32,
 pub rta_tsage: __u32,
 }
-pub const RTAX_UNSPEC: _bindgen_ty_56 = _bindgen_ty_56::RTAX_UNSPEC;
-pub const RTAX_LOCK: _bindgen_ty_56 = _bindgen_ty_56::RTAX_LOCK;
-pub const RTAX_MTU: _bindgen_ty_56 = _bindgen_ty_56::RTAX_MTU;
-pub const RTAX_WINDOW: _bindgen_ty_56 = _bindgen_ty_56::RTAX_WINDOW;
-pub const RTAX_RTT: _bindgen_ty_56 = _bindgen_ty_56::RTAX_RTT;
-pub const RTAX_RTTVAR: _bindgen_ty_56 = _bindgen_ty_56::RTAX_RTTVAR;
-pub const RTAX_SSTHRESH: _bindgen_ty_56 = _bindgen_ty_56::RTAX_SSTHRESH;
-pub const RTAX_CWND: _bindgen_ty_56 = _bindgen_ty_56::RTAX_CWND;
-pub const RTAX_ADVMSS: _bindgen_ty_56 = _bindgen_ty_56::RTAX_ADVMSS;
-pub const RTAX_REORDERING: _bindgen_ty_56 = _bindgen_ty_56::RTAX_REORDERING;
-pub const RTAX_HOPLIMIT: _bindgen_ty_56 = _bindgen_ty_56::RTAX_HOPLIMIT;
-pub const RTAX_INITCWND: _bindgen_ty_56 = _bindgen_ty_56::RTAX_INITCWND;
-pub const RTAX_FEATURES: _bindgen_ty_56 = _bindgen_ty_56::RTAX_FEATURES;
-pub const RTAX_RTO_MIN: _bindgen_ty_56 = _bindgen_ty_56::RTAX_RTO_MIN;
-pub const RTAX_INITRWND: _bindgen_ty_56 = _bindgen_ty_56::RTAX_INITRWND;
-pub const RTAX_QUICKACK: _bindgen_ty_56 = _bindgen_ty_56::RTAX_QUICKACK;
-pub const RTAX_CC_ALGO: _bindgen_ty_56 = _bindgen_ty_56::RTAX_CC_ALGO;
-pub const RTAX_FASTOPEN_NO_COOKIE: _bindgen_ty_56 = _bindgen_ty_56::RTAX_FASTOPEN_NO_COOKIE;
-pub const __RTAX_MAX: _bindgen_ty_56 = _bindgen_ty_56::__RTAX_MAX;
+pub const RTAX_UNSPEC: _bindgen_ty_62 = _bindgen_ty_62::RTAX_UNSPEC;
+pub const RTAX_LOCK: _bindgen_ty_62 = _bindgen_ty_62::RTAX_LOCK;
+pub const RTAX_MTU: _bindgen_ty_62 = _bindgen_ty_62::RTAX_MTU;
+pub const RTAX_WINDOW: _bindgen_ty_62 = _bindgen_ty_62::RTAX_WINDOW;
+pub const RTAX_RTT: _bindgen_ty_62 = _bindgen_ty_62::RTAX_RTT;
+pub const RTAX_RTTVAR: _bindgen_ty_62 = _bindgen_ty_62::RTAX_RTTVAR;
+pub const RTAX_SSTHRESH: _bindgen_ty_62 = _bindgen_ty_62::RTAX_SSTHRESH;
+pub const RTAX_CWND: _bindgen_ty_62 = _bindgen_ty_62::RTAX_CWND;
+pub const RTAX_ADVMSS: _bindgen_ty_62 = _bindgen_ty_62::RTAX_ADVMSS;
+pub const RTAX_REORDERING: _bindgen_ty_62 = _bindgen_ty_62::RTAX_REORDERING;
+pub const RTAX_HOPLIMIT: _bindgen_ty_62 = _bindgen_ty_62::RTAX_HOPLIMIT;
+pub const RTAX_INITCWND: _bindgen_ty_62 = _bindgen_ty_62::RTAX_INITCWND;
+pub const RTAX_FEATURES: _bindgen_ty_62 = _bindgen_ty_62::RTAX_FEATURES;
+pub const RTAX_RTO_MIN: _bindgen_ty_62 = _bindgen_ty_62::RTAX_RTO_MIN;
+pub const RTAX_INITRWND: _bindgen_ty_62 = _bindgen_ty_62::RTAX_INITRWND;
+pub const RTAX_QUICKACK: _bindgen_ty_62 = _bindgen_ty_62::RTAX_QUICKACK;
+pub const RTAX_CC_ALGO: _bindgen_ty_62 = _bindgen_ty_62::RTAX_CC_ALGO;
+pub const RTAX_FASTOPEN_NO_COOKIE: _bindgen_ty_62 = _bindgen_ty_62::RTAX_FASTOPEN_NO_COOKIE;
+pub const __RTAX_MAX: _bindgen_ty_62 = _bindgen_ty_62::__RTAX_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_56 {
+pub enum _bindgen_ty_62 {
 RTAX_UNSPEC = 0,
 RTAX_LOCK = 1,
 RTAX_MTU = 2,
@@ -2524,14 +2708,14 @@ pub prefix_len: crate::ctypes::c_uchar,
 pub prefix_flags: crate::ctypes::c_uchar,
 pub prefix_pad3: crate::ctypes::c_uchar,
 }
-pub const PREFIX_UNSPEC: _bindgen_ty_57 = _bindgen_ty_57::PREFIX_UNSPEC;
-pub const PREFIX_ADDRESS: _bindgen_ty_57 = _bindgen_ty_57::PREFIX_ADDRESS;
-pub const PREFIX_CACHEINFO: _bindgen_ty_57 = _bindgen_ty_57::PREFIX_CACHEINFO;
-pub const __PREFIX_MAX: _bindgen_ty_57 = _bindgen_ty_57::__PREFIX_MAX;
+pub const PREFIX_UNSPEC: _bindgen_ty_63 = _bindgen_ty_63::PREFIX_UNSPEC;
+pub const PREFIX_ADDRESS: _bindgen_ty_63 = _bindgen_ty_63::PREFIX_ADDRESS;
+pub const PREFIX_CACHEINFO: _bindgen_ty_63 = _bindgen_ty_63::PREFIX_CACHEINFO;
+pub const __PREFIX_MAX: _bindgen_ty_63 = _bindgen_ty_63::__PREFIX_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_57 {
+pub enum _bindgen_ty_63 {
 PREFIX_UNSPEC = 0,
 PREFIX_ADDRESS = 1,
 PREFIX_CACHEINFO = 2,
@@ -2554,27 +2738,28 @@ pub tcm_handle: __u32,
 pub tcm_parent: __u32,
 pub tcm_info: __u32,
 }
-pub const TCA_UNSPEC: _bindgen_ty_58 = _bindgen_ty_58::TCA_UNSPEC;
-pub const TCA_KIND: _bindgen_ty_58 = _bindgen_ty_58::TCA_KIND;
-pub const TCA_OPTIONS: _bindgen_ty_58 = _bindgen_ty_58::TCA_OPTIONS;
-pub const TCA_STATS: _bindgen_ty_58 = _bindgen_ty_58::TCA_STATS;
-pub const TCA_XSTATS: _bindgen_ty_58 = _bindgen_ty_58::TCA_XSTATS;
-pub const TCA_RATE: _bindgen_ty_58 = _bindgen_ty_58::TCA_RATE;
-pub const TCA_FCNT: _bindgen_ty_58 = _bindgen_ty_58::TCA_FCNT;
-pub const TCA_STATS2: _bindgen_ty_58 = _bindgen_ty_58::TCA_STATS2;
-pub const TCA_STAB: _bindgen_ty_58 = _bindgen_ty_58::TCA_STAB;
-pub const TCA_PAD: _bindgen_ty_58 = _bindgen_ty_58::TCA_PAD;
-pub const TCA_DUMP_INVISIBLE: _bindgen_ty_58 = _bindgen_ty_58::TCA_DUMP_INVISIBLE;
-pub const TCA_CHAIN: _bindgen_ty_58 = _bindgen_ty_58::TCA_CHAIN;
-pub const TCA_HW_OFFLOAD: _bindgen_ty_58 = _bindgen_ty_58::TCA_HW_OFFLOAD;
-pub const TCA_INGRESS_BLOCK: _bindgen_ty_58 = _bindgen_ty_58::TCA_INGRESS_BLOCK;
-pub const TCA_EGRESS_BLOCK: _bindgen_ty_58 = _bindgen_ty_58::TCA_EGRESS_BLOCK;
-pub const TCA_DUMP_FLAGS: _bindgen_ty_58 = _bindgen_ty_58::TCA_DUMP_FLAGS;
-pub const __TCA_MAX: _bindgen_ty_58 = _bindgen_ty_58::__TCA_MAX;
+pub const TCA_UNSPEC: _bindgen_ty_64 = _bindgen_ty_64::TCA_UNSPEC;
+pub const TCA_KIND: _bindgen_ty_64 = _bindgen_ty_64::TCA_KIND;
+pub const TCA_OPTIONS: _bindgen_ty_64 = _bindgen_ty_64::TCA_OPTIONS;
+pub const TCA_STATS: _bindgen_ty_64 = _bindgen_ty_64::TCA_STATS;
+pub const TCA_XSTATS: _bindgen_ty_64 = _bindgen_ty_64::TCA_XSTATS;
+pub const TCA_RATE: _bindgen_ty_64 = _bindgen_ty_64::TCA_RATE;
+pub const TCA_FCNT: _bindgen_ty_64 = _bindgen_ty_64::TCA_FCNT;
+pub const TCA_STATS2: _bindgen_ty_64 = _bindgen_ty_64::TCA_STATS2;
+pub const TCA_STAB: _bindgen_ty_64 = _bindgen_ty_64::TCA_STAB;
+pub const TCA_PAD: _bindgen_ty_64 = _bindgen_ty_64::TCA_PAD;
+pub const TCA_DUMP_INVISIBLE: _bindgen_ty_64 = _bindgen_ty_64::TCA_DUMP_INVISIBLE;
+pub const TCA_CHAIN: _bindgen_ty_64 = _bindgen_ty_64::TCA_CHAIN;
+pub const TCA_HW_OFFLOAD: _bindgen_ty_64 = _bindgen_ty_64::TCA_HW_OFFLOAD;
+pub const TCA_INGRESS_BLOCK: _bindgen_ty_64 = _bindgen_ty_64::TCA_INGRESS_BLOCK;
+pub const TCA_EGRESS_BLOCK: _bindgen_ty_64 = _bindgen_ty_64::TCA_EGRESS_BLOCK;
+pub const TCA_DUMP_FLAGS: _bindgen_ty_64 = _bindgen_ty_64::TCA_DUMP_FLAGS;
+pub const TCA_EXT_WARN_MSG: _bindgen_ty_64 = _bindgen_ty_64::TCA_EXT_WARN_MSG;
+pub const __TCA_MAX: _bindgen_ty_64 = _bindgen_ty_64::__TCA_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_58 {
+pub enum _bindgen_ty_64 {
 TCA_UNSPEC = 0,
 TCA_KIND = 1,
 TCA_OPTIONS = 2,
@@ -2591,7 +2776,8 @@ TCA_HW_OFFLOAD = 12,
 TCA_INGRESS_BLOCK = 13,
 TCA_EGRESS_BLOCK = 14,
 TCA_DUMP_FLAGS = 15,
-__TCA_MAX = 16,
+TCA_EXT_WARN_MSG = 16,
+__TCA_MAX = 17,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2605,13 +2791,13 @@ pub nduseropt_icmp_code: __u8,
 pub nduseropt_pad2: crate::ctypes::c_ushort,
 pub nduseropt_pad3: crate::ctypes::c_uint,
 }
-pub const NDUSEROPT_UNSPEC: _bindgen_ty_59 = _bindgen_ty_59::NDUSEROPT_UNSPEC;
-pub const NDUSEROPT_SRCADDR: _bindgen_ty_59 = _bindgen_ty_59::NDUSEROPT_SRCADDR;
-pub const __NDUSEROPT_MAX: _bindgen_ty_59 = _bindgen_ty_59::__NDUSEROPT_MAX;
+pub const NDUSEROPT_UNSPEC: _bindgen_ty_65 = _bindgen_ty_65::NDUSEROPT_UNSPEC;
+pub const NDUSEROPT_SRCADDR: _bindgen_ty_65 = _bindgen_ty_65::NDUSEROPT_SRCADDR;
+pub const __NDUSEROPT_MAX: _bindgen_ty_65 = _bindgen_ty_65::__NDUSEROPT_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_59 {
+pub enum _bindgen_ty_65 {
 NDUSEROPT_UNSPEC = 0,
 NDUSEROPT_SRCADDR = 1,
 __NDUSEROPT_MAX = 2,
@@ -2655,7 +2841,9 @@ RTNLGRP_IPV6_MROUTE_R = 31,
 RTNLGRP_NEXTHOP = 32,
 RTNLGRP_BRVLAN = 33,
 RTNLGRP_MCTP_IFADDR = 34,
-__RTNLGRP_MAX = 35,
+RTNLGRP_TUNNEL = 35,
+RTNLGRP_STATS = 36,
+__RTNLGRP_MAX = 37,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2664,20 +2852,22 @@ pub tca_family: crate::ctypes::c_uchar,
 pub tca__pad1: crate::ctypes::c_uchar,
 pub tca__pad2: crate::ctypes::c_ushort,
 }
-pub const TCA_ROOT_UNSPEC: _bindgen_ty_60 = _bindgen_ty_60::TCA_ROOT_UNSPEC;
-pub const TCA_ROOT_TAB: _bindgen_ty_60 = _bindgen_ty_60::TCA_ROOT_TAB;
-pub const TCA_ROOT_FLAGS: _bindgen_ty_60 = _bindgen_ty_60::TCA_ROOT_FLAGS;
-pub const TCA_ROOT_COUNT: _bindgen_ty_60 = _bindgen_ty_60::TCA_ROOT_COUNT;
-pub const TCA_ROOT_TIME_DELTA: _bindgen_ty_60 = _bindgen_ty_60::TCA_ROOT_TIME_DELTA;
-pub const __TCA_ROOT_MAX: _bindgen_ty_60 = _bindgen_ty_60::__TCA_ROOT_MAX;
+pub const TCA_ROOT_UNSPEC: _bindgen_ty_66 = _bindgen_ty_66::TCA_ROOT_UNSPEC;
+pub const TCA_ROOT_TAB: _bindgen_ty_66 = _bindgen_ty_66::TCA_ROOT_TAB;
+pub const TCA_ROOT_FLAGS: _bindgen_ty_66 = _bindgen_ty_66::TCA_ROOT_FLAGS;
+pub const TCA_ROOT_COUNT: _bindgen_ty_66 = _bindgen_ty_66::TCA_ROOT_COUNT;
+pub const TCA_ROOT_TIME_DELTA: _bindgen_ty_66 = _bindgen_ty_66::TCA_ROOT_TIME_DELTA;
+pub const TCA_ROOT_EXT_WARN_MSG: _bindgen_ty_66 = _bindgen_ty_66::TCA_ROOT_EXT_WARN_MSG;
+pub const __TCA_ROOT_MAX: _bindgen_ty_66 = _bindgen_ty_66::__TCA_ROOT_MAX;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_60 {
+pub enum _bindgen_ty_66 {
 TCA_ROOT_UNSPEC = 0,
 TCA_ROOT_TAB = 1,
 TCA_ROOT_FLAGS = 2,
 TCA_ROOT_COUNT = 3,
 TCA_ROOT_TIME_DELTA = 4,
-__TCA_ROOT_MAX = 5,
+TCA_ROOT_EXT_WARN_MSG = 5,
+__TCA_ROOT_MAX = 6,
 }

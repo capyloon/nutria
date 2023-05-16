@@ -1,5 +1,9 @@
 use super::super::c;
 
+/// `sysinfo`
+#[cfg(any(target_os = "android", target_os = "linux"))]
+pub type Sysinfo = c::sysinfo;
+
 /// A command for use with [`membarrier`] and [`membarrier_cpu`].
 ///
 /// For `MEMBARRIER_CMD_QUERY`, see [`membarrier_query`].
@@ -7,8 +11,6 @@ use super::super::c;
 /// [`membarrier`]: crate::process::membarrier
 /// [`membarrier_cpu`]: crate::process::membarrier_cpu
 /// [`membarrier_query`]: crate::process::membarrier_query
-// TODO: These are not yet exposed through libc, so we define the
-// constants ourselves.
 #[cfg(any(target_os = "android", target_os = "linux"))]
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[repr(u32)]
@@ -16,23 +18,24 @@ pub enum MembarrierCommand {
     /// `MEMBARRIER_CMD_GLOBAL`
     #[doc(alias = "Shared")]
     #[doc(alias = "MEMBARRIER_CMD_SHARED")]
-    Global = 1,
+    Global = c::MEMBARRIER_CMD_GLOBAL as u32,
     /// `MEMBARRIER_CMD_GLOBAL_EXPEDITED`
-    GlobalExpedited = 2,
+    GlobalExpedited = c::MEMBARRIER_CMD_GLOBAL_EXPEDITED as u32,
     /// `MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED`
-    RegisterGlobalExpedited = 4,
+    RegisterGlobalExpedited = c::MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED as u32,
     /// `MEMBARRIER_CMD_PRIVATE_EXPEDITED`
-    PrivateExpedited = 8,
+    PrivateExpedited = c::MEMBARRIER_CMD_PRIVATE_EXPEDITED as u32,
     /// `MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED`
-    RegisterPrivateExpedited = 16,
+    RegisterPrivateExpedited = c::MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED as u32,
     /// `MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE`
-    PrivateExpeditedSyncCore = 32,
+    PrivateExpeditedSyncCore = c::MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE as u32,
     /// `MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE`
-    RegisterPrivateExpeditedSyncCore = 64,
+    RegisterPrivateExpeditedSyncCore =
+        c::MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE as u32,
     /// `MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ` (since Linux 5.10)
-    PrivateExpeditedRseq = 128,
+    PrivateExpeditedRseq = c::MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ as u32,
     /// `MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ` (since Linux 5.10)
-    RegisterPrivateExpeditedRseq = 256,
+    RegisterPrivateExpeditedRseq = c::MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ as u32,
 }
 
 /// A resource value for use with [`getrlimit`], [`setrlimit`], and
@@ -57,122 +60,50 @@ pub enum Resource {
     #[cfg(not(target_os = "haiku"))]
     Core = c::RLIMIT_CORE as c::c_int,
     /// `RLIMIT_RSS`
-    #[cfg(not(any(
-        target_os = "haiku",
-        target_os = "illumos",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "solaris",
-    )))]
+    #[cfg(not(any(apple, solarish, target_os = "haiku")))]
     Rss = c::RLIMIT_RSS as c::c_int,
     /// `RLIMIT_NPROC`
-    #[cfg(not(any(target_os = "haiku", target_os = "illumos", target_os = "solaris")))]
+    #[cfg(not(any(solarish, target_os = "haiku")))]
     Nproc = c::RLIMIT_NPROC as c::c_int,
     /// `RLIMIT_NOFILE`
     Nofile = c::RLIMIT_NOFILE as c::c_int,
     /// `RLIMIT_MEMLOCK`
-    #[cfg(not(any(
-        target_os = "aix",
-        target_os = "haiku",
-        target_os = "illumos",
-        target_os = "solaris"
-    )))]
+    #[cfg(not(any(solarish, target_os = "aix", target_os = "haiku")))]
     Memlock = c::RLIMIT_MEMLOCK as c::c_int,
     /// `RLIMIT_AS`
     #[cfg(not(target_os = "openbsd"))]
     As = c::RLIMIT_AS as c::c_int,
     /// `RLIMIT_LOCKS`
-    #[cfg(not(any(
-        target_os = "aix",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "haiku",
-        target_os = "illumos",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "solaris",
-    )))]
+    #[cfg(not(any(bsd, solarish, target_os = "aix", target_os = "haiku")))]
     Locks = c::RLIMIT_LOCKS as c::c_int,
     /// `RLIMIT_SIGPENDING`
-    #[cfg(not(any(
-        target_os = "aix",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "haiku",
-        target_os = "illumos",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "solaris",
-    )))]
+    #[cfg(not(any(bsd, solarish, target_os = "aix", target_os = "haiku")))]
     Sigpending = c::RLIMIT_SIGPENDING as c::c_int,
     /// `RLIMIT_MSGQUEUE`
-    #[cfg(not(any(
-        target_os = "aix",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "haiku",
-        target_os = "illumos",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "solaris",
-    )))]
+    #[cfg(not(any(bsd, solarish, target_os = "aix", target_os = "haiku")))]
     Msgqueue = c::RLIMIT_MSGQUEUE as c::c_int,
     /// `RLIMIT_NICE`
-    #[cfg(not(any(
-        target_os = "aix",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "haiku",
-        target_os = "illumos",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "solaris",
-    )))]
+    #[cfg(not(any(bsd, solarish, target_os = "aix", target_os = "haiku")))]
     Nice = c::RLIMIT_NICE as c::c_int,
     /// `RLIMIT_RTPRIO`
-    #[cfg(not(any(
-        target_os = "aix",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "haiku",
-        target_os = "illumos",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "solaris",
-    )))]
+    #[cfg(not(any(bsd, solarish, target_os = "aix", target_os = "haiku")))]
     Rtprio = c::RLIMIT_RTPRIO as c::c_int,
     /// `RLIMIT_RTTIME`
     #[cfg(not(any(
+        bsd,
+        solarish,
         target_os = "aix",
         target_os = "android",
-        target_os = "dragonfly",
         target_os = "emscripten",
-        target_os = "freebsd",
         target_os = "haiku",
-        target_os = "illumos",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "solaris",
     )))]
     Rttime = c::RLIMIT_RTTIME as c::c_int,
 }
 
-#[cfg(any(target_os = "ios", target_os = "macos"))]
+#[cfg(apple)]
+#[allow(non_upper_case_globals)]
 impl Resource {
     /// `RLIMIT_RSS`
-    #[allow(non_upper_case_globals)]
     pub const Rss: Self = Self::As;
 }
 
@@ -221,16 +152,10 @@ pub enum Signal {
     Term = c::SIGTERM,
     /// `SIGSTKFLT`
     #[cfg(not(any(
+        bsd,
+        solarish,
         target_os = "aix",
-        target_os = "dragonfly",
-        target_os = "freebsd",
         target_os = "haiku",
-        target_os = "illumos",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "solaris",
         all(
             any(target_os = "android", target_os = "linux"),
             any(
@@ -273,20 +198,25 @@ pub enum Signal {
     #[cfg(not(target_os = "haiku"))]
     Io = c::SIGIO,
     /// `SIGPWR`
-    #[cfg(not(any(
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "haiku",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd",
-    )))]
+    #[cfg(not(any(bsd, target_os = "haiku")))]
     #[doc(alias = "Pwr")]
     Power = c::SIGPWR,
     /// `SIGSYS`, aka `SIGUNUSED`
     #[doc(alias = "Unused")]
     Sys = c::SIGSYS,
+    /// `SIGEMT`
+    #[cfg(bsd)]
+    Emt = c::SIGEMT,
+    /// `SIGINFO`
+    #[cfg(bsd)]
+    Info = c::SIGINFO,
+    /// `SIGTHR`
+    #[cfg(target_os = "freebsd")]
+    #[doc(alias = "Lwp")]
+    Thr = c::SIGTHR,
+    /// `SIGLIBRT`
+    #[cfg(target_os = "freebsd")]
+    Librt = c::SIGLIBRT,
 }
 
 #[cfg(not(target_os = "wasi"))]
@@ -310,16 +240,10 @@ impl Signal {
             c::SIGALRM => Some(Self::Alarm),
             c::SIGTERM => Some(Self::Term),
             #[cfg(not(any(
+                bsd,
+                solarish,
                 target_os = "aix",
-                target_os = "dragonfly",
-                target_os = "freebsd",
                 target_os = "haiku",
-                target_os = "illumos",
-                target_os = "ios",
-                target_os = "macos",
-                target_os = "netbsd",
-                target_os = "openbsd",
-                target_os = "solaris",
                 all(
                     any(target_os = "android", target_os = "linux"),
                     any(
@@ -345,17 +269,17 @@ impl Signal {
             c::SIGWINCH => Some(Self::Winch),
             #[cfg(not(target_os = "haiku"))]
             c::SIGIO => Some(Self::Io),
-            #[cfg(not(any(
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "haiku",
-                target_os = "ios",
-                target_os = "macos",
-                target_os = "netbsd",
-                target_os = "openbsd",
-            )))]
+            #[cfg(not(any(bsd, target_os = "haiku")))]
             c::SIGPWR => Some(Self::Power),
             c::SIGSYS => Some(Self::Sys),
+            #[cfg(bsd)]
+            c::SIGEMT => Some(Self::Emt),
+            #[cfg(bsd)]
+            c::SIGINFO => Some(Self::Info),
+            #[cfg(target_os = "freebsd")]
+            c::SIGTHR => Some(Self::Thr),
+            #[cfg(target_os = "freebsd")]
+            c::SIGLIBRT => Some(Self::Librt),
             _ => None,
         }
     }

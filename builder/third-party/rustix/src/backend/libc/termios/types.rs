@@ -7,13 +7,16 @@ use super::super::c;
 #[repr(i32)]
 pub enum OptionalActions {
     /// `TCSANOW`—Make the change immediately.
+    #[doc(alias = "TCSANOW")]
     Now = c::TCSANOW,
 
     /// `TCSADRAIN`—Make the change after all output has been transmitted.
+    #[doc(alias = "TCSADRAIN")]
     Drain = c::TCSADRAIN,
 
     /// `TCSAFLUSH`—Discard any pending input and then make the change
     /// after all output has been transmitted.
+    #[doc(alias = "TCSAFLUSH")]
     Flush = c::TCSAFLUSH,
 }
 
@@ -24,12 +27,15 @@ pub enum OptionalActions {
 #[repr(i32)]
 pub enum QueueSelector {
     /// `TCIFLUSH`—Flush data received but not read.
+    #[doc(alias = "TCIFLUSH")]
     IFlush = c::TCIFLUSH,
 
     /// `TCOFLUSH`—Flush data written but not transmitted.
+    #[doc(alias = "TCOFLUSH")]
     OFlush = c::TCOFLUSH,
 
     /// `TCIOFLUSH`—`IFlush` and `OFlush` combined.
+    #[doc(alias = "TCIOFLUSH")]
     IOFlush = c::TCIOFLUSH,
 }
 
@@ -40,34 +46,63 @@ pub enum QueueSelector {
 #[repr(i32)]
 pub enum Action {
     /// `TCOOFF`—Suspend output.
+    #[doc(alias = "TCOOFF")]
     OOff = c::TCOOFF,
 
     /// `TCOON`—Restart suspended output.
+    #[doc(alias = "TCOON")]
     OOn = c::TCOON,
 
     /// `TCIOFF`—Transmits a STOP byte.
+    #[doc(alias = "TCIOFF")]
     IOff = c::TCIOFF,
 
     /// `TCION`—Transmits a START byte.
+    #[doc(alias = "TCION")]
     IOn = c::TCION,
 }
 
-/// `struct termios` for use with [`tcgetattr`].
+/// `struct termios` for use with [`tcgetattr`] and [`tcsetattr`].
 ///
 /// [`tcgetattr`]: crate::termios::tcgetattr
+/// [`tcsetattr`]: crate::termios::tcsetattr
+#[doc(alias = "termios")]
 pub type Termios = c::termios;
+
+/// `struct termios2` for use with [`tcgetattr2`] and [`tcsetattr2`].
+///
+/// [`tcgetattr2`]: crate::termios::tcgetattr2
+/// [`tcsetattr2`]: crate::termios::tcsetattr2
+#[cfg(all(
+    any(target_os = "android", target_os = "linux"),
+    any(
+        target_arch = "x86",
+        target_arch = "x86_64",
+        target_arch = "x32",
+        target_arch = "riscv64",
+        target_arch = "aarch64",
+        target_arch = "arm",
+        target_arch = "mips",
+        target_arch = "mips64",
+    )
+))]
+#[doc(alias = "termios2")]
+pub type Termios2 = c::termios2;
 
 /// `struct winsize` for use with [`tcgetwinsize`].
 ///
 /// [`tcgetwinsize`]: crate::termios::tcgetwinsize
+#[doc(alias = "winsize")]
 pub type Winsize = c::winsize;
 
 /// `tcflag_t`—A type for the flags fields of [`Termios`].
+#[doc(alias = "tcflag_t")]
 pub type Tcflag = c::tcflag_t;
 
 /// `speed_t`—A return type for [`cfsetspeed`] and similar.
 ///
 /// [`cfsetspeed`]: crate::termios::cfsetspeed
+#[doc(alias = "speed_t")]
 pub type Speed = c::speed_t;
 
 /// `VINTR`
@@ -92,17 +127,7 @@ pub const VTIME: usize = c::VTIME as usize;
 pub const VMIN: usize = c::VMIN as usize;
 
 /// `VSWTC`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "solaris",
-)))]
+#[cfg(not(any(bsd, solarish, target_os = "aix", target_os = "haiku")))]
 pub const VSWTC: usize = c::VSWTC as usize;
 
 /// `VSTART`
@@ -122,11 +147,11 @@ pub const VEOL: usize = c::VEOL as usize;
 pub const VREPRINT: usize = c::VREPRINT as usize;
 
 /// `VDISCARD`
-#[cfg(not(target_os = "haiku"))]
+#[cfg(not(any(target_os = "aix", target_os = "haiku")))]
 pub const VDISCARD: usize = c::VDISCARD as usize;
 
 /// `VWERASE`
-#[cfg(not(target_os = "haiku"))]
+#[cfg(not(any(target_os = "aix", target_os = "haiku")))]
 pub const VWERASE: usize = c::VWERASE as usize;
 
 /// `VLNEXT`
@@ -137,475 +162,251 @@ pub const VLNEXT: usize = c::VLNEXT as usize;
 pub const VEOL2: usize = c::VEOL2 as usize;
 
 /// `IGNBRK`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const IGNBRK: c::c_uint = c::IGNBRK;
+pub const IGNBRK: Tcflag = c::IGNBRK;
 
 /// `BRKINT`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const BRKINT: c::c_uint = c::BRKINT;
+pub const BRKINT: Tcflag = c::BRKINT;
 
 /// `IGNPAR`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const IGNPAR: c::c_uint = c::IGNPAR;
+pub const IGNPAR: Tcflag = c::IGNPAR;
 
 /// `PARMRK`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const PARMRK: c::c_uint = c::PARMRK;
+pub const PARMRK: Tcflag = c::PARMRK;
 
 /// `INPCK`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const INPCK: c::c_uint = c::INPCK;
+pub const INPCK: Tcflag = c::INPCK;
 
 /// `ISTRIP`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const ISTRIP: c::c_uint = c::ISTRIP;
+pub const ISTRIP: Tcflag = c::ISTRIP;
 
 /// `INLCR`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const INLCR: c::c_uint = c::INLCR;
+pub const INLCR: Tcflag = c::INLCR;
 
 /// `IGNCR`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const IGNCR: c::c_uint = c::IGNCR;
+pub const IGNCR: Tcflag = c::IGNCR;
 
 /// `ICRNL`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const ICRNL: c::c_uint = c::ICRNL;
+pub const ICRNL: Tcflag = c::ICRNL;
 
 /// `IUCLC`
-#[cfg(any(target_os = "haiku", target_os = "illumos", target_os = "solaris"))]
-pub const IUCLC: c::c_uint = c::IUCLC;
+#[cfg(any(solarish, target_os = "haiku"))]
+pub const IUCLC: Tcflag = c::IUCLC;
 
 /// `IXON`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const IXON: c::c_uint = c::IXON;
+pub const IXON: Tcflag = c::IXON;
 
 /// `IXANY`
-#[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "redox")))]
-pub const IXANY: c::c_uint = c::IXANY;
+#[cfg(not(target_os = "redox"))]
+pub const IXANY: Tcflag = c::IXANY;
 
 /// `IXOFF`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const IXOFF: c::c_uint = c::IXOFF;
+pub const IXOFF: Tcflag = c::IXOFF;
 
 /// `IMAXBEL`
-#[cfg(not(any(
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "redox"
-)))]
-pub const IMAXBEL: c::c_uint = c::IMAXBEL;
+#[cfg(not(any(target_os = "haiku", target_os = "redox")))]
+pub const IMAXBEL: Tcflag = c::IMAXBEL;
 
 /// `IUTF8`
 #[cfg(not(any(
-    target_os = "dragonfly",
+    freebsdlike,
+    netbsdlike,
+    solarish,
+    target_os = "aix",
     target_os = "emscripten",
-    target_os = "freebsd",
     target_os = "haiku",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const IUTF8: c::c_uint = c::IUTF8;
+pub const IUTF8: Tcflag = c::IUTF8;
 
 /// `OPOST`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const OPOST: c::c_uint = c::OPOST;
+pub const OPOST: Tcflag = c::OPOST;
 
 /// `OLCUC`
 #[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "ios",
-    target_os = "macos",
+    apple,
+    freebsdlike,
+    target_os = "aix",
     target_os = "netbsd",
     target_os = "redox",
 )))]
-pub const OLCUC: c::c_uint = c::OLCUC;
+pub const OLCUC: Tcflag = c::OLCUC;
 
 /// `ONLCR`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const ONLCR: c::c_uint = c::ONLCR;
+pub const ONLCR: Tcflag = c::ONLCR;
 
 /// `OCRNL`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const OCRNL: c::c_uint = c::OCRNL;
+pub const OCRNL: Tcflag = c::OCRNL;
 
 /// `ONOCR`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const ONOCR: c::c_uint = c::ONOCR;
+pub const ONOCR: Tcflag = c::ONOCR;
 
 /// `ONLRET`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const ONLRET: c::c_uint = c::ONLRET;
+pub const ONLRET: Tcflag = c::ONLRET;
 
 /// `OFILL`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-)))]
-pub const OFILL: c::c_uint = c::OFILL;
+#[cfg(not(bsd))]
+pub const OFILL: Tcflag = c::OFILL;
 
 /// `OFDEL`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-)))]
-pub const OFDEL: c::c_uint = c::OFDEL;
+#[cfg(not(bsd))]
+pub const OFDEL: Tcflag = c::OFDEL;
 
 /// `NLDLY`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const NLDLY: c::c_uint = c::NLDLY;
+#[cfg(not(any(bsd, solarish, target_os = "redox")))]
+pub const NLDLY: Tcflag = c::NLDLY;
 
 /// `NL0`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const NL0: c::c_uint = c::NL0;
+#[cfg(not(any(bsd, solarish, target_os = "fuchsia", target_os = "redox")))]
+pub const NL0: Tcflag = c::NL0;
 
 /// `NL1`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const NL1: c::c_uint = c::NL1;
+#[cfg(not(any(bsd, solarish, target_os = "fuchsia", target_os = "redox")))]
+pub const NL1: Tcflag = c::NL1;
 
 /// `CRDLY`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const CRDLY: c::c_uint = c::CRDLY;
+#[cfg(not(any(bsd, solarish, target_os = "redox")))]
+pub const CRDLY: Tcflag = c::CRDLY;
 
 /// `CR0`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const CR0: c::c_uint = c::CR0;
+#[cfg(not(any(bsd, solarish, target_os = "fuchsia", target_os = "redox")))]
+pub const CR0: Tcflag = c::CR0;
 
 /// `CR1`
 #[cfg(not(any(
     target_env = "musl",
-    target_os = "dragonfly",
+    bsd,
+    solarish,
     target_os = "emscripten",
-    target_os = "freebsd",
     target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const CR1: c::c_uint = c::CR1;
+pub const CR1: Tcflag = c::CR1;
 
 /// `CR2`
 #[cfg(not(any(
     target_env = "musl",
-    target_os = "dragonfly",
+    bsd,
+    solarish,
     target_os = "emscripten",
-    target_os = "freebsd",
     target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const CR2: c::c_uint = c::CR2;
+pub const CR2: Tcflag = c::CR2;
 
 /// `CR3`
 #[cfg(not(any(
     target_env = "musl",
-    target_os = "dragonfly",
+    bsd,
+    solarish,
     target_os = "emscripten",
-    target_os = "freebsd",
     target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const CR3: c::c_uint = c::CR3;
+pub const CR3: Tcflag = c::CR3;
 
 /// `TABDLY`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "illumos",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const TABDLY: c::c_uint = c::TABDLY;
+#[cfg(not(any(netbsdlike, solarish, target_os = "dragonfly", target_os = "redox")))]
+pub const TABDLY: Tcflag = c::TABDLY;
 
 /// `TAB0`
 #[cfg(not(any(
+    netbsdlike,
+    solarish,
     target_os = "dragonfly",
     target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const TAB0: c::c_uint = c::TAB0;
+pub const TAB0: Tcflag = c::TAB0;
 
 /// `TAB1`
 #[cfg(not(any(
     target_env = "musl",
-    target_os = "dragonfly",
+    bsd,
+    solarish,
     target_os = "emscripten",
-    target_os = "freebsd",
     target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const TAB1: c::c_uint = c::TAB1;
+pub const TAB1: Tcflag = c::TAB1;
 
 /// `TAB2`
 #[cfg(not(any(
     target_env = "musl",
-    target_os = "dragonfly",
+    bsd,
+    solarish,
     target_os = "emscripten",
-    target_os = "freebsd",
     target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const TAB2: c::c_uint = c::TAB2;
+pub const TAB2: Tcflag = c::TAB2;
 
 /// `TAB3`
 #[cfg(not(any(
     target_env = "musl",
-    target_os = "dragonfly",
+    bsd,
+    solarish,
     target_os = "emscripten",
     target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const TAB3: c::c_uint = c::TAB3;
+pub const TAB3: Tcflag = c::TAB3;
 
 /// `BSDLY`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const BSDLY: c::c_uint = c::BSDLY;
+#[cfg(not(any(bsd, solarish, target_os = "redox")))]
+pub const BSDLY: Tcflag = c::BSDLY;
 
 /// `BS0`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const BS0: c::c_uint = c::BS0;
+#[cfg(not(any(bsd, solarish, target_os = "fuchsia", target_os = "redox")))]
+pub const BS0: Tcflag = c::BS0;
 
 /// `BS1`
 #[cfg(not(any(
     target_env = "musl",
+    bsd,
+    solarish,
     target_os = "emscripten",
-    target_os = "dragonfly",
-    target_os = "freebsd",
     target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const BS1: c::c_uint = c::BS1;
+pub const BS1: Tcflag = c::BS1;
 
 /// `FFDLY`
-#[cfg(not(any(
-    target_env = "musl",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const FFDLY: c::c_uint = c::FFDLY;
+#[cfg(not(any(target_env = "musl", bsd, solarish, target_os = "redox")))]
+pub const FFDLY: Tcflag = c::FFDLY;
 
 /// `FF0`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const FF0: c::c_uint = c::FF0;
+#[cfg(not(any(bsd, solarish, target_os = "fuchsia", target_os = "redox")))]
+pub const FF0: Tcflag = c::FF0;
 
 /// `FF1`
 #[cfg(not(any(
     target_env = "musl",
-    target_os = "dragonfly",
+    bsd,
+    solarish,
     target_os = "emscripten",
-    target_os = "freebsd",
     target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const FF1: c::c_uint = c::FF1;
+pub const FF1: Tcflag = c::FF1;
 
 /// `VTDLY`
-#[cfg(not(any(
-    target_env = "musl",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const VTDLY: c::c_uint = c::VTDLY;
+#[cfg(not(any(target_env = "musl", bsd, solarish, target_os = "redox")))]
+pub const VTDLY: Tcflag = c::VTDLY;
 
 /// `VT0`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-    target_os = "solaris",
-)))]
-pub const VT0: c::c_uint = c::VT0;
+#[cfg(not(any(bsd, solarish, target_os = "fuchsia", target_os = "redox")))]
+pub const VT0: Tcflag = c::VT0;
 
 /// `VT1`
 #[cfg(not(any(
     target_env = "musl",
-    target_os = "dragonfly",
+    bsd,
+    solarish,
     target_os = "emscripten",
-    target_os = "freebsd",
     target_os = "fuchsia",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const VT1: c::c_uint = c::VT1;
+pub const VT1: Tcflag = c::VT1;
 
 /// `B0`
 pub const B0: Speed = c::B0;
@@ -656,125 +457,68 @@ pub const B19200: Speed = c::B19200;
 pub const B38400: Speed = c::B38400;
 
 /// `B57600`
+#[cfg(not(target_os = "aix"))]
 pub const B57600: Speed = c::B57600;
 
 /// `B115200`
+#[cfg(not(target_os = "aix"))]
 pub const B115200: Speed = c::B115200;
 
 /// `B230400`
+#[cfg(not(target_os = "aix"))]
 pub const B230400: Speed = c::B230400;
 
 /// `B460800`
 #[cfg(not(any(
+    apple,
+    target_os = "aix",
     target_os = "dragonfly",
     target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
     target_os = "openbsd"
 )))]
 pub const B460800: Speed = c::B460800;
 
 /// `B500000`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "solaris",
-)))]
+#[cfg(not(any(bsd, solarish, target_os = "aix", target_os = "haiku")))]
 pub const B500000: Speed = c::B500000;
 
 /// `B576000`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "solaris",
-)))]
+#[cfg(not(any(bsd, solarish, target_os = "aix", target_os = "haiku")))]
 pub const B576000: Speed = c::B576000;
 
 /// `B921600`
 #[cfg(not(any(
+    apple,
+    target_os = "aix",
     target_os = "dragonfly",
     target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
     target_os = "openbsd"
 )))]
 pub const B921600: Speed = c::B921600;
 
 /// `B1000000`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "solaris",
-)))]
+#[cfg(not(any(bsd, target_os = "aix", target_os = "haiku", target_os = "solaris")))]
 pub const B1000000: Speed = c::B1000000;
 
 /// `B1152000`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "solaris",
-)))]
+#[cfg(not(any(bsd, target_os = "aix", target_os = "haiku", target_os = "solaris")))]
 pub const B1152000: Speed = c::B1152000;
 
 /// `B1500000`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "solaris",
-)))]
+#[cfg(not(any(bsd, target_os = "aix", target_os = "haiku", target_os = "solaris")))]
 pub const B1500000: Speed = c::B1500000;
 
 /// `B2000000`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "solaris",
-)))]
+#[cfg(not(any(bsd, target_os = "aix", target_os = "haiku", target_os = "solaris")))]
 pub const B2000000: Speed = c::B2000000;
 
 /// `B2500000`
 #[cfg(not(any(
     target_arch = "sparc",
     target_arch = "sparc64",
-    target_os = "dragonfly",
-    target_os = "freebsd",
+    bsd,
+    target_os = "aix",
     target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "solaris",
 )))]
 pub const B2500000: Speed = c::B2500000;
@@ -783,13 +527,9 @@ pub const B2500000: Speed = c::B2500000;
 #[cfg(not(any(
     target_arch = "sparc",
     target_arch = "sparc64",
-    target_os = "dragonfly",
-    target_os = "freebsd",
+    bsd,
+    target_os = "aix",
     target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "solaris",
 )))]
 pub const B3000000: Speed = c::B3000000;
@@ -798,13 +538,9 @@ pub const B3000000: Speed = c::B3000000;
 #[cfg(not(any(
     target_arch = "sparc",
     target_arch = "sparc64",
-    target_os = "dragonfly",
-    target_os = "freebsd",
+    bsd,
+    target_os = "aix",
     target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "solaris",
 )))]
 pub const B3500000: Speed = c::B3500000;
@@ -813,234 +549,176 @@ pub const B3500000: Speed = c::B3500000;
 #[cfg(not(any(
     target_arch = "sparc",
     target_arch = "sparc64",
-    target_os = "dragonfly",
-    target_os = "freebsd",
+    bsd,
+    target_os = "aix",
     target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "solaris",
 )))]
 pub const B4000000: Speed = c::B4000000;
 
+/// `BOTHER`
+#[cfg(any(target_os = "android", target_os = "linux"))]
+pub const BOTHER: Speed = c::BOTHER;
+
 /// `CSIZE`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const CSIZE: c::c_uint = c::CSIZE;
+pub const CSIZE: Tcflag = c::CSIZE;
 
 /// `CS5`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const CS5: c::c_uint = c::CS5;
+pub const CS5: Tcflag = c::CS5;
 
 /// `CS6`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const CS6: c::c_uint = c::CS6;
+pub const CS6: Tcflag = c::CS6;
 
 /// `CS7`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const CS7: c::c_uint = c::CS7;
+pub const CS7: Tcflag = c::CS7;
 
 /// `CS8`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const CS8: c::c_uint = c::CS8;
+pub const CS8: Tcflag = c::CS8;
 
 /// `CSTOPB`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const CSTOPB: c::c_uint = c::CSTOPB;
+pub const CSTOPB: Tcflag = c::CSTOPB;
 
 /// `CREAD`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const CREAD: c::c_uint = c::CREAD;
+pub const CREAD: Tcflag = c::CREAD;
 
 /// `PARENB`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const PARENB: c::c_uint = c::PARENB;
+pub const PARENB: Tcflag = c::PARENB;
 
 /// `PARODD`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const PARODD: c::c_uint = c::PARODD;
+pub const PARODD: Tcflag = c::PARODD;
 
 /// `HUPCL`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const HUPCL: c::c_uint = c::HUPCL;
+pub const HUPCL: Tcflag = c::HUPCL;
 
 /// `CLOCAL`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const CLOCAL: c::c_uint = c::CLOCAL;
+pub const CLOCAL: Tcflag = c::CLOCAL;
 
 /// `ISIG`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const ISIG: c::c_uint = c::ISIG;
+pub const ISIG: Tcflag = c::ISIG;
 
 /// `ICANON`—A flag for the `c_lflag` field of [`Termios`] indicating
 /// canonical mode.
 pub const ICANON: Tcflag = c::ICANON;
 
 /// `ECHO`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const ECHO: c::c_uint = c::ECHO;
+pub const ECHO: Tcflag = c::ECHO;
 
 /// `ECHOE`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const ECHOE: c::c_uint = c::ECHOE;
+pub const ECHOE: Tcflag = c::ECHOE;
 
 /// `ECHOK`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const ECHOK: c::c_uint = c::ECHOK;
+pub const ECHOK: Tcflag = c::ECHOK;
 
 /// `ECHONL`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const ECHONL: c::c_uint = c::ECHONL;
+pub const ECHONL: Tcflag = c::ECHONL;
 
 /// `NOFLSH`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const NOFLSH: c::c_uint = c::NOFLSH;
+pub const NOFLSH: Tcflag = c::NOFLSH;
 
 /// `TOSTOP`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const TOSTOP: c::c_uint = c::TOSTOP;
+pub const TOSTOP: Tcflag = c::TOSTOP;
 
 /// `IEXTEN`
-#[cfg(not(any(target_os = "ios", target_os = "macos")))]
-pub const IEXTEN: c::c_uint = c::IEXTEN;
+pub const IEXTEN: Tcflag = c::IEXTEN;
 
 /// `EXTA`
 #[cfg(not(any(
+    solarish,
     target_os = "emscripten",
     target_os = "haiku",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const EXTA: c::c_uint = c::EXTA;
+pub const EXTA: Speed = c::EXTA;
 
 /// `EXTB`
 #[cfg(not(any(
+    solarish,
     target_os = "emscripten",
     target_os = "haiku",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const EXTB: c::c_uint = c::EXTB;
+pub const EXTB: Speed = c::EXTB;
 
 /// `CBAUD`
-#[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
-)))]
-pub const CBAUD: c::c_uint = c::CBAUD;
+#[cfg(not(any(bsd, target_os = "haiku", target_os = "redox")))]
+pub const CBAUD: Tcflag = c::CBAUD;
 
 /// `CBAUDEX`
 #[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
+    bsd,
+    solarish,
+    target_os = "aix",
     target_os = "haiku",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const CBAUDEX: c::c_uint = c::CBAUDEX;
+pub const CBAUDEX: Tcflag = c::CBAUDEX;
 
 /// `CIBAUD`
 #[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "emscripten",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "redox",
     target_arch = "powerpc",
     target_arch = "powerpc64",
+    bsd,
+    target_os = "emscripten",
+    target_os = "haiku",
+    target_os = "redox",
 )))]
-pub const CIBAUD: c::tcflag_t = c::CIBAUD;
+pub const CIBAUD: Tcflag = c::CIBAUD;
 
 /// `CIBAUD`
-// TODO: Upstream this.
+// glibc on powerpc lacks a definition for `CIBAUD`, even though the Linux
+// headers and Musl on powerpc both have one. So define it manually.
 #[cfg(any(target_arch = "powerpc", target_arch = "powerpc64"))]
-pub const CIBAUD: c::tcflag_t = 0o77600000;
+pub const CIBAUD: Tcflag = 0o77600000;
 
 /// `CMSPAR`
 #[cfg(not(any(
-    target_os = "dragonfly",
+    bsd,
+    solarish,
+    target_os = "aix",
     target_os = "emscripten",
-    target_os = "freebsd",
     target_os = "haiku",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const CMSPAR: c::c_uint = c::CMSPAR;
+pub const CMSPAR: Tcflag = c::CMSPAR;
 
 /// `CRTSCTS`
-#[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "redox")))]
-pub const CRTSCTS: c::c_uint = c::CRTSCTS;
+#[cfg(not(any(target_os = "aix", target_os = "redox")))]
+pub const CRTSCTS: Tcflag = c::CRTSCTS;
 
 /// `XCASE`
 #[cfg(any(target_arch = "s390x", target_os = "haiku"))]
-pub const XCASE: c::c_uint = c::XCASE;
+pub const XCASE: Tcflag = c::XCASE;
 
 /// `ECHOCTL`
-#[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "redox")))]
-pub const ECHOCTL: c::c_uint = c::ECHOCTL;
+#[cfg(not(any(target_os = "redox")))]
+pub const ECHOCTL: Tcflag = c::ECHOCTL;
 
 /// `ECHOPRT`
-#[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "redox")))]
-pub const ECHOPRT: c::c_uint = c::ECHOPRT;
+#[cfg(not(any(target_os = "redox")))]
+pub const ECHOPRT: Tcflag = c::ECHOPRT;
 
 /// `ECHOKE`
-#[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "redox")))]
-pub const ECHOKE: c::c_uint = c::ECHOKE;
+#[cfg(not(any(target_os = "redox")))]
+pub const ECHOKE: Tcflag = c::ECHOKE;
 
 /// `FLUSHO`
-#[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "redox")))]
-pub const FLUSHO: c::c_uint = c::FLUSHO;
+#[cfg(not(any(target_os = "redox")))]
+pub const FLUSHO: Tcflag = c::FLUSHO;
 
 /// `PENDIN`
-#[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "redox")))]
-pub const PENDIN: c::c_uint = c::PENDIN;
+#[cfg(not(any(target_os = "redox")))]
+pub const PENDIN: Tcflag = c::PENDIN;
 
 /// `EXTPROC`
-#[cfg(not(any(
-    target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "redox"
-)))]
-pub const EXTPROC: c::c_uint = c::EXTPROC;
+#[cfg(not(any(target_os = "aix", target_os = "haiku", target_os = "redox")))]
+pub const EXTPROC: Tcflag = c::EXTPROC;
 
 /// `XTABS`
 #[cfg(not(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
+    bsd,
+    solarish,
+    target_os = "aix",
     target_os = "haiku",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
-pub const XTABS: c::c_uint = c::XTABS;
+pub const XTABS: Tcflag = c::XTABS;

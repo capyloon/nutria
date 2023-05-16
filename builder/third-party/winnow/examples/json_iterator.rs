@@ -2,14 +2,14 @@ use std::collections::HashMap;
 
 use winnow::prelude::*;
 use winnow::{
-    branch::alt,
-    bytes::one_of,
-    bytes::{tag, take_while0},
-    character::{alphanumeric1 as alphanumeric, escaped, float},
+    ascii::{alphanumeric1 as alphanumeric, escaped, float},
+    combinator::alt,
     combinator::cut_err,
+    combinator::separated0,
+    combinator::{preceded, separated_pair, terminated},
     error::ParseError,
-    multi::separated0,
-    sequence::{preceded, separated_pair, terminated},
+    token::one_of,
+    token::{tag, take_while},
     IResult,
 };
 
@@ -206,7 +206,7 @@ impl<'a, 'b: 'a> JsonValue<'a, 'b> {
 fn sp<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
     let chars = " \t\r\n";
 
-    take_while0(move |c| chars.contains(c)).parse_next(i)
+    take_while(0.., move |c| chars.contains(c)).parse_next(i)
 }
 
 fn parse_str<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {

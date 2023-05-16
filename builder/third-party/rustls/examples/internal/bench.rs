@@ -3,7 +3,6 @@
 // Note: we don't use any of the standard 'cargo bench', 'test::Bencher',
 // etc. because it's unstable at the time of writing.
 
-use std::convert::TryInto;
 use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
@@ -12,7 +11,7 @@ use std::ops::DerefMut;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use rustls::client::{ClientSessionMemoryCache, NoClientSessionStorage};
+use rustls::client::Resumption;
 use rustls::server::{
     AllowAnyAuthenticatedClient, NoClientAuth, NoServerSessionStorage, ServerSessionMemoryCache,
 };
@@ -128,18 +127,18 @@ enum ClientAuth {
 }
 
 #[derive(PartialEq, Clone, Copy)]
-enum Resumption {
+enum ResumptionParam {
     No,
     SessionID,
     Tickets,
 }
 
-impl Resumption {
+impl ResumptionParam {
     fn label(&self) -> &'static str {
         match *self {
-            Resumption::No => "no-resume",
-            Resumption::SessionID => "sessionid",
-            Resumption::Tickets => "tickets",
+            Self::No => "no-resume",
+            Self::SessionID => "sessionid",
+            Self::Tickets => "tickets",
         }
     }
 }
@@ -163,8 +162,8 @@ impl BenchmarkParam {
         key_type: KeyType,
         ciphersuite: rustls::SupportedCipherSuite,
         version: &'static rustls::SupportedProtocolVersion,
-    ) -> BenchmarkParam {
-        BenchmarkParam {
+    ) -> Self {
+        Self {
             key_type,
             ciphersuite,
             version,
@@ -245,9 +244,9 @@ static ALL_BENCHMARKS: &[BenchmarkParam] = &[
 impl KeyType {
     fn path_for(&self, part: &str) -> String {
         match self {
-            KeyType::Rsa => format!("test-ca/rsa/{}", part),
-            KeyType::Ecdsa => format!("test-ca/ecdsa/{}", part),
-            KeyType::Ed25519 => format!("test-ca/eddsa/{}", part),
+            Self::Rsa => format!("test-ca/rsa/{}", part),
+            Self::Ecdsa => format!("test-ca/ecdsa/{}", part),
+            Self::Ed25519 => format!("test-ca/eddsa/{}", part),
         }
     }
 
@@ -295,7 +294,7 @@ impl KeyType {
 fn make_server_config(
     params: &BenchmarkParam,
     client_auth: ClientAuth,
-    resume: Resumption,
+    resume: ResumptionParam,
     max_fragment_size: Option<usize>,
 ) -> ServerConfig {
     let client_auth = match client_auth {
@@ -305,9 +304,9 @@ fn make_server_config(
             for root in roots {
                 client_auth_roots.add(&root).unwrap();
             }
-            AllowAnyAuthenticatedClient::new(client_auth_roots)
+            Arc::new(AllowAnyAuthenticatedClient::new(client_auth_roots))
         }
-        ClientAuth::No => NoClientAuth::new(),
+        ClientAuth::No => NoClientAuth::boxed(),
     };
 
     let mut cfg = ServerConfig::builder()
@@ -319,9 +318,9 @@ fn make_server_config(
         .with_single_cert(params.key_type.get_chain(), params.key_type.get_key())
         .expect("bad certs/private key?");
 
-    if resume == Resumption::SessionID {
+    if resume == ResumptionParam::SessionID {
         cfg.session_storage = ServerSessionMemoryCache::new(128);
-    } else if resume == Resumption::Tickets {
+    } else if resume == ResumptionParam::Tickets {
         cfg.ticketer = Ticketer::new().unwrap();
     } else {
         cfg.session_storage = Arc::new(NoServerSessionStorage {});
@@ -334,7 +333,7 @@ fn make_server_config(
 fn make_client_config(
     params: &BenchmarkParam,
     clientauth: ClientAuth,
-    resume: Resumption,
+    resume: ResumptionParam,
 ) -> ClientConfig {
     let mut root_store = RootCertStore::empty();
     let mut rootbuf =
@@ -358,10 +357,10 @@ fn make_client_config(
         cfg.with_no_client_auth()
     };
 
-    if resume != Resumption::No {
-        cfg.session_storage = ClientSessionMemoryCache::new(128);
+    if resume != ResumptionParam::No {
+        cfg.resumption = Resumption::in_memory_sessions(128);
     } else {
-        cfg.session_storage = Arc::new(NoClientSessionStorage {});
+        cfg.resumption = Resumption::disabled();
     }
 
     cfg
@@ -378,13 +377,17 @@ fn apply_work_multiplier(work: u64) -> u64 {
     ((work as f64) * mul).round() as u64
 }
 
-fn bench_handshake(params: &BenchmarkParam, clientauth: ClientAuth, resume: Resumption) {
+fn bench_handshake(params: &BenchmarkParam, clientauth: ClientAuth, resume: ResumptionParam) {
     let client_config = Arc::new(make_client_config(params, clientauth, resume));
     let server_config = Arc::new(make_server_config(params, clientauth, resume, None));
 
     assert!(params.ciphersuite.version() == params.version);
 
-    let rounds = apply_work_multiplier(if resume == Resumption::No { 512 } else { 4096 });
+    let rounds = apply_work_multiplier(if resume == ResumptionParam::No {
+        512
+    } else {
+        4096
+    });
     let mut client_time = 0f64;
     let mut server_time = 0f64;
 
@@ -450,11 +453,15 @@ fn do_handshake(client: &mut ClientConnection, server: &mut ServerConnection) {
 }
 
 fn bench_bulk(params: &BenchmarkParam, plaintext_size: u64, max_fragment_size: Option<usize>) {
-    let client_config = Arc::new(make_client_config(params, ClientAuth::No, Resumption::No));
+    let client_config = Arc::new(make_client_config(
+        params,
+        ClientAuth::No,
+        ResumptionParam::No,
+    ));
     let server_config = Arc::new(make_server_config(
         params,
         ClientAuth::No,
-        Resumption::No,
+        ResumptionParam::No,
         max_fragment_size,
     ));
 
@@ -510,11 +517,15 @@ fn bench_bulk(params: &BenchmarkParam, plaintext_size: u64, max_fragment_size: O
 }
 
 fn bench_memory(params: &BenchmarkParam, conn_count: u64) {
-    let client_config = Arc::new(make_client_config(params, ClientAuth::No, Resumption::No));
+    let client_config = Arc::new(make_client_config(
+        params,
+        ClientAuth::No,
+        ResumptionParam::No,
+    ));
     let server_config = Arc::new(make_server_config(
         params,
         ClientAuth::No,
-        Resumption::No,
+        ResumptionParam::No,
         None,
     ));
 
@@ -600,11 +611,11 @@ fn selected_tests(mut args: env::Args) {
         "handshake" | "handshake-resume" | "handshake-ticket" => match args.next() {
             Some(suite) => {
                 let resume = if mode == "handshake" {
-                    Resumption::No
+                    ResumptionParam::No
                 } else if mode == "handshake-resume" {
-                    Resumption::SessionID
+                    ResumptionParam::SessionID
                 } else {
-                    Resumption::Tickets
+                    ResumptionParam::Tickets
                 };
 
                 for param in lookup_matching_benches(&suite).iter() {
@@ -644,12 +655,12 @@ fn all_tests() {
     for test in ALL_BENCHMARKS.iter() {
         bench_bulk(test, 1024 * 1024, None);
         bench_bulk(test, 1024 * 1024, Some(10000));
-        bench_handshake(test, ClientAuth::No, Resumption::No);
-        bench_handshake(test, ClientAuth::Yes, Resumption::No);
-        bench_handshake(test, ClientAuth::No, Resumption::SessionID);
-        bench_handshake(test, ClientAuth::Yes, Resumption::SessionID);
-        bench_handshake(test, ClientAuth::No, Resumption::Tickets);
-        bench_handshake(test, ClientAuth::Yes, Resumption::Tickets);
+        bench_handshake(test, ClientAuth::No, ResumptionParam::No);
+        bench_handshake(test, ClientAuth::Yes, ResumptionParam::No);
+        bench_handshake(test, ClientAuth::No, ResumptionParam::SessionID);
+        bench_handshake(test, ClientAuth::Yes, ResumptionParam::SessionID);
+        bench_handshake(test, ClientAuth::No, ResumptionParam::Tickets);
+        bench_handshake(test, ClientAuth::Yes, ResumptionParam::Tickets);
     }
 }
 

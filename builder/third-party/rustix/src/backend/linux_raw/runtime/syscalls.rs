@@ -9,15 +9,25 @@
 use super::super::c;
 #[cfg(target_arch = "x86")]
 use super::super::conv::by_mut;
-use super::super::conv::{c_int, c_uint, ret, ret_c_uint, ret_error, ret_usize_infallible, zero};
+use super::super::conv::{
+    by_ref, c_int, c_uint, ret, ret_c_int, ret_c_uint, ret_error, ret_usize_infallible, size_of,
+    zero,
+};
 #[cfg(feature = "fs")]
 use crate::fd::BorrowedFd;
 use crate::ffi::CStr;
 #[cfg(feature = "fs")]
 use crate::fs::AtFlags;
 use crate::io;
-use crate::process::{Pid, RawNonZeroPid};
-use linux_raw_sys::general::{__kernel_pid_t, PR_SET_NAME, SIGCHLD};
+use crate::process::{Pid, RawNonZeroPid, Signal};
+use crate::runtime::{How, Sigaction, Siginfo, Sigset, Stack, Timespec};
+use crate::utils::optional_as_ptr;
+#[cfg(target_pointer_width = "32")]
+use core::convert::TryInto;
+use core::mem::MaybeUninit;
+#[cfg(target_pointer_width = "32")]
+use linux_raw_sys::general::__kernel_old_timespec;
+use linux_raw_sys::general::{__kernel_pid_t, kernel_sigset_t, PR_SET_NAME, SIGCHLD};
 #[cfg(target_arch = "x86_64")]
 use {super::super::conv::ret_infallible, linux_raw_sys::general::ARCH_SET_FS};
 
@@ -104,4 +114,137 @@ pub(crate) mod tls {
     pub(crate) fn exit_thread(code: c::c_int) -> ! {
         unsafe { syscall_noreturn!(__NR_exit, c_int(code)) }
     }
+}
+
+#[inline]
+pub(crate) unsafe fn sigaction(signal: Signal, new: Option<Sigaction>) -> io::Result<Sigaction> {
+    let mut old = MaybeUninit::<Sigaction>::uninit();
+    let new = optional_as_ptr(new.as_ref());
+    ret(syscall!(
+        __NR_rt_sigaction,
+        signal,
+        new,
+        &mut old,
+        size_of::<kernel_sigset_t, _>()
+    ))?;
+    Ok(old.assume_init())
+}
+
+#[inline]
+pub(crate) unsafe fn sigaltstack(new: Option<Stack>) -> io::Result<Stack> {
+    let mut old = MaybeUninit::<Stack>::uninit();
+    let new = optional_as_ptr(new.as_ref());
+    ret(syscall!(__NR_sigaltstack, new, &mut old))?;
+    Ok(old.assume_init())
+}
+
+#[inline]
+pub(crate) unsafe fn tkill(tid: Pid, sig: Signal) -> io::Result<()> {
+    ret(syscall_readonly!(__NR_tkill, tid, sig))
+}
+
+#[inline]
+pub(crate) unsafe fn sigprocmask(how: How, new: Option<&Sigset>) -> io::Result<Sigset> {
+    let mut old = MaybeUninit::<Sigset>::uninit();
+    let new = optional_as_ptr(new);
+    ret(syscall!(
+        __NR_rt_sigprocmask,
+        how,
+        new,
+        &mut old,
+        size_of::<kernel_sigset_t, _>()
+    ))?;
+    Ok(old.assume_init())
+}
+
+#[inline]
+pub(crate) fn sigwait(set: &Sigset) -> io::Result<Signal> {
+    unsafe {
+        match Signal::from_raw(ret_c_int(syscall_readonly!(
+            __NR_rt_sigtimedwait,
+            by_ref(set),
+            zero(),
+            zero(),
+            size_of::<kernel_sigset_t, _>()
+        ))?) {
+            Some(signum) => Ok(signum),
+            None => Err(io::Errno::NOTSUP),
+        }
+    }
+}
+
+#[inline]
+pub(crate) fn sigwaitinfo(set: &Sigset) -> io::Result<Siginfo> {
+    let mut info = MaybeUninit::<Siginfo>::uninit();
+    unsafe {
+        let _signum = ret_c_int(syscall!(
+            __NR_rt_sigtimedwait,
+            by_ref(set),
+            &mut info,
+            zero(),
+            size_of::<kernel_sigset_t, _>()
+        ))?;
+        Ok(info.assume_init())
+    }
+}
+
+#[inline]
+pub(crate) fn sigtimedwait(set: &Sigset, timeout: Option<Timespec>) -> io::Result<Siginfo> {
+    let mut info = MaybeUninit::<Siginfo>::uninit();
+    let timeout_ptr = optional_as_ptr(timeout.as_ref());
+
+    #[cfg(target_pointer_width = "32")]
+    unsafe {
+        match ret_c_int(syscall!(
+            __NR_rt_sigtimedwait_time64,
+            by_ref(set),
+            &mut info,
+            timeout_ptr,
+            size_of::<kernel_sigset_t, _>()
+        )) {
+            Ok(_signum) => (),
+            Err(io::Errno::NOSYS) => sigtimedwait_old(set, timeout, &mut info)?,
+            Err(err) => return Err(err),
+        }
+        Ok(info.assume_init())
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    unsafe {
+        let _signum = ret_c_int(syscall!(
+            __NR_rt_sigtimedwait,
+            by_ref(set),
+            &mut info,
+            timeout_ptr,
+            size_of::<kernel_sigset_t, _>()
+        ))?;
+        Ok(info.assume_init())
+    }
+}
+
+#[cfg(target_pointer_width = "32")]
+unsafe fn sigtimedwait_old(
+    set: &Sigset,
+    timeout: Option<Timespec>,
+    info: &mut MaybeUninit<Siginfo>,
+) -> io::Result<()> {
+    let old_timeout = match timeout {
+        Some(timeout) => Some(__kernel_old_timespec {
+            tv_sec: timeout.tv_sec.try_into().map_err(|_| io::Errno::OVERFLOW)?,
+            tv_nsec: timeout.tv_nsec as _,
+        }),
+        None => None,
+    };
+
+    let old_timeout_ptr = optional_as_ptr(old_timeout.as_ref());
+
+    let _signum = ret_c_int(syscall!(
+        __NR_rt_sigtimedwait,
+        by_ref(set),
+        info,
+        old_timeout_ptr,
+        size_of::<kernel_sigset_t, _>()
+    ))?;
+
+    Ok(())
 }

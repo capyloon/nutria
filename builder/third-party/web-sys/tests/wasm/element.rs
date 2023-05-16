@@ -98,7 +98,7 @@ fn element() {
     );
     /* Tests needed for:
     remove_attribute_ns
-    has_attribure_ns
+    has_attribute_ns
     closest
     */
 
@@ -160,7 +160,7 @@ fn element() {
     assert_eq!(
         element.inner_html(),
         "<strong>Hey!</strong><em>Web!</em>",
-        "Should return HTML conent"
+        "Should return HTML content"
     );
     assert_eq!(
         element.query_selector_all("strong").unwrap().length(),

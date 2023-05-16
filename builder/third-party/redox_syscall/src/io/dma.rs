@@ -3,7 +3,8 @@ use core::ops::{Deref, DerefMut};
 use core::{ptr, slice};
 
 use crate::Result;
-use crate::{PartialAllocStrategy, PhysallocFlags};
+use crate::{PartialAllocStrategy, PhysallocFlags, PhysmapFlags};
+use crate::arch::PAGE_SIZE;
 
 /// An RAII guard of a physical memory allocation. Currently all physically allocated memory are
 /// page-aligned and take up at least 4k of space (on x86_64).
@@ -13,12 +14,35 @@ pub struct PhysBox {
     size: usize
 }
 
+const fn round_up(x: usize) -> usize {
+    (x + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE
+}
+fn assert_aligned(x: usize) {
+    assert_eq!(x % PAGE_SIZE, 0);
+}
+
+#[cfg(target_arch = "aarch64")]
+fn physmap_flags() -> PhysmapFlags {
+    // aarch64 currently must map DMA memory without caching to ensure coherence
+    crate::PHYSMAP_NO_CACHE | crate::PHYSMAP_WRITE
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+fn physmap_flags() -> PhysmapFlags {
+    // x86 ensures cache coherence with DMA memory
+    crate::PHYSMAP_WRITE
+}
+
 impl PhysBox {
-    /// Construct a PhysBox from an address and a size.
+    /// Construct a PhysBox from an address and a size. The address must be page-aligned, and the
+    /// size must similarly be a multiple of the page size.
     ///
     /// # Safety
     /// This function is unsafe because when dropping, Self has to a valid allocation.
     pub unsafe fn from_raw_parts(address: usize, size: usize) -> Self {
+        assert_aligned(address);
+        assert_aligned(size);
+
         Self {
             address,
             size,
@@ -42,12 +66,10 @@ impl PhysBox {
 
     pub fn new_with_flags(size: usize, flags: PhysallocFlags) -> Result<Self> {
         assert!(!flags.contains(PhysallocFlags::PARTIAL_ALLOC));
+        assert_aligned(size);
 
         let address = unsafe { crate::physalloc2(size, flags.bits())? };
-        Ok(Self {
-            address,
-            size,
-        })
+        Ok(unsafe { Self::from_raw_parts(address, size) })
     }
 
     /// "Partially" allocate physical memory, in the sense that the allocation may be smaller than
@@ -57,21 +79,18 @@ impl PhysBox {
     /// that first allocation only returns half the size, the driver can do another allocation
     /// and then let the device use both buffers.
     pub fn new_partial_allocation(size: usize, flags: PhysallocFlags, strategy: Option<PartialAllocStrategy>, mut min: usize) -> Result<Self> {
+        assert_aligned(size);
         debug_assert!(!(flags.contains(PhysallocFlags::PARTIAL_ALLOC) && strategy.is_none()));
 
-        let address = unsafe { crate::physalloc3(size, flags.bits() | strategy.map(|s| s as usize).unwrap_or(0), &mut min)? };
-        Ok(Self {
-            address,
-            size: min,
-        })
+        let address = unsafe { crate::physalloc3(size, flags.bits() | strategy.map_or(0, |s| s as usize), &mut min)? };
+        Ok(unsafe { Self::from_raw_parts(address, size) })
     }
 
     pub fn new(size: usize) -> Result<Self> {
+        assert_aligned(size);
+
         let address = unsafe { crate::physalloc(size)? };
-        Ok(Self {
-            address,
-            size,
-        })
+        Ok(unsafe { Self::from_raw_parts(address, size) })
     }
 }
 
@@ -88,7 +107,7 @@ pub struct Dma<T: ?Sized> {
 
 impl<T> Dma<T> {
     pub fn from_physbox_uninit(phys: PhysBox) -> Result<Dma<MaybeUninit<T>>> {
-        let virt = unsafe { crate::physmap(phys.address, phys.size, crate::PHYSMAP_WRITE)? } as *mut MaybeUninit<T>;
+        let virt = unsafe { crate::physmap(phys.address, phys.size, physmap_flags())? } as *mut MaybeUninit<T>;
 
         Ok(Dma {
             phys,
@@ -111,11 +130,11 @@ impl<T> Dma<T> {
     }
 
     pub fn new(value: T) -> Result<Self> {
-        let phys = PhysBox::new(mem::size_of::<T>())?;
+        let phys = PhysBox::new(round_up(mem::size_of::<T>()))?;
         Self::from_physbox(phys, value)
     }
     pub fn zeroed() -> Result<Dma<MaybeUninit<T>>> {
-        let phys = PhysBox::new(mem::size_of::<T>())?;
+        let phys = PhysBox::new(round_up(mem::size_of::<T>()))?;
         Self::from_physbox_zeroed(phys)
     }
 }
@@ -149,7 +168,7 @@ impl<T> Dma<[T]> {
         assert!(len <= max_len);
 
         Ok(Dma {
-            virt: unsafe { slice::from_raw_parts_mut(crate::physmap(phys.address, phys.size, crate::PHYSMAP_WRITE)? as *mut MaybeUninit<T>, len) } as *mut [MaybeUninit<T>],
+            virt: unsafe { slice::from_raw_parts_mut(crate::physmap(phys.address, phys.size, physmap_flags())? as *mut MaybeUninit<T>, len) } as *mut [MaybeUninit<T>],
             phys,
         })
     }
@@ -163,7 +182,7 @@ impl<T> Dma<[T]> {
     /// * `T` must be properly aligned.
     /// * `T` must be valid as zeroed (i.e. no NonNull pointers).
     pub unsafe fn zeroed_unsized(count: usize) -> Result<Self> {
-        let phys = PhysBox::new(mem::size_of::<T>() * count)?;
+        let phys = PhysBox::new(round_up(mem::size_of::<T>() * count))?;
         Ok(Self::from_physbox_zeroed_unsized(phys, count)?.assume_init())
     }
 }
@@ -195,6 +214,6 @@ impl<T: ?Sized> DerefMut for Dma<T> {
 impl<T: ?Sized> Drop for Dma<T> {
     fn drop(&mut self) {
         unsafe { ptr::drop_in_place(self.virt) }
-        let _ = unsafe { crate::physunmap(self.virt as *mut u8 as usize) };
+        let _ = unsafe { crate::funmap(self.virt as *mut u8 as usize, self.phys.size) };
     }
 }

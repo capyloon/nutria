@@ -1,30 +1,4 @@
 #[test]
-fn chdir() {
-    use std::str;
-
-    let mut current_buf = [0; 4096];
-    let current_count = dbg!(crate::getcwd(&mut current_buf)).unwrap();
-    let current = dbg!(str::from_utf8(&current_buf[..current_count])).unwrap();
-
-    let new = "file:";
-    assert_eq!(dbg!(crate::chdir(dbg!(new))), Ok(0));
-    {
-        let mut buf = [0; 4096];
-        let count = dbg!(crate::getcwd(&mut buf)).unwrap();
-        assert_eq!(dbg!(str::from_utf8(&buf[..count])), Ok(new));
-    }
-
-    assert_eq!(dbg!(crate::chdir(current)), Ok(0));
-    {
-        let mut buf = [0; 4096];
-        let count = dbg!(crate::getcwd(&mut buf)).unwrap();
-        assert_eq!(dbg!(str::from_utf8(&buf[..count])), Ok(current));
-    }
-}
-
-//TODO: chmod
-
-#[test]
 fn clone() {
     let expected_status = 42;
     let pid_res = unsafe { crate::clone(crate::CloneFlags::empty()) };
@@ -206,8 +180,6 @@ fn fstatvfs() {
 //TODO: futimens
 
 //TODO: futex
-
-// getcwd tested by chdir
 
 #[test]
 fn getegid() {

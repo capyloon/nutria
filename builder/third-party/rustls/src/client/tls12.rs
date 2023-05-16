@@ -1,18 +1,19 @@
 use crate::check::{inappropriate_handshake_message, inappropriate_message};
-use crate::conn::{CommonState, ConnectionRandoms, Side, State};
+use crate::common_state::{CommonState, Side, State};
+use crate::conn::ConnectionRandoms;
 use crate::enums::ProtocolVersion;
-use crate::error::Error;
+use crate::enums::{AlertDescription, ContentType, HandshakeType};
+use crate::error::{Error, InvalidMessage, PeerMisbehaved};
 use crate::hash_hs::HandshakeHash;
+use crate::kx;
 #[cfg(feature = "logging")]
-use crate::log::{debug, trace};
+use crate::log::{debug, trace, warn};
 use crate::msgs::base::{Payload, PayloadU8};
 use crate::msgs::ccs::ChangeCipherSpecPayload;
 use crate::msgs::codec::Codec;
-use crate::msgs::enums::AlertDescription;
-use crate::msgs::enums::{ContentType, HandshakeType};
 use crate::msgs::handshake::{
-    CertificatePayload, DecomposedSignatureScheme, DigitallySignedStruct, HandshakeMessagePayload,
-    HandshakePayload, NewSessionTicketPayload, SCTList, ServerECDHParams, SessionID,
+    CertificatePayload, HandshakeMessagePayload, HandshakePayload, NewSessionTicketPayload, Sct,
+    ServerECDHParams, SessionId,
 };
 use crate::msgs::message::{Message, MessagePayload};
 use crate::msgs::persist;
@@ -22,7 +23,7 @@ use crate::suites::PartiallyExtractedSecrets;
 use crate::suites::SupportedCipherSuite;
 use crate::ticketer::TimeBase;
 use crate::tls12::{self, ConnectionSecrets, Tls12CipherSuite};
-use crate::{kx, verify};
+use crate::verify::{self, DigitallySignedStruct};
 
 use super::client_conn::ClientConnectionData;
 use super::hs::ClientContext;
@@ -70,9 +71,12 @@ mod server_hello {
             // public values and don't require constant time comparison
             let has_downgrade_marker = self.randoms.server[24..] == tls12::DOWNGRADE_SENTINEL;
             if tls13_supported && has_downgrade_marker {
-                return Err(cx
-                    .common
-                    .illegal_param("downgrade to TLS1.2 when TLS1.3 is supported"));
+                return Err({
+                    cx.common.send_fatal_alert(
+                        AlertDescription::IllegalParameter,
+                        PeerMisbehaved::AttemptedDowngradeToTls12WhenTls13IsSupported,
+                    )
+                });
             }
 
             // Doing EMS?
@@ -103,10 +107,9 @@ mod server_hello {
                 debug!("Server sent {:?} SCTs", sct_list.len());
 
                 if hs::sct_list_is_invalid(sct_list) {
-                    let error_msg = "server sent invalid SCT list".to_string();
-                    return Err(Error::PeerMisbehavedError(error_msg));
+                    return Err(PeerMisbehaved::InvalidSctList.into());
                 }
-                Some(sct_list.clone())
+                Some(sct_list.to_owned())
             } else {
                 None
             };
@@ -118,15 +121,12 @@ mod server_hello {
 
                     // Is the server telling lies about the ciphersuite?
                     if resuming.suite() != suite {
-                        let error_msg =
-                            "abbreviated handshake offered, but with varied cs".to_string();
-                        return Err(Error::PeerMisbehavedError(error_msg));
+                        return Err(PeerMisbehaved::ResumptionOfferedWithVariedCipherSuite.into());
                     }
 
                     // And about EMS support?
                     if resuming.extended_ms() != self.using_ems {
-                        let error_msg = "server varied ems support over resume".to_string();
-                        return Err(Error::PeerMisbehavedError(error_msg));
+                        return Err(PeerMisbehaved::ResumptionOfferedWithVariedEms.into());
                     }
 
                     let secrets =
@@ -196,7 +196,7 @@ mod server_hello {
 struct ExpectCertificate {
     config: Arc<ClientConfig>,
     resuming_session: Option<persist::Tls12ClientSessionValue>,
-    session_id: SessionID,
+    session_id: SessionId,
     server_name: ServerName,
     randoms: ConnectionRandoms,
     using_ems: bool,
@@ -204,7 +204,7 @@ struct ExpectCertificate {
     pub(super) suite: &'static Tls12CipherSuite,
     may_send_cert_status: bool,
     must_issue_new_ticket: bool,
-    server_cert_sct_list: Option<SCTList>,
+    server_cert_sct_list: Option<Vec<Sct>>,
 }
 
 impl State<ClientConnectionData> for ExpectCertificate {
@@ -257,13 +257,13 @@ impl State<ClientConnectionData> for ExpectCertificate {
 struct ExpectCertificateStatusOrServerKx {
     config: Arc<ClientConfig>,
     resuming_session: Option<persist::Tls12ClientSessionValue>,
-    session_id: SessionID,
+    session_id: SessionId,
     server_name: ServerName,
     randoms: ConnectionRandoms,
     using_ems: bool,
     transcript: HandshakeHash,
     suite: &'static Tls12CipherSuite,
-    server_cert_sct_list: Option<SCTList>,
+    server_cert_sct_list: Option<Vec<Sct>>,
     server_cert_chain: CertificatePayload,
     must_issue_new_ticket: bool,
 }
@@ -331,13 +331,13 @@ impl State<ClientConnectionData> for ExpectCertificateStatusOrServerKx {
 struct ExpectCertificateStatus {
     config: Arc<ClientConfig>,
     resuming_session: Option<persist::Tls12ClientSessionValue>,
-    session_id: SessionID,
+    session_id: SessionId,
     server_name: ServerName,
     randoms: ConnectionRandoms,
     using_ems: bool,
     transcript: HandshakeHash,
     suite: &'static Tls12CipherSuite,
-    server_cert_sct_list: Option<SCTList>,
+    server_cert_sct_list: Option<Vec<Sct>>,
     server_cert_chain: CertificatePayload,
     must_issue_new_ticket: bool,
 }
@@ -385,7 +385,7 @@ impl State<ClientConnectionData> for ExpectCertificateStatus {
 struct ExpectServerKx {
     config: Arc<ClientConfig>,
     resuming_session: Option<persist::Tls12ClientSessionValue>,
-    session_id: SessionID,
+    session_id: SessionId,
     server_name: ServerName,
     randoms: ConnectionRandoms,
     using_ems: bool,
@@ -405,11 +405,12 @@ impl State<ClientConnectionData> for ExpectServerKx {
         self.transcript.add_message(&m);
 
         let ecdhe = opaque_kx
-            .unwrap_given_kxa(&self.suite.kx)
+            .unwrap_given_kxa(self.suite.kx)
             .ok_or_else(|| {
-                cx.common
-                    .send_fatal_alert(AlertDescription::DecodeError);
-                Error::CorruptMessagePayload(ContentType::Handshake)
+                cx.common.send_fatal_alert(
+                    AlertDescription::DecodeError,
+                    InvalidMessage::MissingKeyExchange,
+                )
             })?;
 
         // Save the signature and signed parameters for later verification.
@@ -549,7 +550,7 @@ impl ServerKxDetails {
 struct ExpectServerDoneOrCertReq {
     config: Arc<ClientConfig>,
     resuming_session: Option<persist::Tls12ClientSessionValue>,
-    session_id: SessionID,
+    session_id: SessionId,
     server_name: ServerName,
     randoms: ConnectionRandoms,
     using_ems: bool,
@@ -611,7 +612,7 @@ impl State<ClientConnectionData> for ExpectServerDoneOrCertReq {
 struct ExpectCertificateRequest {
     config: Arc<ClientConfig>,
     resuming_session: Option<persist::Tls12ClientSessionValue>,
-    session_id: SessionID,
+    session_id: SessionId,
     server_name: ServerName,
     randoms: ConnectionRandoms,
     using_ems: bool,
@@ -672,7 +673,7 @@ impl State<ClientConnectionData> for ExpectCertificateRequest {
 struct ExpectServerDone {
     config: Arc<ClientConfig>,
     resuming_session: Option<persist::Tls12ClientSessionValue>,
-    session_id: SessionID,
+    session_id: SessionId,
     server_name: ServerName,
     randoms: ConnectionRandoms,
     using_ems: bool,
@@ -744,7 +745,10 @@ impl State<ClientConnectionData> for ExpectServerDone {
                 &st.server_cert.ocsp_response,
                 now,
             )
-            .map_err(|err| hs::send_cert_error_alert(cx.common, err))?;
+            .map_err(|err| {
+                cx.common
+                    .send_cert_verify_error_alert(err)
+            })?;
 
         // 3.
         // Build up the contents of the signed message.
@@ -759,18 +763,21 @@ impl State<ClientConnectionData> for ExpectServerDone {
             let sig = &st.server_kx.kx_sig;
             if !SupportedCipherSuite::from(suite).usable_for_signature_algorithm(sig.scheme.sign())
             {
-                let error_message = format!(
+                warn!(
                     "peer signed kx with wrong algorithm (got {:?} expect {:?})",
                     sig.scheme.sign(),
                     suite.sign
                 );
-                return Err(Error::PeerMisbehavedError(error_message));
+                return Err(PeerMisbehaved::SignedKxWithWrongAlgorithm.into());
             }
 
             st.config
                 .verifier
                 .verify_tls12_signature(&message, &st.server_cert.cert_chain[0], sig)
-                .map_err(|err| hs::send_cert_error_alert(cx.common, err))?
+                .map_err(|err| {
+                    cx.common
+                        .send_cert_verify_error_alert(err)
+                })?
         };
         cx.common.peer_certificates = Some(st.server_cert.cert_chain);
 
@@ -788,9 +795,9 @@ impl State<ClientConnectionData> for ExpectServerDone {
             tls12::decode_ecdh_params::<ServerECDHParams>(cx.common, &st.server_kx.kx_params)?;
         let group =
             kx::KeyExchange::choose(ecdh_params.curve_params.named_group, &st.config.kx_groups)
-                .ok_or_else(|| {
-                    Error::PeerMisbehavedError("peer chose an unsupported group".to_string())
-                })?;
+                .ok_or(Error::PeerMisbehaved(
+                    PeerMisbehaved::SelectedUnofferedKxGroup,
+                ))?;
         let kx = kx::KeyExchange::start(group).ok_or(Error::FailedToGetRandomBytes)?;
 
         // 5b.
@@ -867,7 +874,7 @@ struct ExpectNewTicket {
     config: Arc<ClientConfig>,
     secrets: ConnectionSecrets,
     resuming_session: Option<persist::Tls12ClientSessionValue>,
-    session_id: SessionID,
+    session_id: SessionId,
     server_name: ServerName,
     using_ems: bool,
     transcript: HandshakeHash,
@@ -911,7 +918,7 @@ struct ExpectCcs {
     config: Arc<ClientConfig>,
     secrets: ConnectionSecrets,
     resuming_session: Option<persist::Tls12ClientSessionValue>,
-    session_id: SessionID,
+    session_id: SessionId,
     server_name: ServerName,
     using_ems: bool,
     transcript: HandshakeHash,
@@ -960,7 +967,7 @@ impl State<ClientConnectionData> for ExpectCcs {
 struct ExpectFinished {
     config: Arc<ClientConfig>,
     resuming_session: Option<persist::Tls12ClientSessionValue>,
-    session_id: SessionID,
+    session_id: SessionId,
     server_name: ServerName,
     using_ems: bool,
     transcript: HandshakeHash,
@@ -1001,8 +1008,7 @@ impl ExpectFinished {
             }
         };
 
-        let key = persist::ClientSessionKey::session_for_server_name(&self.server_name);
-        let value = persist::Tls12ClientSessionValue::new(
+        let session_value = persist::Tls12ClientSessionValue::new(
             self.secrets.suite(),
             self.session_id,
             ticket,
@@ -1016,16 +1022,10 @@ impl ExpectFinished {
             self.using_ems,
         );
 
-        let worked = self
-            .config
-            .session_storage
-            .put(key.get_encoding(), value.get_encoding());
-
-        if worked {
-            debug!("Session saved");
-        } else {
-            debug!("Session not saved");
-        }
+        self.config
+            .resumption
+            .store
+            .set_tls12_session(&self.server_name, session_value);
     }
 }
 
@@ -1047,8 +1047,7 @@ impl State<ClientConnectionData> for ExpectFinished {
             constant_time::verify_slices_are_equal(&expect_verify_data, &finished.0)
                 .map_err(|_| {
                     cx.common
-                        .send_fatal_alert(AlertDescription::DecryptError);
-                    Error::DecryptError
+                        .send_fatal_alert(AlertDescription::DecryptError, Error::DecryptError)
                 })
                 .map(|_| verify::FinishedMessageVerified::assertion())?;
 

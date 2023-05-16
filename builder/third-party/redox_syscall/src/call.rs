@@ -12,37 +12,6 @@ extern "C" fn restorer() -> ! {
     unreachable!();
 }
 
-/// Change the process's working directory
-///
-/// This function will attempt to set the process's working directory to `path`, which can be
-/// either a relative, scheme relative, or absolute path.
-///
-/// On success, `Ok(0)` will be returned. On error, one of the following errors will be returned.
-///
-/// # Errors
-///
-/// * `EACCES` - permission is denied for one of the components of `path`, or `path`
-/// * `EFAULT` - `path` does not point to the process's addressible memory
-/// * `EIO` - an I/O error occurred
-/// * `ENOENT` - `path` does not exit
-/// * `ENOTDIR` - `path` is not a directory
-pub fn chdir<T: AsRef<str>>(path: T) -> Result<usize> {
-    unsafe { syscall2(SYS_CHDIR, path.as_ref().as_ptr() as usize, path.as_ref().len()) }
-}
-
-#[deprecated(
-    since = "0.1.55",
-    note = "use fchmod instead"
-)]
-pub fn chmod<T: AsRef<str>>(path: T, mode: usize) -> Result<usize> {
-    unsafe { syscall3(SYS_CHMOD, path.as_ref().as_ptr() as usize, path.as_ref().len(), mode) }
-}
-
-/// Produce a fork of the current process, or a new process thread
-pub unsafe fn clone(flags: CloneFlags) -> Result<usize> {
-    syscall1(SYS_CLONE, flags.bits())
-}
-
 /// Close a file
 pub fn close(fd: usize) -> Result<usize> {
     unsafe { syscall1(SYS_CLOSE, fd) }
@@ -83,11 +52,6 @@ pub fn fchown(fd: usize, uid: u32, gid: u32) -> Result<usize> {
 /// Change file descriptor flags
 pub fn fcntl(fd: usize, cmd: usize, arg: usize) -> Result<usize> {
     unsafe { syscall3(SYS_FCNTL, fd, cmd, arg) }
-}
-
-/// Replace the current process with a new executable
-pub fn fexec(fd: usize, args: &[[usize; 2]], vars: &[[usize; 2]]) -> Result<usize> {
-    unsafe { syscall5(SYS_FEXEC, fd, args.as_ptr() as usize, args.len(), vars.as_ptr() as usize, vars.len()) }
 }
 
 /// Map a file into memory, but with the ability to set the address to map into, either as a hint
@@ -148,11 +112,6 @@ pub fn futimens(fd: usize, times: &[TimeSpec]) -> Result<usize> {
 pub unsafe fn futex(addr: *mut i32, op: usize, val: i32, val2: usize, addr2: *mut i32)
                     -> Result<usize> {
     syscall5(SYS_FUTEX, addr as usize, op, (val as isize) as usize, val2, addr2 as usize)
-}
-
-/// Get the current working directory
-pub fn getcwd(buf: &mut [u8]) -> Result<usize> {
-    unsafe { syscall2(SYS_GETCWD, buf.as_mut_ptr() as usize, buf.len()) }
 }
 
 /// Get the effective group ID

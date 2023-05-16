@@ -57,16 +57,16 @@ bitflags! {
     pub struct DupFlags: c::c_int {
         /// `O_CLOEXEC`
         #[cfg(not(any(
+            apple,
+            target_os = "aix",
             target_os = "android",
-            target_os = "ios",
-            target_os = "macos",
             target_os = "redox",
         )))] // Android 5.0 has dup3, but libc doesn't have bindings
         const CLOEXEC = c::O_CLOEXEC;
     }
 }
 
-#[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "wasi")))]
+#[cfg(not(any(apple, target_os = "wasi")))]
 bitflags! {
     /// `O_*` constants for use with [`pipe_with`].
     ///
@@ -76,11 +76,10 @@ bitflags! {
         const CLOEXEC = c::O_CLOEXEC;
         /// `O_DIRECT`
         #[cfg(not(any(
+            solarish,
             target_os = "haiku",
-            target_os = "illumos",
             target_os = "openbsd",
             target_os = "redox",
-            target_os = "solaris",
         )))]
         const DIRECT = c::O_DIRECT;
         /// `O_NONBLOCK`
@@ -88,7 +87,12 @@ bitflags! {
     }
 }
 
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(any(
+    target_os = "android",
+    target_os = "freebsd",
+    target_os = "illumos",
+    target_os = "linux"
+))]
 bitflags! {
     /// `EFD_*` flags for use with [`eventfd`].
     ///
@@ -104,13 +108,7 @@ bitflags! {
 }
 
 /// `PIPE_BUF`—The maximum size of a write to a pipe guaranteed to be atomic.
-#[cfg(not(any(
-    target_os = "haiku",
-    target_os = "illumos",
-    target_os = "redox",
-    target_os = "solaris",
-    target_os = "wasi",
-)))]
+#[cfg(not(any(solarish, target_os = "haiku", target_os = "redox", target_os = "wasi")))]
 pub const PIPE_BUF: usize = c::PIPE_BUF;
 
 #[cfg(not(any(windows, target_os = "redox")))]
@@ -123,9 +121,10 @@ pub(crate) const STDOUT_FILENO: c::c_int = c::STDOUT_FILENO;
 pub(crate) const STDERR_FILENO: c::c_int = c::STDERR_FILENO;
 
 /// A buffer type used with `vmsplice`.
-/// It is guaranteed to be ABI compatible with the iovec type on Unix platforms and WSABUF on Windows.
-/// Unlike `IoSlice` and `IoSliceMut` it is semantically like a raw pointer,
-/// and therefore can be shared or mutated as needed.
+/// It is guaranteed to be ABI compatible with the iovec type on Unix platforms
+/// and `WSABUF` on Windows. Unlike `IoSlice` and `IoSliceMut` it is
+/// semantically like a raw pointer, and therefore can be shared or mutated as
+/// needed.
 #[cfg(any(target_os = "android", target_os = "linux"))]
 #[repr(transparent)]
 pub struct IoSliceRaw<'a> {
@@ -135,7 +134,7 @@ pub struct IoSliceRaw<'a> {
 
 #[cfg(any(target_os = "android", target_os = "linux"))]
 impl<'a> IoSliceRaw<'a> {
-    /// Creates a new IoSlice wrapping a byte slice.
+    /// Creates a new `IoSlice` wrapping a byte slice.
     pub fn from_slice(buf: &'a [u8]) -> Self {
         IoSliceRaw {
             _buf: c::iovec {
@@ -146,7 +145,7 @@ impl<'a> IoSliceRaw<'a> {
         }
     }
 
-    /// Creates a new IoSlice wrapping a mutable byte slice.
+    /// Creates a new `IoSlice` wrapping a mutable byte slice.
     pub fn from_slice_mut(buf: &'a mut [u8]) -> Self {
         IoSliceRaw {
             _buf: c::iovec {

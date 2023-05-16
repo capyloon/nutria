@@ -39,7 +39,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.3.0"
+//! version = "1.3.3"
 //! features = [
 //!     "v4",                # Lets you generate random UUIDs
 //!     "fast-rng",          # Use a faster (but still sufficiently random) RNG
@@ -138,7 +138,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.3.0"
+//! version = "1.3.3"
 //! features = [
 //!     "v4",
 //!     "v7",
@@ -153,7 +153,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.3.0"
+//! version = "1.3.3"
 //! default-features = false
 //! ```
 //!
@@ -211,7 +211,7 @@
 #![doc(
     html_logo_url = "https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png",
     html_favicon_url = "https://www.rust-lang.org/favicon.ico",
-    html_root_url = "https://docs.rs/uuid/1.3.0"
+    html_root_url = "https://docs.rs/uuid/1.3.3"
 )]
 
 #[cfg(any(feature = "std", test))]
@@ -687,22 +687,7 @@ impl Uuid {
     /// # }
     /// ```
     pub const fn as_u128(&self) -> u128 {
-        (self.as_bytes()[0] as u128) << 120
-            | (self.as_bytes()[1] as u128) << 112
-            | (self.as_bytes()[2] as u128) << 104
-            | (self.as_bytes()[3] as u128) << 96
-            | (self.as_bytes()[4] as u128) << 88
-            | (self.as_bytes()[5] as u128) << 80
-            | (self.as_bytes()[6] as u128) << 72
-            | (self.as_bytes()[7] as u128) << 64
-            | (self.as_bytes()[8] as u128) << 56
-            | (self.as_bytes()[9] as u128) << 48
-            | (self.as_bytes()[10] as u128) << 40
-            | (self.as_bytes()[11] as u128) << 32
-            | (self.as_bytes()[12] as u128) << 24
-            | (self.as_bytes()[13] as u128) << 16
-            | (self.as_bytes()[14] as u128) << 8
-            | (self.as_bytes()[15] as u128)
+        u128::from_be_bytes(*self.as_bytes())
     }
 
     /// Returns a 128bit little-endian value containing the value.
@@ -731,22 +716,7 @@ impl Uuid {
     /// # }
     /// ```
     pub const fn to_u128_le(&self) -> u128 {
-        (self.as_bytes()[0] as u128)
-            | (self.as_bytes()[1] as u128) << 8
-            | (self.as_bytes()[2] as u128) << 16
-            | (self.as_bytes()[3] as u128) << 24
-            | (self.as_bytes()[4] as u128) << 32
-            | (self.as_bytes()[5] as u128) << 40
-            | (self.as_bytes()[6] as u128) << 48
-            | (self.as_bytes()[7] as u128) << 56
-            | (self.as_bytes()[8] as u128) << 64
-            | (self.as_bytes()[9] as u128) << 72
-            | (self.as_bytes()[10] as u128) << 80
-            | (self.as_bytes()[11] as u128) << 88
-            | (self.as_bytes()[12] as u128) << 96
-            | (self.as_bytes()[13] as u128) << 104
-            | (self.as_bytes()[14] as u128) << 112
-            | (self.as_bytes()[15] as u128) << 120
+        u128::from_le_bytes(*self.as_bytes())
     }
 
     /// Returns two 64bit values containing the value.

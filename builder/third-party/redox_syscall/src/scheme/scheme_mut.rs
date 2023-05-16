@@ -14,11 +14,6 @@ pub trait SchemeMut {
             } else {
                 Err(Error::new(EINVAL))
             },
-            SYS_CHMOD => if let Some(path) = unsafe { str_from_raw_parts(packet.b as *const u8, packet.c) } {
-                self.chmod(path, packet.d as u16, packet.uid, packet.gid)
-            } else {
-                Err(Error::new(EINVAL))
-            },
             SYS_RMDIR => if let Some(path) = unsafe { str_from_raw_parts(packet.b as *const u8, packet.c) } {
                 self.rmdir(path, packet.uid, packet.gid)
             } else {

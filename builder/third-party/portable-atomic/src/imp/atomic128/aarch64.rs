@@ -1,32 +1,39 @@
-// Atomic{I,U}128 implementation for AArch64.
+// Atomic{I,U}128 implementation on AArch64.
 //
 // There are a few ways to implement 128-bit atomic operations in AArch64.
 //
 // - LDXP/STXP loop (DW LL/SC)
-// - CASP (DWCAS) added as FEAT_LSE (armv8.1-a)
-// - LDP/STP (DW load/store) if FEAT_LSE2 (armv8.4-a) is available
+// - CASP (DWCAS) added as FEAT_LSE (mandatory from armv8.1-a)
+// - LDP/STP (DW load/store) if FEAT_LSE2 (optional from armv8.2-a, mandatory from armv8.4-a) is available
 //
-// If outline-atomics is not enabled, we use CASP if FEAT_LSE is enabled at
-// compile-time, otherwise, use LDXP/STXP loop.
-// If outline-atomics is enabled, we use CASP for compare_exchange(_weak) if
-// FEAT_LSE is available at run-time.
+// If outline-atomics is not enabled and FEAT_LSE is not available at
+// compile-time, we use LDXP/STXP loop.
+// If outline-atomics is enabled and FEAT_LSE is not available at
+// compile-time, we use CASP for CAS if FEAT_LSE is available
+// at run-time, otherwise, use LDXP/STXP loop.
+// If FEAT_LSE is available at compile-time, we use CASP for load/store/CAS/RMW.
+// However, when portable_atomic_ll_sc_rmw cfg is set, use LDXP/STXP loop instead of CASP
+// loop for RMW (by default, it is set on Apple hardware; see build script for details).
 // If FEAT_LSE2 is available at compile-time, we use LDP/STP for load/store.
 //
-// Note: As of rustc 1.63, -C target-feature=+lse2 does not
-// implicitly enable target_feature "lse". Also, target_feature "lse2" is not available on rustc side:
-// https://github.com/rust-lang/rust/blob/1.63.0/compiler/rustc_codegen_ssa/src/target_features.rs#L45
+// Note: FEAT_LSE2 doesn't imply FEAT_LSE.
 //
 // Note that we do not separate LL and SC into separate functions, but handle
 // them within a single asm block. This is because it is theoretically possible
 // for the compiler to insert operations that might clear the reservation between
 // LL and SC. Considering the type of operations we are providing and the fact
-// that progress64 (https://github.com/ARM-software/progress64) uses such code,
+// that [progress64](https://github.com/ARM-software/progress64) uses such code,
 // this is probably not a problem for aarch64, but it seems that aarch64 doesn't
-// guarantee it and hexagon is the only architecture that has hardware guarantees
-// that such code will work. See also:
+// guarantee it and hexagon is the only architecture with hardware guarantees
+// that such code works. See also:
+//
 // - https://yarchive.net/comp/linux/cmpxchg_ll_sc_portability.html
 // - https://lists.llvm.org/pipermail/llvm-dev/2016-May/099490.html
 // - https://lists.llvm.org/pipermail/llvm-dev/2018-June/123993.html
+//
+// Also, even when using a CAS loop to implement atomic RMW, include the loop itself
+// in the asm block because it is more efficient for some codegen backends.
+// https://github.com/rust-lang/compiler-builtins/issues/339#issuecomment-1191260474
 //
 // Note: On Miri and ThreadSanitizer which do not support inline assembly, we don't use
 // this module and use intrinsics.rs instead.
@@ -34,20 +41,107 @@
 // Refs:
 // - ARM Compiler armasm User Guide
 //   https://developer.arm.com/documentation/dui0801/latest
+// - Arm A-profile A64 Instruction Set Architecture
+//   https://developer.arm.com/documentation/ddi0602/latest
 // - Arm Architecture Reference Manual for A-profile architecture
 //   https://developer.arm.com/documentation/ddi0487/latest
 // - atomic-maybe-uninit https://github.com/taiki-e/atomic-maybe-uninit
 //
 // Generated asm:
-// - aarch64 https://godbolt.org/z/z5cd5W8fh
-// - aarch64 (+lse) https://godbolt.org/z/offxb8rrj
-// - aarch64 (+lse,+lse2) https://godbolt.org/z/8nn4WE4cj
+// - aarch64 https://godbolt.org/z/fzWhsbKsd
+// - aarch64 msvc https://godbolt.org/z/chMK1G8vc
+// - aarch64 (+lse) https://godbolt.org/z/n8Tv7a8eh
+// - aarch64 msvc (+lse) https://godbolt.org/z/GMsYs41MG
+// - aarch64 (+lse,+lse2) https://godbolt.org/z/bs18YP7Ph
 
 include!("macros.rs");
+
+// On musl with static linking, it seems that getauxval is not always available.
+// See detect/auxv.rs for more.
+#[cfg(not(portable_atomic_no_outline_atomics))]
+#[cfg(any(test, not(any(target_feature = "lse", portable_atomic_target_feature = "lse"))))]
+#[cfg(any(
+    all(
+        target_os = "linux",
+        any(
+            target_env = "gnu",
+            all(any(target_env = "musl", target_env = "ohos"), not(target_feature = "crt-static")),
+            portable_atomic_outline_atomics,
+        ),
+    ),
+    target_os = "android",
+    target_os = "freebsd",
+))]
+#[path = "detect/aarch64_auxv.rs"]
+mod detect;
+#[cfg(not(portable_atomic_no_outline_atomics))]
+#[cfg(any(test, not(any(target_feature = "lse", portable_atomic_target_feature = "lse"))))]
+#[cfg(target_os = "openbsd")]
+#[path = "detect/aarch64_aa64reg.rs"]
+mod detect;
+#[cfg(not(portable_atomic_no_outline_atomics))]
+#[cfg(any(test, not(any(target_feature = "lse", portable_atomic_target_feature = "lse"))))]
+#[cfg(target_os = "fuchsia")]
+#[path = "detect/aarch64_fuchsia.rs"]
+mod detect;
+#[cfg(not(portable_atomic_no_outline_atomics))]
+#[cfg(any(test, not(any(target_feature = "lse", portable_atomic_target_feature = "lse"))))]
+#[cfg(target_os = "windows")]
+#[path = "detect/aarch64_windows.rs"]
+mod detect;
+
+// test only
+#[cfg(test)]
+#[cfg(not(qemu))]
+#[cfg(not(valgrind))]
+#[cfg(not(portable_atomic_no_outline_atomics))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
+#[path = "detect/aarch64_aa64reg.rs"]
+mod detect_aa64reg;
+#[cfg(test)]
+#[cfg(not(portable_atomic_no_outline_atomics))]
+#[cfg(target_os = "macos")]
+#[path = "detect/aarch64_macos.rs"]
+mod detect_macos;
 
 #[cfg(not(portable_atomic_no_asm))]
 use core::arch::asm;
 use core::sync::atomic::Ordering;
+
+#[cfg(any(
+    target_feature = "lse",
+    portable_atomic_target_feature = "lse",
+    not(portable_atomic_no_outline_atomics),
+))]
+macro_rules! debug_assert_lse {
+    () => {
+        #[cfg(all(
+            not(portable_atomic_no_outline_atomics),
+            any(
+                all(
+                    target_os = "linux",
+                    any(
+                        target_env = "gnu",
+                        all(
+                            any(target_env = "musl", target_env = "ohos"),
+                            not(target_feature = "crt-static"),
+                        ),
+                        portable_atomic_outline_atomics,
+                    ),
+                ),
+                target_os = "android",
+                target_os = "freebsd",
+                target_os = "openbsd",
+                target_os = "fuchsia",
+                target_os = "windows",
+            ),
+        ))]
+        #[cfg(not(any(target_feature = "lse", portable_atomic_target_feature = "lse")))]
+        {
+            debug_assert!(detect::detect().has_lse());
+        }
+    };
+}
 
 #[cfg(target_pointer_width = "32")]
 macro_rules! ptr_modifier {
@@ -75,21 +169,15 @@ macro_rules! select_le_or_be {
 }
 
 /// A 128-bit value represented as a pair of 64-bit values.
-// This type is #[repr(C)], both fields have the same in-memory representation
-// and are plain old datatypes, so access to the fields is always safe.
+///
+/// This type is `#[repr(C)]`, both fields have the same in-memory representation
+/// and are plain old datatypes, so access to the fields is always safe.
 #[derive(Clone, Copy)]
 #[repr(C)]
 union U128 {
     whole: u128,
     pair: Pair,
 }
-#[derive(Clone, Copy)]
-#[repr(C)]
-union I128 {
-    whole: i128,
-    pair: Pair,
-}
-
 #[derive(Clone, Copy)]
 #[repr(C)]
 struct Pair {
@@ -100,32 +188,61 @@ struct Pair {
 macro_rules! atomic_rmw {
     ($op:ident, $order:ident) => {
         match $order {
-            Ordering::Relaxed => $op!("", ""),
-            Ordering::Acquire => $op!("a", ""),
-            Ordering::Release => $op!("", "l"),
-            // AcqRel and SeqCst RMWs are equivalent.
-            Ordering::AcqRel | Ordering::SeqCst => $op!("a", "l"),
-            _ => unreachable_unchecked!("{:?}", $order),
+            Ordering::Relaxed => $op!("", "", ""),
+            Ordering::Acquire => $op!("a", "", ""),
+            Ordering::Release => $op!("", "l", ""),
+            Ordering::AcqRel => $op!("a", "l", ""),
+            // AcqRel and SeqCst RMWs are equivalent in non-MSVC environments.
+            #[cfg(not(target_env = "msvc"))]
+            Ordering::SeqCst => $op!("a", "l", ""),
+            // In MSVC environments, SeqCst stores/writes needs fences after writes.
+            // https://reviews.llvm.org/D141748
+            #[cfg(target_env = "msvc")]
+            Ordering::SeqCst => $op!("a", "l", "dmb ish"),
+            _ => unreachable!("{:?}", $order),
         }
     };
 }
 
+#[inline]
+unsafe fn atomic_load(src: *mut u128, order: Ordering) -> u128 {
+    #[cfg(any(target_feature = "lse2", portable_atomic_target_feature = "lse2"))]
+    // SAFETY: the caller must uphold the safety contract.
+    // cfg guarantee that the CPU supports FEAT_LSE2.
+    unsafe {
+        atomic_load_ldp(src, order)
+    }
+    #[cfg(not(any(target_feature = "lse2", portable_atomic_target_feature = "lse2")))]
+    {
+        #[cfg(any(target_feature = "lse", portable_atomic_target_feature = "lse"))]
+        // SAFETY: the caller must uphold the safety contract.
+        // cfg guarantee that the CPU supports FEAT_LSE.
+        unsafe {
+            _atomic_load_casp(src, order)
+        }
+        #[cfg(not(any(target_feature = "lse", portable_atomic_target_feature = "lse")))]
+        // SAFETY: the caller must uphold the safety contract.
+        unsafe {
+            _atomic_load_ldxp_stxp(src, order)
+        }
+    }
+}
 // If CPU supports FEAT_LSE2, LDP is single-copy atomic reads,
 // otherwise it is two single-copy atomic reads.
 // Refs: B2.2.1 of the Arm Architecture Reference Manual Armv8, for Armv8-A architecture profile
-#[cfg(any(target_feature = "lse2", portable_atomic_target_feature = "lse2", test))]
+#[cfg(any(target_feature = "lse2", portable_atomic_target_feature = "lse2"))]
 #[inline]
-unsafe fn _ldp(src: *mut u128, order: Ordering) -> u128 {
+unsafe fn atomic_load_ldp(src: *mut u128, order: Ordering) -> u128 {
     debug_assert!(src as usize % 16 == 0);
 
     // SAFETY: the caller must guarantee that `dst` is valid for reads,
     // 16-byte aligned, that there are no concurrent non-atomic operations.
     //
     // Refs:
-    // - LDP: https://developer.arm.com/documentation/dui0801/g/A64-Data-Transfer-Instructions/LDP
+    // - LDP: https://developer.arm.com/documentation/dui0801/l/A64-Data-Transfer-Instructions/LDP--A64-
     unsafe {
         let (prev_lo, prev_hi);
-        macro_rules! atomic_load {
+        macro_rules! atomic_load_relaxed {
             ($acquire:tt $(, $readonly:tt)?) => {
                 asm!(
                     concat!("ldp {prev_lo}, {prev_hi}, [{src", ptr_modifier!(), "}]"),
@@ -138,75 +255,72 @@ unsafe fn _ldp(src: *mut u128, order: Ordering) -> u128 {
             };
         }
         match order {
-            Ordering::Relaxed => atomic_load!("", readonly),
-            Ordering::Acquire => atomic_load!("dmb ishld"),
-            Ordering::SeqCst => atomic_load!("dmb ish"),
-            _ => unreachable_unchecked!("{:?}", order),
+            Ordering::Relaxed => atomic_load_relaxed!("", readonly),
+            Ordering::Acquire => atomic_load_relaxed!("dmb ishld"),
+            Ordering::SeqCst => {
+                asm!(
+                    // ldar (or dmb ishld) is required to prevent reordering with preceding stlxp.
+                    // See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108891 for details.
+                    concat!("ldar {tmp}, [{src", ptr_modifier!(), "}]"),
+                    concat!("ldp {prev_lo}, {prev_hi}, [{src", ptr_modifier!(), "}]"),
+                    "dmb ishld",
+                    src = in(reg) src,
+                    prev_hi = lateout(reg) prev_hi,
+                    prev_lo = lateout(reg) prev_lo,
+                    tmp = out(reg) _,
+                    options(nostack, preserves_flags),
+                );
+            }
+            _ => unreachable!("{:?}", order),
         }
         U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
     }
 }
-
-// If CPU supports FEAT_LSE2, STP is single-copy atomic writes,
-// otherwise it is two single-copy atomic writes.
-// Refs: B2.2.1 of the Arm Architecture Reference Manual Armv8, for Armv8-A architecture profile
-#[cfg(any(target_feature = "lse2", portable_atomic_target_feature = "lse2", test))]
+// Do not use _atomic_compare_exchange_casp because it needs extra MOV to implement load.
+#[cfg(any(test, not(any(target_feature = "lse2", portable_atomic_target_feature = "lse2"))))]
+#[cfg(any(target_feature = "lse", portable_atomic_target_feature = "lse"))]
 #[inline]
-unsafe fn _stp(dst: *mut u128, val: u128, order: Ordering) {
-    debug_assert!(dst as usize % 16 == 0);
+unsafe fn _atomic_load_casp(src: *mut u128, order: Ordering) -> u128 {
+    debug_assert!(src as usize % 16 == 0);
+    debug_assert_lse!();
 
-    // SAFETY: the caller must guarantee that `dst` is valid for writes,
-    // 16-byte aligned, that there are no concurrent non-atomic operations.
-    //
-    // Refs:
-    // - STP: https://developer.arm.com/documentation/dui0801/g/A64-Data-Transfer-Instructions/STP
+    // SAFETY: the caller must uphold the safety contract.
+    // cfg guarantee that the CPU supports FEAT_LSE.
     unsafe {
-        let val = U128 { whole: val };
-        macro_rules! atomic_store {
+        let (prev_lo, prev_hi);
+        macro_rules! atomic_load {
             ($acquire:tt, $release:tt) => {
                 asm!(
-                    $release,
-                    concat!("stp {val_lo}, {val_hi}, [{dst", ptr_modifier!(), "}]"),
-                    $acquire,
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
+                    concat!("casp", $acquire, $release, " x4, x5, x4, x5, [{src", ptr_modifier!(), "}]"),
+                    src = in(reg) src,
+                    // must be allocated to even/odd register pair
+                    inout("x4") 0_u64 => prev_lo,
+                    inout("x5") 0_u64 => prev_hi,
                     options(nostack, preserves_flags),
                 )
             };
         }
         match order {
-            Ordering::Relaxed => atomic_store!("", ""),
-            Ordering::Release => atomic_store!("", "dmb ish"),
-            Ordering::SeqCst => atomic_store!("dmb ish", "dmb ish"),
-            _ => unreachable_unchecked!("{:?}", order),
+            Ordering::Relaxed => atomic_load!("", ""),
+            Ordering::Acquire => atomic_load!("a", ""),
+            Ordering::SeqCst => atomic_load!("a", "l"),
+            _ => unreachable!("{:?}", order),
         }
+        U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
     }
 }
-
-#[inline]
-unsafe fn atomic_load(src: *mut u128, order: Ordering) -> u128 {
-    #[deny(unreachable_patterns)]
-    match () {
-        #[cfg(any(target_feature = "lse2", portable_atomic_target_feature = "lse2"))]
-        // SAFETY: the caller must uphold the safety contract for `atomic_load`.
-        // cfg guarantee that the CPU supports FEAT_LSE2.
-        () => unsafe { _ldp(src, order) },
-        #[cfg(any(target_feature = "lse", portable_atomic_target_feature = "lse"))]
-        #[cfg(not(any(target_feature = "lse2", portable_atomic_target_feature = "lse2")))]
-        // SAFETY: the caller must uphold the safety contract for `atomic_load`.
-        // cfg guarantee that the CPU supports FEAT_LSE.
-        () => unsafe { _compare_exchange_casp(src, 0, 0, order) },
-        #[cfg(not(any(target_feature = "lse", portable_atomic_target_feature = "lse")))]
-        #[cfg(not(any(target_feature = "lse2", portable_atomic_target_feature = "lse2")))]
-        // SAFETY: the caller must uphold the safety contract for `atomic_load`.
-        () => unsafe { _atomic_load_ldxp_stxp(src, order) },
-    }
-}
-
+#[cfg(any(
+    test,
+    all(
+        not(any(target_feature = "lse2", portable_atomic_target_feature = "lse2")),
+        not(any(target_feature = "lse", portable_atomic_target_feature = "lse")),
+    ),
+))]
 #[inline]
 unsafe fn _atomic_load_ldxp_stxp(src: *mut u128, order: Ordering) -> u128 {
-    // SAFETY: the caller must uphold the safety contract for `atomic_swap`.
+    debug_assert!(src as usize % 16 == 0);
+
+    // SAFETY: the caller must uphold the safety contract.
     unsafe {
         let (mut prev_lo, mut prev_hi);
         macro_rules! atomic_load {
@@ -229,7 +343,7 @@ unsafe fn _atomic_load_ldxp_stxp(src: *mut u128, order: Ordering) -> u128 {
             Ordering::Relaxed => atomic_load!("", ""),
             Ordering::Acquire => atomic_load!("a", ""),
             Ordering::SeqCst => atomic_load!("a", "l"),
-            _ => unreachable_unchecked!("{:?}", order),
+            _ => unreachable!("{:?}", order),
         }
         U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
     }
@@ -237,17 +351,52 @@ unsafe fn _atomic_load_ldxp_stxp(src: *mut u128, order: Ordering) -> u128 {
 
 #[inline]
 unsafe fn atomic_store(dst: *mut u128, val: u128, order: Ordering) {
-    #[deny(unreachable_patterns)]
-    match () {
-        #[cfg(any(target_feature = "lse2", portable_atomic_target_feature = "lse2"))]
-        // SAFETY: the caller must uphold the safety contract for `atomic_store`.
-        // cfg guarantee that the CPU supports FEAT_LSE2.
-        () => unsafe { _stp(dst, val, order) },
-        #[cfg(not(any(target_feature = "lse2", portable_atomic_target_feature = "lse2")))]
-        // SAFETY: the caller must uphold the safety contract for `atomic_store`.
-        () => unsafe {
-            atomic_swap(dst, val, order);
-        },
+    #[cfg(any(target_feature = "lse2", portable_atomic_target_feature = "lse2"))]
+    // SAFETY: the caller must uphold the safety contract.
+    // cfg guarantee that the CPU supports FEAT_LSE2.
+    unsafe {
+        atomic_store_stp(dst, val, order);
+    }
+    #[cfg(not(any(target_feature = "lse2", portable_atomic_target_feature = "lse2")))]
+    // SAFETY: the caller must uphold the safety contract.
+    unsafe {
+        atomic_swap(dst, val, order);
+    }
+}
+// If CPU supports FEAT_LSE2, STP is single-copy atomic writes,
+// otherwise it is two single-copy atomic writes.
+// Refs: B2.2.1 of the Arm Architecture Reference Manual Armv8, for Armv8-A architecture profile
+#[cfg(any(target_feature = "lse2", portable_atomic_target_feature = "lse2"))]
+#[inline]
+unsafe fn atomic_store_stp(dst: *mut u128, val: u128, order: Ordering) {
+    debug_assert!(dst as usize % 16 == 0);
+
+    // SAFETY: the caller must guarantee that `dst` is valid for writes,
+    // 16-byte aligned, that there are no concurrent non-atomic operations.
+    //
+    // Refs:
+    // - STP: https://developer.arm.com/documentation/dui0801/l/A64-Data-Transfer-Instructions/STP--A64-
+    unsafe {
+        let val = U128 { whole: val };
+        macro_rules! atomic_store {
+            ($acquire:tt, $release:tt) => {
+                asm!(
+                    $release,
+                    concat!("stp {val_lo}, {val_hi}, [{dst", ptr_modifier!(), "}]"),
+                    $acquire,
+                    dst = in(reg) dst,
+                    val_lo = in(reg) val.pair.lo,
+                    val_hi = in(reg) val.pair.hi,
+                    options(nostack, preserves_flags),
+                )
+            };
+        }
+        match order {
+            Ordering::Relaxed => atomic_store!("", ""),
+            Ordering::Release => atomic_store!("", "dmb ish"),
+            Ordering::SeqCst => atomic_store!("dmb ish", "dmb ish"),
+            _ => unreachable!("{:?}", order),
+        }
     }
 }
 
@@ -261,44 +410,152 @@ unsafe fn atomic_compare_exchange(
 ) -> Result<u128, u128> {
     let success = crate::utils::upgrade_success_ordering(success, failure);
 
-    #[deny(unreachable_patterns)]
-    let res = match () {
-        #[cfg(any(target_feature = "lse", portable_atomic_target_feature = "lse"))]
-        // SAFETY: the caller must uphold the safety contract for `atomic_compare_exchange`.
-        // cfg guarantee that the CPU supports FEAT_LSE.
-        () => unsafe { _compare_exchange_casp(dst, old, new, success) },
-        #[cfg(not(all(
-            not(portable_atomic_no_aarch64_target_feature),
-            not(portable_atomic_no_outline_atomics),
-            // https://github.com/rust-lang/stdarch/blob/a0c30f3e3c75adcd6ee7efc94014ebcead61c507/crates/std_detect/src/detect/mod.rs
-            // It is fine to use std for targets that we know can be linked to std.
-            // Note: aarch64 freebsd is tier 3, so std may not be available.
-            any(feature = "std", target_os = "linux", target_os = "android", target_os = "windows", /* target_os = "freebsd" */)
-        )))]
-        #[cfg(not(any(target_feature = "lse", portable_atomic_target_feature = "lse")))]
-        // SAFETY: the caller must uphold the safety contract for `atomic_compare_exchange`.
-        () => unsafe { _compare_exchange_ldxp_stxp(dst, old, new, success) },
-        #[cfg(all(
-            not(portable_atomic_no_aarch64_target_feature),
-            not(portable_atomic_no_outline_atomics),
-            // https://github.com/rust-lang/stdarch/blob/a0c30f3e3c75adcd6ee7efc94014ebcead61c507/crates/std_detect/src/detect/mod.rs
-            // It is fine to use std for targets that we know can be linked to std.
-            // Note: aarch64 freebsd is tier 3, so std may not be available.
-            any(feature = "std", target_os = "linux", target_os = "android", target_os = "windows", /* target_os = "freebsd" */)
-        ))]
-        #[cfg(not(any(target_feature = "lse", portable_atomic_target_feature = "lse")))]
-        () => {
-            extern crate std;
-            // SAFETY: the caller must guarantee that `dst` is valid for both writes and
-            // reads, 16-byte aligned, that there are no concurrent non-atomic operations,
-            // and we've checked if FEAT_LSE is available.
-            unsafe {
-                ifunc!(unsafe fn(dst: *mut u128, old: u128, new: u128, success: Ordering) -> u128;
-                if std::arch::is_aarch64_feature_detected!("lse") {
-                    _compare_exchange_casp
-                } else {
-                    _compare_exchange_ldxp_stxp
-                })
+    #[cfg(any(target_feature = "lse", portable_atomic_target_feature = "lse"))]
+    // SAFETY: the caller must uphold the safety contract.
+    // cfg guarantee that the CPU supports FEAT_LSE.
+    let res = unsafe { _atomic_compare_exchange_casp(dst, old, new, success) };
+    #[cfg(not(all(
+        not(portable_atomic_no_outline_atomics),
+        any(
+            all(
+                target_os = "linux",
+                any(
+                    target_env = "gnu",
+                    all(
+                        any(target_env = "musl", target_env = "ohos"),
+                        not(target_feature = "crt-static"),
+                    ),
+                    portable_atomic_outline_atomics,
+                ),
+            ),
+            target_os = "android",
+            target_os = "freebsd",
+            target_os = "openbsd",
+            target_os = "fuchsia",
+            target_os = "windows",
+        ),
+    )))]
+    #[cfg(not(any(target_feature = "lse", portable_atomic_target_feature = "lse")))]
+    // SAFETY: the caller must uphold the safety contract.
+    let res = unsafe { _atomic_compare_exchange_ldxp_stxp(dst, old, new, success) };
+    #[cfg(all(
+        not(portable_atomic_no_outline_atomics),
+        any(
+            all(
+                target_os = "linux",
+                any(
+                    target_env = "gnu",
+                    all(
+                        any(target_env = "musl", target_env = "ohos"),
+                        not(target_feature = "crt-static"),
+                    ),
+                    portable_atomic_outline_atomics,
+                ),
+            ),
+            target_os = "android",
+            target_os = "freebsd",
+            target_os = "openbsd",
+            target_os = "fuchsia",
+            target_os = "windows",
+        ),
+    ))]
+    #[cfg(not(any(target_feature = "lse", portable_atomic_target_feature = "lse")))]
+    let res = {
+        fn_alias! {
+            #[target_feature(enable = "lse")]
+            unsafe fn(dst: *mut u128, old: u128, new: u128) -> u128;
+            atomic_compare_exchange_casp_relaxed
+                = _atomic_compare_exchange_casp(Ordering::Relaxed);
+            atomic_compare_exchange_casp_acquire
+                = _atomic_compare_exchange_casp(Ordering::Acquire);
+            atomic_compare_exchange_casp_release
+                = _atomic_compare_exchange_casp(Ordering::Release);
+            atomic_compare_exchange_casp_acqrel
+                = _atomic_compare_exchange_casp(Ordering::AcqRel);
+            // AcqRel and SeqCst RMWs are equivalent in non-MSVC environments.
+            #[cfg(target_env = "msvc")]
+            atomic_compare_exchange_casp_seqcst
+                = _atomic_compare_exchange_casp(Ordering::SeqCst);
+        }
+        fn_alias! {
+            unsafe fn(dst: *mut u128, old: u128, new: u128) -> u128;
+            atomic_compare_exchange_ldxp_stxp_relaxed
+                = _atomic_compare_exchange_ldxp_stxp(Ordering::Relaxed);
+            atomic_compare_exchange_ldxp_stxp_acquire
+                = _atomic_compare_exchange_ldxp_stxp(Ordering::Acquire);
+            atomic_compare_exchange_ldxp_stxp_release
+                = _atomic_compare_exchange_ldxp_stxp(Ordering::Release);
+            atomic_compare_exchange_ldxp_stxp_acqrel
+                = _atomic_compare_exchange_ldxp_stxp(Ordering::AcqRel);
+            // AcqRel and SeqCst RMWs are equivalent in non-MSVC environments.
+            #[cfg(target_env = "msvc")]
+            atomic_compare_exchange_ldxp_stxp_seqcst
+                = _atomic_compare_exchange_ldxp_stxp(Ordering::SeqCst);
+        }
+        // SAFETY: the caller must guarantee that `dst` is valid for both writes and
+        // reads, 16-byte aligned, that there are no concurrent non-atomic operations,
+        // and we've checked if FEAT_LSE is available.
+        unsafe {
+            match success {
+                Ordering::Relaxed => {
+                    ifunc!(unsafe fn(dst: *mut u128, old: u128, new: u128) -> u128 {
+                        if detect::detect().has_lse() {
+                            atomic_compare_exchange_casp_relaxed
+                        } else {
+                            atomic_compare_exchange_ldxp_stxp_relaxed
+                        }
+                    })
+                }
+                Ordering::Acquire => {
+                    ifunc!(unsafe fn(dst: *mut u128, old: u128, new: u128) -> u128 {
+                        if detect::detect().has_lse() {
+                            atomic_compare_exchange_casp_acquire
+                        } else {
+                            atomic_compare_exchange_ldxp_stxp_acquire
+                        }
+                    })
+                }
+                Ordering::Release => {
+                    ifunc!(unsafe fn(dst: *mut u128, old: u128, new: u128) -> u128 {
+                        if detect::detect().has_lse() {
+                            atomic_compare_exchange_casp_release
+                        } else {
+                            atomic_compare_exchange_ldxp_stxp_release
+                        }
+                    })
+                }
+                // AcqRel and SeqCst RMWs are equivalent in both implementations in non-MSVC environments.
+                #[cfg(not(target_env = "msvc"))]
+                Ordering::AcqRel | Ordering::SeqCst => {
+                    ifunc!(unsafe fn(dst: *mut u128, old: u128, new: u128) -> u128 {
+                        if detect::detect().has_lse() {
+                            atomic_compare_exchange_casp_acqrel
+                        } else {
+                            atomic_compare_exchange_ldxp_stxp_acqrel
+                        }
+                    })
+                }
+                #[cfg(target_env = "msvc")]
+                Ordering::AcqRel => {
+                    ifunc!(unsafe fn(dst: *mut u128, old: u128, new: u128) -> u128 {
+                        if detect::detect().has_lse() {
+                            atomic_compare_exchange_casp_acqrel
+                        } else {
+                            atomic_compare_exchange_ldxp_stxp_acqrel
+                        }
+                    })
+                }
+                #[cfg(target_env = "msvc")]
+                Ordering::SeqCst => {
+                    ifunc!(unsafe fn(dst: *mut u128, old: u128, new: u128) -> u128 {
+                        if detect::detect().has_lse() {
+                            atomic_compare_exchange_casp_seqcst
+                        } else {
+                            atomic_compare_exchange_ldxp_stxp_seqcst
+                        }
+                    })
+                }
+                _ => unreachable!("{:?}", success),
             }
         }
     };
@@ -308,31 +565,41 @@ unsafe fn atomic_compare_exchange(
         Err(res)
     }
 }
-
 #[cfg(any(
     target_feature = "lse",
     portable_atomic_target_feature = "lse",
-    not(portable_atomic_no_aarch64_target_feature),
+    not(portable_atomic_no_outline_atomics),
 ))]
-#[cfg_attr(not(portable_atomic_no_aarch64_target_feature), target_feature(enable = "lse"))]
+#[cfg_attr(
+    not(any(target_feature = "lse", portable_atomic_target_feature = "lse")),
+    target_feature(enable = "lse")
+)]
 #[inline]
-unsafe fn _compare_exchange_casp(dst: *mut u128, old: u128, new: u128, order: Ordering) -> u128 {
+unsafe fn _atomic_compare_exchange_casp(
+    dst: *mut u128,
+    old: u128,
+    new: u128,
+    order: Ordering,
+) -> u128 {
     debug_assert!(dst as usize % 16 == 0);
+    debug_assert_lse!();
 
     // SAFETY: the caller must guarantee that `dst` is valid for both writes and
     // reads, 16-byte aligned, that there are no concurrent non-atomic operations,
     // and the CPU supports FEAT_LSE.
     //
     // Refs:
-    // - CASP(AL): https://developer.arm.com/documentation/dui0801/g/A64-Data-Transfer-Instructions/CASPA--CASPAL--CASP--CASPL--CASPAL--CASP--CASPL
+    // - https://developer.arm.com/documentation/dui0801/l/A64-Data-Transfer-Instructions/CASPA--CASPAL--CASP--CASPL--CASPAL--CASP--CASPL--A64-
+    // - https://developer.arm.com/documentation/ddi0602/2023-03/Base-Instructions/CASP--CASPA--CASPAL--CASPL--Compare-and-Swap-Pair-of-words-or-doublewords-in-memory-
     unsafe {
         let old = U128 { whole: old };
         let new = U128 { whole: new };
         let (prev_lo, prev_hi);
         macro_rules! cmpxchg {
-            ($acquire:tt, $release:tt) => {
+            ($acquire:tt, $release:tt, $fence:tt) => {
                 asm!(
                     concat!("casp", $acquire, $release, " x6, x7, x4, x5, [{dst", ptr_modifier!(), "}]"),
+                    $fence,
                     dst = in(reg) dst,
                     // must be allocated to even/odd register pair
                     inout("x6") old.pair.lo => prev_lo,
@@ -348,9 +615,9 @@ unsafe fn _compare_exchange_casp(dst: *mut u128, old: u128, new: u128, order: Or
         U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
     }
 }
-
+#[cfg(any(test, not(any(target_feature = "lse", portable_atomic_target_feature = "lse"))))]
 #[inline]
-unsafe fn _compare_exchange_ldxp_stxp(
+unsafe fn _atomic_compare_exchange_ldxp_stxp(
     dst: *mut u128,
     old: u128,
     new: u128,
@@ -362,10 +629,10 @@ unsafe fn _compare_exchange_ldxp_stxp(
     // reads, 16-byte aligned, and that there are no concurrent non-atomic operations.
     //
     // Refs:
-    // - LDXP: https://developer.arm.com/documentation/dui0801/g/A64-Data-Transfer-Instructions/LDXP
-    // - LDAXP: https://developer.arm.com/documentation/dui0801/g/A64-Data-Transfer-Instructions/LDAXP
-    // - STXP: https://developer.arm.com/documentation/dui0801/g/A64-Data-Transfer-Instructions/STXP
-    // - STLXP: https://developer.arm.com/documentation/dui0801/g/A64-Data-Transfer-Instructions/STLXP
+    // - LDXP: https://developer.arm.com/documentation/dui0801/l/A64-Data-Transfer-Instructions/LDXP--A64-
+    // - LDAXP: https://developer.arm.com/documentation/dui0801/l/A64-Data-Transfer-Instructions/LDAXP--A64-
+    // - STXP: https://developer.arm.com/documentation/dui0801/l/A64-Data-Transfer-Instructions/STXP--A64-
+    // - STLXP: https://developer.arm.com/documentation/dui0801/l/A64-Data-Transfer-Instructions/STLXP--A64-
     //
     // Note: Load-Exclusive pair (by itself) does not guarantee atomicity; to complete an atomic
     // operation (even load/store), a corresponding Store-Exclusive pair must succeed.
@@ -377,7 +644,7 @@ unsafe fn _compare_exchange_ldxp_stxp(
         let new = U128 { whole: new };
         let (mut prev_lo, mut prev_hi);
         macro_rules! cmpxchg {
-            ($acquire:tt, $release:tt) => {
+            ($acquire:tt, $release:tt, $fence:tt) => {
                 asm!(
                     "2:",
                         concat!("ld", $acquire, "xp {out_lo}, {out_hi}, [{dst", ptr_modifier!(), "}]"),
@@ -395,6 +662,7 @@ unsafe fn _compare_exchange_ldxp_stxp(
                         // 0 if the store was successful, 1 if no store was performed
                         "cbnz {r:w}, 2b",
                     "4:",
+                    $fence,
                     dst = in(reg) dst,
                     old_lo = in(reg) old.pair.lo,
                     old_hi = in(reg) old.pair.hi,
@@ -417,22 +685,97 @@ unsafe fn _compare_exchange_ldxp_stxp(
 // so we always use strong CAS for now.
 use self::atomic_compare_exchange as atomic_compare_exchange_weak;
 
+// If FEAT_LSE is available at compile-time and portable_atomic_ll_sc_rmw cfg is not set,
+// we use CAS-based atomic RMW.
+#[cfg(all(
+    any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+    not(portable_atomic_ll_sc_rmw),
+))]
+use _atomic_swap_casp as atomic_swap;
+#[cfg(not(all(
+    any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+    not(portable_atomic_ll_sc_rmw),
+)))]
+use _atomic_swap_ldxp_stxp as atomic_swap;
+// Do not use atomic_rmw_cas_3 because it needs extra MOV to implement swap.
+#[cfg(any(
+    test,
+    all(
+        any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+        not(portable_atomic_ll_sc_rmw),
+    )
+))]
+#[cfg(any(target_feature = "lse", portable_atomic_target_feature = "lse"))]
 #[inline]
-unsafe fn atomic_swap(dst: *mut u128, val: u128, order: Ordering) -> u128 {
+unsafe fn _atomic_swap_casp(dst: *mut u128, val: u128, order: Ordering) -> u128 {
     debug_assert!(dst as usize % 16 == 0);
+    debug_assert_lse!();
 
-    // SAFETY: the caller must uphold the safety contract for `atomic_swap`.
+    // SAFETY: the caller must uphold the safety contract.
+    // cfg guarantee that the CPU supports FEAT_LSE.
     unsafe {
         let val = U128 { whole: val };
         let (mut prev_lo, mut prev_hi);
         macro_rules! swap {
-            ($acquire:tt, $release:tt) => {
+            ($acquire:tt, $release:tt, $fence:tt) => {
+                asm!(
+                    // If FEAT_LSE2 is not supported, this works like byte-wise atomic.
+                    // This is not single-copy atomic reads, but this is ok because subsequent
+                    // CAS will check for consistency.
+                    concat!("ldp x6, x7, [{dst", ptr_modifier!(), "}]"),
+                    "2:",
+                        // casp writes the current value to the first register pair,
+                        // so copy the `out`'s value for later comparison.
+                        "mov {tmp_lo}, x6",
+                        "mov {tmp_hi}, x7",
+                        concat!("casp", $acquire, $release, " x6, x7, x4, x5, [{dst", ptr_modifier!(), "}]"),
+                        "cmp {tmp_hi}, x7",
+                        "ccmp {tmp_lo}, x6, #0, eq",
+                        "b.ne 2b",
+                    $fence,
+                    dst = in(reg) dst,
+                    tmp_lo = out(reg) _,
+                    tmp_hi = out(reg) _,
+                    // must be allocated to even/odd register pair
+                    out("x6") prev_lo,
+                    out("x7") prev_hi,
+                    // must be allocated to even/odd register pair
+                    in("x4") val.pair.lo,
+                    in("x5") val.pair.hi,
+                    // Do not use `preserves_flags` because CMP and CCMP modify the condition flags.
+                    options(nostack),
+                )
+            };
+        }
+        atomic_rmw!(swap, order);
+        U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
+    }
+}
+// Do not use atomic_rmw_ll_sc_3 because it needs extra MOV to implement swap.
+#[cfg(any(
+    test,
+    not(all(
+        any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+        not(portable_atomic_ll_sc_rmw),
+    ))
+))]
+#[inline]
+unsafe fn _atomic_swap_ldxp_stxp(dst: *mut u128, val: u128, order: Ordering) -> u128 {
+    debug_assert!(dst as usize % 16 == 0);
+
+    // SAFETY: the caller must uphold the safety contract.
+    unsafe {
+        let val = U128 { whole: val };
+        let (mut prev_lo, mut prev_hi);
+        macro_rules! swap {
+            ($acquire:tt, $release:tt, $fence:tt) => {
                 asm!(
                     "2:",
                         concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
                         concat!("st", $release, "xp {r:w}, {val_lo}, {val_hi}, [{dst", ptr_modifier!(), "}]"),
                         // 0 if the store was successful, 1 if no store was performed
                         "cbnz {r:w}, 2b",
+                    $fence,
                     dst = in(reg) dst,
                     val_lo = in(reg) val.pair.lo,
                     val_hi = in(reg) val.pair.hi,
@@ -448,522 +791,453 @@ unsafe fn atomic_swap(dst: *mut u128, val: u128, order: Ordering) -> u128 {
     }
 }
 
-#[inline]
-unsafe fn atomic_add(dst: *mut u128, val: u128, order: Ordering) -> u128 {
-    debug_assert!(dst as usize % 16 == 0);
-
-    // SAFETY: the caller must uphold the safety contract for `atomic_add`.
-    unsafe {
-        let val = U128 { whole: val };
-        let (mut prev_lo, mut prev_hi);
-        macro_rules! add {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        concat!("adds ", select_le_or_be!("{tmp_lo}, {prev_lo}, {val_lo}", "{tmp_hi}, {prev_hi}, {val_hi}")),
-                        concat!("adcs ", select_le_or_be!("{tmp_hi}, {prev_hi}, {val_hi}", "{tmp_lo}, {prev_lo}, {val_lo}")),
-                        concat!("st", $release, "xp {r:w}, {tmp_lo}, {tmp_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    tmp_lo = out(reg) _,
-                    tmp_hi = out(reg) _,
-                    r = out(reg) _,
-                    // Do not use `preserves_flags` because ADDS and ADCS modify the condition flags.
-                    options(nostack),
-                )
-            };
+/// Atomic RMW by LL/SC loop (3 arguments)
+/// `unsafe fn(dst: *mut u128, val: u128, order: Ordering) -> u128;`
+///
+/// `$op` can use the following registers:
+/// - val_lo/val_hi pair: val argument (read-only for `$op`)
+/// - prev_lo/prev_hi pair: previous value loaded by ll (read-only for `$op`)
+/// - new_lo/new_hi pair: new value that will to stored by sc
+macro_rules! atomic_rmw_ll_sc_3 {
+    ($name:ident as $reexport_name:ident $(($preserves_flags:tt))?, $($op:tt)*) => {
+        // If FEAT_LSE is available at compile-time and portable_atomic_ll_sc_rmw cfg is not set,
+        // we use CAS-based atomic RMW generated by atomic_rmw_cas_3! macro instead.
+        #[cfg(not(all(
+            any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+            not(portable_atomic_ll_sc_rmw),
+        )))]
+        use $name as $reexport_name;
+        #[cfg(any(
+            test,
+            not(all(
+                any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+                not(portable_atomic_ll_sc_rmw),
+            ))
+        ))]
+        #[inline]
+        unsafe fn $name(dst: *mut u128, val: u128, order: Ordering) -> u128 {
+            debug_assert!(dst as usize % 16 == 0);
+            // SAFETY: the caller must uphold the safety contract.
+            unsafe {
+                let val = U128 { whole: val };
+                let (mut prev_lo, mut prev_hi);
+                macro_rules! op {
+                    ($acquire:tt, $release:tt, $fence:tt) => {
+                        asm!(
+                            "2:",
+                                concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
+                                $($op)*
+                                concat!("st", $release, "xp {r:w}, {new_lo}, {new_hi}, [{dst", ptr_modifier!(), "}]"),
+                                // 0 if the store was successful, 1 if no store was performed
+                                "cbnz {r:w}, 2b",
+                            $fence,
+                            dst = in(reg) dst,
+                            val_lo = in(reg) val.pair.lo,
+                            val_hi = in(reg) val.pair.hi,
+                            prev_lo = out(reg) prev_lo,
+                            prev_hi = out(reg) prev_hi,
+                            new_lo = out(reg) _,
+                            new_hi = out(reg) _,
+                            r = out(reg) _,
+                            options(nostack $(, $preserves_flags)?),
+                        )
+                    };
+                }
+                atomic_rmw!(op, order);
+                U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
+            }
         }
-        atomic_rmw!(add, order);
-        U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
-    }
+    };
+}
+/// Atomic RMW by CAS loop (3 arguments)
+/// `unsafe fn(dst: *mut u128, val: u128, order: Ordering) -> u128;`
+///
+/// `$op` can use the following registers:
+/// - val_lo/val_hi pair: val argument (read-only for `$op`)
+/// - x6/x7 pair: previous value loaded (read-only for `$op`)
+/// - x4/x5 pair: new value that will to stored
+macro_rules! atomic_rmw_cas_3 {
+    ($name:ident as $reexport_name:ident, $($op:tt)*) => {
+        // If FEAT_LSE is not available at compile-time or portable_atomic_ll_sc_rmw cfg is set,
+        // we use LL/SC-based atomic RMW generated by atomic_rmw_ll_sc_3! macro instead.
+        #[cfg(all(
+            any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+            not(portable_atomic_ll_sc_rmw),
+        ))]
+        use $name as $reexport_name;
+        #[cfg(any(
+            test,
+            all(
+                any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+                not(portable_atomic_ll_sc_rmw),
+            )
+        ))]
+        #[cfg(any(target_feature = "lse", portable_atomic_target_feature = "lse"))]
+        #[inline]
+        unsafe fn $name(dst: *mut u128, val: u128, order: Ordering) -> u128 {
+            debug_assert!(dst as usize % 16 == 0);
+            debug_assert_lse!();
+            // SAFETY: the caller must uphold the safety contract.
+            // cfg guarantee that the CPU supports FEAT_LSE.
+            unsafe {
+                let val = U128 { whole: val };
+                let (mut prev_lo, mut prev_hi);
+                macro_rules! op {
+                    ($acquire:tt, $release:tt, $fence:tt) => {
+                        asm!(
+                            // If FEAT_LSE2 is not supported, this works like byte-wise atomic.
+                            // This is not single-copy atomic reads, but this is ok because subsequent
+                            // CAS will check for consistency.
+                            concat!("ldp x6, x7, [{dst", ptr_modifier!(), "}]"),
+                            "2:",
+                                // casp writes the current value to the first register pair,
+                                // so copy the `out`'s value for later comparison.
+                                "mov {tmp_lo}, x6",
+                                "mov {tmp_hi}, x7",
+                                $($op)*
+                                concat!("casp", $acquire, $release, " x6, x7, x4, x5, [{dst", ptr_modifier!(), "}]"),
+                                "cmp {tmp_hi}, x7",
+                                "ccmp {tmp_lo}, x6, #0, eq",
+                                "b.ne 2b",
+                            $fence,
+                            dst = in(reg) dst,
+                            val_lo = in(reg) val.pair.lo,
+                            val_hi = in(reg) val.pair.hi,
+                            tmp_lo = out(reg) _,
+                            tmp_hi = out(reg) _,
+                            // must be allocated to even/odd register pair
+                            out("x6") prev_lo,
+                            out("x7") prev_hi,
+                            // must be allocated to even/odd register pair
+                            out("x4") _,
+                            out("x5") _,
+                            // Do not use `preserves_flags` because CMP and CCMP modify the condition flags.
+                            options(nostack),
+                        )
+                    };
+                }
+                atomic_rmw!(op, order);
+                U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
+            }
+        }
+    };
+}
+
+/// Atomic RMW by LL/SC loop (2 arguments)
+/// `unsafe fn(dst: *mut u128, order: Ordering) -> u128;`
+///
+/// `$op` can use the following registers:
+/// - prev_lo/prev_hi pair: previous value loaded by ll (read-only for `$op`)
+/// - new_lo/new_hi pair: new value that will to stored by sc
+macro_rules! atomic_rmw_ll_sc_2 {
+    ($name:ident as $reexport_name:ident $(($preserves_flags:tt))?, $($op:tt)*) => {
+        // If FEAT_LSE is available at compile-time and portable_atomic_ll_sc_rmw cfg is not set,
+        // we use CAS-based atomic RMW generated by atomic_rmw_cas_2! macro instead.
+        #[cfg(not(all(
+            any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+            not(portable_atomic_ll_sc_rmw),
+        )))]
+        use $name as $reexport_name;
+        #[cfg(any(
+            test,
+            not(all(
+                any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+                not(portable_atomic_ll_sc_rmw),
+            ))
+        ))]
+        #[inline]
+        unsafe fn $name(dst: *mut u128, order: Ordering) -> u128 {
+            debug_assert!(dst as usize % 16 == 0);
+            // SAFETY: the caller must uphold the safety contract.
+            unsafe {
+                let (mut prev_lo, mut prev_hi);
+                macro_rules! op {
+                    ($acquire:tt, $release:tt, $fence:tt) => {
+                        asm!(
+                            "2:",
+                                concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
+                                $($op)*
+                                concat!("st", $release, "xp {r:w}, {new_lo}, {new_hi}, [{dst", ptr_modifier!(), "}]"),
+                                // 0 if the store was successful, 1 if no store was performed
+                                "cbnz {r:w}, 2b",
+                            $fence,
+                            dst = in(reg) dst,
+                            prev_lo = out(reg) prev_lo,
+                            prev_hi = out(reg) prev_hi,
+                            new_lo = out(reg) _,
+                            new_hi = out(reg) _,
+                            r = out(reg) _,
+                            options(nostack $(, $preserves_flags)?),
+                        )
+                    };
+                }
+                atomic_rmw!(op, order);
+                U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
+            }
+        }
+    };
+}
+/// Atomic RMW by CAS loop (2 arguments)
+/// `unsafe fn(dst: *mut u128, order: Ordering) -> u128;`
+///
+/// `$op` can use the following registers:
+/// - x6/x7 pair: previous value loaded (read-only for `$op`)
+/// - x4/x5 pair: new value that will to stored
+macro_rules! atomic_rmw_cas_2 {
+    ($name:ident as $reexport_name:ident, $($op:tt)*) => {
+        // If FEAT_LSE is not available at compile-time or portable_atomic_ll_sc_rmw cfg is set,
+        // we use LL/SC-based atomic RMW generated by atomic_rmw_ll_sc_3! macro instead.
+        #[cfg(all(
+            any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+            not(portable_atomic_ll_sc_rmw),
+        ))]
+        use $name as $reexport_name;
+        #[cfg(any(
+            test,
+            all(
+                any(target_feature = "lse", portable_atomic_target_feature = "lse"),
+                not(portable_atomic_ll_sc_rmw),
+            )
+        ))]
+        #[cfg(any(target_feature = "lse", portable_atomic_target_feature = "lse"))]
+        #[inline]
+        unsafe fn $name(dst: *mut u128, order: Ordering) -> u128 {
+            debug_assert!(dst as usize % 16 == 0);
+            debug_assert_lse!();
+            // SAFETY: the caller must uphold the safety contract.
+            // cfg guarantee that the CPU supports FEAT_LSE.
+            unsafe {
+                let (mut prev_lo, mut prev_hi);
+                macro_rules! op {
+                    ($acquire:tt, $release:tt, $fence:tt) => {
+                        asm!(
+                            // If FEAT_LSE2 is not supported, this works like byte-wise atomic.
+                            // This is not single-copy atomic reads, but this is ok because subsequent
+                            // CAS will check for consistency.
+                            concat!("ldp x6, x7, [{dst", ptr_modifier!(), "}]"),
+                            "2:",
+                                // casp writes the current value to the first register pair,
+                                // so copy the `out`'s value for later comparison.
+                                "mov {tmp_lo}, x6",
+                                "mov {tmp_hi}, x7",
+                                $($op)*
+                                concat!("casp", $acquire, $release, " x6, x7, x4, x5, [{dst", ptr_modifier!(), "}]"),
+                                "cmp {tmp_hi}, x7",
+                                "ccmp {tmp_lo}, x6, #0, eq",
+                                "b.ne 2b",
+                            $fence,
+                            dst = in(reg) dst,
+                            tmp_lo = out(reg) _,
+                            tmp_hi = out(reg) _,
+                            // must be allocated to even/odd register pair
+                            out("x6") prev_lo,
+                            out("x7") prev_hi,
+                            // must be allocated to even/odd register pair
+                            out("x4") _,
+                            out("x5") _,
+                            // Do not use `preserves_flags` because CMP and CCMP modify the condition flags.
+                            options(nostack),
+                        )
+                    };
+                }
+                atomic_rmw!(op, order);
+                U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
+            }
+        }
+    };
+}
+
+// Do not use `preserves_flags` because ADDS and ADCS modify the condition flags.
+atomic_rmw_ll_sc_3! {
+    _atomic_add_ldxp_stxp as atomic_add,
+    concat!(
+        "adds ",
+        select_le_or_be!("{new_lo}, {prev_lo}, {val_lo}", "{new_hi}, {prev_hi}, {val_hi}")
+    ),
+    concat!(
+        "adc ",
+        select_le_or_be!("{new_hi}, {prev_hi}, {val_hi}", "{new_lo}, {prev_lo}, {val_lo}")
+    ),
+}
+atomic_rmw_cas_3! {
+    _atomic_add_casp as atomic_add,
+    concat!(
+        "adds ",
+        select_le_or_be!("x4, x6, {val_lo}", "x5, x7, {val_hi}")
+    ),
+    concat!(
+        "adc ",
+        select_le_or_be!("x5, x7, {val_hi}", "x4, x6, {val_lo}")
+    ),
+}
+
+// Do not use `preserves_flags` because SUBS and SBCS modify the condition flags.
+atomic_rmw_ll_sc_3! {
+    _atomic_sub_ldxp_stxp as atomic_sub,
+    concat!(
+        "subs ",
+        select_le_or_be!("{new_lo}, {prev_lo}, {val_lo}", "{new_hi}, {prev_hi}, {val_hi}")
+    ),
+    concat!(
+        "sbc ",
+        select_le_or_be!("{new_hi}, {prev_hi}, {val_hi}", "{new_lo}, {prev_lo}, {val_lo}")
+    ),
+}
+atomic_rmw_cas_3! {
+    _atomic_sub_casp as atomic_sub,
+    concat!(
+        "subs ",
+        select_le_or_be!("x4, x6, {val_lo}", "x5, x7, {val_hi}")
+    ),
+    concat!(
+        "sbc ",
+        select_le_or_be!("x5, x7, {val_hi}", "x4, x6, {val_lo}")
+    ),
+}
+
+atomic_rmw_ll_sc_3! {
+    _atomic_and_ldxp_stxp as atomic_and (preserves_flags),
+    "and {new_lo}, {prev_lo}, {val_lo}",
+    "and {new_hi}, {prev_hi}, {val_hi}",
+}
+atomic_rmw_cas_3! {
+    _atomic_and_casp as atomic_and,
+    "and x4, x6, {val_lo}",
+    "and x5, x7, {val_hi}",
+}
+
+atomic_rmw_ll_sc_3! {
+    _atomic_nand_ldxp_stxp as atomic_nand (preserves_flags),
+    "and {new_lo}, {prev_lo}, {val_lo}",
+    "mvn {new_lo}, {new_lo}",
+    "and {new_hi}, {prev_hi}, {val_hi}",
+    "mvn {new_hi}, {new_hi}",
+}
+atomic_rmw_cas_3! {
+    _atomic_nand_casp as atomic_nand,
+    "and x4, x6, {val_lo}",
+    "mvn x4, x4",
+    "and x5, x7, {val_hi}",
+    "mvn x5, x5",
+}
+
+atomic_rmw_ll_sc_3! {
+    _atomic_or_ldxp_stxp as atomic_or (preserves_flags),
+    "orr {new_lo}, {prev_lo}, {val_lo}",
+    "orr {new_hi}, {prev_hi}, {val_hi}",
+}
+atomic_rmw_cas_3! {
+    _atomic_or_casp as atomic_or,
+    "orr x4, x6, {val_lo}",
+    "orr x5, x7, {val_hi}",
+}
+
+atomic_rmw_ll_sc_3! {
+    _atomic_xor_ldxp_stxp as atomic_xor (preserves_flags),
+    "eor {new_lo}, {prev_lo}, {val_lo}",
+    "eor {new_hi}, {prev_hi}, {val_hi}",
+}
+atomic_rmw_cas_3! {
+    _atomic_xor_casp as atomic_xor,
+    "eor x4, x6, {val_lo}",
+    "eor x5, x7, {val_hi}",
+}
+
+atomic_rmw_ll_sc_2! {
+    _atomic_not_ldxp_stxp as atomic_not (preserves_flags),
+    "mvn {new_lo}, {prev_lo}",
+    "mvn {new_hi}, {prev_hi}",
+}
+atomic_rmw_cas_2! {
+    _atomic_not_casp as atomic_not,
+    "mvn x4, x6",
+    "mvn x5, x7",
+}
+
+// Do not use `preserves_flags` because NEGS modifies the condition flags.
+atomic_rmw_ll_sc_2! {
+    _atomic_neg_ldxp_stxp as atomic_neg,
+    concat!("negs ", select_le_or_be!("{new_lo}, {prev_lo}", "{new_hi}, {prev_hi}")),
+    concat!("ngc ", select_le_or_be!("{new_hi}, {prev_hi}", "{new_lo}, {prev_lo}")),
+}
+atomic_rmw_cas_2! {
+    _atomic_neg_casp as atomic_neg,
+    concat!("negs ", select_le_or_be!("x4, x6", "x5, x7")),
+    concat!("ngc ", select_le_or_be!("x5, x7", "x4, x6")),
+}
+
+// Do not use `preserves_flags` because CMP and SBCS modify the condition flags.
+atomic_rmw_ll_sc_3! {
+    _atomic_max_ldxp_stxp as atomic_max,
+    select_le_or_be!("cmp {val_lo}, {prev_lo}", "cmp {val_hi}, {prev_hi}"),
+    select_le_or_be!("sbcs xzr, {val_hi}, {prev_hi}", "sbcs xzr, {val_lo}, {prev_lo}"),
+    "csel {new_hi}, {prev_hi}, {val_hi}, lt", // select hi 64-bit
+    "csel {new_lo}, {prev_lo}, {val_lo}, lt", // select lo 64-bit
+}
+atomic_rmw_cas_3! {
+    _atomic_max_casp as atomic_max,
+    select_le_or_be!("cmp {val_lo}, x6", "cmp {val_hi}, x7"),
+    select_le_or_be!("sbcs xzr, {val_hi}, x7", "sbcs xzr, {val_lo}, x6"),
+    "csel x5, x7, {val_hi}, lt", // select hi 64-bit
+    "csel x4, x6, {val_lo}, lt", // select lo 64-bit
+}
+
+// Do not use `preserves_flags` because CMP and SBCS modify the condition flags.
+atomic_rmw_ll_sc_3! {
+    _atomic_umax_ldxp_stxp as atomic_umax,
+    select_le_or_be!("cmp {val_lo}, {prev_lo}", "cmp {val_hi}, {prev_hi}"),
+    select_le_or_be!("sbcs xzr, {val_hi}, {prev_hi}", "sbcs xzr, {val_lo}, {prev_lo}"),
+    "csel {new_hi}, {prev_hi}, {val_hi}, lo", // select hi 64-bit
+    "csel {new_lo}, {prev_lo}, {val_lo}, lo", // select lo 64-bit
+}
+atomic_rmw_cas_3! {
+    _atomic_umax_casp as atomic_umax,
+    select_le_or_be!("cmp {val_lo}, x6", "cmp {val_hi}, x7"),
+    select_le_or_be!("sbcs xzr, {val_hi}, x7", "sbcs xzr, {val_lo}, x6"),
+    "csel x5, x7, {val_hi}, lo", // select hi 64-bit
+    "csel x4, x6, {val_lo}, lo", // select lo 64-bit
+}
+
+// Do not use `preserves_flags` because CMP and SBCS modify the condition flags.
+atomic_rmw_ll_sc_3! {
+    _atomic_min_ldxp_stxp as atomic_min,
+    select_le_or_be!("cmp {val_lo}, {prev_lo}", "cmp {val_hi}, {prev_hi}"),
+    select_le_or_be!("sbcs xzr, {val_hi}, {prev_hi}", "sbcs xzr, {val_lo}, {prev_lo}"),
+    "csel {new_hi}, {prev_hi}, {val_hi}, ge", // select hi 64-bit
+    "csel {new_lo}, {prev_lo}, {val_lo}, ge", // select lo 64-bit
+}
+atomic_rmw_cas_3! {
+    _atomic_min_casp as atomic_min,
+    select_le_or_be!("cmp {val_lo}, x6", "cmp {val_hi}, x7"),
+    select_le_or_be!("sbcs xzr, {val_hi}, x7", "sbcs xzr, {val_lo}, x6"),
+    "csel x5, x7, {val_hi}, ge", // select hi 64-bit
+    "csel x4, x6, {val_lo}, ge", // select lo 64-bit
+}
+
+// Do not use `preserves_flags` because CMP and SBCS modify the condition flags.
+atomic_rmw_ll_sc_3! {
+    _atomic_umin_ldxp_stxp as atomic_umin,
+    select_le_or_be!("cmp {val_lo}, {prev_lo}", "cmp {val_hi}, {prev_hi}"),
+    select_le_or_be!("sbcs xzr, {val_hi}, {prev_hi}", "sbcs xzr, {val_lo}, {prev_lo}"),
+    "csel {new_hi}, {prev_hi}, {val_hi}, hs", // select hi 64-bit
+    "csel {new_lo}, {prev_lo}, {val_lo}, hs", // select lo 64-bit
+}
+atomic_rmw_cas_3! {
+    _atomic_umin_casp as atomic_umin,
+    select_le_or_be!("cmp {val_lo}, x6", "cmp {val_hi}, x7"),
+    select_le_or_be!("sbcs xzr, {val_hi}, x7", "sbcs xzr, {val_lo}, x6"),
+    "csel x5, x7, {val_hi}, hs", // select hi 64-bit
+    "csel x4, x6, {val_lo}, hs", // select lo 64-bit
 }
 
 #[inline]
-unsafe fn atomic_sub(dst: *mut u128, val: u128, order: Ordering) -> u128 {
-    debug_assert!(dst as usize % 16 == 0);
-
-    // SAFETY: the caller must uphold the safety contract for `atomic_sub`.
-    unsafe {
-        let val = U128 { whole: val };
-        let (mut prev_lo, mut prev_hi);
-        macro_rules! sub {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        concat!("subs ", select_le_or_be!("{tmp_lo}, {prev_lo}, {val_lo}", "{tmp_hi}, {prev_hi}, {val_hi}")),
-                        concat!("sbcs ", select_le_or_be!("{tmp_hi}, {prev_hi}, {val_hi}", "{tmp_lo}, {prev_lo}, {val_lo}")),
-                        concat!("st", $release, "xp {r:w}, {tmp_lo}, {tmp_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    tmp_lo = out(reg) _,
-                    tmp_hi = out(reg) _,
-                    r = out(reg) _,
-                    // Do not use `preserves_flags` because SUBS and SBCS modify the condition flags.
-                    options(nostack),
-                )
-            };
-        }
-        atomic_rmw!(sub, order);
-        U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
-    }
+const fn is_lock_free() -> bool {
+    IS_ALWAYS_LOCK_FREE
 }
+const IS_ALWAYS_LOCK_FREE: bool = true;
 
-#[inline]
-unsafe fn atomic_and(dst: *mut u128, val: u128, order: Ordering) -> u128 {
-    debug_assert!(dst as usize % 16 == 0);
-
-    // SAFETY: the caller must uphold the safety contract for `atomic_and`.
-    unsafe {
-        let val = U128 { whole: val };
-        let (mut prev_lo, mut prev_hi);
-        macro_rules! and {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "and {tmp_lo}, {prev_lo}, {val_lo}",
-                        "and {tmp_hi}, {prev_hi}, {val_hi}",
-                        concat!("st", $release, "xp {r:w}, {tmp_lo}, {tmp_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    tmp_lo = out(reg) _,
-                    tmp_hi = out(reg) _,
-                    r = out(reg) _,
-                    options(nostack, preserves_flags),
-                )
-            };
-        }
-        atomic_rmw!(and, order);
-        U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
-    }
-}
-
-#[inline]
-unsafe fn atomic_nand(dst: *mut u128, val: u128, order: Ordering) -> u128 {
-    debug_assert!(dst as usize % 16 == 0);
-
-    // SAFETY: the caller must uphold the safety contract for `atomic_nand`.
-    unsafe {
-        let val = U128 { whole: val };
-        let (mut prev_lo, mut prev_hi);
-        macro_rules! nand {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "and {tmp_lo}, {prev_lo}, {val_lo}",
-                        "mvn {tmp_lo}, {tmp_lo}",
-                        "and {tmp_hi}, {prev_hi}, {val_hi}",
-                        "mvn {tmp_hi}, {tmp_hi}",
-                        concat!("st", $release, "xp {r:w}, {tmp_lo}, {tmp_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    tmp_lo = out(reg) _,
-                    tmp_hi = out(reg) _,
-                    r = out(reg) _,
-                    options(nostack, preserves_flags),
-                )
-            };
-        }
-        atomic_rmw!(nand, order);
-        U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
-    }
-}
-
-#[inline]
-unsafe fn atomic_or(dst: *mut u128, val: u128, order: Ordering) -> u128 {
-    debug_assert!(dst as usize % 16 == 0);
-
-    // SAFETY: the caller must uphold the safety contract for `atomic_or`.
-    unsafe {
-        let val = U128 { whole: val };
-        let (mut prev_lo, mut prev_hi);
-        macro_rules! or {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "orr {tmp_lo}, {prev_lo}, {val_lo}",
-                        "orr {tmp_hi}, {prev_hi}, {val_hi}",
-                        concat!("st", $release, "xp {r:w}, {tmp_lo}, {tmp_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    tmp_lo = out(reg) _,
-                    tmp_hi = out(reg) _,
-                    r = out(reg) _,
-                    options(nostack, preserves_flags),
-                )
-            };
-        }
-        atomic_rmw!(or, order);
-        U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
-    }
-}
-
-#[inline]
-unsafe fn atomic_xor(dst: *mut u128, val: u128, order: Ordering) -> u128 {
-    debug_assert!(dst as usize % 16 == 0);
-
-    // SAFETY: the caller must uphold the safety contract for `atomic_xor`.
-    unsafe {
-        let val = U128 { whole: val };
-        let (mut prev_lo, mut prev_hi);
-        macro_rules! xor {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "eor {tmp_lo}, {prev_lo}, {val_lo}",
-                        "eor {tmp_hi}, {prev_hi}, {val_hi}",
-                        concat!("st", $release, "xp {r:w}, {tmp_lo}, {tmp_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    tmp_lo = out(reg) _,
-                    tmp_hi = out(reg) _,
-                    r = out(reg) _,
-                    options(nostack, preserves_flags),
-                )
-            };
-        }
-        atomic_rmw!(xor, order);
-        U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
-    }
-}
-
-#[inline]
-unsafe fn atomic_max(dst: *mut i128, val: i128, order: Ordering) -> i128 {
-    debug_assert!(dst as usize % 16 == 0);
-
-    // SAFETY: the caller must uphold the safety contract for `atomic_max`.
-    unsafe {
-        let val = I128 { whole: val };
-        let (mut prev_lo, mut prev_hi);
-        #[cfg(target_endian = "little")]
-        macro_rules! max {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "cmp {prev_lo}, {val_lo}", // compare lo 64-bit
-                        "cset {r_lo:w}, hi",       // store comparison result
-                        "cmp {prev_hi}, {val_hi}", // compare hi 64-bit
-                        "cset {r_hi:w}, gt",       // store comparison result
-                        "csel {r_lo:w}, {r_lo:w}, {r_hi:w}, eq",
-                        "cmp {r_lo:w}, #0",
-                        "csel {new_hi}, {prev_hi}, {val_hi}, ne", // select hi 64-bit
-                        "csel {new_lo}, {prev_lo}, {val_lo}, ne", // select lo 64-bit
-                        concat!("st", $release, "xp {r_lo:w}, {new_lo}, {new_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r_lo:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    new_lo = out(reg) _,
-                    new_hi = out(reg) _,
-                    r_lo = out(reg) _,
-                    r_hi = out(reg) _,
-                    // Do not use `preserves_flags` because CMP modifies the condition flags.
-                    options(nostack),
-                )
-            };
-        }
-        #[cfg(target_endian = "big")]
-        macro_rules! max {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "cmp {prev_hi}, {val_hi}", // compare hi 64-bit
-                        "cset {r_hi:w}, hi",       // store comparison result
-                        "cmp {prev_lo}, {val_lo}", // compare lo 64-bit
-                        "cset {r_lo:w}, gt",       // store comparison result
-                        "csel {r_hi:w}, {r_hi:w}, {r_lo:w}, eq",
-                        "cmp {r_hi:w}, #0",
-                        "csel {new_lo}, {prev_lo}, {val_lo}, ne", // select lo 64-bit
-                        "csel {new_hi}, {prev_hi}, {val_hi}, ne", // select hi 64-bit
-                        concat!("st", $release, "xp {r_hi:w}, {new_lo}, {new_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r_hi:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    new_lo = out(reg) _,
-                    new_hi = out(reg) _,
-                    r_lo = out(reg) _,
-                    r_hi = out(reg) _,
-                    // Do not use `preserves_flags` because CMP modifies the condition flags.
-                    options(nostack),
-                )
-            };
-        }
-        atomic_rmw!(max, order);
-        I128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
-    }
-}
-
-#[inline]
-unsafe fn atomic_umax(dst: *mut u128, val: u128, order: Ordering) -> u128 {
-    debug_assert!(dst as usize % 16 == 0);
-
-    // SAFETY: the caller must uphold the safety contract for `atomic_umax`.
-    unsafe {
-        let val = U128 { whole: val };
-        let (mut prev_lo, mut prev_hi);
-        #[cfg(target_endian = "little")]
-        macro_rules! umax {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "cmp {prev_lo}, {val_lo}", // compare lo 64-bit
-                        "cset {r_lo:w}, hi",       // store comparison result
-                        "cmp {prev_hi}, {val_hi}", // compare hi 64-bit
-                        "cset {r_hi:w}, hi",       // store comparison result
-                        "csel {r_lo:w}, {r_lo:w}, {r_hi:w}, eq",
-                        "cmp {r_lo:w}, #0",
-                        "csel {new_hi}, {prev_hi}, {val_hi}, ne", // select hi 64-bit
-                        "csel {new_lo}, {prev_lo}, {val_lo}, ne", // select lo 64-bit
-                        concat!("st", $release, "xp {r_lo:w}, {new_lo}, {new_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r_lo:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    new_lo = out(reg) _,
-                    new_hi = out(reg) _,
-                    r_lo = out(reg) _,
-                    r_hi = out(reg) _,
-                    // Do not use `preserves_flags` because CMP modifies the condition flags.
-                    options(nostack),
-                )
-            };
-        }
-        #[cfg(target_endian = "big")]
-        macro_rules! umax {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "cmp {prev_hi}, {val_hi}", // compare hi 64-bit
-                        "cset {r_hi:w}, hi",       // store comparison result
-                        "cmp {prev_lo}, {val_lo}", // compare lo 64-bit
-                        "cset {r_lo:w}, hi",       // store comparison result
-                        "csel {r_hi:w}, {r_hi:w}, {r_lo:w}, eq",
-                        "cmp {r_hi:w}, #0",
-                        "csel {new_lo}, {prev_lo}, {val_lo}, ne", // select lo 64-bit
-                        "csel {new_hi}, {prev_hi}, {val_hi}, ne", // select hi 64-bit
-                        concat!("st", $release, "xp {r_hi:w}, {new_lo}, {new_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r_hi:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    new_lo = out(reg) _,
-                    new_hi = out(reg) _,
-                    r_lo = out(reg) _,
-                    r_hi = out(reg) _,
-                    // Do not use `preserves_flags` because CMP modifies the condition flags.
-                    options(nostack),
-                )
-            };
-        }
-        atomic_rmw!(umax, order);
-        U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
-    }
-}
-
-#[inline]
-unsafe fn atomic_min(dst: *mut i128, val: i128, order: Ordering) -> i128 {
-    debug_assert!(dst as usize % 16 == 0);
-
-    // SAFETY: the caller must uphold the safety contract for `atomic_min`.
-    unsafe {
-        let val = I128 { whole: val };
-        let (mut prev_lo, mut prev_hi);
-        #[cfg(target_endian = "little")]
-        macro_rules! min {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "cmp {prev_lo}, {val_lo}", // compare lo 64-bit
-                        "cset {r_lo:w}, ls",       // store comparison result
-                        "cmp {prev_hi}, {val_hi}", // compare hi 64-bit
-                        "cset {r_hi:w}, le",       // store comparison result
-                        "csel {r_lo:w}, {r_lo:w}, {r_hi:w}, eq",
-                        "cmp {r_lo:w}, #0",
-                        "csel {new_hi}, {prev_hi}, {val_hi}, ne", // select hi 64-bit
-                        "csel {new_lo}, {prev_lo}, {val_lo}, ne", // select lo 64-bit
-                        concat!("st", $release, "xp {r_lo:w}, {new_lo}, {new_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r_lo:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    new_lo = out(reg) _,
-                    new_hi = out(reg) _,
-                    r_lo = out(reg) _,
-                    r_hi = out(reg) _,
-                    // Do not use `preserves_flags` because CMP modifies the condition flags.
-                    options(nostack),
-                )
-            };
-        }
-        #[cfg(target_endian = "big")]
-        macro_rules! min {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "cmp {prev_hi}, {val_hi}", // compare hi 64-bit
-                        "cset {r_hi:w}, hi",       // store comparison result
-                        "cmp {prev_lo}, {val_lo}", // compare lo 64-bit
-                        "cset {r_lo:w}, gt",       // store comparison result
-                        "csel {r_hi:w}, {r_hi:w}, {r_lo:w}, eq",
-                        "cmp {r_hi:w}, #0",
-                        "csel {new_lo}, {val_lo}, {prev_lo}, ne", // select lo 64-bit
-                        "csel {new_hi}, {val_hi}, {prev_hi}, ne", // select hi 64-bit
-                        concat!("st", $release, "xp {r_hi:w}, {new_lo}, {new_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r_hi:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    new_lo = out(reg) _,
-                    new_hi = out(reg) _,
-                    r_lo = out(reg) _,
-                    r_hi = out(reg) _,
-                    // Do not use `preserves_flags` because CMP modifies the condition flags.
-                    options(nostack),
-                )
-            };
-        }
-        atomic_rmw!(min, order);
-        I128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
-    }
-}
-
-#[inline]
-unsafe fn atomic_umin(dst: *mut u128, val: u128, order: Ordering) -> u128 {
-    debug_assert!(dst as usize % 16 == 0);
-
-    // SAFETY: the caller must uphold the safety contract for `atomic_umin`.
-    unsafe {
-        let val = U128 { whole: val };
-        let (mut prev_lo, mut prev_hi);
-        #[cfg(target_endian = "little")]
-        macro_rules! umin {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "cmp {prev_lo}, {val_lo}", // compare lo 64-bit
-                        "cset {r_lo:w}, ls",       // store comparison result
-                        "cmp {prev_hi}, {val_hi}", // compare hi 64-bit
-                        "cset {r_hi:w}, ls",       // store comparison result
-                        "csel {r_lo:w}, {r_lo:w}, {r_hi:w}, eq",
-                        "cmp {r_lo:w}, #0",
-                        "csel {new_hi}, {prev_hi}, {val_hi}, ne", // select hi 64-bit
-                        "csel {new_lo}, {prev_lo}, {val_lo}, ne", // select lo 64-bit
-                        concat!("st", $release, "xp {r_lo:w}, {new_lo}, {new_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r_lo:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    new_lo = out(reg) _,
-                    new_hi = out(reg) _,
-                    r_lo = out(reg) _,
-                    r_hi = out(reg) _,
-                    // Do not use `preserves_flags` because CMP modifies the condition flags.
-                    options(nostack),
-                )
-            };
-        }
-        #[cfg(target_endian = "big")]
-        macro_rules! umin {
-            ($acquire:tt, $release:tt) => {
-                asm!(
-                    "2:",
-                        concat!("ld", $acquire, "xp {prev_lo}, {prev_hi}, [{dst", ptr_modifier!(), "}]"),
-                        "cmp {prev_hi}, {val_hi}", // compare hi 64-bit
-                        "cset {r_hi:w}, ls",       // store comparison result
-                        "cmp {prev_lo}, {val_lo}", // compare lo 64-bit
-                        "cset {r_lo:w}, ls",       // store comparison result
-                        "csel {r_hi:w}, {r_hi:w}, {r_lo:w}, eq",
-                        "cmp {r_hi:w}, #0",
-                        "csel {new_lo}, {prev_lo}, {val_lo}, ne", // select lo 64-bit
-                        "csel {new_hi}, {prev_hi}, {val_hi}, ne", // select hi 64-bit
-                        concat!("st", $release, "xp {r_hi:w}, {new_lo}, {new_hi}, [{dst", ptr_modifier!(), "}]"),
-                        // 0 if the store was successful, 1 if no store was performed
-                        "cbnz {r_hi:w}, 2b",
-                    dst = in(reg) dst,
-                    val_lo = in(reg) val.pair.lo,
-                    val_hi = in(reg) val.pair.hi,
-                    prev_lo = out(reg) prev_lo,
-                    prev_hi = out(reg) prev_hi,
-                    new_lo = out(reg) _,
-                    new_hi = out(reg) _,
-                    r_lo = out(reg) _,
-                    r_hi = out(reg) _,
-                    // Do not use `preserves_flags` because CMP modifies the condition flags.
-                    options(nostack),
-                )
-            };
-        }
-        atomic_rmw!(umin, order);
-        U128 { pair: Pair { lo: prev_lo, hi: prev_hi } }.whole
-    }
-}
-
-atomic128!(int, AtomicI128, i128, atomic_max, atomic_min);
-atomic128!(uint, AtomicU128, u128, atomic_umax, atomic_umin);
+atomic128!(AtomicI128, i128, atomic_max, atomic_min);
+atomic128!(AtomicU128, u128, atomic_umax, atomic_umin);
 
 #[cfg(test)]
 mod tests {
@@ -971,38 +1245,8 @@ mod tests {
 
     test_atomic_int!(i128);
     test_atomic_int!(u128);
-}
 
-#[cfg(test)]
-#[allow(dead_code, clippy::undocumented_unsafe_blocks, clippy::wildcard_imports)]
-mod tests_no_outline_atomics {
-    use super::*;
-
-    #[inline]
-    unsafe fn atomic_compare_exchange(
-        dst: *mut u128,
-        old: u128,
-        new: u128,
-        success: Ordering,
-        _failure: Ordering,
-    ) -> Result<u128, u128> {
-        // SAFETY: the caller must uphold the safety contract for `atomic_compare_exchange`.
-        let res = unsafe { _compare_exchange_ldxp_stxp(dst, old, new, success) };
-        if res == old {
-            Ok(res)
-        } else {
-            Err(res)
-        }
-    }
-
-    // LLVM appears to generate strong CAS for aarch64 128-bit weak CAS,
-    // so we always use strong CAS.
-    use self::atomic_compare_exchange as atomic_compare_exchange_weak;
-
-    atomic128!(int, AtomicI128, i128, atomic_max, atomic_min);
-    atomic128!(uint, AtomicU128, u128, atomic_umax, atomic_umin);
-
-    // Do not put this in the nested tests module due to glob imports refer to super::super::Atomic*.
-    test_atomic_int!(i128);
-    test_atomic_int!(u128);
+    // load/store/swap implementation is not affected by signedness, so it is
+    // enough to test only unsigned types.
+    stress_test!(u128);
 }

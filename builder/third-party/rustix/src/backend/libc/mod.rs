@@ -11,10 +11,6 @@
 // one platform where it's redundant on another.
 #![allow(clippy::useless_conversion)]
 
-#[cfg(not(any(windows, target_os = "wasi")))]
-#[macro_use]
-mod weak;
-
 mod conv;
 mod offset;
 
@@ -49,11 +45,8 @@ pub(crate) mod fd {
 
 // On Windows we emulate selected libc-compatible interfaces. On non-Windows,
 // we just use libc here, since this is the libc backend.
-#[cfg(windows)]
-#[path = "winsock_c.rs"]
+#[cfg_attr(windows, path = "winsock_c.rs")]
 pub(crate) mod c;
-#[cfg(not(windows))]
-pub(crate) use libc as c;
 
 #[cfg(not(windows))]
 #[cfg(feature = "fs")]
@@ -100,8 +93,8 @@ pub(crate) mod time;
 #[cfg(all(unix, target_env = "gnu"))]
 pub(crate) fn if_glibc_is_less_than_2_25() -> bool {
     // This is also defined inside `weak_or_syscall!` in
-    // backend/libc/rand/syscalls.rs, but it's not convenient to re-export the weak
-    // symbol from that macro, so we duplicate it at a small cost here.
+    // backend/libc/rand/syscalls.rs, but it's not convenient to re-export the
+    // weak symbol from that macro, so we duplicate it at a small cost here.
     weak! { fn getrandom(*mut c::c_void, c::size_t, c::c_uint) -> c::ssize_t }
 
     // glibc 2.25 has `getrandom`, which is how we satisfy the API contract of

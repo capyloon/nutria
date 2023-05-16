@@ -10,19 +10,114 @@ Note: In this file, do not use the hard wrap in the middle of a sentence for com
 
 ## [Unreleased]
 
+## [1.3.2] - 2023-05-09
+
+- Fix bug in powerpc64/s390x 128-bit atomic RMWs on old nightly.
+
+- Optimize 128-bit atomics on powerpc64/s390x.
+
+## [1.3.1] - 2023-05-07
+
+- Documentation improvements.
+
+## [1.3.0] - 2023-05-06
+
+- Add `require-cas` feature. ([#100](https://github.com/taiki-e/portable-atomic/pull/100))
+
+  If your crate supports no-std environment and requires atomic CAS, enabling this feature will allow the `portable-atomic` to display helpful error messages to users on targets requiring additional action on the user side to provide atomic CAS.
+
+  ```toml
+  [dependencies]
+  portable-atomic = { version = "1.3", default-features = false, features = ["require-cas"] }
+  ```
+
+  See [#100](https://github.com/taiki-e/portable-atomic/pull/100) for more.
+
+- Support `portable_atomic_unsafe_assume_single_core` cfg on Xtensa targets without atomic CAS. ([#86](https://github.com/taiki-e/portable-atomic/pull/86))
+
+- Fix bug in AArch64 128-bit SeqCst load when FEAT_LSE2 is enabled at compile-time. This is [the same bug that was fixed in the recently released GCC 13.1](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108891). LLVM also has the same bug, which had not yet been fixed when the patch was created; I will open a bug report if necessary after looking into the situation in LLVM. ([a29154b](https://github.com/taiki-e/portable-atomic/commit/a29154b21da270e90cb86f6865b591ab36eade7d))
+
+- Fix compile error on `bpf{eb,el}-unknown-none` (tier 3) and `mipsel-sony-psx` (tier 3) when `critical-section` feature is disabled.
+
+- Various optimizations
+  - Optimize x86_64 128-bit outline-atomics. This improves performance by up to 15% in concurrent RMW/store. ([40c4cd4](https://github.com/taiki-e/portable-atomic/commit/40c4cd4f682f1cb153f18d4d6a88795bafaf5667))
+  - Optimize x86_64 128-bit load that uses cmpxchg16b. ([40c4cd4](https://github.com/taiki-e/portable-atomic/commit/40c4cd4f682f1cb153f18d4d6a88795bafaf5667))
+  - Optimize aarch64 128-bit load that uses FEAT_LSE. ([40c4cd4](https://github.com/taiki-e/portable-atomic/commit/40c4cd4f682f1cb153f18d4d6a88795bafaf5667))
+  - Optimize pre-ARMv6 Linux/Android atomics. ([efacc89](https://github.com/taiki-e/portable-atomic/commit/efacc89c210d7a34ef5e879821112189da5d1901))
+  - Support outline-atomics for powerpc64 128-bit atomics. This is currently disabled by default, and can be enabled by `--cfg portable_atomic_outline_atomics`. ([90](https://github.com/taiki-e/portable-atomic/pull/90))
+  - Optimize aarch64 outline-atomics on linux-musl. On linux-musl, outline-atomics is enabled by default only when dynamic linking is enabled. When static linking is enabled, this can be enabled by `--cfg portable_atomic_outline_atomics`. See the [`atomic128` module's readme](https://github.com/taiki-e/portable-atomic/blob/HEAD/src/imp/atomic128/README.md#run-time-feature-detection) for more. ([8418235](https://github.com/taiki-e/portable-atomic/commit/84182354e4a149074e28bda4683d538e5fb617ce), [31d0862](https://github.com/taiki-e/portable-atomic/commit/31d08623d4e21af207ff2343f5553b9b5a030452))
+
+## [1.2.0] - 2023-03-25
+
+- Make 64-bit atomics lock-free on ARM Linux/Android targets that do not have 64-bit atomics (e.g., armv5te-unknown-linux-gnueabi, arm-linux-androideabi, etc.) when the kernel version is 3.1 or later. ([#82](https://github.com/taiki-e/portable-atomic/pull/82))
+
+- Fix aarch64 128-bit atomics performance regression on Apple hardware. ([#89](https://github.com/taiki-e/portable-atomic/pull/89))
+
+- Optimize 128-bit atomics on aarch64, x86_64, powerpc64, and s390x.
+
+## [1.1.0] - 2023-03-24
+
+- Add `Atomic{I,U}*::bit_{set,clear,toggle}` and `AtomicPtr::bit_{set,clear,toggle}`. ([#72](https://github.com/taiki-e/portable-atomic/pull/72))
+
+  They correspond to x86's `lock bt{s,r,c}`, and the implementation calls them on x86/x86_64.
+
+- Add `AtomicU*::{fetch_neg,neg}` methods. Previously it was only available on `AtomicI*` and `AtomicF*`.
+
+- Add `as_ptr` method to all atomic types. ([#79](https://github.com/taiki-e/portable-atomic/pull/79))
+
+- Make `AtomicF{32,64}::as_bits` const on Rust 1.58+. ([#79](https://github.com/taiki-e/portable-atomic/pull/79))
+
+- Relax ordering in `Serialize` impl to reflect the [upstream change](https://github.com/serde-rs/serde/pull/2263).
+
+- Optimize x86_64 outline-atomics for 128-bit atomics.
+  - Support outline-atomics for cmpxchg16b on Rust 1.69+ (i.e., on Rust 1.69+, x86_64 128-bit atomics is lock-free on all Intel chips and almost all AMD chips, even if cmpxchg16b is not available at compile-time.). Previously it was only nightly. ([#80](https://github.com/taiki-e/portable-atomic/pull/80))
+  - portable-atomic no longer enables outline-atomics on target where run-time feature detection is not available. ([#80](https://github.com/taiki-e/portable-atomic/pull/80))
+
+- Optimize aarch64 outline-atomics for 128-bit atomics.
+  - Support more targets and improve performance. ([#63](https://github.com/taiki-e/portable-atomic/pull/63), [#64](https://github.com/taiki-e/portable-atomic/pull/64), [#67](https://github.com/taiki-e/portable-atomic/pull/67), [#69](https://github.com/taiki-e/portable-atomic/pull/69), [#75](https://github.com/taiki-e/portable-atomic/pull/75), [#76](https://github.com/taiki-e/portable-atomic/pull/76), [#77](https://github.com/taiki-e/portable-atomic/pull/77))
+    See the [`atomic128` module's readme](https://github.com/taiki-e/portable-atomic/blob/HEAD/src/imp/atomic128/README.md#run-time-feature-detection) for a list of platforms that support outline-atomics.
+    Most of these improvements have already been [submitted and accepted in rust-lang/stdarch](https://github.com/rust-lang/stdarch/pulls?q=is%3Apr+author%3Ataiki-e+std_detect) and will soon be available in `std::arch::is_aarch64_feature_detected`.
+  - portable-atomic no longer enables outline-atomics on target where run-time feature detection is not available.
+
+- Performance improvements. ([#70](https://github.com/taiki-e/portable-atomic/pull/70), [#81](https://github.com/taiki-e/portable-atomic/pull/81), [6c189ae](https://github.com/taiki-e/portable-atomic/commit/6c189ae1792ce0c08b4f56b6e6c256c223475ce2), [13c92b0](https://github.com/taiki-e/portable-atomic/commit/13c92b015a8e8646a4b885229157547354d03b9e), etc.)
+
+- Improve support for old nightly. ([#73](https://github.com/taiki-e/portable-atomic/pull/73), [872feb9](https://github.com/taiki-e/portable-atomic/commit/872feb9d7f3a4ca7cf9b63935265d46498fcae99))
+
+- Documentation improvements.
+
+## [1.0.1] - 2023-01-21
+
+- Optimize `Atomic{I,U}*::{fetch_not,not}` methods. ([#62](https://github.com/taiki-e/portable-atomic/pull/62))
+
+## [1.0.0] - 2023-01-15
+
+- Add `critical-section` feature to use [critical-section](https://github.com/rust-embedded/critical-section) on targets where atomic CAS is not natively available. ([#51](https://github.com/taiki-e/portable-atomic/pull/51), thanks @Dirbaio)
+
+  This is useful to get atomic CAS when `--cfg portable_atomic_unsafe_assume_single_core` can't be used, such as multi-core targets, unprivileged code running under some RTOS, or environments where disabling interrupts needs extra care due to e.g. real-time requirements.
+
+  See [documentation](https://github.com/taiki-e/portable-atomic#optional-features-critical-section) for more.
+
+- Remove `outline-atomics` feature. This was no-op since 0.3.19.
+
+- Documentation improvements.
+
+## [0.3.20] - 2023-05-07
+
+The latest version of portable-atomic is 1.x. This release makes portable-atomic 0.3 is built on top of portable-atomic 1.x to make bug fixes and improvements such as [support for new targets](https://github.com/taiki-e/portable-atomic/pull/86) in 1.x available to the ecosystem that depends on older portable-atomic. portable-atomic 0.3 is still maintained passively, but upgrading to portable-atomic 1.x is recommended. (There are no breaking changes from 0.3, except that a deprecated no-op `outline-atomics` Cargo feature has been removed.) ([#99](https://github.com/taiki-e/portable-atomic/pull/99))
+
 ## [0.3.19] - 2022-12-25
 
 - Add `AtomicI*::{fetch_neg,neg}` and `AtomicF*::fetch_neg` methods. ([#54](https://github.com/taiki-e/portable-atomic/pull/54))
 
   `AtomicI*::neg` are equivalent to the corresponding `fetch_*` methods, but do not return the previous value. They are intended for optimization on platforms that have atomic instructions for the corresponding operation, such as x86's `lock neg`.
 
-  Currently, optimizations by these methods (`neg`) are only guaranteed for x86.
+  Currently, optimizations by these methods (`neg`) are only guaranteed for x86/x86_64.
 
 - Add `Atomic{I,U}*::{fetch_not,not}` methods. ([#54](https://github.com/taiki-e/portable-atomic/pull/54))
 
   `Atomic{I,U}*::not` are equivalent to the corresponding `fetch_*` methods, but do not return the previous value. They are intended for optimization on platforms that have atomic instructions for the corresponding operation, such as x86's `lock not`, MSP430's `inv`.
 
-  Currently, optimizations by these methods (`not`) are only guaranteed for x86 and MSP430.
+  Currently, optimizations by these methods (`not`) are only guaranteed for x86/x86_64 and MSP430.
 
   (Note: `AtomicBool` already has `fetch_not` and `not` methods.)
 
@@ -48,7 +143,7 @@ Note: In this file, do not use the hard wrap in the middle of a sentence for com
 
   They are equivalent to the corresponding `fetch_*` methods, but do not return the previous value. They are intended for optimization on platforms that implement atomics using inline assembly, such as the MSP430.
 
-  Currently, optimizations by these methods (`add`,`sub`,`and`,`or`,`xor`) are only guaranteed for MSP430; on x86, LLVM can optimize in most cases, so cases, where this would improve things, should be rare.
+  Currently, optimizations by these methods (`add`,`sub`,`and`,`or`,`xor`) are only guaranteed for MSP430; on x86/x86_64, LLVM can optimize in most cases, so cases, where this would improve things, should be rare.
 
 - Various improvements to `portable_atomic_unsafe_assume_single_core` cfg. ([#44](https://github.com/taiki-e/portable-atomic/pull/44), [#40](https://github.com/taiki-e/portable-atomic/pull/40))
 
@@ -229,7 +324,15 @@ Note: In this file, do not use the hard wrap in the middle of a sentence for com
 
 Initial release
 
-[Unreleased]: https://github.com/taiki-e/portable-atomic/compare/v0.3.19...HEAD
+[Unreleased]: https://github.com/taiki-e/portable-atomic/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/taiki-e/portable-atomic/compare/v1.3.1...v1.3.2
+[1.3.1]: https://github.com/taiki-e/portable-atomic/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/taiki-e/portable-atomic/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/taiki-e/portable-atomic/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/taiki-e/portable-atomic/compare/v1.0.1...v1.1.0
+[1.0.1]: https://github.com/taiki-e/portable-atomic/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/taiki-e/portable-atomic/compare/v0.3.19...v1.0.0
+[0.3.20]: https://github.com/taiki-e/portable-atomic/compare/v0.3.19...v0.3.20
 [0.3.19]: https://github.com/taiki-e/portable-atomic/compare/v0.3.18...v0.3.19
 [0.3.18]: https://github.com/taiki-e/portable-atomic/compare/v0.3.17...v0.3.18
 [0.3.17]: https://github.com/taiki-e/portable-atomic/compare/v0.3.16...v0.3.17

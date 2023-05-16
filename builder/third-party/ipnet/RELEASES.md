@@ -1,5 +1,10 @@
 # Releases
 
+## Version 2.7.2
+
+* Inline constructors and field getters #48 
+* Use Serializer::collect_str to serialize output of Display #39 
+
 ## Version 2.7.1
 
 * Fix overflow in mask to prefix conversion #47

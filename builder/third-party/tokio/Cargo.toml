@@ -10,10 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
-rust-version = "1.49"
+edition = "2021"
+rust-version = "1.56"
 name = "tokio"
-version = "1.26.0"
+version = "1.28.1"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = """
 An event-driven, non-blocking I/O platform for writing asynchronous I/O
@@ -33,16 +33,17 @@ categories = [
 ]
 license = "MIT"
 repository = "https://github.com/tokio-rs/tokio"
+resolver = "1"
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = [
-    "--cfg",
-    "docsrs",
+rustc-args = [
     "--cfg",
     "tokio_unstable",
 ]
-rustc-args = [
+rustdoc-args = [
+    "--cfg",
+    "docsrs",
     "--cfg",
     "tokio_unstable",
 ]
@@ -55,10 +56,6 @@ features = [
 
 [dependencies.bytes]
 version = "1.0.0"
-optional = true
-
-[dependencies.memchr]
-version = "2.2"
 optional = true
 
 [dependencies.mio]
@@ -77,7 +74,7 @@ optional = true
 version = "0.2.0"
 
 [dependencies.tokio-macros]
-version = "1.7.0"
+version = "~2.1.0"
 optional = true
 
 [dev-dependencies.async-stream]
@@ -117,10 +114,7 @@ full = [
     "time",
 ]
 io-std = []
-io-util = [
-    "memchr",
-    "bytes",
-]
+io-util = ["bytes"]
 macros = ["tokio-macros"]
 net = [
     "libc",
@@ -172,7 +166,7 @@ time = []
 version = "0.3.0"
 
 [target."cfg(docsrs)".dependencies.windows-sys]
-version = "0.45"
+version = "0.48"
 features = [
     "Win32_Foundation",
     "Win32_Security_Authorization",
@@ -189,12 +183,12 @@ features = [
 version = "0.8.0"
 
 [target."cfg(not(any(target_arch = \"wasm32\", target_arch = \"wasm64\")))".dependencies.socket2]
-version = "0.4.4"
+version = "0.4.9"
 features = ["all"]
 optional = true
 
 [target."cfg(not(any(target_arch = \"wasm32\", target_arch = \"wasm64\")))".dev-dependencies.socket2]
-version = "0.4"
+version = "0.4.9"
 
 [target."cfg(not(any(target_arch = \"wasm32\", target_arch = \"wasm64\")))".dev-dependencies.tempfile]
 version = "3.1.0"
@@ -229,8 +223,5 @@ features = [
 default-features = false
 
 [target."cfg(windows)".dependencies.windows-sys]
-version = "0.45"
+version = "0.48"
 optional = true
-
-[target."cfg(windows)".dev-dependencies.ntapi]
-version = "0.3.6"

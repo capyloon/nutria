@@ -15,12 +15,12 @@
 
 use super::c;
 use super::fd::{AsRawFd, BorrowedFd, FromRawFd, RawFd};
-#[cfg(not(debug_assertions))]
-use super::io::errno::decode_usize_infallible;
 #[cfg(feature = "runtime")]
 use super::io::errno::try_decode_error;
 #[cfg(target_pointer_width = "64")]
 use super::io::errno::try_decode_u64;
+#[cfg(not(debug_assertions))]
+use super::io::errno::{decode_c_uint_infallible, decode_usize_infallible};
 use super::io::errno::{
     try_decode_c_int, try_decode_c_uint, try_decode_raw_fd, try_decode_usize, try_decode_void,
     try_decode_void_star,
@@ -143,9 +143,9 @@ impl<'a, Num: ArgNumber> From<Option<&'a CStr>> for ArgReg<'a, Num> {
 impl<'a, Num: ArgNumber> From<BorrowedFd<'a>> for ArgReg<'a, Num> {
     #[inline]
     fn from(fd: BorrowedFd<'a>) -> Self {
-        // Safety: `BorrowedFd` ensures that the file descriptor is valid, and the
-        // lifetime parameter on the resulting `ArgReg` ensures that the result is
-        // bounded by the `BorrowedFd`'s lifetime.
+        // SAFETY: `BorrowedFd` ensures that the file descriptor is valid, and
+        // the lifetime parameter on the resulting `ArgReg` ensures that the
+        // result is bounded by the `BorrowedFd`'s lifetime.
         unsafe { raw_fd(fd.as_raw_fd()) }
     }
 }
@@ -187,6 +187,11 @@ pub(super) fn no_fd<'a, Num: ArgNumber>() -> ArgReg<'a, Num> {
 pub(super) fn slice_just_addr<T: Sized, Num: ArgNumber>(v: &[T]) -> ArgReg<Num> {
     let mut_ptr = v.as_ptr() as *mut T;
     raw_arg(mut_ptr.cast())
+}
+
+#[inline]
+pub(super) fn slice_just_addr_mut<T: Sized, Num: ArgNumber>(v: &mut [T]) -> ArgReg<Num> {
+    raw_arg(v.as_mut_ptr().cast())
 }
 
 #[inline]
@@ -309,6 +314,30 @@ impl<'a, Num: ArgNumber> From<(Mode, FileType)> for ArgReg<'a, Num> {
 impl<'a, Num: ArgNumber> From<crate::fs::AtFlags> for ArgReg<'a, Num> {
     #[inline]
     fn from(flags: crate::fs::AtFlags) -> Self {
+        c_uint(flags.bits())
+    }
+}
+
+#[cfg(feature = "fs")]
+impl<'a, Num: ArgNumber> From<crate::fs::XattrFlags> for ArgReg<'a, Num> {
+    #[inline]
+    fn from(flags: crate::fs::XattrFlags) -> Self {
+        c_uint(flags.bits())
+    }
+}
+
+#[cfg(feature = "fs")]
+impl<'a, Num: ArgNumber> From<crate::fs::inotify::CreateFlags> for ArgReg<'a, Num> {
+    #[inline]
+    fn from(flags: crate::fs::inotify::CreateFlags) -> Self {
+        c_uint(flags.bits())
+    }
+}
+
+#[cfg(feature = "fs")]
+impl<'a, Num: ArgNumber> From<crate::fs::inotify::WatchFlags> for ArgReg<'a, Num> {
+    #[inline]
+    fn from(flags: crate::fs::inotify::WatchFlags) -> Self {
         c_uint(flags.bits())
     }
 }
@@ -599,9 +628,9 @@ impl<'a, Num: ArgNumber> From<crate::net::SendFlags> for ArgReg<'a, Num> {
 }
 
 #[cfg(feature = "net")]
-impl<'a, Num: ArgNumber> From<crate::net::AcceptFlags> for ArgReg<'a, Num> {
+impl<'a, Num: ArgNumber> From<crate::net::SocketFlags> for ArgReg<'a, Num> {
     #[inline]
-    fn from(flags: crate::net::AcceptFlags) -> Self {
+    fn from(flags: crate::net::SocketFlags) -> Self {
         c_uint(flags.bits())
     }
 }
@@ -665,12 +694,50 @@ impl<'a, Num: ArgNumber, T> From<&'a mut MaybeUninit<T>> for ArgReg<'a, Num> {
     }
 }
 
+impl<'a, Num: ArgNumber, T> From<&'a mut [MaybeUninit<T>]> for ArgReg<'a, Num> {
+    #[inline]
+    fn from(t: &'a mut [MaybeUninit<T>]) -> Self {
+        raw_arg(t.as_mut_ptr().cast())
+    }
+}
+
 #[cfg(feature = "fs")]
 #[cfg(any(target_os = "android", target_os = "linux"))]
 impl<'a, Num: ArgNumber> From<crate::backend::fs::types::MountFlagsArg> for ArgReg<'a, Num> {
     #[inline]
     fn from(flags: crate::backend::fs::types::MountFlagsArg) -> Self {
         c_uint(flags.0)
+    }
+}
+
+#[cfg(feature = "fs")]
+#[cfg(any(target_os = "android", target_os = "linux"))]
+impl<'a, Num: ArgNumber> From<crate::backend::fs::types::UnmountFlags> for ArgReg<'a, Num> {
+    #[inline]
+    fn from(flags: crate::backend::fs::types::UnmountFlags) -> Self {
+        c_uint(flags.bits())
+    }
+}
+
+impl<'a, Num: ArgNumber> From<crate::process::Uid> for ArgReg<'a, Num> {
+    #[inline]
+    fn from(t: crate::process::Uid) -> Self {
+        c_uint(t.as_raw())
+    }
+}
+
+impl<'a, Num: ArgNumber> From<crate::process::Gid> for ArgReg<'a, Num> {
+    #[inline]
+    fn from(t: crate::process::Gid) -> Self {
+        c_uint(t.as_raw())
+    }
+}
+
+#[cfg(feature = "runtime")]
+impl<'a, Num: ArgNumber> From<crate::runtime::How> for ArgReg<'a, Num> {
+    #[inline]
+    fn from(flags: crate::runtime::How) -> Self {
+        c_uint(flags as u32)
     }
 }
 
@@ -760,6 +827,25 @@ pub(super) unsafe fn ret_usize_infallible(raw: RetReg<R0>) -> usize {
     #[cfg(not(debug_assertions))]
     {
         decode_usize_infallible(raw)
+    }
+}
+
+/// Convert a `c_uint` returned from a syscall that effectively always
+/// returns a `c_uint`.
+///
+/// # Safety
+///
+/// This function must only be used with return values from infallible
+/// syscalls.
+#[inline]
+pub(super) unsafe fn ret_c_uint_infallible(raw: RetReg<R0>) -> c::c_uint {
+    #[cfg(debug_assertions)]
+    {
+        try_decode_c_uint(raw).unwrap()
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        decode_c_uint_infallible(raw)
     }
 }
 

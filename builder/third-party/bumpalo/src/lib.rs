@@ -354,7 +354,7 @@ static EMPTY_CHUNK: EmptyChunkFooter = EmptyChunkFooter(ChunkFooter {
 
 impl EmptyChunkFooter {
     fn get(&'static self) -> NonNull<ChunkFooter> {
-        unsafe { NonNull::new_unchecked(&self.0 as *const ChunkFooter as *mut ChunkFooter) }
+        NonNull::from(&self.0)
     }
 }
 
@@ -463,23 +463,13 @@ struct NewChunkMemoryDetails {
 
 /// Wrapper around `Layout::from_size_align` that adds debug assertions.
 #[inline]
-unsafe fn layout_from_size_align(size: usize, align: usize) -> Layout {
-    if cfg!(debug_assertions) {
-        Layout::from_size_align(size, align).unwrap()
-    } else {
-        Layout::from_size_align_unchecked(size, align)
-    }
+fn layout_from_size_align(size: usize, align: usize) -> Result<Layout, AllocErr> {
+    Layout::from_size_align(size, align).map_err(|_| AllocErr)
 }
 
 #[inline(never)]
 fn allocation_size_overflow<T>() -> T {
     panic!("requested allocation size overflowed")
-}
-
-// This can be migrated to directly use `usize::abs_diff` when the MSRV
-// reaches `1.60`
-fn abs_diff(a: usize, b: usize) -> usize {
-    usize::max(a, b) - usize::min(a, b)
 }
 
 impl Bump {
@@ -535,7 +525,7 @@ impl Bump {
             });
         }
 
-        let layout = unsafe { layout_from_size_align(capacity, 1) };
+        let layout = layout_from_size_align(capacity, 1)?;
 
         let chunk_footer = unsafe {
             Self::new_chunk(
@@ -600,7 +590,7 @@ impl Bump {
             if allocated_bytes > allocation_limit {
                 None
             } else {
-                Some(abs_diff(allocation_limit, allocated_bytes))
+                Some(usize::abs_diff(allocation_limit, allocated_bytes))
             }
         })
     }
@@ -682,7 +672,7 @@ impl Bump {
             size,
         } = new_chunk_memory_details;
 
-        let layout = layout_from_size_align(size, align);
+        let layout = layout_from_size_align(size, align).ok()?;
 
         debug_assert!(size >= requested_layout.size());
 
@@ -1470,6 +1460,7 @@ impl Bump {
     /// Slow path allocation for when we need to allocate a new chunk from the
     /// parent bump set because there isn't enough room in our current chunk.
     #[inline(never)]
+    #[cold]
     fn alloc_layout_slow(&self, layout: Layout) -> Option<NonNull<u8>> {
         unsafe {
             let size = layout.size();
@@ -1488,21 +1479,14 @@ impl Bump {
                 .checked_mul(2)?
                 .max(min_new_chunk_size);
             let chunk_memory_details = iter::from_fn(|| {
-                let bypass_min_chunk_size_for_small_limits = match self.allocation_limit() {
-                    Some(limit)
-                        if layout.size() < limit
+                let bypass_min_chunk_size_for_small_limits = matches!(self.allocation_limit(), Some(limit) if layout.size() < limit
                             && base_size >= layout.size()
                             && limit < DEFAULT_CHUNK_SIZE_WITHOUT_FOOTER
-                            && self.allocated_bytes() == 0 =>
-                    {
-                        true
-                    }
-                    _ => false,
-                };
+                            && self.allocated_bytes() == 0);
 
                 if base_size >= min_new_chunk_size || bypass_min_chunk_size_for_small_limits {
                     let size = base_size;
-                    base_size = base_size / 2;
+                    base_size /= 2;
                     Bump::new_chunk_memory_details(Some(size), layout)
                 } else {
                     None
@@ -1696,6 +1680,16 @@ impl Bump {
         unsafe { footer.as_ref().allocated_bytes }
     }
 
+    /// Calculates the number of bytes requested from the Rust allocator for this `Bump`.
+    ///
+    /// This number is equal to the [`allocated_bytes()`](Self::allocated_bytes) plus
+    /// the size of the bump metadata.
+    pub fn allocated_bytes_including_metadata(&self) -> usize {
+        let metadata_size =
+            unsafe { self.iter_allocated_chunks_raw().count() * mem::size_of::<ChunkFooter>() };
+        self.allocated_bytes() + metadata_size
+    }
+
     #[inline]
     unsafe fn is_last_allocation(&self, ptr: NonNull<u8>) -> bool {
         let footer = self.current_chunk_footer.get();
@@ -1750,9 +1744,9 @@ impl Bump {
             // in the `if` condition.
             ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_ptr(), new_size);
 
-            return Ok(new_ptr);
+            Ok(new_ptr)
         } else {
-            return Ok(ptr);
+            Ok(ptr)
         }
     }
 
@@ -1772,7 +1766,7 @@ impl Bump {
             // reuse the currently allocated space.
             let delta = new_size - old_size;
             if let Some(p) =
-                self.try_alloc_layout_fast(layout_from_size_align(delta, old_layout.align()))
+                self.try_alloc_layout_fast(layout_from_size_align(delta, old_layout.align())?)
             {
                 ptr::copy(ptr.as_ptr(), p.as_ptr(), old_size);
                 return Ok(p);
@@ -1883,7 +1877,7 @@ unsafe impl<'a> alloc::Alloc for &'a Bump {
             return self.try_alloc_layout(layout);
         }
 
-        let new_layout = layout_from_size_align(new_size, layout.align());
+        let new_layout = layout_from_size_align(new_size, layout.align())?;
         if new_size <= old_size {
             self.shrink(ptr, layout, new_layout)
         } else {

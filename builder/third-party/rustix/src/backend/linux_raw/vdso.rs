@@ -55,7 +55,7 @@ fn elf_hash(name: &CStr) -> u32 {
 
 /// Create a `Vdso` value by parsing the vDSO at the `sysinfo_ehdr` address.
 fn init_from_sysinfo_ehdr() -> Option<Vdso> {
-    // Safety: the auxv initialization code does extensive checks to ensure
+    // SAFETY: the auxv initialization code does extensive checks to ensure
     // that the value we get really is an `AT_SYSINFO_EHDR` value from the
     // kernel.
     unsafe {
@@ -117,7 +117,7 @@ fn init_from_sysinfo_ehdr() -> Option<Vdso> {
                     .as_ptr();
                 num_dyn = phdr.p_memsz / size_of::<Elf_Dyn>();
             } else if phdr.p_type == PT_INTERP || phdr.p_type == PT_GNU_RELRO {
-                // Don't trust any ELF image that has an "interpreter" or that uses
+                // Don't trust any ELF image that has an “interpreter” or that uses
                 // RELRO, which is likely to be a user ELF image rather and not the
                 // kernel vDSO.
                 return None;
@@ -255,7 +255,7 @@ impl Vdso {
         let ver_hash = elf_hash(version);
         let name_hash = elf_hash(name);
 
-        // Safety: The pointers in `self` must be valid.
+        // SAFETY: The pointers in `self` must be valid.
         unsafe {
             let mut chain = *self.bucket.add((name_hash % self.nbucket) as usize);
 

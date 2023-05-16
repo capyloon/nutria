@@ -21,22 +21,6 @@ enum_builder! {
 }
 
 enum_builder! {
-    /// The `SignatureAlgorithm` TLS protocol enum.  Values in this enum are taken
-    /// from the various RFCs covering TLS, and are listed by IANA.
-    /// The `Unknown` item is used when processing unrecognised ordinals.
-    @U8
-    EnumName: SignatureAlgorithm;
-    EnumVal{
-        Anonymous => 0x00,
-        RSA => 0x01,
-        DSA => 0x02,
-        ECDSA => 0x03,
-        ED25519 => 0x07,
-        ED448 => 0x08
-    }
-}
-
-enum_builder! {
     /// The `ClientCertificateType` TLS protocol enum.  Values in this enum are taken
     /// from the various RFCs covering TLS, and are listed by IANA.
     /// The `Unknown` item is used when processing unrecognised ordinals.
@@ -70,50 +54,6 @@ enum_builder! {
 }
 
 enum_builder! {
-    /// The `ContentType` TLS protocol enum.  Values in this enum are taken
-    /// from the various RFCs covering TLS, and are listed by IANA.
-    /// The `Unknown` item is used when processing unrecognised ordinals.
-    @U8
-    EnumName: ContentType;
-    EnumVal{
-        ChangeCipherSpec => 0x14,
-        Alert => 0x15,
-        Handshake => 0x16,
-        ApplicationData => 0x17,
-        Heartbeat => 0x18
-    }
-}
-
-enum_builder! {
-    /// The `HandshakeType` TLS protocol enum.  Values in this enum are taken
-    /// from the various RFCs covering TLS, and are listed by IANA.
-    /// The `Unknown` item is used when processing unrecognised ordinals.
-    @U8
-    EnumName: HandshakeType;
-    EnumVal{
-        HelloRequest => 0x00,
-        ClientHello => 0x01,
-        ServerHello => 0x02,
-        HelloVerifyRequest => 0x03,
-        NewSessionTicket => 0x04,
-        EndOfEarlyData => 0x05,
-        HelloRetryRequest => 0x06,
-        EncryptedExtensions => 0x08,
-        Certificate => 0x0b,
-        ServerKeyExchange => 0x0c,
-        CertificateRequest => 0x0d,
-        ServerHelloDone => 0x0e,
-        CertificateVerify => 0x0f,
-        ClientKeyExchange => 0x10,
-        Finished => 0x14,
-        CertificateURL => 0x15,
-        CertificateStatus => 0x16,
-        KeyUpdate => 0x18,
-        MessageHash => 0xfe
-    }
-}
-
-enum_builder! {
     /// The `AlertLevel` TLS protocol enum.  Values in this enum are taken
     /// from the various RFCs covering TLS, and are listed by IANA.
     /// The `Unknown` item is used when processing unrecognised ordinals.
@@ -122,50 +62,6 @@ enum_builder! {
     EnumVal{
         Warning => 0x01,
         Fatal => 0x02
-    }
-}
-
-enum_builder! {
-    /// The `AlertDescription` TLS protocol enum.  Values in this enum are taken
-    /// from the various RFCs covering TLS, and are listed by IANA.
-    /// The `Unknown` item is used when processing unrecognised ordinals.
-    @U8
-    EnumName: AlertDescription;
-    EnumVal{
-        CloseNotify => 0x00,
-        UnexpectedMessage => 0x0a,
-        BadRecordMac => 0x14,
-        DecryptionFailed => 0x15,
-        RecordOverflow => 0x16,
-        DecompressionFailure => 0x1e,
-        HandshakeFailure => 0x28,
-        NoCertificate => 0x29,
-        BadCertificate => 0x2a,
-        UnsupportedCertificate => 0x2b,
-        CertificateRevoked => 0x2c,
-        CertificateExpired => 0x2d,
-        CertificateUnknown => 0x2e,
-        IllegalParameter => 0x2f,
-        UnknownCA => 0x30,
-        AccessDenied => 0x31,
-        DecodeError => 0x32,
-        DecryptError => 0x33,
-        ExportRestriction => 0x3c,
-        ProtocolVersion => 0x46,
-        InsufficientSecurity => 0x47,
-        InternalError => 0x50,
-        InappropriateFallback => 0x56,
-        UserCanceled => 0x5a,
-        NoRenegotiation => 0x64,
-        MissingExtension => 0x6d,
-        UnsupportedExtension => 0x6e,
-        CertificateUnobtainable => 0x6f,
-        UnrecognisedName => 0x70,
-        BadCertificateStatusResponse => 0x71,
-        BadCertificateHashValue => 0x72,
-        UnknownPSKIdentity => 0x73,
-        CertificateRequired => 0x74,
-        NoApplicationProtocol => 0x78
     }
 }
 
@@ -314,6 +210,10 @@ enum_builder! {
     }
 }
 
+impl ECPointFormat {
+    pub const SUPPORTED: [Self; 1] = [Self::Uncompressed];
+}
+
 enum_builder! {
     /// The `HeartbeatMode` TLS protocol enum.  Values in this enum are taken
     /// from the various RFCs covering TLS, and are listed by IANA.
@@ -371,5 +271,97 @@ enum_builder! {
     EnumName: CertificateStatusType;
     EnumVal{
         OCSP => 0x01
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    //! These tests are intended to provide coverage and
+    //! check panic-safety of relatively unused values.
+
+    use super::*;
+    use crate::msgs::codec::Codec;
+
+    #[test]
+    fn test_enums() {
+        test_enum8::<HashAlgorithm>(HashAlgorithm::NONE, HashAlgorithm::SHA512);
+        test_enum8::<ClientCertificateType>(
+            ClientCertificateType::RSASign,
+            ClientCertificateType::ECDSAFixedECDH,
+        );
+        test_enum8::<Compression>(Compression::Null, Compression::LSZ);
+        test_enum8::<AlertLevel>(AlertLevel::Warning, AlertLevel::Fatal);
+        test_enum8::<HeartbeatMessageType>(
+            HeartbeatMessageType::Request,
+            HeartbeatMessageType::Response,
+        );
+        test_enum16::<ExtensionType>(ExtensionType::ServerName, ExtensionType::RenegotiationInfo);
+        test_enum8::<ServerNameType>(ServerNameType::HostName, ServerNameType::HostName);
+        test_enum16::<NamedCurve>(
+            NamedCurve::sect163k1,
+            NamedCurve::arbitrary_explicit_char2_curves,
+        );
+        test_enum16::<NamedGroup>(NamedGroup::secp256r1, NamedGroup::FFDHE8192);
+        test_enum8::<ECPointFormat>(
+            ECPointFormat::Uncompressed,
+            ECPointFormat::ANSIX962CompressedChar2,
+        );
+        test_enum8::<HeartbeatMode>(
+            HeartbeatMode::PeerAllowedToSend,
+            HeartbeatMode::PeerNotAllowedToSend,
+        );
+        test_enum8::<ECCurveType>(ECCurveType::ExplicitPrime, ECCurveType::NamedCurve);
+        test_enum8::<PSKKeyExchangeMode>(
+            PSKKeyExchangeMode::PSK_KE,
+            PSKKeyExchangeMode::PSK_DHE_KE,
+        );
+        test_enum8::<KeyUpdateRequest>(
+            KeyUpdateRequest::UpdateNotRequested,
+            KeyUpdateRequest::UpdateRequested,
+        );
+        test_enum8::<CertificateStatusType>(
+            CertificateStatusType::OCSP,
+            CertificateStatusType::OCSP,
+        );
+    }
+
+    pub(crate) fn test_enum8<T: Codec>(first: T, last: T) {
+        let first_v = get8(&first);
+        let last_v = get8(&last);
+
+        for val in first_v..last_v + 1 {
+            let mut buf = Vec::new();
+            val.encode(&mut buf);
+            assert_eq!(buf.len(), 1);
+
+            let t = T::read_bytes(&buf).unwrap();
+            assert_eq!(val, get8(&t));
+        }
+    }
+
+    pub(crate) fn test_enum16<T: Codec>(first: T, last: T) {
+        let first_v = get16(&first);
+        let last_v = get16(&last);
+
+        for val in first_v..last_v + 1 {
+            let mut buf = Vec::new();
+            val.encode(&mut buf);
+            assert_eq!(buf.len(), 2);
+
+            let t = T::read_bytes(&buf).unwrap();
+            assert_eq!(val, get16(&t));
+        }
+    }
+
+    fn get8<T: Codec>(enum_value: &T) -> u8 {
+        let enc = enum_value.get_encoding();
+        assert_eq!(enc.len(), 1);
+        enc[0]
+    }
+
+    fn get16<T: Codec>(enum_value: &T) -> u16 {
+        let enc = enum_value.get_encoding();
+        assert_eq!(enc.len(), 2);
+        (enc[0] as u16 >> 8) | (enc[1] as u16)
     }
 }

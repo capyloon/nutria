@@ -3,9 +3,9 @@
 use super::super::c;
 #[cfg(not(any(target_os = "wasi", target_os = "fuchsia")))]
 use super::super::conv::borrowed_fd;
-#[cfg(not(target_os = "wasi"))]
-use super::super::conv::ret_pid_t;
 use super::super::conv::{c_str, ret, ret_c_int, ret_discarded_char_ptr};
+#[cfg(not(target_os = "wasi"))]
+use super::super::conv::{ret_infallible, ret_pid_t, ret_usize};
 #[cfg(any(target_os = "android", target_os = "linux"))]
 use super::super::conv::{syscall_ret, syscall_ret_u32};
 #[cfg(any(
@@ -17,25 +17,34 @@ use super::super::conv::{syscall_ret, syscall_ret_u32};
 use super::types::RawCpuSet;
 #[cfg(not(any(target_os = "wasi", target_os = "fuchsia")))]
 use crate::fd::BorrowedFd;
+#[cfg(target_os = "linux")]
+use crate::fd::{AsRawFd, OwnedFd};
 use crate::ffi::CStr;
+#[cfg(feature = "fs")]
+use crate::fs::Mode;
 use crate::io;
+#[cfg(any(target_os = "android", target_os = "linux"))]
+use crate::process::Sysinfo;
+#[cfg(not(any(target_os = "wasi", target_os = "redox", target_os = "openbsd")))]
+use crate::process::{WaitId, WaitidOptions, WaitidStatus};
 use core::mem::MaybeUninit;
-#[cfg(not(any(target_os = "fuchsia", target_os = "redox", target_os = "wasi")))]
-use {
-    super::super::conv::ret_infallible,
-    super::super::offset::{libc_getrlimit, libc_rlimit, libc_setrlimit, LIBC_RLIM_INFINITY},
-    crate::process::{Resource, Rlimit},
-    core::convert::TryInto,
-};
+#[cfg(target_os = "linux")]
+use {super::super::conv::syscall_ret_owned_fd, crate::process::PidfdFlags};
 #[cfg(any(target_os = "android", target_os = "linux"))]
 use {
     super::super::offset::libc_prlimit,
     crate::process::{Cpuid, MembarrierCommand, MembarrierQuery},
 };
+#[cfg(not(any(target_os = "fuchsia", target_os = "redox", target_os = "wasi")))]
+use {
+    super::super::offset::{libc_getrlimit, libc_rlimit, libc_setrlimit, LIBC_RLIM_INFINITY},
+    crate::process::{Resource, Rlimit},
+};
 #[cfg(not(target_os = "wasi"))]
 use {
     super::types::RawUname,
     crate::process::{Gid, Pid, RawNonZeroPid, RawPid, Signal, Uid, WaitOptions, WaitStatus},
+    core::convert::TryInto,
 };
 
 #[cfg(not(target_os = "wasi"))]
@@ -48,6 +57,11 @@ pub(crate) fn fchdir(dirfd: BorrowedFd<'_>) -> io::Result<()> {
     unsafe { ret(c::fchdir(borrowed_fd(dirfd))) }
 }
 
+#[cfg(not(any(target_os = "fuchsia", target_os = "wasi")))]
+pub(crate) fn chroot(path: &CStr) -> io::Result<()> {
+    unsafe { ret(c::chroot(c_str(path))) }
+}
+
 #[cfg(not(target_os = "wasi"))]
 pub(crate) fn getcwd(buf: &mut [u8]) -> io::Result<()> {
     unsafe { ret_discarded_char_ptr(c::getcwd(buf.as_mut_ptr().cast(), buf.len())) }
@@ -55,7 +69,7 @@ pub(crate) fn getcwd(buf: &mut [u8]) -> io::Result<()> {
 
 #[cfg(any(target_os = "android", target_os = "linux"))]
 pub(crate) fn membarrier_query() -> MembarrierQuery {
-    // GLIBC does not have a wrapper for `membarrier`; [the documentation]
+    // glibc does not have a wrapper for `membarrier`; [the documentation]
     // says to use `syscall`.
     //
     // [the documentation]: https://man7.org/linux/man-pages/man2/membarrier.2.html#NOTES
@@ -159,6 +173,12 @@ pub(crate) fn getpgid(pid: Option<Pid>) -> io::Result<Pid> {
 
 #[cfg(not(target_os = "wasi"))]
 #[inline]
+pub(crate) fn setpgid(pid: Option<Pid>, pgid: Option<Pid>) -> io::Result<()> {
+    unsafe { ret(c::setpgid(Pid::as_raw(pid) as _, Pid::as_raw(pgid) as _)) }
+}
+
+#[cfg(not(target_os = "wasi"))]
+#[inline]
 #[must_use]
 pub(crate) fn getpgrp() -> Pid {
     unsafe {
@@ -214,9 +234,17 @@ pub(crate) fn sched_yield() {
 pub(crate) fn uname() -> RawUname {
     let mut uname = MaybeUninit::<RawUname>::uninit();
     unsafe {
-        ret(c::uname(uname.as_mut_ptr())).unwrap();
+        ret_infallible(c::uname(uname.as_mut_ptr()));
         uname.assume_init()
     }
+}
+
+#[cfg(not(target_os = "wasi"))]
+#[cfg(feature = "fs")]
+#[inline]
+pub(crate) fn umask(mask: Mode) -> Mode {
+    // TODO: Use `from_bits_retain` when we switch to bitflags 2.0.
+    unsafe { Mode::from_bits_truncate(c::umask(mask.bits() as _) as _) }
 }
 
 #[cfg(not(any(target_os = "fuchsia", target_os = "wasi")))]
@@ -394,6 +422,98 @@ pub(crate) fn _waitpid(
     }
 }
 
+#[cfg(not(any(target_os = "wasi", target_os = "redox", target_os = "openbsd")))]
+#[inline]
+pub(crate) fn waitid(id: WaitId<'_>, options: WaitidOptions) -> io::Result<Option<WaitidStatus>> {
+    // Get the id to wait on.
+    match id {
+        WaitId::All => _waitid_all(options),
+        WaitId::Pid(pid) => _waitid_pid(pid, options),
+        #[cfg(target_os = "linux")]
+        WaitId::PidFd(fd) => _waitid_pidfd(fd, options),
+        #[cfg(not(target_os = "linux"))]
+        WaitId::__EatLifetime(_) => unreachable!(),
+    }
+}
+
+#[cfg(not(any(target_os = "wasi", target_os = "redox", target_os = "openbsd")))]
+#[inline]
+fn _waitid_all(options: WaitidOptions) -> io::Result<Option<WaitidStatus>> {
+    // `waitid` can return successfully without initializing the struct (no
+    // children found when using `WNOHANG`)
+    let mut status = MaybeUninit::<c::siginfo_t>::zeroed();
+    unsafe {
+        ret(c::waitid(
+            c::P_ALL,
+            0,
+            status.as_mut_ptr(),
+            options.bits() as _,
+        ))?
+    };
+
+    Ok(unsafe { cvt_waitid_status(status) })
+}
+
+#[cfg(not(any(target_os = "wasi", target_os = "redox", target_os = "openbsd")))]
+#[inline]
+fn _waitid_pid(pid: Pid, options: WaitidOptions) -> io::Result<Option<WaitidStatus>> {
+    // `waitid` can return successfully without initializing the struct (no
+    // children found when using `WNOHANG`)
+    let mut status = MaybeUninit::<c::siginfo_t>::zeroed();
+    unsafe {
+        ret(c::waitid(
+            c::P_PID,
+            Pid::as_raw(Some(pid)) as _,
+            status.as_mut_ptr(),
+            options.bits() as _,
+        ))?
+    };
+
+    Ok(unsafe { cvt_waitid_status(status) })
+}
+
+#[cfg(target_os = "linux")]
+#[inline]
+fn _waitid_pidfd(fd: BorrowedFd<'_>, options: WaitidOptions) -> io::Result<Option<WaitidStatus>> {
+    // `waitid` can return successfully without initializing the struct (no
+    // children found when using `WNOHANG`)
+    let mut status = MaybeUninit::<c::siginfo_t>::zeroed();
+    unsafe {
+        ret(c::waitid(
+            c::P_PIDFD,
+            fd.as_raw_fd() as _,
+            status.as_mut_ptr(),
+            options.bits() as _,
+        ))?
+    };
+
+    Ok(unsafe { cvt_waitid_status(status) })
+}
+
+/// Convert a `siginfo_t` to a `WaitidStatus`.
+///
+/// # Safety
+///
+/// The caller must ensure that `status` is initialized and that `waitid`
+/// returned successfully.
+#[cfg(not(any(target_os = "wasi", target_os = "redox", target_os = "openbsd")))]
+#[inline]
+unsafe fn cvt_waitid_status(status: MaybeUninit<c::siginfo_t>) -> Option<WaitidStatus> {
+    let status = status.assume_init();
+    // `si_pid` is supposedly the better way to check that the struct has been
+    // filled, e.g. the Linux manpage says about the `WNOHANG` case “zero out
+    // the si_pid field before the call and check for a nonzero value”.
+    // But e.g. NetBSD/OpenBSD don't have it exposed in the libc crate for now,
+    // and some platforms don't have it at all. For simplicity, always check
+    // `si_signo`. We have zero-initialized the whole struct, and all kernels
+    // should set `SIGCHLD` here.
+    if status.si_signo == 0 {
+        None
+    } else {
+        Some(WaitidStatus(status))
+    }
+}
+
 #[inline]
 pub(crate) fn exit_group(code: c::c_int) -> ! {
     // `_exit` and `_Exit` are the same; it's just a matter of which ones
@@ -405,6 +525,16 @@ pub(crate) fn exit_group(code: c::c_int) -> ! {
     #[cfg(unix)]
     unsafe {
         c::_exit(code)
+    }
+}
+
+#[cfg(not(any(target_os = "redox", target_os = "wasi")))]
+#[inline]
+pub(crate) fn getsid(pid: Option<Pid>) -> io::Result<Pid> {
+    unsafe {
+        let pid = ret_pid_t(c::getsid(Pid::as_raw(pid) as _))?;
+        debug_assert_ne!(pid, 0);
+        Ok(Pid::from_raw_nonzero(RawNonZeroPid::new_unchecked(pid)))
     }
 }
 
@@ -441,6 +571,24 @@ pub(crate) fn kill_current_process_group(sig: Signal) -> io::Result<()> {
     unsafe { ret(c::kill(0, sig as i32)) }
 }
 
+#[cfg(not(target_os = "wasi"))]
+#[inline]
+pub(crate) fn test_kill_process(pid: Pid) -> io::Result<()> {
+    unsafe { ret(c::kill(pid.as_raw_nonzero().get(), 0)) }
+}
+
+#[cfg(not(target_os = "wasi"))]
+#[inline]
+pub(crate) fn test_kill_process_group(pid: Pid) -> io::Result<()> {
+    unsafe { ret(c::kill(pid.as_raw_nonzero().get().wrapping_neg(), 0)) }
+}
+
+#[cfg(not(target_os = "wasi"))]
+#[inline]
+pub(crate) fn test_kill_current_process_group() -> io::Result<()> {
+    unsafe { ret(c::kill(0, 0)) }
+}
+
 #[cfg(any(target_os = "android", target_os = "linux"))]
 #[inline]
 pub(crate) unsafe fn prctl(
@@ -453,7 +601,7 @@ pub(crate) unsafe fn prctl(
     ret_c_int(c::prctl(option, arg2, arg3, arg4, arg5))
 }
 
-#[cfg(any(target_os = "freebsd", target_os = "dragonfly"))]
+#[cfg(freebsdlike)]
 #[inline]
 pub(crate) unsafe fn procctl(
     idtype: c::idtype_t,
@@ -462,4 +610,41 @@ pub(crate) unsafe fn procctl(
     data: *mut c::c_void,
 ) -> io::Result<()> {
     ret(c::procctl(idtype, id, option, data))
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn pidfd_open(pid: Pid, flags: PidfdFlags) -> io::Result<OwnedFd> {
+    unsafe {
+        syscall_ret_owned_fd(c::syscall(
+            c::SYS_pidfd_open,
+            pid.as_raw_nonzero().get(),
+            flags.bits(),
+        ))
+    }
+}
+
+#[cfg(not(target_os = "wasi"))]
+pub(crate) fn getgroups(buf: &mut [Gid]) -> io::Result<usize> {
+    let len = buf.len().try_into().map_err(|_| io::Errno::NOMEM)?;
+
+    unsafe { ret_usize(c::getgroups(len, buf.as_mut_ptr().cast()) as isize) }
+}
+
+#[cfg(any(target_os = "android", target_os = "linux"))]
+pub(crate) fn sysinfo() -> Sysinfo {
+    let mut info = MaybeUninit::<Sysinfo>::uninit();
+    unsafe {
+        ret_infallible(c::sysinfo(info.as_mut_ptr()));
+        info.assume_init()
+    }
+}
+
+#[cfg(not(any(target_os = "emscripten", target_os = "redox", target_os = "wasi")))]
+pub(crate) fn sethostname(name: &[u8]) -> io::Result<()> {
+    unsafe {
+        ret(c::sethostname(
+            name.as_ptr().cast(),
+            name.len().try_into().map_err(|_| io::Errno::INVAL)?,
+        ))
+    }
 }

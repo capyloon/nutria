@@ -1,55 +1,55 @@
 //! # Chapter 5: Repetition
 //!
 //! In [`chapter_3`], we covered how to sequence different parsers into a tuple but sometimes you need to run a
-//! single parser many times into a [`Vec`].
+//! single parser multiple times, collecting the result into a [`Vec`].
 //!
-//! Let's take our `parse_digits` and collect a list of them with [`many0`]:
+//! Let's take our `parse_digits` and collect a list of them with [`repeat`]:
 //! ```rust
 //! # use winnow::IResult;
 //! # use winnow::Parser;
-//! # use winnow::bytes::take_while1;
-//! # use winnow::branch::dispatch;
-//! # use winnow::bytes::take;
+//! # use winnow::token::take_while;
+//! # use winnow::combinator::dispatch;
+//! # use winnow::token::take;
 //! # use winnow::combinator::fail;
 //! use winnow::combinator::opt;
-//! use winnow::multi::many0;
-//! use winnow::sequence::terminated;
+//! use winnow::combinator::repeat;
+//! use winnow::combinator::terminated;
 //!
 //! fn parse_list(input: &str) -> IResult<&str, Vec<usize>> {
-//!     many0(terminated(parse_digits, opt(','))).parse_next(input)
+//!     repeat(0.., terminated(parse_digits, opt(','))).parse_next(input)
 //! }
 //!
 //! // ...
 //! # fn parse_digits(input: &str) -> IResult<&str, usize> {
 //! #     dispatch!(take(2usize);
-//! #          "0b" => parse_bin_digits.map_res(|s| usize::from_str_radix(s, 2)),
-//! #          "0o" => parse_oct_digits.map_res(|s| usize::from_str_radix(s, 8)),
-//! #          "0d" => parse_dec_digits.map_res(|s| usize::from_str_radix(s, 10)),
-//! #          "0x" => parse_hex_digits.map_res(|s| usize::from_str_radix(s, 16)),
+//! #          "0b" => parse_bin_digits.try_map(|s| usize::from_str_radix(s, 2)),
+//! #          "0o" => parse_oct_digits.try_map(|s| usize::from_str_radix(s, 8)),
+//! #          "0d" => parse_dec_digits.try_map(|s| usize::from_str_radix(s, 10)),
+//! #          "0x" => parse_hex_digits.try_map(|s| usize::from_str_radix(s, 16)),
 //! #          _ => fail,
 //! #      ).parse_next(input)
 //! # }
 //! #
 //! # fn parse_bin_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_oct_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_dec_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_hex_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #         ('A'..='F'),
 //! #         ('a'..='f'),
@@ -73,11 +73,11 @@
 //! ```rust
 //! # use winnow::IResult;
 //! # use winnow::Parser;
-//! # use winnow::bytes::take_while1;
-//! # use winnow::branch::dispatch;
-//! # use winnow::bytes::take;
+//! # use winnow::token::take_while;
+//! # use winnow::combinator::dispatch;
+//! # use winnow::token::take;
 //! # use winnow::combinator::fail;
-//! use winnow::multi::separated0;
+//! use winnow::combinator::separated0;
 //!
 //! fn parse_list(input: &str) -> IResult<&str, Vec<usize>> {
 //!     separated0(parse_digits, ",").parse_next(input)
@@ -86,34 +86,34 @@
 //! // ...
 //! # fn parse_digits(input: &str) -> IResult<&str, usize> {
 //! #     dispatch!(take(2usize);
-//! #          "0b" => parse_bin_digits.map_res(|s| usize::from_str_radix(s, 2)),
-//! #          "0o" => parse_oct_digits.map_res(|s| usize::from_str_radix(s, 8)),
-//! #          "0d" => parse_dec_digits.map_res(|s| usize::from_str_radix(s, 10)),
-//! #          "0x" => parse_hex_digits.map_res(|s| usize::from_str_radix(s, 16)),
+//! #          "0b" => parse_bin_digits.try_map(|s| usize::from_str_radix(s, 2)),
+//! #          "0o" => parse_oct_digits.try_map(|s| usize::from_str_radix(s, 8)),
+//! #          "0d" => parse_dec_digits.try_map(|s| usize::from_str_radix(s, 10)),
+//! #          "0x" => parse_hex_digits.try_map(|s| usize::from_str_radix(s, 16)),
 //! #          _ => fail,
 //! #      ).parse_next(input)
 //! # }
 //! #
 //! # fn parse_bin_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_oct_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_dec_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_hex_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #         ('A'..='F'),
 //! #         ('a'..='f'),
@@ -132,17 +132,17 @@
 //! }
 //! ```
 //!
-//! If you look closely at [`many0`], it isn't collecting directly into a [`Vec`] but
+//! If you look closely at [`repeat`], it isn't collecting directly into a [`Vec`] but
 //! [`Accumulate`] to gather the results.  This let's us make more complex parsers than we did in
 //! [`chapter_2`] by accumulating the results into a `()` and [`recognize`][Parser::recognize]-ing the captured input:
 //! ```rust
 //! # use winnow::IResult;
 //! # use winnow::Parser;
-//! # use winnow::bytes::take_while1;
-//! # use winnow::branch::dispatch;
-//! # use winnow::bytes::take;
+//! # use winnow::token::take_while;
+//! # use winnow::combinator::dispatch;
+//! # use winnow::token::take;
 //! # use winnow::combinator::fail;
-//! # use winnow::multi::separated0;
+//! # use winnow::combinator::separated0;
 //! #
 //! fn recognize_list(input: &str) -> IResult<&str, &str> {
 //!     parse_list.recognize().parse_next(input)
@@ -155,34 +155,34 @@
 //! // ...
 //! # fn parse_digits(input: &str) -> IResult<&str, usize> {
 //! #     dispatch!(take(2usize);
-//! #          "0b" => parse_bin_digits.map_res(|s| usize::from_str_radix(s, 2)),
-//! #          "0o" => parse_oct_digits.map_res(|s| usize::from_str_radix(s, 8)),
-//! #          "0d" => parse_dec_digits.map_res(|s| usize::from_str_radix(s, 10)),
-//! #          "0x" => parse_hex_digits.map_res(|s| usize::from_str_radix(s, 16)),
+//! #          "0b" => parse_bin_digits.try_map(|s| usize::from_str_radix(s, 2)),
+//! #          "0o" => parse_oct_digits.try_map(|s| usize::from_str_radix(s, 8)),
+//! #          "0d" => parse_dec_digits.try_map(|s| usize::from_str_radix(s, 10)),
+//! #          "0x" => parse_hex_digits.try_map(|s| usize::from_str_radix(s, 16)),
 //! #          _ => fail,
 //! #      ).parse_next(input)
 //! # }
 //! #
 //! # fn parse_bin_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_oct_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_dec_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_hex_digits(input: &str) -> IResult<&str, &str> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #         ('A'..='F'),
 //! #         ('a'..='f'),
@@ -204,8 +204,8 @@
 #![allow(unused_imports)]
 use super::chapter_2;
 use super::chapter_3;
-use crate::multi::many0;
-use crate::multi::separated0;
+use crate::combinator::repeat;
+use crate::combinator::separated0;
 use crate::stream::Accumulate;
 use crate::Parser;
 use std::vec::Vec;

@@ -469,7 +469,6 @@ impl Iterator for Ipv4AddrRange {
         }
     }
 
-    #[allow(const_err)]
     #[allow(arithmetic_overflow)]
     fn count(self) -> usize {
         match self.start.partial_cmp(&self.end) {
@@ -558,7 +557,6 @@ impl Iterator for Ipv6AddrRange {
         }
     }
 
-    #[allow(const_err)]
     #[allow(arithmetic_overflow)]
     fn count(self) -> usize {
         let count = self.count_u128();

@@ -7,8 +7,7 @@ use core::arch::asm;
 
 pub(super) use super::super::msp430 as atomic;
 
-#[derive(Clone, Copy)]
-pub(super) struct State(u16);
+pub(super) type State = u16;
 
 /// Disables interrupts and returns the previous interrupt state.
 #[inline]
@@ -19,7 +18,7 @@ pub(super) fn disable() -> State {
     unsafe {
         // Do not use `nomem` and `readonly` because prevent subsequent memory accesses from being reordered before interrupts are disabled.
         // Do not use `preserves_flags` because DINT modifies the GIE (global interrupt enable) bit of the status register.
-        // Refs: http://mspgcc.sourceforge.net/manual/x951.html
+        // Refs: https://mspgcc.sourceforge.net/manual/x951.html
         #[cfg(not(portable_atomic_no_asm))]
         asm!(
             "mov R2, {0}",
@@ -33,12 +32,16 @@ pub(super) fn disable() -> State {
             llvm_asm!("dint { nop" ::: "memory" : "volatile");
         }
     }
-    State(r)
+    r
 }
 
 /// Restores the previous interrupt state.
+///
+/// # Safety
+///
+/// The state must be the one retrieved by the previous `disable`.
 #[inline]
-pub(super) unsafe fn restore(State(r): State) {
+pub(super) unsafe fn restore(r: State) {
     // SAFETY: the caller must guarantee that the state was retrieved by the previous `disable`,
     unsafe {
         // This clobbers the entire status register, but we never explicitly modify

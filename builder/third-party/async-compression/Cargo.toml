@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "async-compression"
-version = "0.3.15"
+version = "0.4.0"
 authors = [
     "Wim Looman <wim@nemo157.com>",
     "Allen Bui <fairingrey@gmail.com>",
@@ -33,7 +33,7 @@ categories = [
     "asynchronous",
 ]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/Nemo157/async-compression"
+repository = "https://github.com/Nullus157/async-compression"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -43,10 +43,10 @@ rustdoc-args = [
 ]
 
 [[example]]
-name = "zlib_tokio_02_write"
+name = "zlib_tokio_write"
 required-features = [
     "zlib",
-    "tokio-02",
+    "tokio",
 ]
 
 [[example]]
@@ -54,7 +54,7 @@ name = "zstd_gzip"
 required-features = [
     "zstd",
     "gzip",
-    "tokio-02",
+    "tokio",
 ]
 
 [[test]]
@@ -90,18 +90,13 @@ name = "zstd"
 required-features = ["zstd"]
 
 [dependencies.brotli]
-version = "3.3.0"
+version = "3.3"
 features = ["std"]
 optional = true
 default-features = false
 
-[dependencies.bytes-05]
-version = "0.5.0"
-optional = true
-package = "bytes"
-
 [dependencies.bzip2]
-version = "0.4.1"
+version = "0.4.4"
 optional = true
 
 [dependencies.flate2]
@@ -109,130 +104,40 @@ version = "1.0.11"
 optional = true
 
 [dependencies.futures-core]
-version = "0.3.0"
+version = "0.3"
 default-features = false
 
 [dependencies.futures-io]
-version = "0.3.0"
+version = "0.3"
 features = ["std"]
 optional = true
 default-features = false
 
 [dependencies.libzstd]
-version = "0.11.1"
+version = "0.12"
 optional = true
 default-features = false
 package = "zstd"
 
 [dependencies.memchr]
-version = "2.2.1"
+version = "2"
 
 [dependencies.pin-project-lite]
-version = "0.2.0"
+version = "0.2"
 
 [dependencies.tokio]
-version = "1.0.0"
+version = "1.24.2"
 optional = true
 default-features = false
-
-[dependencies.tokio-02]
-version = "0.2.21"
-optional = true
-default-features = false
-package = "tokio"
-
-[dependencies.tokio-03]
-version = "0.3.0"
-optional = true
-default-features = false
-package = "tokio"
 
 [dependencies.xz2]
 version = "0.1.6"
 optional = true
 
 [dependencies.zstd-safe]
-version = "5.0.1"
+version = "6"
 optional = true
 default-features = false
-
-[dev-dependencies.bytes]
-version = "1.0.0"
-
-[dev-dependencies.bytes-05]
-version = "0.5.0"
-package = "bytes"
-
-[dev-dependencies.bytes-06]
-version = "0.6.0"
-package = "bytes"
-
-[dev-dependencies.futures]
-version = "0.3.5"
-
-[dev-dependencies.futures-test]
-version = "0.3.5"
-
-[dev-dependencies.ntest]
-version = "0.8.1"
-
-[dev-dependencies.proptest]
-version = "1.0.0"
-
-[dev-dependencies.proptest-derive]
-version = "0.3.0"
-
-[dev-dependencies.rand]
-version = "0.8.5"
-
-[dev-dependencies.tokio]
-version = "1.0.0"
-features = ["io-util"]
-default-features = false
-
-[dev-dependencies.tokio-02]
-version = "0.2.21"
-features = [
-    "io-util",
-    "stream",
-    "macros",
-    "io-std",
-]
-default-features = false
-package = "tokio"
-
-[dev-dependencies.tokio-03]
-version = "0.3.0"
-features = [
-    "io-util",
-    "stream",
-]
-default-features = false
-package = "tokio"
-
-[dev-dependencies.tokio-util-03]
-version = "0.3.0"
-features = ["codec"]
-default-features = false
-package = "tokio-util"
-
-[dev-dependencies.tokio-util-04]
-version = "0.4.0"
-features = ["io"]
-default-features = false
-package = "tokio-util"
-
-[dev-dependencies.tokio-util-05]
-version = "0.5.0"
-features = ["io"]
-default-features = false
-package = "tokio-util"
-
-[dev-dependencies.tokio-util-06]
-version = "0.6.0"
-features = ["io"]
-default-features = false
-package = "tokio-util"
 
 [features]
 all = [
@@ -251,18 +156,11 @@ all-algorithms = [
 ]
 all-implementations = [
     "futures-io",
-    "stream",
-    "tokio-02",
-    "tokio-03",
     "tokio",
 ]
-default = []
 deflate = ["flate2"]
-futures-bufread = ["futures-io"]
-futures-write = ["futures-io"]
 gzip = ["flate2"]
 lzma = ["xz2"]
-stream = ["bytes-05"]
 xz = ["xz2"]
 zlib = ["flate2"]
 zstd = [

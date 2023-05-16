@@ -798,6 +798,12 @@ s_no_extra_traits! {
         #[cfg(not(libc_union))]
         pub ifr_ifru: ::sockaddr,
     }
+
+    pub struct hwtstamp_config {
+        pub flags: ::c_int,
+        pub tx_type: ::c_int,
+        pub rx_filter: ::c_int,
+    }
 }
 
 s_no_extra_traits! {
@@ -1219,6 +1225,31 @@ cfg_if! {
                     .field("ifr_name", &self.ifr_name)
                     .field("ifr_ifru", &self.ifr_ifru)
                     .finish()
+            }
+        }
+
+        impl ::fmt::Debug for hwtstamp_config {
+            fn fmt(&self, f: &mut ::fmt::Formatter) -> ::fmt::Result {
+                f.debug_struct("hwtstamp_config")
+                    .field("flags", &self.flags)
+                    .field("tx_type", &self.tx_type)
+                    .field("rx_filter", &self.rx_filter)
+                    .finish()
+            }
+        }
+        impl PartialEq for hwtstamp_config {
+            fn eq(&self, other: &hwtstamp_config) -> bool {
+                self.flags == other.flags &&
+                self.tx_type == other.tx_type &&
+                self.rx_filter == other.rx_filter
+            }
+        }
+        impl Eq for hwtstamp_config {}
+        impl ::hash::Hash for hwtstamp_config {
+            fn hash<H: ::hash::Hasher>(&self, state: &mut H) {
+                self.flags.hash(state);
+                self.tx_type.hash(state);
+                self.rx_filter.hash(state);
             }
         }
     }
@@ -1902,8 +1933,6 @@ pub const CLONE_PIDFD: ::c_int = 0x1000;
 // netinet/in.h
 // NOTE: These are in addition to the constants defined in src/unix/mod.rs
 
-/// Multipath TCP
-pub const IPPROTO_MPTCP: ::c_int = 262;
 #[deprecated(
     since = "0.2.80",
     note = "This value was increased in the newer kernel \
@@ -2771,6 +2800,8 @@ pub const SIOCGRARP: ::c_ulong = 0x00008961;
 pub const SIOCSRARP: ::c_ulong = 0x00008962;
 pub const SIOCGIFMAP: ::c_ulong = 0x00008970;
 pub const SIOCSIFMAP: ::c_ulong = 0x00008971;
+pub const SIOCSHWTSTAMP: ::c_ulong = 0x000089b0;
+pub const SIOCGHWTSTAMP: ::c_ulong = 0x000089b1;
 
 pub const IPTOS_TOS_MASK: u8 = 0x1E;
 pub const IPTOS_PREC_MASK: u8 = 0xE0;
@@ -3042,6 +3073,14 @@ pub const ARPD_LOOKUP: ::c_ushort = 0x02;
 pub const ARPD_FLUSH: ::c_ushort = 0x03;
 pub const ATF_MAGIC: ::c_int = 0x80;
 
+pub const RTEXT_FILTER_VF: ::c_int = 1 << 0;
+pub const RTEXT_FILTER_BRVLAN: ::c_int = 1 << 1;
+pub const RTEXT_FILTER_BRVLAN_COMPRESSED: ::c_int = 1 << 2;
+pub const RTEXT_FILTER_SKIP_STATS: ::c_int = 1 << 3;
+pub const RTEXT_FILTER_MRP: ::c_int = 1 << 4;
+pub const RTEXT_FILTER_CFM_CONFIG: ::c_int = 1 << 5;
+pub const RTEXT_FILTER_CFM_STATUS: ::c_int = 1 << 6;
+
 // userspace compat definitions for RTNLGRP_*
 pub const RTMGRP_LINK: ::c_int = 0x00001;
 pub const RTMGRP_NOTIFY: ::c_int = 0x00002;
@@ -3121,6 +3160,28 @@ pub const SOF_TIMESTAMPING_OPT_TX_SWHW: ::c_uint = 1 << 14;
 pub const SOF_TXTIME_DEADLINE_MODE: u32 = 1 << 0;
 pub const SOF_TXTIME_REPORT_ERRORS: u32 = 1 << 1;
 
+pub const HWTSTAMP_TX_OFF: ::c_uint = 0;
+pub const HWTSTAMP_TX_ON: ::c_uint = 1;
+pub const HWTSTAMP_TX_ONESTEP_SYNC: ::c_uint = 2;
+pub const HWTSTAMP_TX_ONESTEP_P2P: ::c_uint = 3;
+
+pub const HWTSTAMP_FILTER_NONE: ::c_uint = 0;
+pub const HWTSTAMP_FILTER_ALL: ::c_uint = 1;
+pub const HWTSTAMP_FILTER_SOME: ::c_uint = 2;
+pub const HWTSTAMP_FILTER_PTP_V1_L4_EVENT: ::c_uint = 3;
+pub const HWTSTAMP_FILTER_PTP_V1_L4_SYNC: ::c_uint = 4;
+pub const HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ: ::c_uint = 5;
+pub const HWTSTAMP_FILTER_PTP_V2_L4_EVENT: ::c_uint = 6;
+pub const HWTSTAMP_FILTER_PTP_V2_L4_SYNC: ::c_uint = 7;
+pub const HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ: ::c_uint = 8;
+pub const HWTSTAMP_FILTER_PTP_V2_L2_EVENT: ::c_uint = 9;
+pub const HWTSTAMP_FILTER_PTP_V2_L2_SYNC: ::c_uint = 10;
+pub const HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ: ::c_uint = 11;
+pub const HWTSTAMP_FILTER_PTP_V2_EVENT: ::c_uint = 12;
+pub const HWTSTAMP_FILTER_PTP_V2_SYNC: ::c_uint = 13;
+pub const HWTSTAMP_FILTER_PTP_V2_DELAY_REQ: ::c_uint = 14;
+pub const HWTSTAMP_FILTER_NTP_ALL: ::c_uint = 15;
+
 // linux/if_alg.h
 pub const ALG_SET_KEY: ::c_int = 1;
 pub const ALG_SET_IV: ::c_int = 2;
@@ -3130,6 +3191,19 @@ pub const ALG_SET_AEAD_AUTHSIZE: ::c_int = 5;
 
 pub const ALG_OP_DECRYPT: ::c_int = 0;
 pub const ALG_OP_ENCRYPT: ::c_int = 1;
+
+// include/uapi/linux/if.h
+pub const IF_OPER_UNKNOWN: ::c_int = 0;
+pub const IF_OPER_NOTPRESENT: ::c_int = 1;
+pub const IF_OPER_DOWN: ::c_int = 2;
+pub const IF_OPER_LOWERLAYERDOWN: ::c_int = 3;
+pub const IF_OPER_TESTING: ::c_int = 4;
+pub const IF_OPER_DORMANT: ::c_int = 5;
+pub const IF_OPER_UP: ::c_int = 6;
+
+pub const IF_LINK_MODE_DEFAULT: ::c_int = 0;
+pub const IF_LINK_MODE_DORMANT: ::c_int = 1;
+pub const IF_LINK_MODE_TESTING: ::c_int = 2;
 
 // include/uapi/linux/udp.h
 pub const UDP_CORK: ::c_int = 1;
@@ -3550,6 +3624,14 @@ pub fn FUTEX_OP(op: ::c_int, oparg: ::c_int, cmp: ::c_int, cmparg: ::c_int) -> :
     ((op & 0xf) << 28) | ((cmp & 0xf) << 24) | ((oparg & 0xfff) << 12) | (cmparg & 0xfff)
 }
 
+// linux/kexec.h
+pub const KEXEC_ON_CRASH: ::c_int = 0x00000001;
+pub const KEXEC_PRESERVE_CONTEXT: ::c_int = 0x00000002;
+pub const KEXEC_ARCH_MASK: ::c_int = 0xffff0000;
+pub const KEXEC_FILE_UNLOAD: ::c_int = 0x00000001;
+pub const KEXEC_FILE_ON_CRASH: ::c_int = 0x00000002;
+pub const KEXEC_FILE_NO_INITRAMFS: ::c_int = 0x00000004;
+
 // linux/reboot.h
 pub const LINUX_REBOOT_MAGIC1: ::c_int = 0xfee1dead;
 pub const LINUX_REBOOT_MAGIC2: ::c_int = 672274793;
@@ -3799,6 +3881,27 @@ pub const SCTP_SENDALL: ::c_int = 1 << 6;
 pub const SCTP_PR_SCTP_ALL: ::c_int = 1 << 7;
 pub const SCTP_NOTIFICATION: ::c_int = MSG_NOTIFICATION;
 pub const SCTP_EOF: ::c_int = ::MSG_FIN;
+
+/* DCCP socket options */
+pub const DCCP_SOCKOPT_PACKET_SIZE: ::c_int = 1;
+pub const DCCP_SOCKOPT_SERVICE: ::c_int = 2;
+pub const DCCP_SOCKOPT_CHANGE_L: ::c_int = 3;
+pub const DCCP_SOCKOPT_CHANGE_R: ::c_int = 4;
+pub const DCCP_SOCKOPT_GET_CUR_MPS: ::c_int = 5;
+pub const DCCP_SOCKOPT_SERVER_TIMEWAIT: ::c_int = 6;
+pub const DCCP_SOCKOPT_SEND_CSCOV: ::c_int = 10;
+pub const DCCP_SOCKOPT_RECV_CSCOV: ::c_int = 11;
+pub const DCCP_SOCKOPT_AVAILABLE_CCIDS: ::c_int = 12;
+pub const DCCP_SOCKOPT_CCID: ::c_int = 13;
+pub const DCCP_SOCKOPT_TX_CCID: ::c_int = 14;
+pub const DCCP_SOCKOPT_RX_CCID: ::c_int = 15;
+pub const DCCP_SOCKOPT_QPOLICY_ID: ::c_int = 16;
+pub const DCCP_SOCKOPT_QPOLICY_TXQLEN: ::c_int = 17;
+pub const DCCP_SOCKOPT_CCID_RX_INFO: ::c_int = 128;
+pub const DCCP_SOCKOPT_CCID_TX_INFO: ::c_int = 192;
+
+/// maximum number of services provided on the same listening port
+pub const DCCP_SERVICE_LIST_MAX_LEN: ::c_int = 32;
 
 f! {
     pub fn NLA_ALIGN(len: ::c_int) -> ::c_int {

@@ -1464,7 +1464,15 @@ pub const ENOATTR: ::c_int = 93;
 pub const EMULTIHOP: ::c_int = 94;
 pub const ENOLINK: ::c_int = 95;
 pub const EPROTO: ::c_int = 96;
-pub const ELAST: ::c_int = 96;
+pub const EOWNERDEAD: ::c_int = 97;
+pub const ENOTRECOVERABLE: ::c_int = 98;
+#[deprecated(
+    since = "0.2.143",
+    note = "This value will always match the highest defined error number \
+            and thus is not stable. \
+            See #3040 for more info."
+)]
+pub const ELAST: ::c_int = 98;
 
 pub const F_DUPFD_CLOEXEC: ::c_int = 12;
 pub const F_CLOSEM: ::c_int = 10;
@@ -1986,6 +1994,13 @@ pub const EV_ERROR: u32 = 0x4000;
 pub const EV_EOF: u32 = 0x8000;
 pub const EV_SYSFLAGS: u32 = 0xf000;
 
+pub const NOTE_TRIGGER: u32 = 0x01000000;
+pub const NOTE_FFNOP: u32 = 0x00000000;
+pub const NOTE_FFAND: u32 = 0x40000000;
+pub const NOTE_FFOR: u32 = 0x80000000;
+pub const NOTE_FFCOPY: u32 = 0xc0000000;
+pub const NOTE_FFCTRLMASK: u32 = 0xc0000000;
+pub const NOTE_FFLAGSMASK: u32 = 0x00ffffff;
 pub const NOTE_LOWAT: u32 = 0x00000001;
 pub const NOTE_DELETE: u32 = 0x00000001;
 pub const NOTE_WRITE: u32 = 0x00000002;
@@ -2213,6 +2228,11 @@ pub const WCONTINUED: ::c_int = 0x00000010;
 pub const WEXITED: ::c_int = 0x000000020;
 pub const WNOWAIT: ::c_int = 0x00010000;
 
+pub const WALTSIG: ::c_int = 0x00000004;
+pub const WALLSIG: ::c_int = 0x00000008;
+pub const WTRAPPED: ::c_int = 0x00000040;
+pub const WNOZOMBIE: ::c_int = 0x00020000;
+
 pub const P_ALL: idtype_t = 0;
 pub const P_PID: idtype_t = 1;
 pub const P_PGID: idtype_t = 4;
@@ -2377,6 +2397,19 @@ pub const GRND_NONBLOCK: ::c_uint = 0x1;
 pub const GRND_RANDOM: ::c_uint = 0x2;
 pub const GRND_INSECURE: ::c_uint = 0x4;
 
+cfg_if! {
+
+    if #[cfg(libc_const_extern_fn)] {
+        pub const fn MAP_ALIGNED(alignment: ::c_int) -> ::c_int {
+            alignment << MAP_ALIGNMENT_SHIFT
+        }
+    } else {
+        pub fn MAP_ALIGNED(alignment: ::c_int) -> ::c_int {
+            alignment << MAP_ALIGNMENT_SHIFT
+        }
+    }
+}
+
 const_fn! {
     {const} fn _ALIGN(p: usize) -> usize {
         (p + _ALIGNBYTES) & !_ALIGNBYTES
@@ -2389,7 +2422,7 @@ f! {
             .offset(_ALIGN(::mem::size_of::<::cmsghdr>()) as isize)
     }
 
-    pub fn CMSG_LEN(length: ::c_uint) -> ::c_uint {
+    pub {const} fn CMSG_LEN(length: ::c_uint) -> ::c_uint {
         _ALIGN(::mem::size_of::<::cmsghdr>()) as ::c_uint + length
     }
 
@@ -2439,6 +2472,17 @@ f! {
     pub fn PROT_MPROTECT_EXTRACT(x: ::c_int) -> ::c_int {
         (x >> 3) & 0x7
     }
+
+    pub fn major(dev: ::dev_t) -> ::c_int {
+        (((dev as u32) & 0x000fff00) >>  8) as ::c_int
+    }
+
+    pub fn minor(dev: ::dev_t) -> ::c_int {
+        let mut res = 0;
+        res |= ((dev as u32) & 0xfff00000) >> 12;
+        res |= (dev as u32) & 0x000000ff;
+        res as ::c_int
+    }
 }
 
 safe_f! {
@@ -2480,31 +2524,7 @@ extern "C" {
     ) -> ::c_int;
 
     pub fn reallocarr(ptr: *mut ::c_void, number: ::size_t, size: ::size_t) -> ::c_int;
-}
 
-#[link(name = "rt")]
-extern "C" {
-    pub fn aio_read(aiocbp: *mut aiocb) -> ::c_int;
-    pub fn aio_write(aiocbp: *mut aiocb) -> ::c_int;
-    pub fn aio_fsync(op: ::c_int, aiocbp: *mut aiocb) -> ::c_int;
-    pub fn aio_error(aiocbp: *const aiocb) -> ::c_int;
-    pub fn aio_return(aiocbp: *mut aiocb) -> ::ssize_t;
-    #[link_name = "__aio_suspend50"]
-    pub fn aio_suspend(
-        aiocb_list: *const *const aiocb,
-        nitems: ::c_int,
-        timeout: *const ::timespec,
-    ) -> ::c_int;
-    pub fn aio_cancel(fd: ::c_int, aiocbp: *mut aiocb) -> ::c_int;
-    pub fn lio_listio(
-        mode: ::c_int,
-        aiocb_list: *const *mut aiocb,
-        nitems: ::c_int,
-        sevp: *mut sigevent,
-    ) -> ::c_int;
-}
-
-extern "C" {
     pub fn chflags(path: *const ::c_char, flags: ::c_ulong) -> ::c_int;
     pub fn fchflags(fd: ::c_int, flags: ::c_ulong) -> ::c_int;
     pub fn lchflags(path: *const ::c_char, flags: ::c_ulong) -> ::c_int;
@@ -2932,6 +2952,28 @@ extern "C" {
         newfd: ::c_int,
     ) -> ::c_int;
     pub fn getrandom(buf: *mut ::c_void, buflen: ::size_t, flags: ::c_uint) -> ::ssize_t;
+}
+
+#[link(name = "rt")]
+extern "C" {
+    pub fn aio_read(aiocbp: *mut aiocb) -> ::c_int;
+    pub fn aio_write(aiocbp: *mut aiocb) -> ::c_int;
+    pub fn aio_fsync(op: ::c_int, aiocbp: *mut aiocb) -> ::c_int;
+    pub fn aio_error(aiocbp: *const aiocb) -> ::c_int;
+    pub fn aio_return(aiocbp: *mut aiocb) -> ::ssize_t;
+    #[link_name = "__aio_suspend50"]
+    pub fn aio_suspend(
+        aiocb_list: *const *const aiocb,
+        nitems: ::c_int,
+        timeout: *const ::timespec,
+    ) -> ::c_int;
+    pub fn aio_cancel(fd: ::c_int, aiocbp: *mut aiocb) -> ::c_int;
+    pub fn lio_listio(
+        mode: ::c_int,
+        aiocb_list: *const *mut aiocb,
+        nitems: ::c_int,
+        sevp: *mut sigevent,
+    ) -> ::c_int;
 }
 
 #[link(name = "util")]

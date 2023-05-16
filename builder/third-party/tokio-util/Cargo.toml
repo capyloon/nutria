@@ -10,10 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
-rust-version = "1.49"
+edition = "2021"
+rust-version = "1.56"
 name = "tokio-util"
-version = "0.7.7"
+version = "0.7.8"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = """
 Additional utilities for working with Tokio.
@@ -23,16 +23,17 @@ readme = "README.md"
 categories = ["asynchronous"]
 license = "MIT"
 repository = "https://github.com/tokio-rs/tokio"
+resolver = "1"
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = [
+rustc-args = [
     "--cfg",
     "docsrs",
     "--cfg",
     "tokio_unstable",
 ]
-rustc-args = [
+rustdoc-args = [
     "--cfg",
     "docsrs",
     "--cfg",

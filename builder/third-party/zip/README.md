@@ -7,9 +7,6 @@ zip-rs
 
 [Documentation](https://docs.rs/zip/0.6.3/zip/)
 
-> PSA: This version of the ZIP crate will not gain any new features,
->      and will only be updated if major security issues are found.
-
 Info
 ----
 
@@ -35,14 +32,14 @@ With all default features:
 
 ```toml
 [dependencies]
-zip = "0.6.4"
+zip = "0.6"
 ```
 
 Without the default features:
 
 ```toml
 [dependencies]
-zip = { version = "0.6.4", default-features = false }
+zip = { version = "0.6.6", default-features = false }
 ```
 
 The features available are:

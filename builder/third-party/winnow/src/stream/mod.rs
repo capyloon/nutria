@@ -13,9 +13,6 @@ use core::num::NonZeroUsize;
 
 use crate::error::{ErrMode, ErrorKind, Needed, ParseError};
 use crate::lib::std::iter::{Cloned, Enumerate};
-use crate::lib::std::ops::{
-    Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
-};
 use crate::lib::std::slice::Iter;
 use crate::lib::std::str::from_utf8;
 use crate::lib::std::str::CharIndices;
@@ -145,7 +142,7 @@ impl<I: crate::lib::std::fmt::Display> crate::lib::std::fmt::Display for Located
 /// # use std::cell::Cell;
 /// # use winnow::prelude::*;
 /// # use winnow::stream::Stateful;
-/// # use winnow::character::alpha1;
+/// # use winnow::ascii::alpha1;
 /// # type Error = ();
 ///
 /// #[derive(Clone, Debug)]
@@ -221,15 +218,15 @@ impl<I: crate::lib::std::fmt::Display, S> crate::lib::std::fmt::Display for Stat
 /// Here is how it works in practice:
 ///
 /// ```rust
-/// # use winnow::{IResult, error::ErrMode, error::Needed, error::{Error, ErrorKind}, bytes, character, stream::Partial};
+/// # use winnow::{IResult, error::ErrMode, error::Needed, error::{Error, ErrorKind}, token, ascii, stream::Partial};
 /// # use winnow::prelude::*;
 ///
 /// fn take_partial(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
-///   bytes::take(4u8).parse_next(i)
+///   token::take(4u8).parse_next(i)
 /// }
 ///
 /// fn take_complete(i: &[u8]) -> IResult<&[u8], &[u8]> {
-///   bytes::take(4u8).parse_next(i)
+///   token::take(4u8).parse_next(i)
 /// }
 ///
 /// // both parsers will take 4 bytes as expected
@@ -245,11 +242,11 @@ impl<I: crate::lib::std::fmt::Display, S> crate::lib::std::fmt::Display for Stat
 ///
 /// // the alpha0 function recognizes 0 or more alphabetic characters
 /// fn alpha0_partial(i: Partial<&str>) -> IResult<Partial<&str>, &str> {
-///   character::alpha0(i)
+///   ascii::alpha0(i)
 /// }
 ///
 /// fn alpha0_complete(i: &str) -> IResult<&str, &str> {
-///   character::alpha0(i)
+///   ascii::alpha0(i)
 /// }
 ///
 /// // if there's a clear limit to the recognized characters, both parsers work the same way
@@ -708,7 +705,7 @@ where
     }
 }
 
-/// Iterator for [bit][crate::bits] stream (`(I, usize)`)
+/// Iterator for [bit][crate::binary::bits] stream (`(I, usize)`)
 pub struct BitOffsets<I> {
     i: (I, usize),
     o: usize,
@@ -1747,6 +1744,121 @@ where
     }
 }
 
+/// A range bounded inclusively for counting parses performed
+#[derive(PartialEq, Eq)]
+pub struct Range {
+    pub(crate) start_inclusive: usize,
+    pub(crate) end_inclusive: Option<usize>,
+}
+
+impl Range {
+    #[inline(always)]
+    fn raw(start_inclusive: usize, end_inclusive: Option<usize>) -> Self {
+        Self {
+            start_inclusive,
+            end_inclusive,
+        }
+    }
+}
+
+impl crate::lib::std::ops::RangeBounds<usize> for Range {
+    fn start_bound(&self) -> crate::lib::std::ops::Bound<&usize> {
+        crate::lib::std::ops::Bound::Included(&self.start_inclusive)
+    }
+
+    fn end_bound(&self) -> crate::lib::std::ops::Bound<&usize> {
+        if let Some(end_inclusive) = &self.end_inclusive {
+            crate::lib::std::ops::Bound::Included(end_inclusive)
+        } else {
+            crate::lib::std::ops::Bound::Unbounded
+        }
+    }
+}
+
+impl From<usize> for Range {
+    #[inline(always)]
+    fn from(fixed: usize) -> Self {
+        (fixed..=fixed).into()
+    }
+}
+
+impl From<crate::lib::std::ops::Range<usize>> for Range {
+    #[inline(always)]
+    fn from(range: crate::lib::std::ops::Range<usize>) -> Self {
+        let start_inclusive = range.start;
+        let end_inclusive = Some(range.end.saturating_sub(1));
+        Self::raw(start_inclusive, end_inclusive)
+    }
+}
+
+impl From<crate::lib::std::ops::RangeFull> for Range {
+    #[inline(always)]
+    fn from(_: crate::lib::std::ops::RangeFull) -> Self {
+        let start_inclusive = 0;
+        let end_inclusive = None;
+        Self::raw(start_inclusive, end_inclusive)
+    }
+}
+
+impl From<crate::lib::std::ops::RangeFrom<usize>> for Range {
+    #[inline(always)]
+    fn from(range: crate::lib::std::ops::RangeFrom<usize>) -> Self {
+        let start_inclusive = range.start;
+        let end_inclusive = None;
+        Self::raw(start_inclusive, end_inclusive)
+    }
+}
+
+impl From<crate::lib::std::ops::RangeTo<usize>> for Range {
+    #[inline(always)]
+    fn from(range: crate::lib::std::ops::RangeTo<usize>) -> Self {
+        let start_inclusive = 0;
+        let end_inclusive = Some(range.end.saturating_sub(1));
+        Self::raw(start_inclusive, end_inclusive)
+    }
+}
+
+impl From<crate::lib::std::ops::RangeInclusive<usize>> for Range {
+    #[inline(always)]
+    fn from(range: crate::lib::std::ops::RangeInclusive<usize>) -> Self {
+        let start_inclusive = *range.start();
+        let end_inclusive = Some(*range.end());
+        Self::raw(start_inclusive, end_inclusive)
+    }
+}
+
+impl From<crate::lib::std::ops::RangeToInclusive<usize>> for Range {
+    #[inline(always)]
+    fn from(range: crate::lib::std::ops::RangeToInclusive<usize>) -> Self {
+        let start_inclusive = 0;
+        let end_inclusive = Some(range.end);
+        Self::raw(start_inclusive, end_inclusive)
+    }
+}
+
+impl crate::lib::std::fmt::Display for Range {
+    fn fmt(&self, f: &mut crate::lib::std::fmt::Formatter<'_>) -> crate::lib::std::fmt::Result {
+        self.start_inclusive.fmt(f)?;
+        match self.end_inclusive {
+            Some(e) if e == self.start_inclusive => {}
+            Some(e) => {
+                "..=".fmt(f)?;
+                e.fmt(f)?;
+            }
+            None => {
+                "..".fmt(f)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl crate::lib::std::fmt::Debug for Range {
+    fn fmt(&self, f: &mut crate::lib::std::fmt::Formatter<'_>) -> crate::lib::std::fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
 /// Abstracts something which can extend an `Extend`.
 /// Used to build modified input slices in `escaped_transform`
 pub trait Accumulate<T>: Sized {
@@ -2140,9 +2252,9 @@ impl<'a> AsChar for &'a char {
 /// ```
 /// # use winnow::prelude::*;
 /// # use winnow::{error::ErrMode, error::ErrorKind, error::Error};
-/// # use winnow::bytes::take_while1;
+/// # use winnow::token::take_while;
 /// fn hex_digit1(input: &str) -> IResult<&str, &str> {
-///     take_while1(('a'..='f', 'A'..='F', '0'..='9')).parse_next(input)
+///     take_while(1.., ('a'..='f', 'A'..='F', '0'..='9')).parse_next(input)
 /// }
 ///
 /// assert_eq!(hex_digit1("21cZ"), Ok(("Z", "21c")));
@@ -2196,7 +2308,7 @@ impl<C: AsChar, F: Fn(C) -> bool> ContainsToken<C> for F {
     }
 }
 
-impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for Range<C2> {
+impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for crate::lib::std::ops::Range<C2> {
     #[inline(always)]
     fn contains_token(&self, token: C1) -> bool {
         let start = self.start.clone().as_char();
@@ -2205,7 +2317,9 @@ impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for Range<C2> {
     }
 }
 
-impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for RangeInclusive<C2> {
+impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1>
+    for crate::lib::std::ops::RangeInclusive<C2>
+{
     #[inline(always)]
     fn contains_token(&self, token: C1) -> bool {
         let start = self.start().clone().as_char();
@@ -2214,7 +2328,7 @@ impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for RangeInclusive<C2> {
     }
 }
 
-impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for RangeFrom<C2> {
+impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for crate::lib::std::ops::RangeFrom<C2> {
     #[inline(always)]
     fn contains_token(&self, token: C1) -> bool {
         let start = self.start.clone().as_char();
@@ -2222,7 +2336,7 @@ impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for RangeFrom<C2> {
     }
 }
 
-impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for RangeTo<C2> {
+impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for crate::lib::std::ops::RangeTo<C2> {
     #[inline(always)]
     fn contains_token(&self, token: C1) -> bool {
         let end = self.end.clone().as_char();
@@ -2230,7 +2344,9 @@ impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for RangeTo<C2> {
     }
 }
 
-impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for RangeToInclusive<C2> {
+impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1>
+    for crate::lib::std::ops::RangeToInclusive<C2>
+{
     #[inline(always)]
     fn contains_token(&self, token: C1) -> bool {
         let end = self.end.clone().as_char();
@@ -2238,7 +2354,7 @@ impl<C1: AsChar, C2: AsChar + Clone> ContainsToken<C1> for RangeToInclusive<C2> 
     }
 }
 
-impl<C1: AsChar> ContainsToken<C1> for RangeFull {
+impl<C1: AsChar> ContainsToken<C1> for crate::lib::std::ops::RangeFull {
     #[inline(always)]
     fn contains_token(&self, _token: C1) -> bool {
         true

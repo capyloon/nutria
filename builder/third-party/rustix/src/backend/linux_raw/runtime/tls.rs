@@ -1,3 +1,9 @@
+//! TLS utilities.
+//!
+//! # Safety
+//!
+//! This file contains code that reads the raw phdr array pointed to by the
+//! kernel-provided AUXV values.
 #![allow(unsafe_code)]
 
 use super::super::c;
@@ -18,12 +24,12 @@ pub(crate) fn startup_tls_info() -> StartupTlsInfo {
 
     let phdrs = exe_phdrs_slice();
 
-    // Safety: We assume the phdr array pointer and length the kernel provided
+    // SAFETY: We assume the phdr array pointer and length the kernel provided
     // to the process describe a valid phdr array.
     unsafe {
         for phdr in phdrs {
             match phdr.p_type {
-                PT_PHDR => base = phdrs.as_ptr().cast::<u8>().offset(-(phdr.p_vaddr as isize)),
+                PT_PHDR => base = phdrs.as_ptr().cast::<u8>().sub(phdr.p_vaddr),
                 PT_TLS => tls_phdr = phdr,
                 PT_GNU_STACK => stack_size = phdr.p_memsz,
                 _ => {}

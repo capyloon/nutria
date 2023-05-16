@@ -88,20 +88,22 @@ pub(super) fn ret_u32(raw: c::c_int) -> io::Result<u32> {
 }
 
 #[inline]
-pub(super) fn ret_ssize_t(raw: c::ssize_t) -> io::Result<c::ssize_t> {
+pub(super) fn ret_usize(raw: c::ssize_t) -> io::Result<usize> {
     if raw == -1 {
         Err(io::Errno::last_os_error())
     } else {
-        Ok(raw)
+        debug_assert!(raw >= 0);
+        Ok(raw as usize)
     }
 }
 
 #[inline]
-pub(super) fn syscall_ret_ssize_t(raw: c::c_long) -> io::Result<c::ssize_t> {
+pub(super) fn syscall_ret_usize(raw: c::c_long) -> io::Result<usize> {
     if raw == -1 {
         Err(io::Errno::last_os_error())
     } else {
-        Ok(raw as c::ssize_t)
+        debug_assert!(raw >= 0);
+        Ok(raw as c::ssize_t as usize)
     }
 }
 
@@ -210,13 +212,71 @@ pub(super) fn send_recv_len(len: usize) -> i32 {
 /// Convert the return value of a `send` or `recv` call.
 #[cfg(not(windows))]
 #[inline]
-pub(super) fn ret_send_recv(len: isize) -> io::Result<c::ssize_t> {
-    ret_ssize_t(len)
+pub(super) fn ret_send_recv(len: isize) -> io::Result<usize> {
+    ret_usize(len)
 }
 
 /// Convert the return value of a `send` or `recv` call.
 #[cfg(windows)]
 #[inline]
-pub(super) fn ret_send_recv(len: i32) -> io::Result<c::ssize_t> {
-    ret_ssize_t(len as isize)
+pub(super) fn ret_send_recv(len: i32) -> io::Result<usize> {
+    ret_usize(len as isize)
+}
+
+/// Convert the value to the `msg_iovlen` field of a `msghdr` struct.
+#[cfg(all(
+    not(any(windows, target_os = "wasi")),
+    any(
+        target_os = "android",
+        all(target_os = "linux", not(target_env = "musl"))
+    )
+))]
+#[inline]
+pub(super) fn msg_iov_len(len: usize) -> c::size_t {
+    len
+}
+
+/// Convert the value to the `msg_iovlen` field of a `msghdr` struct.
+#[cfg(all(
+    not(any(windows, target_os = "wasi")),
+    not(any(
+        target_os = "android",
+        all(target_os = "linux", not(target_env = "musl"))
+    ))
+))]
+#[inline]
+pub(crate) fn msg_iov_len(len: usize) -> c::c_int {
+    use core::convert::TryInto;
+    len.try_into().unwrap_or(c::c_int::MAX)
+}
+
+/// Convert the value to a `socklen_t`.
+#[cfg(any(
+    bsd,
+    solarish,
+    target_env = "musl",
+    target_os = "emscripten",
+    target_os = "haiku",
+    target_os = "fuchsia"
+))]
+#[inline]
+pub(crate) fn msg_control_len(len: usize) -> c::socklen_t {
+    use core::convert::TryInto;
+    len.try_into().unwrap_or(c::socklen_t::MAX)
+}
+
+/// Convert the value to a `size_t`.
+#[cfg(not(any(
+    bsd,
+    solarish,
+    target_env = "musl",
+    target_os = "emscripten",
+    target_os = "haiku",
+    target_os = "fuchsia",
+    windows,
+    target_os = "wasi"
+)))]
+#[inline]
+pub(crate) fn msg_control_len(len: usize) -> c::size_t {
+    len
 }

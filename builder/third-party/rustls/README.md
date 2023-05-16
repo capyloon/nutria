@@ -3,13 +3,13 @@
 </p>
 
 <p align="center">
-Rustls is a modern TLS library written in Rust.  It uses <a href = "https://github.com/briansmith/ring"><em>ring</em></a> for cryptography and <a href = "https://github.com/briansmith/webpki">webpki</a> for certificate
+Rustls is a modern TLS library written in Rust.  It uses <a href = "https://github.com/briansmith/ring"><em>ring</em></a> for cryptography and <a href = "https://github.com/rustls/webpki">webpki</a> for certificate
 verification.
 </p>
 
 # Status
-Rustls is ready for use.  There are no major breaking interface changes
-envisioned after the set included in the 0.20 release.
+Rustls is mature and widely used. While most of the API surface is stable, we expect the next
+few releases will make further changes as needed to accomodate new features or performance improvements.
 
 If you'd like to help out, please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -20,64 +20,57 @@ If you'd like to help out, please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Release history
 
-* Next release
-  - Planned: removal of unused signature verification schemes at link-time.
-* 0.20.8 (2023-01-12)
-  - Yield an error from `ConnectionCommon::read_tls()` if buffers are full.
-    Both a full deframer buffer and a full incoming plaintext buffer will
-    now cause an error to be returned. Callers should call `process_new_packets()`
-    and read out the plaintext data from `reader()` after each successful call to `read_tls()`.
-  - The minimum supported Rust version is now 1.57.0 due to some dependencies
-    requiring it.
-* 0.20.7 (2022-10-18)
-  - Expose secret extraction API under the `secret_extraction` cargo feature.
-    This is designed to enable switching from rustls to kTLS (kernel TLS
-    offload) after a successful TLS 1.2/1.3 handshake, for example.
-  - Move filtering of signature schemes after config selection, avoiding the need
-    for linking in encryption/decryption code for all cipher suites at the cost of
-    exposing more signature schemes in the `ClientHello` emitted by the `Acceptor`.
-  - Expose AlertDescription, ContentType, and HandshakeType,
-    SignatureAlgorithm, and NamedGroup as part of the stable API. Previously they
-    were part of the unstable internals API, but were referenced by parts of the
-    stable API.
-  - We now have a [Discord channel](https://discord.gg/MCSB76RU96) for community
-    discussions.
-  - The minimum supported Rust version is now 1.56.0 due to several dependencies
-    requiring it.
-* 0.20.6 (2022-05-18)
-  - 0.20.5 included a change to track more context for the `Error::CorruptMessage`
-    which made API-incompatible changes to the `Error` type. We yanked 0.20.5
-    and have reverted that change as part of 0.20.6.
-* 0.20.5 (2022-05-14)
-  - Correct compatbility with servers which return no TLS extensions and take
-    advantage of a special case encoding.
-  - Remove spurious warn-level logging introduced in 0.20.3.
-  - Expose cipher suites in `ClientHello` type.
-  - Allow verification of IP addresses with `dangerous_config` enabled.
-  - Retry I/O operations in `ConnectionCommon::complete_io()` when interrupted.
-  - Fix server::ResolvesServerCertUsingSni case sensitivity.
-* 0.20.4 (2022-02-19)
-  - Correct regression in QUIC 0-RTT support.
-* 0.20.3 (2022-02-13)
-  - Support loading ECDSA keys in SEC1 format.
-  - Support receipt of 0-RTT "early data" in TLS1.3 servers.  It is not enabled
-    by default; opt in by setting `ServerConfig::max_early_data_size` to a non-zero
-    value.
-  - Support sending of data with the first server flight.  This is also not
-    enabled by default either: opt in by setting `ServerConfig::send_half_rtt_data`.
-  - Support `read_buf` interface when compiled with nightly. This means
-    data can be safely read out of a rustls connection into a buffer without
-    the buffer requiring initialisation first.  Set the `read_buf` feature to
-    use this.
-  - Improve efficiency when writing vectors of TLS types.
-  - Reduce copying and improve efficiency in TLS1.2 handshake.
-* 0.20.2 (2021-11-21)
-  - Fix `CipherSuite::as_str()` value (as introduced in 0.20.1).
-* 0.20.1 (2021-11-14)
-  - Allow cipher suite enum items to be stringified.
-  - Improve documentation of configuration builder types.
-  - Ensure unused cipher suites can be removed at link-time.
-  - Ensure single-use error types implement `std::error::Error`, and are public.
+* Release 0.21.1 (2023-05-01)
+  - Remove `warn`-level logging from code paths that also return a `rustls::Error` with
+    the same information.
+  - Bug fix: ensure `ConnectionCommon::complete_io` flushes pending writes.
+  - Bug fix: correct encoding of acceptable issuer subjects when rustls operates as a server
+    requesting client authentication.  This was a regression introduced in 0.21.0.
+* Release 0.21.0 (2023-03-29)
+  - Support for connecting to peers named with IP addresses.  This means
+    rustls now depends on a fork of webpki - `rustls-webpki` - with a suitably
+    extended API.
+  - *Breaking change*: `StoresClientSessions` trait renamed to `ClientSessionStore` and
+    reworked to allow storage of multiple TLS1.3 tickets and avoid reuse of them.
+    This is a privacy improvement, see RFC8446 appendix C.4.
+  - *Breaking change*: the `DistinguishedNames` type alias no longer exists; the public
+    API now exports a `DistinguishedName` type, and the
+    `ClientCertVerifier::client_auth_root_subjects()` method now returns a
+    `&[DistinguishedName]` instead (with the lifetime constrained to the
+    verifier's).
+  - *Breaking change*: the `ClientCertVerifier` methods `client_auth_mandatory()`
+    and `client_auth_root_subjects()` no longer return an `Option`. You can now
+    use an `Acceptor` to decide whether to accept the connection based on information
+    from the `ClientHello` (like server name).
+  - *Breaking change*: rework `rustls::Error` to avoid String usage in
+    `PeerMisbehavedError`, `PeerIncompatibleError` and certificate errors.
+    Especially note that custom certificate verifiers should move to use the
+    new certificate errors. `Error` is now `non_exhaustive`, and so are the
+    inner enums used in its variants.
+  - *Breaking change*: replace `webpki::Error` appearing in the public API
+    in `RootCertStore::add`.
+  - The number of tickets sent by a TLS1.3 server is now configurable via
+    `ServerConfig::send_tls13_tickets`.  Previously one ticket was sent, now
+    the default is four.
+  - *Breaking change*: remove deprecated methods from `Acceptor`.
+  - *Breaking change*: `AllowAnyAuthenticatedClient` and `AllowAnyAnonymousOrAuthenticatedClient`
+    `new` functions now return `Self`. A `boxed` function was added to both types to easily acquire
+    an `Arc<dyn ClientCertVerifier>`.
+  - *Breaking change*: `NoClientAuth::new` was renamed to `boxed`.
+  - *Breaking change*: the QUIC API has changed to provide QUIC-specific `ClientConnection` and
+    `ServerConnection` types, instead of using an extension trait.
+  - *Breaking change*: the QUIC `Secrets` constructor was changed to take
+    a `Side` instead of `bool`.
+  - *Breaking change*: the `export_keying_material` function on a `Connection`
+    was changed from returning `Result<(), Error>` to `Result<T, Error>` where
+    `T: AsMut<[u8]>`.
+  - *Breaking change*: the `sni_hostname` function on a `Connection` was renamed
+    to `server_name`.
+  - *Breaking change*: remove alternative type names deprecated in 0.20.0 (`RSASigningKey` vs.
+    `RsaSigningKey` etc.)
+  - *Breaking change*: the client config `session_storage` and `enable_tickets`
+    fields have been replaced by a more misuse resistant `Resumption` type that
+    combines the two options.
 
 See [RELEASE_NOTES.md](RELEASE_NOTES.md) for further change history.
 
@@ -142,12 +135,14 @@ need them.
 
 ### Platform support
 
-Rustls uses [`ring`](https://crates.io/crates/ring) for implementing the
-cryptography in TLS. As a result, rustls only runs on platforms
-[supported by `ring`](https://github.com/briansmith/ring#online-automated-testing).
-At the time of writing this means x86, x86-64, armv7, and aarch64.
+While Rustls itself is platform independent it uses
+[`ring`](https://crates.io/crates/ring) for implementing the cryptography in
+TLS. As a result, rustls only runs on platforms
+supported by `ring`. At the time of writing this means x86, x86-64, armv7, and
+aarch64. For more information see [the supported `ring` CI
+targets](https://github.com/briansmith/ring/blob/9cc0d45f4d8521f467bb3a621e74b1535e118188/.github/workflows/ci.yml#L151-L167).
 
-Rustls requires Rust 1.56 or later.
+Rustls requires Rust 1.57 or later.
 
 # Example code
 There are two example programs which use
@@ -183,7 +178,6 @@ Options:
                         SUITE instead.  May be used multiple times.
     --proto PROTOCOL    Send ALPN extension containing PROTOCOL.
                         May be used multiple times to offer several protocols.
-    --cache CACHE       Save session cache to file CACHE.
     --no-tickets        Disable session ticket support.
     --no-sni            Disable server name indication support.
     --insecure          Disable certificate verification.
@@ -209,7 +203,7 @@ or
 
 ```
 $ cargo run --bin tlsclient-mio -- --http expired.badssl.com
-TLS error: WebPkiError(CertExpired, ValidateServerCert)
+TLS error: InvalidCertificate(Expired)
 Connection closed
 ```
 

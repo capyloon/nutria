@@ -1,11 +1,14 @@
-use crate::msgs::enums::{AlertDescription, ContentType, HandshakeType};
+use crate::enums::{AlertDescription, ContentType, HandshakeType};
+use crate::msgs::handshake::KeyExchangeAlgorithm;
 use crate::rand;
 
 use std::error::Error as StdError;
 use std::fmt;
+use std::sync::Arc;
 use std::time::SystemTimeError;
 
 /// rustls reports protocol errors using this type.
+#[non_exhaustive]
 #[derive(Debug, PartialEq, Clone)]
 pub enum Error {
     /// We received a TLS message that isn't valid right now.
@@ -30,11 +33,8 @@ pub enum Error {
         got_type: HandshakeType,
     },
 
-    /// The peer sent us a syntactically incorrect TLS message.
-    CorruptMessage,
-
     /// The peer sent us a TLS message with invalid contents.
-    CorruptMessagePayload(ContentType),
+    InvalidMessage(InvalidMessage),
 
     /// The peer didn't give us any certificates.
     NoCertificatesPresented,
@@ -51,26 +51,20 @@ pub enum Error {
 
     /// The peer doesn't support a protocol version/feature we require.
     /// The parameter gives a hint as to what version/feature it is.
-    PeerIncompatibleError(String),
+    PeerIncompatible(PeerIncompatible),
 
     /// The peer deviated from the standard TLS protocol.
     /// The parameter gives a hint where.
-    PeerMisbehavedError(String),
+    PeerMisbehaved(PeerMisbehaved),
 
     /// We received a fatal alert.  This means the peer is unhappy.
     AlertReceived(AlertDescription),
 
-    /// We received an invalidly encoded certificate from the peer.
-    InvalidCertificateEncoding,
-
-    /// We received a certificate with invalid signature type.
-    InvalidCertificateSignatureType,
-
-    /// We received a certificate with invalid signature.
-    InvalidCertificateSignature,
-
-    /// We received a certificate which includes invalid data.
-    InvalidCertificateData(String),
+    /// We saw an invalid certificate.
+    ///
+    /// The contained error is from the certificate validation trait
+    /// implementation.
+    InvalidCertificate(CertificateError),
 
     /// The presented SCT(s) were invalid.
     InvalidSct(sct::Error),
@@ -97,6 +91,293 @@ pub enum Error {
     /// The `max_fragment_size` value supplied in configuration was too small,
     /// or too large.
     BadMaxFragmentSize,
+}
+
+/// A corrupt TLS message payload that resulted in an error.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq)]
+
+pub enum InvalidMessage {
+    /// An advertised message was larger then expected.
+    HandshakePayloadTooLarge,
+    /// The peer sent us a syntactically incorrect ChangeCipherSpec payload.
+    InvalidCcs,
+    /// An unknown content type was encountered during message decoding.
+    InvalidContentType,
+    /// A peer sent an invalid certificate status type
+    InvalidCertificateStatusType,
+    /// Context was incorrectly attached to a certificate request during a handshake.
+    InvalidCertRequest,
+    /// A peer's DH params could not be decoded
+    InvalidDhParams,
+    /// A message was zero-length when its record kind forbids it.
+    InvalidEmptyPayload,
+    /// A peer sent an unexpected key update request.
+    InvalidKeyUpdate,
+    /// A peer's server name could not be decoded
+    InvalidServerName,
+    /// A TLS message payload was larger then allowed by the specification.
+    MessageTooLarge,
+    /// Message is shorter than the expected length
+    MessageTooShort,
+    /// Missing data for the named handshake payload value
+    MissingData(&'static str),
+    /// A peer did not advertise its supported key exchange groups.
+    MissingKeyExchange,
+    /// A peer sent an empty list of signature schemes
+    NoSignatureSchemes,
+    /// Trailing data found for the named handshake payload value
+    TrailingData(&'static str),
+    /// A peer sent an unexpected message type.
+    UnexpectedMessage(&'static str),
+    /// An unknown TLS protocol was encountered during message decoding.
+    UnknownProtocolVersion,
+    /// A peer sent a non-null compression method.
+    UnsupportedCompression,
+    /// A peer sent an unknown elliptic curve type.
+    UnsupportedCurveType,
+    /// A peer sent an unsupported key exchange algorithm.
+    UnsupportedKeyExchangeAlgorithm(KeyExchangeAlgorithm),
+}
+
+impl From<InvalidMessage> for Error {
+    #[inline]
+    fn from(e: InvalidMessage) -> Self {
+        Self::InvalidMessage(e)
+    }
+}
+
+#[non_exhaustive]
+#[allow(missing_docs)]
+#[derive(Debug, PartialEq, Clone)]
+/// The set of cases where we failed to make a connection because we thought
+/// the peer was misbehaving.
+///
+/// This is `non_exhaustive`: we might add or stop using items here in minor
+/// versions.  We also don't document what they mean.  Generally a user of
+/// rustls shouldn't vary its behaviour on these error codes, and there is
+/// nothing it can do to improve matters.
+///
+/// Please file a bug against rustls if you see `Error::PeerMisbehaved` in
+/// the wild.
+pub enum PeerMisbehaved {
+    AttemptedDowngradeToTls12WhenTls13IsSupported,
+    BadCertChainExtensions,
+    DisallowedEncryptedExtension,
+    DuplicateClientHelloExtensions,
+    DuplicateEncryptedExtensions,
+    DuplicateHelloRetryRequestExtensions,
+    DuplicateNewSessionTicketExtensions,
+    DuplicateServerHelloExtensions,
+    DuplicateServerNameTypes,
+    EarlyDataAttemptedInSecondClientHello,
+    EarlyDataExtensionWithoutResumption,
+    EarlyDataOfferedWithVariedCipherSuite,
+    HandshakeHashVariedAfterRetry,
+    IllegalHelloRetryRequestWithEmptyCookie,
+    IllegalHelloRetryRequestWithNoChanges,
+    IllegalHelloRetryRequestWithOfferedGroup,
+    IllegalHelloRetryRequestWithUnofferedCipherSuite,
+    IllegalHelloRetryRequestWithUnofferedNamedGroup,
+    IllegalHelloRetryRequestWithUnsupportedVersion,
+    IllegalMiddleboxChangeCipherSpec,
+    IllegalTlsInnerPlaintext,
+    IncorrectBinder,
+    InvalidMaxEarlyDataSize,
+    InvalidKeyShare,
+    InvalidSctList,
+    KeyEpochWithPendingFragment,
+    KeyUpdateReceivedInQuicConnection,
+    MessageInterleavedWithHandshakeMessage,
+    MissingBinderInPskExtension,
+    MissingKeyShare,
+    MissingQuicTransportParameters,
+    OfferedDuplicateKeyShares,
+    OfferedEarlyDataWithOldProtocolVersion,
+    OfferedEmptyApplicationProtocol,
+    OfferedIncorrectCompressions,
+    PskExtensionMustBeLast,
+    PskExtensionWithMismatchedIdsAndBinders,
+    RefusedToFollowHelloRetryRequest,
+    RejectedEarlyDataInterleavedWithHandshakeMessage,
+    ResumptionAttemptedWithVariedEms,
+    ResumptionOfferedWithVariedCipherSuite,
+    ResumptionOfferedWithVariedEms,
+    ResumptionOfferedWithIncompatibleCipherSuite,
+    SelectedDifferentCipherSuiteAfterRetry,
+    SelectedInvalidPsk,
+    SelectedTls12UsingTls13VersionExtension,
+    SelectedUnofferedApplicationProtocol,
+    SelectedUnofferedCipherSuite,
+    SelectedUnofferedCompression,
+    SelectedUnofferedKxGroup,
+    SelectedUnofferedPsk,
+    SelectedUnusableCipherSuiteForVersion,
+    ServerHelloMustOfferUncompressedEcPoints,
+    ServerNameDifferedOnRetry,
+    ServerNameMustContainOneHostName,
+    SignedKxWithWrongAlgorithm,
+    SignedHandshakeWithUnadvertisedSigScheme,
+    TooMuchEarlyDataReceived,
+    UnexpectedCleartextExtension,
+    UnsolicitedCertExtension,
+    UnsolicitedEncryptedExtension,
+    UnsolicitedSctList,
+    UnsolicitedServerHelloExtension,
+    WrongGroupForKeyShare,
+}
+
+impl From<PeerMisbehaved> for Error {
+    #[inline]
+    fn from(e: PeerMisbehaved) -> Self {
+        Self::PeerMisbehaved(e)
+    }
+}
+
+#[non_exhaustive]
+#[allow(missing_docs)]
+#[derive(Debug, PartialEq, Clone)]
+/// The set of cases where we failed to make a connection because a peer
+/// doesn't support a TLS version/feature we require.
+///
+/// This is `non_exhaustive`: we might add or stop using items here in minor
+/// versions.
+pub enum PeerIncompatible {
+    EcPointsExtensionRequired,
+    KeyShareExtensionRequired,
+    NamedGroupsExtensionRequired,
+    NoCertificateRequestSignatureSchemesInCommon,
+    NoCipherSuitesInCommon,
+    NoEcPointFormatsInCommon,
+    NoKxGroupsInCommon,
+    NoSignatureSchemesInCommon,
+    NullCompressionRequired,
+    ServerDoesNotSupportTls12Or13,
+    ServerSentHelloRetryRequestWithUnknownExtension,
+    ServerTlsVersionIsDisabledByOurConfig,
+    SignatureAlgorithmsExtensionRequired,
+    SupportedVersionsExtensionRequired,
+    Tls12NotOffered,
+    Tls12NotOfferedOrEnabled,
+    Tls13RequiredForQuic,
+    UncompressedEcPointsRequired,
+}
+
+impl From<PeerIncompatible> for Error {
+    #[inline]
+    fn from(e: PeerIncompatible) -> Self {
+        Self::PeerIncompatible(e)
+    }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone)]
+/// The ways in which certificate validators can express errors.
+///
+/// Note that the rustls TLS protocol code interprets specifically these
+/// error codes to send specific TLS alerts.  Therefore, if a
+/// custom certificate validator uses incorrect errors the library as
+/// a whole will send alerts that do not match the standard (this is usually
+/// a minor issue, but could be misleading).
+pub enum CertificateError {
+    /// The certificate is not correctly encoded.
+    BadEncoding,
+
+    /// The current time is after the `notAfter` time in the certificate.
+    Expired,
+
+    /// The current time is before the `notBefore` time in the certificate.
+    NotValidYet,
+
+    /// The certificate has been revoked.
+    Revoked,
+
+    /// The certificate contains an extension marked critical, but it was
+    /// not processed by the certificate validator.
+    UnhandledCriticalExtension,
+
+    /// The certificate chain is not issued by a known root certificate.
+    UnknownIssuer,
+
+    /// A certificate is not correctly signed by the key of its alleged
+    /// issuer.
+    BadSignature,
+
+    /// The subject names in an end-entity certificate do not include
+    /// the expected name.
+    NotValidForName,
+
+    /// The certificate is being used for a different purpose than allowed.
+    InvalidPurpose,
+
+    /// The certificate is valid, but the handshake is rejected for other
+    /// reasons.
+    ApplicationVerificationFailure,
+
+    /// Any other error.
+    ///
+    /// This can be used by custom verifiers to expose the underlying error
+    /// (where they are not better described by the more specific errors
+    /// above).
+    ///
+    /// It is also used by the default verifier in case its error is
+    /// not covered by the above common cases.
+    ///
+    /// Enums holding this variant will never compare equal to each other.
+    Other(Arc<dyn StdError + Send + Sync>),
+}
+
+impl PartialEq<Self> for CertificateError {
+    fn eq(&self, other: &Self) -> bool {
+        use CertificateError::*;
+        #[allow(clippy::match_like_matches_macro)]
+        match (self, other) {
+            (BadEncoding, BadEncoding) => true,
+            (Expired, Expired) => true,
+            (NotValidYet, NotValidYet) => true,
+            (Revoked, Revoked) => true,
+            (UnhandledCriticalExtension, UnhandledCriticalExtension) => true,
+            (UnknownIssuer, UnknownIssuer) => true,
+            (BadSignature, BadSignature) => true,
+            (NotValidForName, NotValidForName) => true,
+            (InvalidPurpose, InvalidPurpose) => true,
+            (ApplicationVerificationFailure, ApplicationVerificationFailure) => true,
+            _ => false,
+        }
+    }
+}
+
+// The following mapping are heavily referenced in:
+// * [OpenSSL Implementation](https://github.com/openssl/openssl/blob/45bb98bfa223efd3258f445ad443f878011450f0/ssl/statem/statem_lib.c#L1434)
+// * [BoringSSL Implementation](https://github.com/google/boringssl/blob/583c60bd4bf76d61b2634a58bcda99a92de106cb/ssl/ssl_x509.cc#L1323)
+impl From<CertificateError> for AlertDescription {
+    fn from(e: CertificateError) -> Self {
+        use CertificateError::*;
+        match e {
+            BadEncoding | UnhandledCriticalExtension | NotValidForName => Self::BadCertificate,
+            // RFC 5246/RFC 8446
+            // certificate_expired
+            //  A certificate has expired or **is not currently valid**.
+            Expired | NotValidYet => Self::CertificateExpired,
+            Revoked => Self::CertificateRevoked,
+            UnknownIssuer => Self::UnknownCA,
+            BadSignature => Self::DecryptError,
+            InvalidPurpose => Self::UnsupportedCertificate,
+            ApplicationVerificationFailure => Self::AccessDenied,
+            // RFC 5246/RFC 8446
+            // certificate_unknown
+            //  Some other (unspecified) issue arose in processing the
+            //  certificate, rendering it unacceptable.
+            Other(_) => Self::CertificateUnknown,
+        }
+    }
+}
+
+impl From<CertificateError> for Error {
+    #[inline]
+    fn from(e: CertificateError) -> Self {
+        Self::InvalidCertificate(e)
+    }
 }
 
 fn join<T: fmt::Debug>(items: &[T]) -> String {
@@ -128,25 +409,15 @@ impl fmt::Display for Error {
                 got_type,
                 join::<HandshakeType>(expect_types)
             ),
-            Self::CorruptMessagePayload(ref typ) => {
+            Self::InvalidMessage(ref typ) => {
                 write!(f, "received corrupt message of type {:?}", typ)
             }
-            Self::PeerIncompatibleError(ref why) => write!(f, "peer is incompatible: {}", why),
-            Self::PeerMisbehavedError(ref why) => write!(f, "peer misbehaved: {}", why),
+            Self::PeerIncompatible(ref why) => write!(f, "peer is incompatible: {:?}", why),
+            Self::PeerMisbehaved(ref why) => write!(f, "peer misbehaved: {:?}", why),
             Self::AlertReceived(ref alert) => write!(f, "received fatal alert: {:?}", alert),
-            Self::InvalidCertificateEncoding => {
-                write!(f, "invalid peer certificate encoding")
+            Self::InvalidCertificate(ref err) => {
+                write!(f, "invalid peer certificate: {:?}", err)
             }
-            Self::InvalidCertificateSignatureType => {
-                write!(f, "invalid peer certificate signature type")
-            }
-            Self::InvalidCertificateSignature => {
-                write!(f, "invalid peer certificate signature")
-            }
-            Self::InvalidCertificateData(ref reason) => {
-                write!(f, "invalid peer certificate contents: {}", reason)
-            }
-            Self::CorruptMessage => write!(f, "received corrupt message"),
             Self::NoCertificatesPresented => write!(f, "peer sent no certificates"),
             Self::UnsupportedNameType => write!(f, "presented server name type wasn't supported"),
             Self::DecryptError => write!(f, "cannot decrypt peer's message"),
@@ -182,11 +453,32 @@ impl From<rand::GetRandomFailed> for Error {
 
 #[cfg(test)]
 mod tests {
-    use super::Error;
+    use super::{Error, InvalidMessage};
+
+    #[test]
+    fn certificate_error_equality() {
+        use super::CertificateError::*;
+        assert_eq!(BadEncoding, BadEncoding);
+        assert_eq!(Expired, Expired);
+        assert_eq!(NotValidYet, NotValidYet);
+        assert_eq!(Revoked, Revoked);
+        assert_eq!(UnhandledCriticalExtension, UnhandledCriticalExtension);
+        assert_eq!(UnknownIssuer, UnknownIssuer);
+        assert_eq!(BadSignature, BadSignature);
+        assert_eq!(NotValidForName, NotValidForName);
+        assert_eq!(InvalidPurpose, InvalidPurpose);
+        assert_eq!(
+            ApplicationVerificationFailure,
+            ApplicationVerificationFailure
+        );
+        let other = Other(std::sync::Arc::from(Box::from("")));
+        assert_ne!(other, other);
+        assert_ne!(BadEncoding, Expired);
+    }
 
     #[test]
     fn smoke() {
-        use crate::msgs::enums::{AlertDescription, ContentType, HandshakeType};
+        use crate::enums::{AlertDescription, ContentType, HandshakeType};
         use sct;
 
         let all = vec![
@@ -198,17 +490,13 @@ mod tests {
                 expect_types: vec![HandshakeType::ClientHello, HandshakeType::Finished],
                 got_type: HandshakeType::ServerHello,
             },
-            Error::CorruptMessage,
-            Error::CorruptMessagePayload(ContentType::Alert),
+            Error::InvalidMessage(InvalidMessage::InvalidCcs),
             Error::NoCertificatesPresented,
             Error::DecryptError,
-            Error::PeerIncompatibleError("no tls1.2".to_string()),
-            Error::PeerMisbehavedError("inconsistent something".to_string()),
+            super::PeerIncompatible::Tls12NotOffered.into(),
+            super::PeerMisbehaved::UnsolicitedCertExtension.into(),
             Error::AlertReceived(AlertDescription::ExportRestriction),
-            Error::InvalidCertificateEncoding,
-            Error::InvalidCertificateSignatureType,
-            Error::InvalidCertificateSignature,
-            Error::InvalidCertificateData("Data".into()),
+            super::CertificateError::Expired.into(),
             Error::InvalidSct(sct::Error::MalformedSct),
             Error::General("undocumented error".to_string()),
             Error::FailedToGetCurrentTime,

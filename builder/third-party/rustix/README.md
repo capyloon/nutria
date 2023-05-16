@@ -26,8 +26,8 @@ conveniences.
 
 `rustix` is low-level and, and while the `net` API supports Winsock2 on
 Windows, the rest of the APIs do not support Windows; for higher-level and more
-portable APIs built on this functionality, see the [`system-interface`],
-[`cap-std`], and [`fs-set-times`] crates, for example.
+portable APIs built on this functionality, see the [`cap-std`], [`memfd`],
+[`timerfd`], and [`io-streams`] crates, for example.
 
 `rustix` currently has two backends available:
 
@@ -36,8 +36,8 @@ portable APIs built on this functionality, see the [`system-interface`],
    arm (v5 onwards), mipsel, and mips64el, with stable, nightly, and 1.48 Rust.
     - By being implemented entirely in Rust, avoiding `libc`, `errno`, and pthread
       cancellation, and employing some specialized optimizations, most functions
-      compile down to very efficient code. On nightly Rust, they can often be
-      fully inlined into user code.
+      compile down to very efficient code, which can often be fully inlined into
+      user code.
     - Most functions in `linux_raw` preserve memory, I/O safety, and pointer
       provenance all the way down to the syscalls.
 
@@ -70,20 +70,27 @@ by default. The rest of the API is conditional with cargo feature flags:
 |            |
 | `use-libc` | Enable the libc backend.
 
-[`rustix::fs`]: https://docs.rs/rustix/latest/rustix/fs/index.html
-[`rustix::io_uring`]: https://docs.rs/rustix/latest/rustix/io_uring/index.html
-[`rustix::mm`]: https://docs.rs/rustix/latest/rustix/mm/index.html
-[`rustix::net`]: https://docs.rs/rustix/latest/rustix/net/index.html
-[`rustix::param`]: https://docs.rs/rustix/latest/rustix/param/index.html
-[`rustix::process`]: https://docs.rs/rustix/latest/rustix/process/index.html
-[`rustix::rand`]: https://docs.rs/rustix/latest/rustix/rand/index.html
-[`rustix::termios`]: https://docs.rs/rustix/latest/rustix/termios/index.html
-[`rustix::thread`]: https://docs.rs/rustix/latest/rustix/thread/index.html
-[`rustix::time`]: https://docs.rs/rustix/latest/rustix/time/index.html
-[`rustix::io`]: https://docs.rs/rustix/latest/rustix/io/index.html
-[`rustix::fd`]: https://docs.rs/rustix/latest/rustix/fd/index.html
-[`rustix::ffi`]: https://docs.rs/rustix/latest/rustix/ffi/index.html
-[`rustix::path`]: https://docs.rs/rustix/latest/rustix/path/index.html
+[`rustix::fs`]: https://docs.rs/rustix/*/rustix/fs/index.html
+[`rustix::io_uring`]: https://docs.rs/rustix/*/rustix/io_uring/index.html
+[`rustix::mm`]: https://docs.rs/rustix/*/rustix/mm/index.html
+[`rustix::net`]: https://docs.rs/rustix/*/rustix/net/index.html
+[`rustix::param`]: https://docs.rs/rustix/*/rustix/param/index.html
+[`rustix::process`]: https://docs.rs/rustix/*/rustix/process/index.html
+[`rustix::rand`]: https://docs.rs/rustix/*/rustix/rand/index.html
+[`rustix::termios`]: https://docs.rs/rustix/*/rustix/termios/index.html
+[`rustix::thread`]: https://docs.rs/rustix/*/rustix/thread/index.html
+[`rustix::time`]: https://docs.rs/rustix/*/rustix/time/index.html
+[`rustix::io`]: https://docs.rs/rustix/*/rustix/io/index.html
+[`rustix::fd`]: https://docs.rs/rustix/*/rustix/fd/index.html
+[`rustix::ffi`]: https://docs.rs/rustix/*/rustix/ffi/index.html
+[`rustix::path`]: https://docs.rs/rustix/*/rustix/path/index.html
+
+## 64-bit Large File Support (LFS) and Year 2038 (y2038) support
+
+`rustix` automatically uses 64-bit APIs when available, and avoids exposing
+32-bit APIs that would have the year-2038 problem or fail to support large
+files. For instance, `rustix::fstatvfs` calls `fstatvfs64`, and returns a
+struct that's 64-bit even on 32-bit platforms.
 
 ## Similar crates
 
@@ -114,14 +121,14 @@ provides them as free functions rather than associated functions of a `Dir`
 type. `rustix`'s `cwd()` function exposes the special `AT_FDCWD` value in a safe
 way, so users don't need to open `.` to get a current-directory handle.
 
-`rustix`'s `openat2` function is similar to the [`openat2`] crate, but uses
-I/O safety types rather than `RawFd`. `rustix` does not provide dynamic feature
+`rustix`'s `openat2` function is similar to the [`openat2`] crate, but uses I/O
+safety types rather than `RawFd`. `rustix` does not provide dynamic feature
 detection, so users must handle the [`NOSYS`] error themselves.
 
-`rustix`'s `termios` module is similar to the [`termios`] crate, but uses
-I/O safety types rather than `RawFd`, and the flags parameters to functions
-such as `tcsetattr` are `enum`s rather than bare integers. And, rustix calls
-its `tcgetattr` function `tcgetattr`, rather than `Termios::from_fd`.
+`rustix`'s `termios` module is similar to the [`termios`] crate, but uses I/O
+safety types rather than `RawFd`, and the flags parameters to functions such as
+`tcsetattr` are `enum`s rather than bare integers. And, rustix calls its
+`tcgetattr` function `tcgetattr`, rather than `Termios::from_fd`.
 
 ## Minimum Supported Rust Version (MSRV)
 
@@ -140,7 +147,6 @@ version of this crate.
 [`syscall`]: https://crates.io/crates/syscall
 [`sc`]: https://crates.io/crates/sc
 [`scall`]: https://crates.io/crates/scall
-[`system-interface`]: https://crates.io/crates/system-interface
 [`openat`]: https://crates.io/crates/openat
 [`openat2`]: https://crates.io/crates/openat2
 [`fs-set-times`]: https://crates.io/crates/fs-set-times
@@ -149,11 +155,14 @@ version of this crate.
 [`libc`]: https://crates.io/crates/libc
 [`windows-sys`]: https://crates.io/crates/windows-sys
 [`cap-std`]: https://crates.io/crates/cap-std
+[`memfd`]: https://crates.io/crates/memfd
+[`timerfd`]: https://crates.io/crates/timerfd
+[`io-streams`]: https://crates.io/crates/io-streams
 [`bitflags`]: https://crates.io/crates/bitflags
-[`Arg`]: https://docs.rs/rustix/latest/rustix/path/trait.Arg.html
+[`Arg`]: https://docs.rs/rustix/*/rustix/path/trait.Arg.html
 [I/O-safe]: https://github.com/rust-lang/rfcs/blob/master/text/3128-io-safety.md
 [I/O safety]: https://github.com/rust-lang/rfcs/blob/master/text/3128-io-safety.md
 [provenance]: https://github.com/rust-lang/rust/issues/95228
-[`OwnedFd`]: https://docs.rs/io-lifetimes/latest/io_lifetimes/struct.OwnedFd.html
-[`AsFd`]: https://docs.rs/io-lifetimes/latest/io_lifetimes/trait.AsFd.html
-[`NOSYS`]: https://docs.rs/rustix/latest/rustix/io/struct.Errno.html#associatedconstant.NOSYS
+[`OwnedFd`]: https://docs.rs/io-lifetimes/*/io_lifetimes/struct.OwnedFd.html
+[`AsFd`]: https://docs.rs/io-lifetimes/*/io_lifetimes/trait.AsFd.html
+[`NOSYS`]: https://docs.rs/rustix/*/rustix/io/struct.Errno.html#associatedconstant.NOSYS

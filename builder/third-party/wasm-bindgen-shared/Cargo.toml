@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "wasm-bindgen-shared"
-version = "0.2.84"
+version = "0.2.86"
 authors = ["The wasm-bindgen Developers"]
 links = "wasm_bindgen"
 description = """
@@ -23,3 +23,4 @@ homepage = "https://rustwasm.github.io/wasm-bindgen/"
 documentation = "https://docs.rs/wasm-bindgen-shared"
 license = "MIT/Apache-2.0"
 repository = "https://github.com/rustwasm/wasm-bindgen/tree/master/crates/shared"
+resolver = "2"

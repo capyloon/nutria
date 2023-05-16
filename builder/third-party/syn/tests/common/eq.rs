@@ -27,11 +27,13 @@ use rustc_ast::ast::BindingAnnotation;
 use rustc_ast::ast::Block;
 use rustc_ast::ast::BlockCheckMode;
 use rustc_ast::ast::BorrowKind;
+use rustc_ast::ast::BoundPolarity;
 use rustc_ast::ast::ByRef;
 use rustc_ast::ast::CaptureBy;
 use rustc_ast::ast::Closure;
 use rustc_ast::ast::ClosureBinder;
 use rustc_ast::ast::Const;
+use rustc_ast::ast::ConstItem;
 use rustc_ast::ast::Crate;
 use rustc_ast::ast::Defaultness;
 use rustc_ast::ast::DelimArgs;
@@ -115,6 +117,7 @@ use rustc_ast::ast::QSelf;
 use rustc_ast::ast::RangeEnd;
 use rustc_ast::ast::RangeLimits;
 use rustc_ast::ast::RangeSyntax;
+use rustc_ast::ast::StaticItem;
 use rustc_ast::ast::Stmt;
 use rustc_ast::ast::StmtKind;
 use rustc_ast::ast::StrLit;
@@ -454,6 +457,7 @@ spanless_eq_struct!(BareFnTy; unsafety ext generic_params decl decl_span);
 spanless_eq_struct!(BindingAnnotation; 0 1);
 spanless_eq_struct!(Block; stmts id rules span tokens could_be_bare_literal);
 spanless_eq_struct!(Closure; binder capture_clause constness asyncness movability fn_decl body !fn_decl_span !fn_arg_span);
+spanless_eq_struct!(ConstItem; defaultness ty expr);
 spanless_eq_struct!(Crate; attrs items spans id is_placeholder);
 spanless_eq_struct!(DelimArgs; dspan delim tokens);
 spanless_eq_struct!(EnumDef; variants);
@@ -480,7 +484,7 @@ spanless_eq_struct!(Label; ident);
 spanless_eq_struct!(Lifetime; id ident);
 spanless_eq_struct!(Lit; kind symbol suffix);
 spanless_eq_struct!(Local; pat ty kind id span attrs !tokens);
-spanless_eq_struct!(MacCall; path args prior_type_ascription);
+spanless_eq_struct!(MacCall; path args);
 spanless_eq_struct!(MacCallStmt; mac style attrs tokens);
 spanless_eq_struct!(MacroDef; body macro_rules);
 spanless_eq_struct!(MetaItemLit; symbol suffix kind span);
@@ -495,6 +499,7 @@ spanless_eq_struct!(Path; span segments tokens);
 spanless_eq_struct!(PathSegment; ident id args);
 spanless_eq_struct!(PolyTraitRef; bound_generic_params trait_ref span);
 spanless_eq_struct!(QSelf; ty path_span position);
+spanless_eq_struct!(StaticItem; ty mutability expr);
 spanless_eq_struct!(Stmt; id kind span);
 spanless_eq_struct!(StrLit; symbol suffix symbol_unescaped style span);
 spanless_eq_struct!(StructExpr; qself path fields rest);
@@ -513,7 +518,7 @@ spanless_eq_struct!(WhereEqPredicate; span lhs_ty rhs_ty);
 spanless_eq_struct!(WhereRegionPredicate; span lifetime bounds);
 spanless_eq_enum!(AngleBracketedArg; Arg(0) Constraint(0));
 spanless_eq_enum!(AssocConstraintKind; Equality(term) Bound(bounds));
-spanless_eq_enum!(AssocItemKind; Const(0 1 2) Fn(0) Type(0) MacCall(0));
+spanless_eq_enum!(AssocItemKind; Const(0) Fn(0) Type(0) MacCall(0));
 spanless_eq_enum!(Async; Yes(span closure_id return_impl_trait_id) No);
 spanless_eq_enum!(AttrArgs; Empty Delimited(0) Eq(0 1));
 spanless_eq_enum!(AttrArgsEq; Ast(0) Hir(0));
@@ -522,6 +527,7 @@ spanless_eq_enum!(AttrTokenTree; Token(0 1) Delimited(0 1 2) Attributes(0));
 spanless_eq_enum!(BinOpKind; Add Sub Mul Div Rem And Or BitXor BitAnd BitOr Shl Shr Eq Lt Le Ne Ge Gt);
 spanless_eq_enum!(BlockCheckMode; Default Unsafe(0));
 spanless_eq_enum!(BorrowKind; Ref Raw);
+spanless_eq_enum!(BoundPolarity; Positive Negative(0) Maybe(0));
 spanless_eq_enum!(ByRef; Yes No);
 spanless_eq_enum!(CaptureBy; Value Ref);
 spanless_eq_enum!(ClosureBinder; NotPresent For(span generic_params));
@@ -564,7 +570,7 @@ spanless_eq_enum!(StrStyle; Cooked Raw(0));
 spanless_eq_enum!(StructRest; Base(0) Rest(0) None);
 spanless_eq_enum!(Term; Ty(0) Const(0));
 spanless_eq_enum!(TokenTree; Token(0 1) Delimited(0 1 2));
-spanless_eq_enum!(TraitBoundModifier; None Maybe MaybeConst MaybeConstMaybe);
+spanless_eq_enum!(TraitBoundModifier; None Negative Maybe MaybeConst MaybeConstNegative MaybeConstMaybe);
 spanless_eq_enum!(TraitObjectSyntax; Dyn DynStar None);
 spanless_eq_enum!(UintTy; Usize U8 U16 U32 U64 U128);
 spanless_eq_enum!(UnOp; Deref Not Neg);
@@ -577,18 +583,19 @@ spanless_eq_enum!(WherePredicate; BoundPredicate(0) RegionPredicate(0) EqPredica
 spanless_eq_enum!(ExprKind; Array(0) ConstBlock(0) Call(0 1) MethodCall(0)
     Tup(0) Binary(0 1 2) Unary(0 1) Lit(0) Cast(0 1) Type(0 1) Let(0 1 2)
     If(0 1 2) While(0 1 2) ForLoop(0 1 2 3) Loop(0 1 2) Match(0 1) Closure(0)
-    Block(0 1) Async(0 1 2) Await(0) TryBlock(0) Assign(0 1 2) AssignOp(0 1 2)
+    Block(0 1) Async(0 1) Await(0 1) TryBlock(0) Assign(0 1 2) AssignOp(0 1 2)
     Field(0 1) Index(0 1) Underscore Range(0 1 2) Path(0 1) AddrOf(0 1 2)
-    Break(0 1) Continue(0) Ret(0) InlineAsm(0) MacCall(0) Struct(0) Repeat(0 1)
-    Paren(0) Try(0) Yield(0) Yeet(0) IncludedBytes(0) FormatArgs(0) Err);
+    Break(0 1) Continue(0) Ret(0) InlineAsm(0) OffsetOf(0 1) MacCall(0)
+    Struct(0) Repeat(0 1) Paren(0) Try(0) Yield(0) Yeet(0) IncludedBytes(0)
+    FormatArgs(0) Err);
 spanless_eq_enum!(InlineAsmOperand; In(reg expr) Out(reg late expr)
     InOut(reg late expr) SplitInOut(reg late in_expr out_expr) Const(anon_const)
     Sym(sym));
-spanless_eq_enum!(ItemKind; ExternCrate(0) Use(0) Static(0 1 2) Const(0 1 2)
-    Fn(0) Mod(0 1) ForeignMod(0) GlobalAsm(0) TyAlias(0) Enum(0 1) Struct(0 1)
+spanless_eq_enum!(ItemKind; ExternCrate(0) Use(0) Static(0) Const(0) Fn(0)
+    Mod(0 1) ForeignMod(0) GlobalAsm(0) TyAlias(0) Enum(0 1) Struct(0 1)
     Union(0 1) Trait(0) TraitAlias(0 1) Impl(0) MacCall(0) MacroDef(0));
-spanless_eq_enum!(LitKind; Str(0 1) ByteStr(0 1) Byte(0) Char(0) Int(0 1)
-    Float(0 1) Bool(0) Err);
+spanless_eq_enum!(LitKind; Str(0 1) ByteStr(0 1) CStr(0 1) Byte(0) Char(0)
+    Int(0 1) Float(0 1) Bool(0) Err);
 spanless_eq_enum!(PatKind; Wild Ident(0 1 2) Struct(0 1 2 3) TupleStruct(0 1 2)
     Or(0) Path(0 1) Tuple(0) Box(0) Ref(0 1) Lit(0) Range(0 1 2) Slice(0) Rest
     Paren(0) MacCall(0));

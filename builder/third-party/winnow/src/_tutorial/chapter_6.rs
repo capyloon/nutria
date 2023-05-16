@@ -14,8 +14,8 @@
 //! ```rust
 //! # use winnow::IResult;
 //! # use winnow::Parser;
-//! # use winnow::bytes::take_while1;
-//! # use winnow::branch::alt;
+//! # use winnow::token::take_while;
+//! # use winnow::combinator::alt;
 //! use winnow::error::VerboseError;
 //!
 //! fn parse_digits(input: &str) -> IResult<&str, (&str, &str), VerboseError<&str>> {
@@ -29,25 +29,25 @@
 //!
 //! // ...
 //! # fn parse_bin_digits(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_oct_digits(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_dec_digits(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_hex_digits(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #         ('A'..='F'),
 //! #         ('a'..='f'),
@@ -89,8 +89,8 @@
 //! ```rust
 //! # use winnow::IResult;
 //! # use winnow::Parser;
-//! # use winnow::bytes::take_while1;
-//! # use winnow::branch::alt;
+//! # use winnow::token::take_while;
+//! # use winnow::combinator::alt;
 //! # use winnow::error::VerboseError;
 //! use winnow::combinator::cut_err;
 //!
@@ -105,25 +105,25 @@
 //!
 //! // ...
 //! # fn parse_bin_digits(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_oct_digits(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_dec_digits(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #     )).parse_next(input)
 //! # }
 //! #
 //! # fn parse_hex_digits(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-//! #     take_while1((
+//! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #         ('A'..='F'),
 //! #         ('a'..='f'),
@@ -145,7 +145,7 @@
 #![allow(unused_imports)]
 use super::chapter_1;
 use super::chapter_3;
-use crate::branch::alt;
+use crate::combinator::alt;
 use crate::combinator::cut_err;
 use crate::error::ErrMode;
 use crate::error::Error;

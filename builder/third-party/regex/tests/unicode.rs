@@ -35,6 +35,8 @@ mat!(uni_not_boundary_ogham, r"\d\B", "6 ", None);
 // We should test more, but there's a lot. Write a script to generate more of
 // these tests.
 mat!(uni_class_gencat_cased_letter, r"\p{Cased_Letter}", "Ａ", Some((0, 3)));
+mat!(uni_class_gencat_cased_letter2, r"\p{gc=LC}", "Ａ", Some((0, 3)));
+mat!(uni_class_gencat_cased_letter3, r"\p{LC}", "Ａ", Some((0, 3)));
 mat!(
     uni_class_gencat_close_punctuation,
     r"\p{Close_Punctuation}",
@@ -77,6 +79,7 @@ mat!(uni_class_gencat_format, r"\p{Format}", "\u{E007F}", Some((0, 4)));
 // See: https://github.com/rust-lang/regex/issues/719
 mat!(uni_class_gencat_format_abbrev1, r"\p{cf}", "\u{E007F}", Some((0, 4)));
 mat!(uni_class_gencat_format_abbrev2, r"\p{gc=cf}", "\u{E007F}", Some((0, 4)));
+mat!(uni_class_gencat_format_abbrev3, r"\p{Sc}", "$", Some((0, 1)));
 mat!(
     uni_class_gencat_initial_punctuation,
     r"\p{Initial_Punctuation}",

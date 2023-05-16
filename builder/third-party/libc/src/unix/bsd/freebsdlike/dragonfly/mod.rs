@@ -1091,6 +1091,7 @@ pub const EV_NODATA: u16 = 0x1000;
 pub const EV_FLAG1: u16 = 0x2000;
 pub const EV_ERROR: u16 = 0x4000;
 pub const EV_EOF: u16 = 0x8000;
+pub const EV_HUP: u16 = 0x8000;
 pub const EV_SYSFLAGS: u16 = 0xf000;
 
 pub const FIODNAME: ::c_ulong = 0x80106678;
@@ -1518,6 +1519,9 @@ pub const MAXCOMLEN: usize = 16;
 pub const MAXLOGNAME: usize = 33;
 pub const NGROUPS: usize = 16;
 
+pub const RB_PAUSE: ::c_int = 0x40000;
+pub const RB_VIDEO: ::c_int = 0x20000000;
+
 const_fn! {
     {const} fn _CMSG_ALIGN(n: usize) -> usize {
         (n + (::mem::size_of::<::c_long>() - 1)) & !(::mem::size_of::<::c_long>() - 1)
@@ -1530,7 +1534,7 @@ f! {
             .offset(_CMSG_ALIGN(::mem::size_of::<::cmsghdr>()) as isize)
     }
 
-    pub fn CMSG_LEN(length: ::c_uint) -> ::c_uint {
+    pub {const} fn CMSG_LEN(length: ::c_uint) -> ::c_uint {
         (_CMSG_ALIGN(::mem::size_of::<::cmsghdr>()) + length as usize)
             as ::c_uint
     }
@@ -1576,6 +1580,14 @@ f! {
     pub fn CPU_ISSET(cpu: usize, cpuset: &cpu_set_t) -> bool {
         let (idx, offset) = ((cpu >> 6) & 3, cpu & 63);
         0 != cpuset.ary[idx] & (1 << offset)
+    }
+
+    pub fn major(dev: ::dev_t) -> ::c_int {
+         ((dev >> 8) & 0xff) as ::c_int
+    }
+
+    pub fn minor(dev: ::dev_t) -> ::c_int {
+        (dev & 0xffff00ff) as ::c_int
     }
 }
 

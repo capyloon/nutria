@@ -12,6 +12,7 @@
 //!   - [HTTP][http]
 //! - Special Topics:
 //!   - [Implementing `FromStr`][fromstr]
+//!   - [Performance][performance]
 //!   - [Parsing Partial Input][partial]
 //!   - [Custom stream][stream]
 //!   - [Custom errors][error]
@@ -19,6 +20,7 @@
 //! See also parsers written with `winnow`:
 //!
 //! - [`toml_edit`](https://crates.io/crates/toml_edit)
+//! - [`hcl-edit`](https://crates.io/crates/hcl-edit)
 
 pub mod arithmetic;
 pub mod error;
@@ -28,6 +30,7 @@ pub mod ini;
 pub mod json;
 pub mod language;
 pub mod partial;
+pub mod performance;
 pub mod s_expression;
 pub mod stream;
 pub mod why;

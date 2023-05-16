@@ -2,19 +2,15 @@ macro_rules! algos {
     (@algo $algo:ident [$algo_s:expr] $decoder:ident $encoder:ident<$inner:ident> $({ $($constructor:tt)* })*) => {
         #[cfg(feature = $algo_s)]
         decoder! {
-            /// A
-            #[doc = $algo_s]
-            /// decoder, or decompressor.
-            #[cfg_attr(docsrs, doc(cfg(feature = $algo_s)))]
+            #[doc = concat!("A ", $algo_s, " decoder, or decompressor")]
+            #[cfg(feature = $algo_s)]
             $decoder
         }
 
         #[cfg(feature = $algo_s)]
         encoder! {
-            /// A
-            #[doc = $algo_s]
-            /// encoder, or compressor.
-            #[cfg_attr(docsrs, doc(cfg(feature = $algo_s)))]
+            #[doc = concat!("A ", $algo_s, " encoder, or compressor.")]
+            #[cfg(feature = $algo_s)]
             $encoder<$inner> {
                 pub fn new(inner: $inner) -> Self {
                     Self::with_quality(inner, crate::Level::Default)
@@ -86,6 +82,17 @@ macro_rules! algos {
                     inner: crate::$($mod::)+generic::Encoder::new(
                         inner,
                         crate::codec::ZstdEncoder::new(level.into_zstd()),
+                    ),
+                }
+            }
+
+            /// Creates a new encoder, using the specified compression level and parameters, which
+            /// will read uncompressed data from the given stream and emit a compressed stream.
+            pub fn with_quality_and_params(inner: $inner, level: crate::Level, params: &[crate::zstd::CParameter]) -> Self {
+                Self {
+                    inner: crate::$($mod::)+generic::Encoder::new(
+                        inner,
+                        crate::codec::ZstdEncoder::new_with_params(level.into_zstd(), params),
                     ),
                 }
             }

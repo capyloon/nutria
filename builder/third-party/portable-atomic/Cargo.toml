@@ -13,11 +13,13 @@
 edition = "2018"
 rust-version = "1.34"
 name = "portable-atomic"
-version = "0.3.19"
+version = "1.3.2"
 exclude = [
     "/.*",
+    "/ci",
     "/tools",
     "/target-specs",
+    "/Cross.toml",
 ]
 description = """
 Portable atomic types including support for 128-bit atomics, atomic float, etc.
@@ -35,7 +37,11 @@ license = "Apache-2.0 OR MIT"
 repository = "https://github.com/taiki-e/portable-atomic"
 
 [package.metadata.docs.rs]
-all-features = true
+features = [
+    "float",
+    "std",
+    "serde",
+]
 rustdoc-args = [
     "--cfg",
     "docsrs",
@@ -43,11 +49,19 @@ rustdoc-args = [
 targets = ["x86_64-unknown-linux-gnu"]
 
 [lib]
+doc-scrape-examples = false
+
+[dependencies.critical-section]
+version = "1"
+optional = true
 
 [dependencies.serde]
 version = "1.0.103"
 optional = true
 default-features = false
+
+[dev-dependencies.build-context]
+version = "0.1"
 
 [dev-dependencies.crossbeam-utils]
 version = "0.8"
@@ -57,10 +71,6 @@ version = "1"
 
 [dev-dependencies.paste]
 version = "1"
-
-[dev-dependencies.serde]
-version = "1"
-features = ["derive"]
 
 [dev-dependencies.serde_test]
 version = "1"
@@ -75,5 +85,5 @@ version = "1"
 default = ["fallback"]
 fallback = []
 float = []
-outline-atomics = []
+require-cas = []
 std = []

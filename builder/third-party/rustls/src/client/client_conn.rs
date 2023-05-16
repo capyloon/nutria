@@ -1,13 +1,14 @@
 use crate::builder::{ConfigBuilder, WantsCipherSuites};
-use crate::conn::{CommonState, ConnectionCommon, Protocol, Side};
+use crate::common_state::{CommonState, Protocol, Side};
+use crate::conn::{ConnectionCommon, ConnectionCore};
 use crate::enums::{CipherSuite, ProtocolVersion, SignatureScheme};
 use crate::error::Error;
 use crate::kx::SupportedKxGroup;
 #[cfg(feature = "logging")]
 use crate::log::trace;
-#[cfg(feature = "quic")]
-use crate::msgs::enums::AlertDescription;
+use crate::msgs::enums::NamedGroup;
 use crate::msgs::handshake::ClientExtension;
+use crate::msgs::persist;
 use crate::sign;
 use crate::suites::SupportedCipherSuite;
 use crate::verify;
@@ -16,11 +17,9 @@ use crate::versions;
 use crate::ExtractedSecrets;
 use crate::KeyLog;
 
+use super::handy::{ClientSessionMemoryCache, NoClientSessionStorage};
 use super::hs;
-#[cfg(feature = "quic")]
-use crate::quic;
 
-use std::convert::TryFrom;
 use std::error::Error as StdError;
 use std::marker::PhantomData;
 use std::net::IpAddr;
@@ -28,25 +27,59 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::{fmt, io, mem};
 
-/// A trait for the ability to store client session data.
-/// The keys and values are opaque.
+/// A trait for the ability to store client session data, so that sessions
+/// can be resumed in future connections.
 ///
-/// Both the keys and values should be treated as
-/// **highly sensitive data**, containing enough key material
-/// to break all security of the corresponding session.
+/// Generally all data in this interface should be treated as
+/// **highly sensitive**, containing enough key material to break all security
+/// of the corresponding session.
 ///
-/// `put` is a mutating operation; this isn't expressed
-/// in the type system to allow implementations freedom in
-/// how to achieve interior mutability.  `Mutex` is a common
-/// choice.
-pub trait StoresClientSessions: Send + Sync {
-    /// Stores a new `value` for `key`.  Returns `true`
-    /// if the value was stored.
-    fn put(&self, key: Vec<u8>, value: Vec<u8>) -> bool;
+/// `set_`, `insert_`, `remove_` and `take_` operations are mutating; this isn't
+/// expressed in the type system to allow implementations freedom in
+/// how to achieve interior mutability.  `Mutex` is a common choice.
+pub trait ClientSessionStore: Send + Sync {
+    /// Remember what `NamedGroup` the given server chose.
+    fn set_kx_hint(&self, server_name: &ServerName, group: NamedGroup);
 
-    /// Returns the latest value for `key`.  Returns `None`
-    /// if there's no such value.
-    fn get(&self, key: &[u8]) -> Option<Vec<u8>>;
+    /// This should return the value most recently passed to `set_kx_hint`
+    /// for the given `server_name`.
+    ///
+    /// If `None` is returned, the caller chooses the first configured group,
+    /// and an extra round trip might happen if that choice is unsatisfactory
+    /// to the server.
+    fn kx_hint(&self, server_name: &ServerName) -> Option<NamedGroup>;
+
+    /// Remember a TLS1.2 session.
+    ///
+    /// At most one of these can be remembered at a time, per `server_name`.
+    fn set_tls12_session(&self, server_name: &ServerName, value: persist::Tls12ClientSessionValue);
+
+    /// Get the most recently saved TLS1.2 session for `server_name` provided to `set_tls12_session`.
+    fn tls12_session(&self, server_name: &ServerName) -> Option<persist::Tls12ClientSessionValue>;
+
+    /// Remove and forget any saved TLS1.2 session for `server_name`.
+    fn remove_tls12_session(&self, server_name: &ServerName);
+
+    /// Remember a TLS1.3 ticket that might be retrieved later from `take_tls13_ticket`, allowing
+    /// resumption of this session.
+    ///
+    /// This can be called multiple times for a given session, allowing multiple independent tickets
+    /// to be valid at once.  The number of times this is called is controlled by the server, so
+    /// implementations of this trait should apply a reasonable bound of how many items are stored
+    /// simultaneously.
+    fn insert_tls13_ticket(
+        &self,
+        server_name: &ServerName,
+        value: persist::Tls13ClientSessionValue,
+    );
+
+    /// Return a TLS1.3 ticket previously provided to `add_tls13_ticket`.
+    ///
+    /// Implementations of this trait must return each value provided to `add_tls13_ticket` _at most once_.
+    fn take_tls13_ticket(
+        &self,
+        server_name: &ServerName,
+    ) -> Option<persist::Tls13ClientSessionValue>;
 }
 
 /// A trait for the ability to choose a certificate chain and
@@ -84,7 +117,8 @@ pub trait ResolvesClientCert: Send + Sync {
 /// # Defaults
 ///
 /// * [`ClientConfig::max_fragment_size`]: the default is `None`: TLS packets are not fragmented to a specific size.
-/// * [`ClientConfig::session_storage`]: the default stores 256 sessions in memory.
+/// * [`ClientConfig::resumption`]: supports resumption with up to 256 server names, using session
+///    ids or tickets, with a max of eight tickets per server.
 /// * [`ClientConfig::alpn_protocols`]: the default is empty -- no ALPN protocol is negotiated.
 /// * [`ClientConfig::key_log`]: key material is not logged.
 #[derive(Clone)]
@@ -103,8 +137,8 @@ pub struct ClientConfig {
     /// If empty, no ALPN extension is sent.
     pub alpn_protocols: Vec<Vec<u8>>,
 
-    /// How we store session data or tickets.
-    pub session_storage: Arc<dyn StoresClientSessions>,
+    /// How and when the client can resume a previous session.
+    pub resumption: Resumption,
 
     /// The maximum size of TLS message we'll emit.  If None, we don't limit TLS
     /// message lengths except to the 2**16 limit specified in the standard.
@@ -117,13 +151,6 @@ pub struct ClientConfig {
 
     /// How to decide what client auth certificate/keys to use.
     pub client_auth_cert_resolver: Arc<dyn ResolvesClientCert>,
-
-    /// Whether to support RFC5077 tickets.  You must provide a working
-    /// `session_storage` member for this to have any meaningful
-    /// effect.
-    ///
-    /// The default is true.
-    pub enable_tickets: bool,
 
     /// Supported versions, in no particular order.  The default
     /// is all supported versions.
@@ -145,6 +172,7 @@ pub struct ClientConfig {
     /// Allows traffic secrets to be extracted after the handshake,
     /// e.g. for kTLS setup.
     #[cfg(feature = "secret_extraction")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "secret_extraction")))]
     pub enable_secret_extraction: bool,
 
     /// Whether to send data on the first flight ("early data") in
@@ -154,12 +182,28 @@ pub struct ClientConfig {
     pub enable_early_data: bool,
 }
 
+/// What mechanisms to support for resuming a TLS 1.2 session.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Tls12Resumption {
+    /// Disable 1.2 resumption.
+    Disabled,
+    /// Support 1.2 resumption using session ids only.
+    SessionIdOnly,
+    /// Support 1.2 resumption using session ids or RFC 5077 tickets.
+    ///
+    /// See[^1] for why you might like to disable RFC 5077 by instead choosing the `SessionIdOnly`
+    /// option. Note that TLS 1.3 tickets do not have those issues.
+    ///
+    /// [^1]: <https://words.filippo.io/we-need-to-talk-about-session-tickets/>
+    SessionIdOrTickets,
+}
+
 impl fmt::Debug for ClientConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ClientConfig")
             .field("alpn_protocols", &self.alpn_protocols)
+            .field("resumption", &self.resumption)
             .field("max_fragment_size", &self.max_fragment_size)
-            .field("enable_tickets", &self.enable_tickets)
             .field("enable_sni", &self.enable_sni)
             .field("enable_early_data", &self.enable_early_data)
             .finish_non_exhaustive()
@@ -177,11 +221,10 @@ impl ClientConfig {
         }
     }
 
-    #[doc(hidden)]
     /// We support a given TLS version if it's quoted in the configured
     /// versions *and* at least one ciphersuite for this version is
     /// also configured.
-    pub fn supports_version(&self, v: ProtocolVersion) -> bool {
+    pub(crate) fn supports_version(&self, v: ProtocolVersion) -> bool {
         self.versions.contains(v)
             && self
                 .cipher_suites
@@ -204,6 +247,72 @@ impl ClientConfig {
     }
 }
 
+/// Configuration for how/when a client is allowed to resume a previous session.
+#[derive(Clone)]
+pub struct Resumption {
+    /// How we store session data or tickets. The default is to use an in-memory
+    /// [ClientSessionMemoryCache].
+    pub(super) store: Arc<dyn ClientSessionStore>,
+
+    /// What mechanism is used for resuming a TLS 1.2 session.
+    pub(super) tls12_resumption: Tls12Resumption,
+}
+
+impl Resumption {
+    /// Create a new `Resumption` that stores data for the given number of sessions in memory.
+    ///
+    /// This is the default `Resumption` choice, and enables resuming a TLS 1.2 session with
+    /// a session id or RFC 5077 ticket.
+    pub fn in_memory_sessions(num: usize) -> Self {
+        Self {
+            store: Arc::new(ClientSessionMemoryCache::new(num)),
+            tls12_resumption: Tls12Resumption::SessionIdOrTickets,
+        }
+    }
+
+    /// Use a custom [`ClientSessionStore`] implementation to store sessions.
+    ///
+    /// By default, enables resuming a TLS 1.2 session with a session id or RFC 5077 ticket.
+    pub fn store(store: Arc<dyn ClientSessionStore>) -> Self {
+        Self {
+            store,
+            tls12_resumption: Tls12Resumption::SessionIdOrTickets,
+        }
+    }
+
+    /// Disable all use of session resumption.
+    pub fn disabled() -> Self {
+        Self {
+            store: Arc::new(NoClientSessionStorage),
+            tls12_resumption: Tls12Resumption::Disabled,
+        }
+    }
+
+    /// Configure whether TLS 1.2 sessions may be resumed, and by what mechanism.
+    ///
+    /// This is meaningless if you've disabled resumption entirely.
+    pub fn tls12_resumption(mut self, tls12: Tls12Resumption) -> Self {
+        self.tls12_resumption = tls12;
+        self
+    }
+}
+
+impl fmt::Debug for Resumption {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Resumption")
+            .field("tls12_resumption", &self.tls12_resumption)
+            .finish()
+    }
+}
+
+impl Default for Resumption {
+    /// Create an in-memory session store resumption with up to 256 server names, allowing
+    /// a TLS 1.2 session to resume with a session id or RFC 5077 ticket.
+    fn default() -> Self {
+        Self::in_memory_sessions(256)
+    }
+}
+
 /// Encodes ways a client can know the expected name of the server.
 ///
 /// This currently covers knowing the DNS name of the server, but
@@ -216,7 +325,6 @@ impl ClientConfig {
 /// so you can do:
 ///
 /// ```
-/// # use std::convert::{TryInto, TryFrom};
 /// # use rustls::ServerName;
 /// ServerName::try_from("example.com").expect("invalid DNS name");
 ///
@@ -246,38 +354,6 @@ impl ServerName {
         match self {
             Self::DnsName(dns_name) => Some(dns_name.0.as_ref()),
             Self::IpAddress(_) => None,
-        }
-    }
-
-    /// Return a prefix-free, unique encoding for the name.
-    pub(crate) fn encode(&self) -> Vec<u8> {
-        enum UniqueTypeCode {
-            DnsName = 0x01,
-            IpAddr = 0x02,
-        }
-
-        match self {
-            Self::DnsName(dns_name) => {
-                let bytes = dns_name.0.as_ref();
-
-                let mut r = Vec::with_capacity(2 + bytes.as_ref().len());
-                r.push(UniqueTypeCode::DnsName as u8);
-                r.push(bytes.as_ref().len() as u8);
-                r.extend_from_slice(bytes.as_ref());
-
-                r
-            }
-            Self::IpAddress(address) => {
-                let string = address.to_string();
-                let bytes = string.as_bytes();
-
-                let mut r = Vec::with_capacity(2 + bytes.len());
-                r.push(UniqueTypeCode::IpAddr as u8);
-                r.push(bytes.len() as u8);
-                r.extend_from_slice(bytes);
-
-                r
-            }
         }
     }
 }
@@ -431,6 +507,7 @@ impl<'a> WriteEarlyData<'a> {
     pub fn bytes_left(&self) -> usize {
         self.sess
             .inner
+            .core
             .data
             .early_data
             .bytes_left()
@@ -464,33 +541,9 @@ impl ClientConnection {
     /// we behave in the TLS protocol, `name` is the
     /// name of the server we want to talk to.
     pub fn new(config: Arc<ClientConfig>, name: ServerName) -> Result<Self, Error> {
-        Self::new_inner(config, name, Vec::new(), Protocol::Tcp)
-    }
-
-    fn new_inner(
-        config: Arc<ClientConfig>,
-        name: ServerName,
-        extra_exts: Vec<ClientExtension>,
-        proto: Protocol,
-    ) -> Result<Self, Error> {
-        let mut common_state = CommonState::new(Side::Client);
-        common_state.set_max_fragment_size(config.max_fragment_size)?;
-        common_state.protocol = proto;
-        #[cfg(feature = "secret_extraction")]
-        {
-            common_state.enable_secret_extraction = config.enable_secret_extraction;
-        }
-        let mut data = ClientConnectionData::new();
-
-        let mut cx = hs::ClientContext {
-            common: &mut common_state,
-            data: &mut data,
-        };
-
-        let state = hs::start_handshake(name, extra_exts, config, &mut cx)?;
-        let inner = ConnectionCommon::new(state, data, common_state);
-
-        Ok(Self { inner })
+        Ok(Self {
+            inner: ConnectionCore::for_client(config, name, Vec::new(), Protocol::Tcp)?.into(),
+        })
     }
 
     /// Returns an `io::Write` implementer you can write bytes to
@@ -512,7 +565,13 @@ impl ClientConnection {
     /// in this case the data is lost but the connection continues.  You
     /// can tell this happened using `is_early_data_accepted`.
     pub fn early_data(&mut self) -> Option<WriteEarlyData> {
-        if self.inner.data.early_data.is_enabled() {
+        if self
+            .inner
+            .core
+            .data
+            .early_data
+            .is_enabled()
+        {
             Some(WriteEarlyData::new(self))
         } else {
             None
@@ -525,23 +584,24 @@ impl ClientConnection {
     /// handshake then the server will not process the data.  This
     /// is not an error, but you may wish to resend the data.
     pub fn is_early_data_accepted(&self) -> bool {
-        self.inner.data.early_data.is_accepted()
+        self.inner.core.is_early_data_accepted()
     }
 
     fn write_early_data(&mut self, data: &[u8]) -> io::Result<usize> {
         self.inner
+            .core
             .data
             .early_data
             .check_write(data.len())
             .map(|sz| {
                 self.inner
-                    .common_state
                     .send_early_plaintext(&data[..sz])
             })
     }
 
     /// Extract secrets, so they can be used when configuring kTLS, for example.
     #[cfg(feature = "secret_extraction")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "secret_extraction")))]
     pub fn extract_secrets(self) -> Result<ExtractedSecrets, Error> {
         self.inner.extract_secrets()
     }
@@ -580,6 +640,36 @@ impl From<ClientConnection> for crate::Connection {
     }
 }
 
+impl ConnectionCore<ClientConnectionData> {
+    pub(crate) fn for_client(
+        config: Arc<ClientConfig>,
+        name: ServerName,
+        extra_exts: Vec<ClientExtension>,
+        proto: Protocol,
+    ) -> Result<Self, Error> {
+        let mut common_state = CommonState::new(Side::Client);
+        common_state.set_max_fragment_size(config.max_fragment_size)?;
+        common_state.protocol = proto;
+        #[cfg(feature = "secret_extraction")]
+        {
+            common_state.enable_secret_extraction = config.enable_secret_extraction;
+        }
+        let mut data = ClientConnectionData::new();
+
+        let mut cx = hs::ClientContext {
+            common: &mut common_state,
+            data: &mut data,
+        };
+
+        let state = hs::start_handshake(name, extra_exts, config, &mut cx)?;
+        Ok(Self::new(state, data, common_state))
+    }
+
+    pub(crate) fn is_early_data_accepted(&self) -> bool {
+        self.data.early_data.is_accepted()
+    }
+}
+
 /// State associated with a client connection.
 pub struct ClientConnectionData {
     pub(super) early_data: EarlyData,
@@ -596,72 +686,3 @@ impl ClientConnectionData {
 }
 
 impl crate::conn::SideData for ClientConnectionData {}
-
-#[cfg(feature = "quic")]
-impl quic::QuicExt for ClientConnection {
-    fn quic_transport_parameters(&self) -> Option<&[u8]> {
-        self.inner
-            .common_state
-            .quic
-            .params
-            .as_ref()
-            .map(|v| v.as_ref())
-    }
-
-    fn zero_rtt_keys(&self) -> Option<quic::DirectionalKeys> {
-        Some(quic::DirectionalKeys::new(
-            self.inner
-                .data
-                .resumption_ciphersuite
-                .and_then(|suite| suite.tls13())?,
-            self.inner
-                .common_state
-                .quic
-                .early_secret
-                .as_ref()?,
-        ))
-    }
-
-    fn read_hs(&mut self, plaintext: &[u8]) -> Result<(), Error> {
-        self.inner.read_quic_hs(plaintext)
-    }
-
-    fn write_hs(&mut self, buf: &mut Vec<u8>) -> Option<quic::KeyChange> {
-        quic::write_hs(&mut self.inner.common_state, buf)
-    }
-
-    fn alert(&self) -> Option<AlertDescription> {
-        self.inner.common_state.quic.alert
-    }
-}
-
-/// Methods specific to QUIC client sessions
-#[cfg(feature = "quic")]
-#[cfg_attr(docsrs, doc(cfg(feature = "quic")))]
-pub trait ClientQuicExt {
-    /// Make a new QUIC ClientConnection. This differs from `ClientConnection::new()`
-    /// in that it takes an extra argument, `params`, which contains the
-    /// TLS-encoded transport parameters to send.
-    fn new_quic(
-        config: Arc<ClientConfig>,
-        quic_version: quic::Version,
-        name: ServerName,
-        params: Vec<u8>,
-    ) -> Result<ClientConnection, Error> {
-        if !config.supports_version(ProtocolVersion::TLSv1_3) {
-            return Err(Error::General(
-                "TLS 1.3 support is required for QUIC".into(),
-            ));
-        }
-
-        let ext = match quic_version {
-            quic::Version::V1Draft => ClientExtension::TransportParametersDraft(params),
-            quic::Version::V1 => ClientExtension::TransportParameters(params),
-        };
-
-        ClientConnection::new_inner(config, name, vec![ext], Protocol::Quic)
-    }
-}
-
-#[cfg(feature = "quic")]
-impl ClientQuicExt for ClientConnection {}

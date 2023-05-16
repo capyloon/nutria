@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.48"
 name = "rustix"
-version = "0.36.11"
+version = "0.37.19"
 authors = [
     "Dan Gohman <dev@sunfishcode.online>",
     "Jakub Konka <kubkon@jakubkonka.com>",
@@ -57,6 +57,15 @@ targets = [
     "i686-unknown-linux-gnu",
     "x86_64-apple-darwin",
     "x86_64-pc-windows-msvc",
+    "x86_64-unknown-freebsd",
+    "x86_64-unknown-openbsd",
+    "x86_64-unknown-netbsd",
+    "x86_64-unknown-dragonfly",
+    "x86_64-unknown-illumos",
+    "x86_64-unknown-redox",
+    "x86_64-unknown-haiku",
+    "wasm32-unknown-emscripten",
+    "wasm32-wasi",
 ]
 
 [[bench]]
@@ -69,7 +78,7 @@ optional = true
 package = "rustc-std-workspace-alloc"
 
 [dependencies.bitflags]
-version = "1.2.1"
+version = "1.3.2"
 
 [dependencies.compiler_builtins]
 version = "0.1.49"
@@ -81,7 +90,7 @@ optional = true
 package = "rustc-std-workspace-core"
 
 [dependencies.io-lifetimes]
-version = "1.0.0"
+version = "1.0.10"
 features = ["close"]
 optional = true
 default-features = false
@@ -95,26 +104,26 @@ default-features = false
 version = "1.0"
 
 [dev-dependencies.io-lifetimes]
-version = "1.0.0"
+version = "1.0.10"
 features = ["close"]
 default-features = false
 
 [dev-dependencies.libc]
-version = "0.2.133"
+version = "0.2.142"
 
 [dev-dependencies.libc_errno]
-version = "0.2.8"
+version = "0.3.1"
 default-features = false
 package = "errno"
 
 [dev-dependencies.memoffset]
-version = "0.7.1"
+version = "0.8.0"
 
 [dev-dependencies.serial_test]
 version = "0.6"
 
 [dev-dependencies.tempfile]
-version = "3.2.0"
+version = "3.4.0"
 
 [build-dependencies.cc]
 version = "1.0.68"
@@ -149,6 +158,8 @@ io_uring = [
     "fs",
     "net",
 ]
+linux_4_11 = []
+linux_latest = ["linux_4_11"]
 mm = []
 net = []
 os_pipe = ["io-lifetimes/os_pipe"]
@@ -179,9 +190,10 @@ use-libc = [
 use-libc-auxv = ["libc"]
 
 [target."cfg(all(any(target_os = \"android\", target_os = \"linux\"), any(rustix_use_libc, miri, not(all(target_os = \"linux\", any(target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\"), all(target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"powerpc64\", target_arch = \"riscv64\", target_arch = \"mips\", target_arch = \"mips64\"))))))))".dependencies.linux-raw-sys]
-version = "0.1.2"
+version = "0.3.6"
 features = [
     "general",
+    "ioctl",
     "no_std",
 ]
 default-features = false
@@ -190,18 +202,18 @@ default-features = false
 version = "0.4"
 
 [target."cfg(all(not(rustix_use_libc), not(miri), target_os = \"linux\", any(target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\"), all(target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"powerpc64\", target_arch = \"riscv64\", target_arch = \"mips\", target_arch = \"mips64\")))))".dependencies.libc]
-version = "0.2.133"
+version = "0.2.142"
 features = ["extra_traits"]
 optional = true
 
 [target."cfg(all(not(rustix_use_libc), not(miri), target_os = \"linux\", any(target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\"), all(target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"powerpc64\", target_arch = \"riscv64\", target_arch = \"mips\", target_arch = \"mips64\")))))".dependencies.libc_errno]
-version = "0.2.8"
+version = "0.3.1"
 optional = true
 default-features = false
 package = "errno"
 
 [target."cfg(all(not(rustix_use_libc), not(miri), target_os = \"linux\", any(target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\"), all(target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"powerpc64\", target_arch = \"riscv64\", target_arch = \"mips\", target_arch = \"mips64\")))))".dependencies.linux-raw-sys]
-version = "0.1.2"
+version = "0.3.6"
 features = [
     "general",
     "errno",
@@ -210,12 +222,12 @@ features = [
 ]
 default-features = false
 
-[target."cfg(any(rustix_use_libc, miri, not(all(target_os = \"linux\", any(target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\"), all(target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"powerpc64\", target_arch = \"riscv64\", target_arch = \"mips\", target_arch = \"mips64\")))))))".dependencies.libc]
-version = "0.2.133"
+[target."cfg(all(not(windows), any(rustix_use_libc, miri, not(all(target_os = \"linux\", any(target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\"), all(target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"powerpc64\", target_arch = \"riscv64\", target_arch = \"mips\", target_arch = \"mips64\"))))))))".dependencies.libc]
+version = "0.2.142"
 features = ["extra_traits"]
 
-[target."cfg(any(rustix_use_libc, miri, not(all(target_os = \"linux\", any(target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\"), all(target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"powerpc64\", target_arch = \"riscv64\", target_arch = \"mips\", target_arch = \"mips64\")))))))".dependencies.libc_errno]
-version = "0.2.8"
+[target."cfg(all(not(windows), any(rustix_use_libc, miri, not(all(target_os = \"linux\", any(target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\"), all(target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"powerpc64\", target_arch = \"riscv64\", target_arch = \"mips\", target_arch = \"mips64\"))))))))".dependencies.libc_errno]
+version = "0.3.1"
 default-features = false
 package = "errno"
 
@@ -223,8 +235,13 @@ package = "errno"
 version = "1.5.2"
 optional = true
 
+[target."cfg(windows)".dependencies.libc_errno]
+version = "0.3.1"
+default-features = false
+package = "errno"
+
 [target."cfg(windows)".dependencies.windows-sys]
-version = "0.45.0"
+version = "0.48.0"
 features = [
     "Win32_Foundation",
     "Win32_Networking_WinSock",
@@ -233,4 +250,4 @@ features = [
 ]
 
 [target."cfg(windows)".dev-dependencies.ctor]
-version = "0.1.21"
+version = "0.2.0"

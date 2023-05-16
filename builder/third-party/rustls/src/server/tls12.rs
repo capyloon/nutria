@@ -1,7 +1,9 @@
 use crate::check::inappropriate_message;
-use crate::conn::{CommonState, ConnectionRandoms, Side, State};
+use crate::common_state::{CommonState, Side, State};
+use crate::conn::ConnectionRandoms;
 use crate::enums::ProtocolVersion;
-use crate::error::Error;
+use crate::enums::{AlertDescription, ContentType, HandshakeType};
+use crate::error::{Error, PeerIncompatible, PeerMisbehaved};
 use crate::hash_hs::HandshakeHash;
 use crate::key::Certificate;
 #[cfg(feature = "logging")]
@@ -9,9 +11,8 @@ use crate::log::{debug, trace};
 use crate::msgs::base::Payload;
 use crate::msgs::ccs::ChangeCipherSpecPayload;
 use crate::msgs::codec::Codec;
-use crate::msgs::enums::{AlertDescription, ContentType, HandshakeType};
 use crate::msgs::handshake::{ClientECDHParams, HandshakeMessagePayload, HandshakePayload};
-use crate::msgs::handshake::{NewSessionTicketPayload, SessionID};
+use crate::msgs::handshake::{NewSessionTicketPayload, SessionId};
 use crate::msgs::message::{Message, MessagePayload};
 use crate::msgs::persist;
 #[cfg(feature = "secret_extraction")]
@@ -33,22 +34,21 @@ mod client_hello {
     use crate::enums::SignatureScheme;
     use crate::msgs::enums::ECPointFormat;
     use crate::msgs::enums::{ClientCertificateType, Compression};
+    use crate::msgs::handshake::ServerECDHParams;
     use crate::msgs::handshake::{CertificateRequestPayload, ClientSessionTicket, Random};
-    use crate::msgs::handshake::{
-        CertificateStatus, DigitallySignedStruct, ECDHEServerKeyExchange,
-    };
-    use crate::msgs::handshake::{ClientExtension, SessionID};
+    use crate::msgs::handshake::{CertificateStatus, ECDHEServerKeyExchange};
+    use crate::msgs::handshake::{ClientExtension, SessionId};
     use crate::msgs::handshake::{ClientHelloPayload, ServerHelloPayload};
-    use crate::msgs::handshake::{ECPointFormatList, ServerECDHParams, SupportedPointFormats};
     use crate::msgs::handshake::{ServerExtension, ServerKeyExchangePayload};
     use crate::sign;
+    use crate::verify::DigitallySignedStruct;
 
     use super::*;
 
     pub(in crate::server) struct CompleteClientHelloHandling {
         pub(in crate::server) config: Arc<ServerConfig>,
         pub(in crate::server) transcript: HandshakeHash,
-        pub(in crate::server) session_id: SessionID,
+        pub(in crate::server) session_id: SessionId,
         pub(in crate::server) suite: &'static Tls12CipherSuite,
         pub(in crate::server) using_ems: bool,
         pub(in crate::server) randoms: ConnectionRandoms,
@@ -75,19 +75,28 @@ mod client_hello {
 
             let groups_ext = client_hello
                 .get_namedgroups_extension()
-                .ok_or_else(|| hs::incompatible(cx.common, "client didn't describe groups"))?;
+                .ok_or_else(|| {
+                    cx.common.send_fatal_alert(
+                        AlertDescription::HandshakeFailure,
+                        PeerIncompatible::NamedGroupsExtensionRequired,
+                    )
+                })?;
             let ecpoints_ext = client_hello
                 .get_ecpoints_extension()
-                .ok_or_else(|| hs::incompatible(cx.common, "client didn't describe ec points"))?;
+                .ok_or_else(|| {
+                    cx.common.send_fatal_alert(
+                        AlertDescription::HandshakeFailure,
+                        PeerIncompatible::EcPointsExtensionRequired,
+                    )
+                })?;
 
             trace!("namedgroups {:?}", groups_ext);
             trace!("ecpoints {:?}", ecpoints_ext);
 
             if !ecpoints_ext.contains(&ECPointFormat::Uncompressed) {
-                cx.common
-                    .send_fatal_alert(AlertDescription::IllegalParameter);
-                return Err(Error::PeerIncompatibleError(
-                    "client didn't support uncompressed ec points".to_string(),
+                return Err(cx.common.send_fatal_alert(
+                    AlertDescription::IllegalParameter,
+                    PeerIncompatible::UncompressedEcPointsRequired,
                 ));
             }
 
@@ -137,7 +146,7 @@ mod client_hello {
                         .session_storage
                         .get(&client_hello.session_id.get_encoding())
                 })
-                .and_then(|x| persist::ServerSessionValue::read_bytes(&x))
+                .and_then(|x| persist::ServerSessionValue::read_bytes(&x).ok())
                 .filter(|resumedata| {
                     hs::can_resume(self.suite.into(), &cx.data.sni, self.using_ems, resumedata)
                 });
@@ -152,7 +161,10 @@ mod client_hello {
                 .resolve_sig_schemes(&sigschemes_ext);
 
             if sigschemes.is_empty() {
-                return Err(hs::incompatible(cx.common, "no overlapping sigschemes"));
+                return Err(cx.common.send_fatal_alert(
+                    AlertDescription::HandshakeFailure,
+                    PeerIncompatible::NoSignatureSchemesInCommon,
+                ));
             }
 
             let group = self
@@ -161,13 +173,23 @@ mod client_hello {
                 .iter()
                 .find(|skxg| groups_ext.contains(&skxg.name))
                 .cloned()
-                .ok_or_else(|| hs::incompatible(cx.common, "no supported group"))?;
+                .ok_or_else(|| {
+                    cx.common.send_fatal_alert(
+                        AlertDescription::HandshakeFailure,
+                        PeerIncompatible::NoKxGroupsInCommon,
+                    )
+                })?;
 
-            let ecpoint = ECPointFormatList::supported()
+            let ecpoint = ECPointFormat::SUPPORTED
                 .iter()
                 .find(|format| ecpoints_ext.contains(format))
                 .cloned()
-                .ok_or_else(|| hs::incompatible(cx.common, "no supported point format"))?;
+                .ok_or_else(|| {
+                    cx.common.send_fatal_alert(
+                        AlertDescription::HandshakeFailure,
+                        PeerIncompatible::NoEcPointFormatsInCommon,
+                    )
+                })?;
 
             debug_assert_eq!(ecpoint, ECPointFormat::Uncompressed);
 
@@ -176,9 +198,9 @@ mod client_hello {
 
             // If we're not offered a ticket or a potential session ID, allocate a session ID.
             if !self.config.session_storage.can_cache() {
-                self.session_id = SessionID::empty();
+                self.session_id = SessionId::empty();
             } else if self.session_id.is_empty() && !ticket_received {
-                self.session_id = SessionID::random()?;
+                self.session_id = SessionId::random()?;
             }
 
             self.send_ticket = emit_server_hello(
@@ -240,15 +262,16 @@ mod client_hello {
             mut self,
             cx: &mut ServerContext<'_>,
             client_hello: &ClientHelloPayload,
-            id: &SessionID,
+            id: &SessionId,
             resumedata: persist::ServerSessionValue,
         ) -> hs::NextStateOrError {
             debug!("Resuming connection");
 
             if resumedata.extended_ms && !self.using_ems {
-                return Err(cx
-                    .common
-                    .illegal_param("refusing to resume without ems"));
+                return Err(cx.common.send_fatal_alert(
+                    AlertDescription::IllegalParameter,
+                    PeerMisbehaved::ResumptionAttemptedWithVariedEms,
+                ));
             }
 
             self.session_id = *id;
@@ -312,7 +335,7 @@ mod client_hello {
         config: &ServerConfig,
         transcript: &mut HandshakeHash,
         cx: &mut ServerContext<'_>,
-        session_id: SessionID,
+        session_id: SessionId,
         suite: &'static Tls12CipherSuite,
         using_ems: bool,
         ocsp_response: &mut Option<&[u8]>,
@@ -440,14 +463,10 @@ mod client_hello {
 
         let verify_schemes = client_auth.supported_verify_schemes();
 
-        let names = client_auth
+        let names = config
+            .verifier
             .client_auth_root_subjects()
-            .ok_or_else(|| {
-                debug!("could not determine root subjects based on SNI");
-                cx.common
-                    .send_fatal_alert(AlertDescription::AccessDenied);
-                Error::General("client rejected by client_auth_root_subjects".into())
-            })?;
+            .to_vec();
 
         let cr = CertificateRequestPayload {
             certtypes: vec![
@@ -491,7 +510,7 @@ struct ExpectCertificate {
     config: Arc<ServerConfig>,
     transcript: HandshakeHash,
     randoms: ConnectionRandoms,
-    session_id: SessionID,
+    session_id: SessionId,
     suite: &'static Tls12CipherSuite,
     using_ems: bool,
     server_kx: kx::KeyExchange,
@@ -511,21 +530,16 @@ impl State<ServerConnectionData> for ExpectCertificate {
         let mandatory = self
             .config
             .verifier
-            .client_auth_mandatory()
-            .ok_or_else(|| {
-                debug!("could not determine if client auth is mandatory based on SNI");
-                cx.common
-                    .send_fatal_alert(AlertDescription::AccessDenied);
-                Error::General("client rejected by client_auth_mandatory".into())
-            })?;
+            .client_auth_mandatory();
 
         trace!("certs {:?}", cert_chain);
 
         let client_cert = match cert_chain.split_first() {
             None if mandatory => {
-                cx.common
-                    .send_fatal_alert(AlertDescription::CertificateRequired);
-                return Err(Error::NoCertificatesPresented);
+                return Err(cx.common.send_fatal_alert(
+                    AlertDescription::CertificateRequired,
+                    Error::NoCertificatesPresented,
+                ));
             }
             None => {
                 debug!("client auth requested but no certificate supplied");
@@ -538,8 +552,8 @@ impl State<ServerConnectionData> for ExpectCertificate {
                     .verifier
                     .verify_client_cert(end_entity, intermediates, now)
                     .map_err(|err| {
-                        hs::incompatible(cx.common, "certificate invalid");
-                        err
+                        cx.common
+                            .send_cert_verify_error_alert(err)
                     })?;
 
                 Some(cert_chain)
@@ -565,7 +579,7 @@ struct ExpectClientKx {
     config: Arc<ServerConfig>,
     transcript: HandshakeHash,
     randoms: ConnectionRandoms,
-    session_id: SessionID,
+    session_id: SessionId,
     suite: &'static Tls12CipherSuite,
     using_ems: bool,
     server_kx: kx::KeyExchange,
@@ -634,7 +648,7 @@ struct ExpectCertificateVerify {
     config: Arc<ServerConfig>,
     secrets: ConnectionSecrets,
     transcript: HandshakeHash,
-    session_id: SessionID,
+    session_id: SessionId,
     using_ems: bool,
     client_cert: Vec<Certificate>,
     send_ticket: bool,
@@ -662,17 +676,18 @@ impl State<ServerConnectionData> for ExpectCertificateVerify {
                     // `transcript.abandon_client_auth()` can extract it, but its only caller in
                     // this flow will also set `ExpectClientKx::client_cert` to `None`, making it
                     // impossible to reach this state.
-                    cx.common
-                        .send_fatal_alert(AlertDescription::AccessDenied);
-                    Err(Error::General("client authentication not set up".into()))
+                    return Err(cx.common.send_fatal_alert(
+                        AlertDescription::AccessDenied,
+                        Error::General("client authentication not set up".into()),
+                    ));
                 }
             }
         };
 
         if let Err(e) = rc {
-            cx.common
-                .send_fatal_alert(AlertDescription::AccessDenied);
-            return Err(e);
+            return Err(cx
+                .common
+                .send_cert_verify_error_alert(e));
         }
 
         trace!("client CertificateVerify OK");
@@ -696,7 +711,7 @@ struct ExpectCcs {
     config: Arc<ServerConfig>,
     secrets: ConnectionSecrets,
     transcript: HandshakeHash,
-    session_id: SessionID,
+    session_id: SessionId,
     using_ems: bool,
     resuming: bool,
     send_ticket: bool,
@@ -829,7 +844,7 @@ struct ExpectFinished {
     config: Arc<ServerConfig>,
     secrets: ConnectionSecrets,
     transcript: HandshakeHash,
-    session_id: SessionID,
+    session_id: SessionId,
     using_ems: bool,
     resuming: bool,
     send_ticket: bool,
@@ -849,8 +864,7 @@ impl State<ServerConnectionData> for ExpectFinished {
             constant_time::verify_slices_are_equal(&expect_verify_data, &finished.0)
                 .map_err(|_| {
                     cx.common
-                        .send_fatal_alert(AlertDescription::DecryptError);
-                    Error::DecryptError
+                        .send_fatal_alert(AlertDescription::DecryptError, Error::DecryptError)
                 })
                 .map(|_| verify::FinishedMessageVerified::assertion())?;
 

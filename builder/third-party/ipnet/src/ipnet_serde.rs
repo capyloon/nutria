@@ -81,7 +81,7 @@ impl Serialize for Ipv4Net {
         where S: Serializer
     {
         if serializer.is_human_readable() {
-            serializer.serialize_str(&self.to_string())
+            serializer.collect_str(self)
         } else {
             let mut seq = serializer.serialize_tuple(5)?;
             for octet in &self.addr().octets() {
@@ -127,7 +127,7 @@ impl Serialize for Ipv6Net {
         where S: Serializer
     {
         if serializer.is_human_readable() {
-            serializer.serialize_str(&self.to_string())
+            serializer.collect_str(self)
         } else {
             let mut seq = serializer.serialize_tuple(17)?;
             for octet in &self.addr().octets() {

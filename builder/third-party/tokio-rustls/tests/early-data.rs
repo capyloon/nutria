@@ -9,6 +9,7 @@ use std::pin::Pin;
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::thread;
 use std::time::Duration;
 use tokio::io::{split, AsyncRead, AsyncWriteExt, ReadBuf};
 use tokio::net::TcpStream;
@@ -34,6 +35,7 @@ impl<T: AsyncRead + Unpin> Future for Read1<T> {
         if buf.filled().is_empty() {
             Poll::Ready(Ok(()))
         } else {
+            cx.waker().wake_by_ref();
             Poll::Pending
         }
     }
@@ -46,7 +48,7 @@ async fn send(
 ) -> io::Result<TlsStream<TcpStream>> {
     let connector = TlsConnector::from(config).early_data(true);
     let stream = TcpStream::connect(&addr).await?;
-    let domain = rustls::ServerName::try_from("testserver.com").unwrap();
+    let domain = rustls::ServerName::try_from("foobar.com").unwrap();
 
     let stream = connector.connect(domain, stream).await?;
     let (mut rd, mut wd) = split(stream);
@@ -75,7 +77,7 @@ async fn send(
         match read_task.await {
             Ok(()) => (),
             Err(ref err) if err.kind() == io::ErrorKind::UnexpectedEof => (),
-            Err(err) => return Err(err.into()),
+            Err(err) => return Err(err),
         }
 
         Ok(rd) as io::Result<_>
@@ -100,38 +102,47 @@ impl Drop for DropKill {
     }
 }
 
+async fn wait_for_server(addr: &str) {
+    let tries = 10;
+    for i in 0..tries {
+        if let Ok(_) = TcpStream::connect(addr).await {
+            return;
+        }
+        sleep(Duration::from_millis(i * 100)).await;
+    }
+    panic!("failed to connect to {:?} after {} tries", addr, tries)
+}
+
 #[tokio::test]
 async fn test_0rtt() -> io::Result<()> {
+    let server_port = 12354;
     let mut handle = Command::new("openssl")
         .arg("s_server")
         .arg("-early_data")
         .arg("-tls1_3")
-        .args(&["-cert", "./tests/end.cert"])
-        .args(&["-key", "./tests/end.rsa"])
-        .args(&["-port", "12354"])
+        .args(["-cert", "./tests/end.cert"])
+        .args(["-key", "./tests/end.rsa"])
+        .args(["-port", &server_port.to_string()])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
         .map(DropKill)?;
 
     // wait openssl server
-    sleep(Duration::from_secs(1)).await;
+    wait_for_server(format!("127.0.0.1:{}", server_port).as_str()).await;
 
     let mut chain = BufReader::new(Cursor::new(include_str!("end.chain")));
     let certs = rustls_pemfile::certs(&mut chain).unwrap();
-    let trust_anchors = certs
-        .iter()
-        .map(|cert| {
-            let ta = webpki::TrustAnchor::try_from_cert_der(&cert[..]).unwrap();
-            OwnedTrustAnchor::from_subject_spki_name_constraints(
-                ta.subject,
-                ta.spki,
-                ta.name_constraints,
-            )
-        })
-        .collect::<Vec<_>>();
+    let trust_anchors = certs.iter().map(|cert| {
+        let ta = webpki::TrustAnchor::try_from_cert_der(&cert[..]).unwrap();
+        OwnedTrustAnchor::from_subject_spki_name_constraints(
+            ta.subject,
+            ta.spki,
+            ta.name_constraints,
+        )
+    });
     let mut root_store = RootCertStore::empty();
-    root_store.add_server_trust_anchors(trust_anchors.into_iter());
+    root_store.add_server_trust_anchors(trust_anchors);
     let mut config = rustls::ClientConfig::builder()
         .with_safe_default_cipher_suites()
         .with_safe_default_kx_groups()
@@ -141,7 +152,18 @@ async fn test_0rtt() -> io::Result<()> {
         .with_no_client_auth();
     config.enable_early_data = true;
     let config = Arc::new(config);
-    let addr = SocketAddr::from(([127, 0, 0, 1], 12354));
+    let addr = SocketAddr::from(([127, 0, 0, 1], server_port));
+
+    // workaround: write to openssl s_server standard input periodically, to
+    // get it unstuck on Windows
+    let stdin = handle.0.stdin.take().unwrap();
+    thread::spawn(move || {
+        let mut stdin = stdin;
+        loop {
+            thread::sleep(std::time::Duration::from_secs(5));
+            std::io::Write::write_all(&mut stdin, b"\n").unwrap();
+        }
+    });
 
     let io = send(config.clone(), addr, b"hello").await?;
     assert!(!io.get_ref().1.is_early_data_accepted());

@@ -2,20 +2,17 @@ use super::super::c;
 use bitflags::bitflags;
 
 bitflags! {
-    /// `MSG_*`
+    /// `MSG_* flags for use with [`send`], [`send_to`], and related functions.
+    ///
+    /// [`send`]: crate::net::send
+    /// [`sendto`]: crate::net::sendto
     pub struct SendFlags: i32 {
         /// `MSG_CONFIRM`
         #[cfg(not(any(
+            bsd,
+            solarish,
             windows,
-            target_os = "dragonfly",
-            target_os = "freebsd",
             target_os = "haiku",
-            target_os = "illumos",
-            target_os = "ios",
-            target_os = "macos",
-            target_os = "netbsd",
-            target_os = "openbsd",
-            target_os = "solaris",
         )))]
         const CONFIRM = c::MSG_CONFIRM;
         /// `MSG_DONTROUTE`
@@ -28,19 +25,13 @@ bitflags! {
         const EOT = c::MSG_EOR;
         /// `MSG_MORE`
         #[cfg(not(any(
+            bsd,
+            solarish,
             windows,
-            target_os = "dragonfly",
-            target_os = "freebsd",
             target_os = "haiku",
-            target_os = "illumos",
-            target_os = "ios",
-            target_os = "macos",
-            target_os = "netbsd",
-            target_os = "openbsd",
-            target_os = "solaris",
         )))]
         const MORE = c::MSG_MORE;
-        #[cfg(not(any(windows, target_os = "ios", target_os = "macos")))]
+        #[cfg(not(any(apple, windows)))]
         /// `MSG_NOSIGNAL`
         const NOSIGNAL = c::MSG_NOSIGNAL;
         /// `MSG_OOB`
@@ -49,9 +40,12 @@ bitflags! {
 }
 
 bitflags! {
-    /// `MSG_*`
+    /// `MSG_* flags for use with [`recv`], [`recvfrom`], and related functions.
+    ///
+    /// [`recv`]: crate::net::recv
+    /// [`recvfrom`]: crate::net::recvfrom
     pub struct RecvFlags: i32 {
-        #[cfg(not(any(windows, target_os = "haiku", target_os = "illumos", target_os = "ios", target_os = "macos", target_os = "solaris")))]
+        #[cfg(not(any(apple, solarish, windows, target_os = "haiku")))]
         /// `MSG_CMSG_CLOEXEC`
         const CMSG_CLOEXEC = c::MSG_CMSG_CLOEXEC;
         /// `MSG_DONTWAIT`
@@ -59,16 +53,10 @@ bitflags! {
         const DONTWAIT = c::MSG_DONTWAIT;
         /// `MSG_ERRQUEUE`
         #[cfg(not(any(
+            bsd,
+            solarish,
             windows,
-            target_os = "dragonfly",
-            target_os = "freebsd",
             target_os = "haiku",
-            target_os = "illumos",
-            target_os = "ios",
-            target_os = "macos",
-            target_os = "netbsd",
-            target_os = "openbsd",
-            target_os = "solaris",
         )))]
         const ERRQUEUE = c::MSG_ERRQUEUE;
         /// `MSG_OOB`

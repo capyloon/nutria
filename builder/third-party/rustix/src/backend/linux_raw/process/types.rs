@@ -1,6 +1,9 @@
 use super::super::c;
 use linux_raw_sys::general::membarrier_cmd;
 
+/// `sysinfo`
+pub type Sysinfo = linux_raw_sys::general::sysinfo;
+
 /// A command for use with [`membarrier`] and [`membarrier_cpu`].
 ///
 /// For `MEMBARRIER_CMD_QUERY`, see [`membarrier_query`].
@@ -78,10 +81,12 @@ pub enum Resource {
     Rttime = linux_raw_sys::general::RLIMIT_RTTIME,
 }
 
-/// A signal number for use with [`kill_process`] and [`kill_process_group`].
+/// A signal number for use with [`kill_process`], [`kill_process_group`],
+/// and [`kill_current_process_group`].
 ///
 /// [`kill_process`]: crate::process::kill_process
 /// [`kill_process_group`]: crate::process::kill_process_group
+/// [`kill_current_process_group`]: crate::process::kill_current_process_group
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum Signal {
@@ -206,7 +211,7 @@ impl Signal {
 pub const EXIT_SUCCESS: c::c_int = 0;
 /// `EXIT_FAILURE`
 pub const EXIT_FAILURE: c::c_int = 1;
-/// The status value of a child terminated with `SIGABRT`.
+/// The status value of a child terminated with a [`Signal::Abort`] signal.
 pub const EXIT_SIGNALED_SIGABRT: c::c_int = 128 + linux_raw_sys::general::SIGABRT as i32;
 
 /// A process identifier as a raw integer.

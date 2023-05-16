@@ -2,45 +2,37 @@
 
 #[cfg(not(target_os = "wasi"))]
 use crate::fs::Mode;
+use crate::fs::{OFlags, Timespec};
 use crate::io::SeekFrom;
 #[cfg(not(target_os = "wasi"))]
 use crate::process::{Gid, Uid};
 use crate::{backend, io};
 use backend::fd::{AsFd, BorrowedFd};
 
-#[cfg(not(any(target_os = "solaris", target_os = "wasi")))]
+#[cfg(not(target_os = "wasi"))]
 pub use backend::fs::types::FlockOperation;
 
 #[cfg(not(any(
+    netbsdlike,
+    solarish,
     target_os = "aix",
     target_os = "dragonfly",
-    target_os = "illumos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))]
 pub use backend::fs::types::FallocateFlags;
 
 pub use backend::fs::types::Stat;
 
 #[cfg(not(any(
+    solarish,
     target_os = "haiku",
-    target_os = "illumos",
     target_os = "netbsd",
     target_os = "redox",
-    target_os = "solaris",
     target_os = "wasi",
 )))]
 pub use backend::fs::types::StatFs;
 
-#[cfg(not(any(
-    target_os = "haiku",
-    target_os = "illumos",
-    target_os = "redox",
-    target_os = "solaris",
-    target_os = "wasi",
-)))]
+#[cfg(not(any(target_os = "haiku", target_os = "redox", target_os = "wasi")))]
 pub use backend::fs::types::{StatVfs, StatVfsMountFlags};
 
 #[cfg(any(target_os = "android", target_os = "linux"))]
@@ -56,27 +48,27 @@ pub use backend::fs::types::FsWord;
 #[derive(Clone, Debug)]
 pub struct Timestamps {
     /// The timestamp of the last access to a filesystem object.
-    pub last_access: crate::fs::Timespec,
+    pub last_access: Timespec,
 
     /// The timestamp of the last modification of a filesystem object.
-    pub last_modification: crate::fs::Timespec,
+    pub last_modification: Timespec,
 }
 
 /// The filesystem magic number for procfs.
 ///
-/// See [the `fstatfs` man page] for more information.
+/// See [the `fstatfs` manual page] for more information.
 ///
-/// [the `fstatfs` man page]: https://man7.org/linux/man-pages/man2/fstatfs.2.html#DESCRIPTION
+/// [the `fstatfs` manual page]: https://man7.org/linux/man-pages/man2/fstatfs.2.html#DESCRIPTION
 #[cfg(any(target_os = "android", target_os = "linux"))]
-pub const PROC_SUPER_MAGIC: FsWord = backend::fs::types::PROC_SUPER_MAGIC;
+pub const PROC_SUPER_MAGIC: FsWord = backend::c::PROC_SUPER_MAGIC as FsWord;
 
 /// The filesystem magic number for NFS.
 ///
-/// See [the `fstatfs` man page] for more information.
+/// See [the `fstatfs` manual page] for more information.
 ///
-/// [the `fstatfs` man page]: https://man7.org/linux/man-pages/man2/fstatfs.2.html#DESCRIPTION
+/// [the `fstatfs` manual page]: https://man7.org/linux/man-pages/man2/fstatfs.2.html#DESCRIPTION
 #[cfg(any(target_os = "android", target_os = "linux"))]
-pub const NFS_SUPER_MAGIC: FsWord = backend::fs::types::NFS_SUPER_MAGIC;
+pub const NFS_SUPER_MAGIC: FsWord = backend::c::NFS_SUPER_MAGIC as FsWord;
 
 /// `lseek(fd, offset, whence)`—Repositions a file descriptor within a file.
 ///
@@ -152,7 +144,7 @@ pub fn fchown<Fd: AsFd>(fd: Fd, owner: Option<Uid>, group: Option<Gid>) -> io::R
 ///
 /// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/fstat.html
 /// [Linux]: https://man7.org/linux/man-pages/man2/fstat.2.html
-/// [`Mode::from_raw_mode`]: crate::fs::Mode::from_raw_mode
+/// [`Mode::from_raw_mode`]: Mode::from_raw_mode
 /// [`FileType::from_raw_mode`]: crate::fs::FileType::from_raw_mode
 #[inline]
 pub fn fstat<Fd: AsFd>(fd: Fd) -> io::Result<Stat> {
@@ -169,11 +161,10 @@ pub fn fstat<Fd: AsFd>(fd: Fd) -> io::Result<Stat> {
 ///
 /// [Linux]: https://man7.org/linux/man-pages/man2/fstatfs.2.html
 #[cfg(not(any(
+    solarish,
     target_os = "haiku",
-    target_os = "illumos",
     target_os = "netbsd",
     target_os = "redox",
-    target_os = "solaris",
     target_os = "wasi",
 )))]
 #[inline]
@@ -195,13 +186,7 @@ pub fn fstatfs<Fd: AsFd>(fd: Fd) -> io::Result<StatFs> {
 ///
 /// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/fstatvfs.html
 /// [Linux]: https://man7.org/linux/man-pages/man2/fstatvfs.2.html
-#[cfg(not(any(
-    target_os = "haiku",
-    target_os = "illumos",
-    target_os = "redox",
-    target_os = "solaris",
-    target_os = "wasi",
-)))]
+#[cfg(not(any(target_os = "haiku", target_os = "redox", target_os = "wasi")))]
 #[inline]
 pub fn fstatvfs<Fd: AsFd>(fd: Fd) -> io::Result<StatVfs> {
     backend::fs::syscalls::fstatvfs(fd.as_fd())
@@ -236,13 +221,11 @@ pub fn futimens<Fd: AsFd>(fd: Fd, times: &Timestamps) -> io::Result<()> {
 /// [Linux `fallocate`]: https://man7.org/linux/man-pages/man2/fallocate.2.html
 /// [Linux `posix_fallocate`]: https://man7.org/linux/man-pages/man3/posix_fallocate.3.html
 #[cfg(not(any(
+    netbsdlike,
+    solarish,
     target_os = "aix",
     target_os = "dragonfly",
-    target_os = "illumos",
-    target_os = "netbsd",
-    target_os = "openbsd",
     target_os = "redox",
-    target_os = "solaris",
 )))] // not implemented in libc for netbsd yet
 #[inline]
 #[doc(alias = "posix_fallocate")]
@@ -271,16 +254,16 @@ pub(crate) fn _is_file_read_write(fd: BorrowedFd<'_>) -> io::Result<(bool, bool)
         target_os = "linux",
         target_os = "emscripten",
     ))]
-    if mode.contains(crate::fs::OFlags::PATH) {
+    if mode.contains(OFlags::PATH) {
         return Ok((false, false));
     }
 
     // Use `RWMODE` rather than `ACCMODE` as `ACCMODE` may include `O_PATH`.
     // We handled `O_PATH` above.
-    match mode & crate::fs::OFlags::RWMODE {
-        crate::fs::OFlags::RDONLY => Ok((true, false)),
-        crate::fs::OFlags::RDWR => Ok((true, true)),
-        crate::fs::OFlags::WRONLY => Ok((false, true)),
+    match mode & OFlags::RWMODE {
+        OFlags::RDONLY => Ok((true, false)),
+        OFlags::RDWR => Ok((true, true)),
+        OFlags::WRONLY => Ok((false, true)),
         _ => unreachable!(),
     }
 }
@@ -313,10 +296,9 @@ pub fn fsync<Fd: AsFd>(fd: Fd) -> io::Result<()> {
 /// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/fdatasync.html
 /// [Linux]: https://man7.org/linux/man-pages/man2/fdatasync.2.html
 #[cfg(not(any(
+    apple,
     target_os = "dragonfly",
     target_os = "haiku",
-    target_os = "ios",
-    target_os = "macos",
     target_os = "redox",
 )))]
 #[inline]
@@ -347,4 +329,16 @@ pub fn ftruncate<Fd: AsFd>(fd: Fd, length: u64) -> io::Result<()> {
 #[inline]
 pub fn flock<Fd: AsFd>(fd: Fd, operation: FlockOperation) -> io::Result<()> {
     backend::fs::syscalls::flock(fd.as_fd(), operation)
+}
+
+/// `syncfs(fd)`—Flush cached filesystem data.
+///
+/// # References
+///  - [Linux]
+///
+/// [Linux]: https://man7.org/linux/man-pages/man2/syncfs.2.html
+#[cfg(any(target_os = "android", target_os = "linux"))]
+#[inline]
+pub fn syncfs<Fd: AsFd>(fd: Fd) -> io::Result<()> {
+    backend::fs::syscalls::syncfs(fd.as_fd())
 }

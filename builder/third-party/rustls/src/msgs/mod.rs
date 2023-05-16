@@ -12,7 +12,6 @@ pub mod deframer;
 pub mod enums;
 pub mod fragmenter;
 pub mod handshake;
-pub mod hsjoiner;
 pub mod message;
 pub mod persist;
 
@@ -20,18 +19,10 @@ pub mod persist;
 mod handshake_test;
 
 #[cfg(test)]
-mod persist_test;
-
-#[cfg(test)]
-pub(crate) mod enums_test;
-
-#[cfg(test)]
 mod message_test;
 
 #[cfg(test)]
 mod test {
-    use std::convert::TryFrom;
-
     #[test]
     fn smoketest() {
         use super::codec::Reader;

@@ -168,7 +168,7 @@ impl Drop for OwnedFd {
             // the file descriptor was closed or not, and if we retried (for
             // something like EINTR), we might close another valid file
             // descriptor opened after we closed ours.
-            let _ = close(self.fd as _);
+            close(self.fd as _);
         }
     }
 }
@@ -198,7 +198,7 @@ pub trait AsFd {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```no_run
     /// # #![feature(io_safety)]
     /// use std::fs::File;
     /// # use std::io;
@@ -244,7 +244,7 @@ impl AsFd for BorrowedFd<'_> {
 impl AsFd for OwnedFd {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
-        // Safety: `OwnedFd` and `BorrowedFd` have the same validity
+        // SAFETY: `OwnedFd` and `BorrowedFd` have the same validity
         // invariants, and the `BorrowedFd` is bounded by the lifetime
         // of `&self`.
         unsafe { BorrowedFd::borrow_raw(self.as_raw_fd()) }

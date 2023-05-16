@@ -578,6 +578,7 @@ impl Ipv4Net {
     /// let bad_prefix_len = Ipv4Net::new(Ipv4Addr::new(10, 1, 1, 0), 33);
     /// assert_eq!(bad_prefix_len, Err(PrefixLenError));
     /// ```
+    #[inline]
     pub const fn new(ip: Ipv4Addr, prefix_len: u8) -> Result<Ipv4Net, PrefixLenError> {
         if prefix_len > 32 {
             return Err(PrefixLenError);
@@ -622,16 +623,19 @@ impl Ipv4Net {
     }
 
     /// Returns the address.
+    #[inline]
     pub const fn addr(&self) -> Ipv4Addr {
         self.addr
     }
 
     /// Returns the prefix length.
+    #[inline]
     pub const fn prefix_len(&self) -> u8 {
         self.prefix_len
     }
 
     /// Returns the maximum valid prefix length.
+    #[inline]
     pub const fn max_prefix_len(&self) -> u8 {
         32
     }
@@ -931,6 +935,7 @@ impl Ipv6Net {
     /// let bad_prefix_len = Ipv6Net::new(Ipv6Addr::new(0xfd, 0, 0, 0, 0, 0, 0, 0), 129);
     /// assert_eq!(bad_prefix_len, Err(PrefixLenError));
     /// ```
+    #[inline]
     pub const fn new(ip: Ipv6Addr, prefix_len: u8) -> Result<Ipv6Net, PrefixLenError> {
         if prefix_len > 128 {
             return Err(PrefixLenError);
@@ -975,16 +980,19 @@ impl Ipv6Net {
     }
     
     /// Returns the address.
+    #[inline]
     pub const fn addr(&self) -> Ipv6Addr {
         self.addr
     }
 
     /// Returns the prefix length.
+    #[inline]
     pub const fn prefix_len(&self) -> u8 {
         self.prefix_len
     }
     
     /// Returns the maximum valid prefix length.
+    #[inline]
     pub const fn max_prefix_len(&self) -> u8 {
         128
     }
