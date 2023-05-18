@@ -114,4 +114,5 @@ telephony-data = Data
 # Apps panel
 apps-title = Apps & Tiles
 apps-section-title = Apps
+apps-section-show-system = Show System Apps
 tiles-section-title = Tiles

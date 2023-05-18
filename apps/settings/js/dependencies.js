@@ -89,7 +89,9 @@ const kDeps = [
       "shoelace-icon",
       "shoelace-menu",
       "shoelace-menu-item",
+      "shoelace-switch",
       "apps-module",
+      "switch-setting",
     ],
   },
   {

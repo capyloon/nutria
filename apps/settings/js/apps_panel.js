@@ -58,6 +58,15 @@ class AppsPanel {
     window.appsManager.addEventListener("app-uninstalled", this);
   }
 
+  async addSwitchBinding(id, name, handler) {
+    let binding = new SwitchAndSetting(
+      document.getElementById(`apps-${id}-switch`),
+      name
+    );
+    binding.addEventListener("change", handler.bind(this));
+    await binding.init();
+  }
+
   log(msg) {
     console.log(`AppsPanel: ${msg}`);
   }
@@ -119,10 +128,18 @@ class AppsPanel {
     this.tilesMenu.parentElement.classList.add("hidden");
     this.appsMenu.parentElement.classList.add("hidden");
 
+    // We don't display apps with these roles when the relevant switch
+    // is off. This is the same list as in apps_list.js, except that
+    // here we display homescreens.
+    const SYSTEM_ROLES = ["system", "input", "theme"];
+
     try {
       let apps = await window.appsManager.getAll();
       for (let app of apps) {
-        await this.addApp(app);
+        let role = app.manifest?.b2g_features?.role;
+        if (!role || this.showSystemApps || !SYSTEM_ROLES.includes(role)) {
+          await this.addApp(app);
+        }
       }
       [this.tilesMenu, this.appsMenu].forEach((container) => {
         container.firstElementChild &&
@@ -144,7 +161,17 @@ class AppsPanel {
     this.appsMenu = this.panel.querySelector(".apps-section ul");
     this.tilesMenu = this.panel.querySelector(".tiles-section ul");
 
-    this.createAppList();
+    this.showSystemApps = true;
+    await this.addSwitchBinding(
+      "show-system",
+      "settings.apps.show_system",
+      (event) => {
+        this.showSystemApps = event.detail.value;
+        this.appsMenu.innerHTML = "";
+        this.tilesMenu.innerHTML = "";
+        this.createAppList();
+      }
+    );
   }
 }
 
