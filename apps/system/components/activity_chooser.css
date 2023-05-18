@@ -24,5 +24,7 @@
 }
 
 :host img {
-    width: 2em;
+  width: 2em;
+  border-radius: 40%;
+  box-shadow: 2px 2px 3px black;
 }
