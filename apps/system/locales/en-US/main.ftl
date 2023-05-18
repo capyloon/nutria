@@ -69,7 +69,7 @@ launch-peer-app = Launch App
 # Download notifications
 download-notification-title-downloading = Download Ongoing
 download-notification-title-stopped = Download Stopped
-download-notification-title-succeeded = Download Done
+download-notification-title-succeeded = Download Complete
 download-notification-title-finalized = Download Finalized
 
 # Tor
