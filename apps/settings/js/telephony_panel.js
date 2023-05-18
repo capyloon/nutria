@@ -229,6 +229,8 @@ class TelephonyPanel {
       this.updateMobileData
     );
 
+    await this.addSwitchBinding("debug", "ril.debugging.enabled", () => {});
+
     let onOffSwitch = document.getElementById("telephony-onoff-switch");
     const state = this.conn.radioState;
     onOffSwitch.checked = state == "enabled";
