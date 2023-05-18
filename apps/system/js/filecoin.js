@@ -1,21 +1,22 @@
-// This class manages uploads to Estuary.
+// This class manages uploads to a filecoin pinning service.
+// For now hardcoded to w3.storage.
 
-const ESTUARY_ENDPOINT = "https://shuttle-4.estuary.tech/content/add";
+const WEB3_STORAGE_ENDPOINT = "https://api.web3.storage/upload";
 
-export class Estuary extends EventTarget {
+export class FileCoinService extends EventTarget {
   constructor(key) {
     super();
     this.key = key;
   }
 
   log(msg) {
-    console.log(`Estuary: ${msg}`);
+    console.log(`FileCoinService: ${msg}`);
   }
 
-  upload(blob) {
+  upload(blob, name) {
     this.log(`upload with key ${this.key}`);
     const formData = new FormData();
-    formData.append("data", blob);
+    formData.append("file", blob, name);
     const xhr = new XMLHttpRequest();
 
     const upload = xhr.upload;
@@ -55,10 +56,11 @@ export class Estuary extends EventTarget {
 
     // TODO: manage other xhr events.
     xhr.onload = () => {
-      this.log(`load`);
-      if (xhr.response.error || !xhr.response.cid) {
+      this.log(`load ${xhr.status} ${xhr.statusText}`);
+      if (!xhr.response || xhr.status < 200 || xhr.status >= 300) {
         this.dispatchEvent(new CustomEvent("error"));
       } else {
+        // this.log(`Success: ${JSON.stringify(xhr.response)}`);
         this.dispatchEvent(
           new CustomEvent("success", { detail: xhr.response })
         );
@@ -66,7 +68,7 @@ export class Estuary extends EventTarget {
     };
 
     xhr.responseType = "json";
-    xhr.open("POST", ESTUARY_ENDPOINT);
+    xhr.open("POST", WEB3_STORAGE_ENDPOINT);
     xhr.setRequestHeader("Authorization", `Bearer ${this.key}`);
     xhr.send(formData);
   }

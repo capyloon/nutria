@@ -94,7 +94,7 @@ code-check-error = Unmatched Lock Codes
 
 # Decentralized web panel
 dweb-title = Decentralized Web
-dweb-estuary-section = Estuary API key
+dweb-w3storage-section = w3.storage API key
 dweb-p2p-section = Peers Discovery
 dweb-p2p-discovery-label = Allow discovery
 dweb-p2p-remote-label = Allow discovery outside of the local network

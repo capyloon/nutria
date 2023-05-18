@@ -23,14 +23,14 @@ class DwebPanel {
   }
 
   async manageEstuary() {
-    let input = document.getElementById("dweb-estuary-key");
-    const settingsKey = "ipfs.estuary.api-token";
+    let input = document.getElementById("dweb-w3storage-key");
+    const settingsKey = "ipfs.w3storage.api-token";
 
     input.addEventListener("sl-input", async () => {
-      //   this.log(`Estuary token: ${input.value}`);
+      //   this.log(`w3.storage token: ${input.value}`);
       let setting = { name: settingsKey, value: input.value.trim() };
       await this.settings.set([setting]);
-      //   this.log(`Estuary setting ${settingsKey} updated to '${setting.value}'`);
+      //   this.log(`w3.storage setting ${settingsKey} updated to '${setting.value}'`);
     });
 
     try {

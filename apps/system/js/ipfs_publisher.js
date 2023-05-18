@@ -90,18 +90,18 @@ class IpfsPublisher {
 
     this.log(`Publish ${name} -> ${tag}`);
 
-    // Get the Estuary key from the setting.
-    let estuaryToken = null;
+    // Get the w3storage key from the setting.
+    let w3storageToken = null;
     try {
       let settings = await apiDaemon.getSettings();
-      let setting = await settings.get("ipfs.estuary.api-token");
-      this.log(`Estuary setting is ${JSON.stringify(setting)}`);
-      estuaryToken = setting.value;
+      let setting = await settings.get("ipfs.w3storage.api-token");
+      this.log(`w3storage setting is ${JSON.stringify(setting)}`);
+      w3storageToken = setting.value;
     } catch (e) {
-      this.error(`Failed to get estuary token: ${e}`);
+      this.error(`Failed to get w3storage token: ${e}`);
     }
-    if (!estuaryToken) {
-      let msg = await window.utils.l10n("ipfs-estuary-missing-token");
+    if (!w3storageToken) {
+      let msg = await window.utils.l10n("ipfs-w3storage-missing-token");
       window.toaster.show(msg, "danger");
       this.resource.delete();
       return;
@@ -126,9 +126,9 @@ class IpfsPublisher {
       blob = new Blob([cipher]);
     }
 
-    let estuary = new Estuary(estuaryToken);
+    let w3storage = new FileCoinService(w3storageToken);
 
-    estuary.addEventListener("start", () => {
+    w3storage.addEventListener("start", () => {
       this.updateNotification({
         title,
         body: name,
@@ -151,11 +151,11 @@ class IpfsPublisher {
     };
 
     ["abort", "timeout", "error"].forEach((event) => {
-      estuary.addEventListener(event, onEstuaryError, { once: true });
+      w3storage.addEventListener(event, onEstuaryError, { once: true });
     });
 
-    estuary.addEventListener("success", async (event) => {
-      this.log(`estuary upload success: ${JSON.stringify(event.detail)}`);
+    w3storage.addEventListener("success", async (event) => {
+      this.log(`w3storage upload success: ${JSON.stringify(event.detail)}`);
 
       await this.resource.addTag(`.ipfs://${event.detail.cid}`);
 
@@ -181,7 +181,7 @@ class IpfsPublisher {
       });
     });
 
-    estuary.addEventListener("progress", (event) => {
+    w3storage.addEventListener("progress", (event) => {
       let detail = event.detail;
       let progress = Math.round((100 * detail.loaded) / detail.total);
       if (detail.loaded == detail.total) {
@@ -197,7 +197,7 @@ class IpfsPublisher {
     });
 
     // Kick off the upload of the default variant.
-    estuary.upload(new File([blob], this.resource.meta.name));
+    w3storage.upload(new File([blob], this.resource.meta.name));
   }
 }
 

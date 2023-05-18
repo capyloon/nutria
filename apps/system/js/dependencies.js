@@ -354,7 +354,7 @@ const kDeps = [
   {
     name: "ipfs",
     kind: "virtual",
-    deps: ["ipfs publisher", "estuary"],
+    deps: ["ipfs publisher", "filecoin"],
   },
   {
     name: "ipfs publisher",
@@ -363,9 +363,9 @@ const kDeps = [
     deps: ["content manager"],
   },
   {
-    name: "estuary",
+    name: "filecoin",
     kind: "module",
-    param: ["./js/estuary.js", ["Estuary"]],
+    param: ["./js/filecoin.js", ["FileCoinService"]],
   },
   {
     name: "text share comp",

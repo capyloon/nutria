@@ -89,7 +89,7 @@ ipfs-confirm-publish-public = The file named '{$name}' will be publicly publishe
 ipfs-confirm-publish-private = The file named '{$name}' will be privately published to the IPFS network.
 ipfs-publish-password =
     .label = Enter the password protecting this file:
-ipfs-estuary-missing-token = Unable to publish: missing Estuary api token
+ipfs-w3storage-missing-token = Unable to publish: missing w3.storage api token
 
 # <text-share> element
 text-share-copy =
