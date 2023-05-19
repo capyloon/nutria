@@ -41,6 +41,7 @@ async function getClient(activityName) {
     includeUncontrolled: true,
   });
   if (allClients.length > 0) {
+    await allClients[0].focus();
     return allClients[0];
   } else {
     let disposition = "window";
