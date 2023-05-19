@@ -231,6 +231,21 @@ class TelephonyPanel {
 
     await this.addSwitchBinding("debug", "ril.debugging.enabled", () => {});
 
+    await this.addSwitchBinding(
+      "airplane",
+      "airplaneMode.enabled",
+      async (event) => {
+        this.log(`RIL airplane mode enabled = ${event.detail.value}`);
+        try {
+          await this.ensureSettings();
+          let status = await this.settings.get("airplaneMode.status");
+          this.log(`airplane mode status = ${status}`);
+        } catch (e) {
+          this.log(`failed to get airplane mode status: ${JSON.stringify(e)}`);
+        }
+      }
+    );
+
     let onOffSwitch = document.getElementById("telephony-onoff-switch");
     const state = this.conn.radioState;
     onOffSwitch.checked = state == "enabled";

@@ -105,6 +105,7 @@ dweb-p2p-did-label =
 telephony-title = Telephony
 telephony-status-enabled = Enabled
 telephony-status-disabled = Disabled
+telephony-airplane-enabled = Enable Airplane Mode
 telephony-data-enabled = Enable Mobile Data
 telephony-debug-enabled = Enable ADB Debug Info
 telephony-use-automatic-network = Automatic Network Selection
