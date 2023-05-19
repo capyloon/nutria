@@ -131,6 +131,18 @@ const customRunner = {
   },
 };
 
+async function enableRadio(conn, state) {
+  let status = new Promise((resolve, reject) => {
+    conn.setRadioEnabled(state).then(resolve, reject);
+  });
+  try {
+    await status;
+    console.log(`radio power status: ${conn.radioState}`);
+  } catch (e) {
+    console.log(`failed to enable radio: ${e}`);
+  }
+}
+
 // Enable radio by default.
 async function setupTelephony() {
   let conns = navigator.b2g?.mobileConnections;
@@ -147,9 +159,13 @@ async function setupTelephony() {
     console.error(`No mobile connection available!`);
     return;
   } else {
-    console.log(`Using connection #1 of ${conns.length}: ${conn}`);
+    console.log(
+      `Using connection #1 of ${conns.length}: state=${conn.radioState}`
+    );
   }
-  conn.setRadioEnabled(true);
+
+  await enableRadio(conn, false);
+  await enableRadio(conn, true);
 
   // If the radio data is enabled, turn it on and off to force the data
   // connection do be enabled.
@@ -161,7 +177,7 @@ async function setupTelephony() {
       "ril.data.roaming_enabled",
       "ril.data.enabled",
     ]);
-    console.log(`Bootstrap init=${JSON.stringify(init)}`);
+    console.log(`Telephony init=${JSON.stringify(init)}`);
     let dataEnabled = false;
     init.forEach((item) => {
       if (item.name === "ril.data.enabled") {
@@ -169,15 +185,15 @@ async function setupTelephony() {
       }
     });
 
-    console.log(`Bootstrap Data enabled: ${dataEnabled}`);
+    console.log(`Telephony Data enabled: ${dataEnabled}`);
     if (dataEnabled) {
       await settings.set([{ name: "ril.data.enabled", value: false }]);
-      console.log(`Bootstrap Data turned off`);
+      console.log(`Telephony Data turned off`);
       await new Promise((resolve) => {
         window.setTimeout(resolve, 5000);
       });
       await settings.set(init);
-      console.log(`Bootstrap Data turned on`);
+      console.log(`Telephony Data turned on`);
     }
   } catch (e) {}
 
