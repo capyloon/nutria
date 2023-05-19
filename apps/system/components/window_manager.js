@@ -313,7 +313,12 @@ class WindowManager extends HTMLElement {
     // This event is sent when calling WindowClient.focus() from a Service Worker.
     window.addEventListener("framefocusrequested", (event) => {
       // event.target is the xul:browser
-      this.switchToWebView(event.target.parentElement);
+
+      // We want to switch back to the calling page when the activity
+      // is closed, so we need to update config.previousFrame of
+      // the activity content-window in this case to point to the current
+      // active frame.
+      this.switchToWebView(event.target.parentElement, true);
     });
   }
 
@@ -605,7 +610,7 @@ class WindowManager extends HTMLElement {
     actionsDispatcher.dispatch("update-frame-list", list);
   }
 
-  switchToFrame(id, behavior = "instant") {
+  switchToFrame(id, behavior = "instant", updatePreviousFrame = false) {
     // If the window-content is already displayed (eg. inactive split frame),
     // do a manual swap of the curent active frame for the new one.
     let frame = this.frames[this.activeFrame];
@@ -625,6 +630,10 @@ class WindowManager extends HTMLElement {
       }
     }
 
+    if (updatePreviousFrame) {
+      this.frames[id].config.previousFrame = this.activeFrame;
+    }
+
     document.querySelector(`#${id}`).scrollIntoView({
       behavior,
       block: "end",
@@ -642,10 +651,10 @@ class WindowManager extends HTMLElement {
     }
   }
 
-  switchToWebView(webView) {
+  switchToWebView(webView, updatePreviousFrame = false) {
     for (let id in this.frames) {
       if (webView == this.frames[id].webView) {
-        this.switchToFrame(id);
+        this.switchToFrame(id, "instant", updatePreviousFrame);
         return;
       }
     }
