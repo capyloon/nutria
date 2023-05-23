@@ -47,10 +47,22 @@ class TelephonyPanel {
 
   async updateMobileData(event) {
     this.log(`updateMobileData -> ${event.detail.value}`);
-    if (this.conn?.data?.network) {
-      let network = this.conn.data.network;
-      let mcc = network.mcc;
-      let mnc = network.mnc;
+
+    let mcc = null;
+    let mnc = null;
+    let conn = this.conn;
+    if (conn?.data?.network) {
+      let network = conn.data.network;
+      mcc = network.mcc;
+      mnc = network.mnc;
+    } else if (conn?.iccId) {
+      let icc = navigator.b2g?.iccManager?.getIccById(conn.iccId).iccInfo;
+      mcc = icc.mcc;
+      mnc = icc.mnc;
+    }
+
+    if (!!mcc && !!mnc) {
+      this.log(`mcc=${mcc} mnc=${mnc}`);
 
       try {
         await this.ensureApnData();
