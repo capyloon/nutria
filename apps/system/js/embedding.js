@@ -2,6 +2,10 @@
 /* global WebEmbedder */
 "use strict";
 
+const { XPCOMUtils } = ChromeUtils.importESModule(
+  "resource://gre/modules/XPCOMUtils.sys.mjs"
+);
+
 // TODO: move to web-view.js
 let modules = {};
 XPCOMUtils.defineLazyModuleGetters(modules, {

@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="style/index.css" />
 
     <!-- embedding API provider -->
-    <script src="chrome://b2g/content/embedding/web-embedder.js"></script>
+    <script type="module" src="chrome://b2g/content/embedding/web-embedder.sys.mjs"></script>
 
     <!--
       This will setup Fluent for l10n
@@ -23,7 +23,7 @@
     -->
     <script src="js/config.js"></script>
 
-    <script src="js/embedding.js"></script>
+    <script type="module" src="js/embedding.js"></script>
     <script src="js/dependencies.js"></script>
     <script src="js/bootstrap.js" type="module"></script>
   </head>
