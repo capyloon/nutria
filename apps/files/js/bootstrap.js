@@ -87,7 +87,6 @@ document.addEventListener(
     // Configure activity handlers.
     let activities = new ActivityManager({
       "view-resource": activityViewResource,
-      "install-wasm-plugin": activityInstallPlugin,
       pick: activityPick,
     });
 
@@ -114,21 +113,6 @@ async function activityViewResource(data) {
   log(`activityViewResource ${data.id}`);
   history.replaceState(data, "");
   document.querySelector("main-screen").switchTo(data, true);
-}
-
-async function activityInstallPlugin(data) {
-  await ensureReady();
-  // TODO: run in the service worker instead.
-  try {
-    await contentManager.as_superuser();
-
-    log(`Installing wasm plugin: ${JSON.stringify(data)}`);
-    let pluginsManager = contentManager.getPluginsManager();
-    await pluginsManager.add(data.json, data.url);
-  } catch (e) {
-    console.error(`WASM plugin installation failed: ${e}`);
-  }
-  window.close();
 }
 
 async function activityPick(data) {

@@ -37,10 +37,6 @@ export class DefaultRenderer extends HTMLElement {
     };
   }
 
-  enterEditMode() {}
-
-  leaveEditMode() {}
-
   connectedCallback() {
     //   this.fullSize = 0;
     //   this.modified = "now";

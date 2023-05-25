@@ -29,12 +29,6 @@
           "id": { "required": true }
         }
       },
-      "install-wasm-plugin": {
-        "filters": {
-          "url": { "required": true },
-          "json": { "required": true }
-        }
-      },
       "pick": {
         "filters": {
           "type": { "required": true, "value": ["image", "video", "text"] }

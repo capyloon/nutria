@@ -24,10 +24,6 @@ export class ContentManager extends EventTarget {
     svc.withUcan(ucan);
   }
 
-  getPluginsManager(callback) {
-    return new PluginsManager(callback);
-  }
-
   getOpenSearchManager(callback) {
     this.log(`getOpenSearchManager`);
     return new OpenSearchManager(callback);
@@ -669,124 +665,6 @@ class ContentResource {
 
   debug() {
     return JSON.stringify(this._meta || "<no meta>");
-  }
-}
-
-// Helper to abstract Web Assembly plugins storage & management.
-class PluginsManager extends ContentManager {
-  constructor(updatedCallback = null) {
-    super();
-    this.container = null;
-    this.list = [];
-    if (updatedCallback && typeof updatedCallback === "function") {
-      this.onupdated = updatedCallback;
-    }
-  }
-
-  log(msg) {
-    console.log(`PluginsManager: ${msg}`);
-  }
-
-  error(msg) {
-    console.error(`PluginsManager: ${msg}`);
-  }
-
-  async ready() {
-    if (!this.container) {
-      this.container = await this.ensureTopLevelContainer("wasm plugins");
-      this.svc = await this.service;
-      this.lib = await this.lib();
-      await this.ensureHttpKey(this.svc);
-    }
-  }
-
-  async onchange(change) {
-    this.log(`plugin list modified: ${JSON.stringify(change)}`);
-    if (
-      change.kind == this.lib.ModificationKind.CHILD_CREATED ||
-      change.kind == this.lib.ModificationKind.CHILD_DELETED
-    ) {
-      await this.update();
-    }
-  }
-
-  async init() {
-    await this.ready();
-
-    await this.svc.addObserver(this.container, this.onchange.bind(this));
-    await this.update();
-  }
-
-  // Refresh the list of plugins.
-  async update() {
-    let cursor = await this.svc.childrenOf(this.container);
-
-    let list = [];
-    let done = false;
-    while (!done) {
-      try {
-        let children = await cursor.next();
-        for (let child of children) {
-          if (child.kind === this.lib.ResourceKind.LEAF) {
-            let blob = await this.svc.getVariant(child.id, "default");
-            list.push(
-              new ContentResource(
-                this.svc,
-                this.http_key,
-                child,
-                blob,
-                "default"
-              )
-            );
-          }
-        }
-      } catch (e) {
-        // cursor.next() rejects when no more items are available, so it's not
-        // a fatal error.
-        done = true;
-      }
-    }
-
-    this.log(`list updated: ${list.length} items.`);
-    this.list = list;
-    if (this.onupdated) {
-      this.onupdated(this.list);
-    }
-  }
-
-  // Add a new plugin from a url.
-  async add(json, url) {
-    await this.ready();
-
-    try {
-      // Fetch the plugin as a blob and verify the content type.
-      let plugin = await fetch(url);
-      let blob = await plugin.blob();
-      if (blob.type !== "application/wasm") {
-        this.error(
-          `Expected 'application/wasm' content type for ${url}, but got '${blob.type}'`
-        );
-        return;
-      }
-
-      // Store the new resource.
-      let meta = await this.svc.createobj(
-        {
-          parent: this.container,
-          name: url,
-          kind: this.lib.ResourceKind.LEAF,
-          tags: [],
-        },
-        "default",
-        new Blob([JSON.stringify(json)], { type: "application/json" })
-      );
-      let resource = new ContentResource(this.svc, this.http_key, meta);
-      await resource.update(blob, "wasm");
-
-      await this.update();
-    } catch (e) {
-      this.error(`Failed to add plugin: ${e}`);
-    }
   }
 }
 

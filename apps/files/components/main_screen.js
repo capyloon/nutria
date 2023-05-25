@@ -160,25 +160,6 @@ class MainScreen extends LitElement {
     }
   }
 
-  enterEditMode_old() {
-    this.log(`Entering edit mode`);
-    // Use the history api to be able to exit edit mode by navigating back.
-    history.pushState({ mode: "edit" }, "");
-    this.editMode = true;
-    this.renderer?.enterEditMode();
-
-    window.addEventListener(
-      "popstate",
-      (event) => {
-        this.log(`location: ${document.location}`);
-        // Leaving edit mode.
-        this.editMode = false;
-        this.renderer?.leaveEditMode();
-      },
-      { once: true }
-    );
-  }
-
   async switchPath(event) {
     let newId = event.target.dataset.id;
     this.log(`switchPath ${this.data.id} -> ${newId}`);

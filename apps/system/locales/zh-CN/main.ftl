@@ -178,4 +178,3 @@ activity-p2p-tile-start = 选择图块
 activity-scan-qr-code = 扫描二维码
 activity-view-resource = 查看文件
 activity-publish-resource = 发布文件
-activity-install-wasm-plugin = 安装WASM插件
