@@ -347,7 +347,7 @@ class P2pDiscovery {
           let win = window.wm.currentFrame().webView.ownerGlobal;
           let keg = new win.KeyboardEventGenerator();
           keg.generate(new win.KeyboardEvent("keydown", { key }));
-          keg.generate(new win.KeyboardEvent("keydown", { key }));
+          keg.generate(new win.KeyboardEvent("keyup", { key }));
         }
         return true;
       }
