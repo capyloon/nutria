@@ -331,7 +331,9 @@ class P2pDiscovery {
           return this.controlId;
         }
 
-        console.log(`this.controlId=${this.controlId} params.controlId=${params.controlId}`);
+        console.log(
+          `this.controlId=${this.controlId} params.controlId=${params.controlId}`
+        );
         if (
           !params.controlId ||
           !this.controlId ||
@@ -343,11 +345,16 @@ class P2pDiscovery {
 
         if (params.keypress) {
           // Dispatch the keypress event to the active frame.
-          let key = params.keypress;         
+          let keys = params.keypress.split(",");
           let win = window.wm.currentFrame().webView.ownerGlobal;
           let keg = new win.KeyboardEventGenerator();
-          keg.generate(new win.KeyboardEvent("keydown", { key }));
-          keg.generate(new win.KeyboardEvent("keyup", { key }));
+          keys.forEach((key) => {
+            keg.generate(new win.KeyboardEvent("keydown", { key }));
+          });
+
+          keys.reverse().forEach((key) => {
+            keg.generate(new win.KeyboardEvent("keyup", { key }));
+          });
         }
         return true;
       }

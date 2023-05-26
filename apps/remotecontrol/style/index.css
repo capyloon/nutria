@@ -4,6 +4,7 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
+  background: var(--sl-panel-background-color);
 }
 
 * {
@@ -19,7 +20,7 @@ body {
   flex-direction: column;
   gap: 1em;
   align-items: center;
-  align-content: center;
+  justify-content: center;
   padding: 1em;
   height: 100%;
 }
@@ -34,10 +35,15 @@ h2 {
   display: grid;
   gap: 0.3em;
   font-size: 2em;
+  border: 4px solid var(--sl-color-primary-500);
+  border-radius: var(--sl-border-radius-circle);
+  padding: 2em;
+  background-color: var(--sl-color-primary-100);
   grid-template-areas:
-    ".    up   ."
-    "left ok   right"
-    ".    down .";
+    ".      up   ."
+    "left   ok   right"
+    ".      down ."
+    "sh-tab tab  home";
 }
 
 /* Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Element/kbd */

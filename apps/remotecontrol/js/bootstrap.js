@@ -100,6 +100,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     { class: "up", key: "ArrowUp", icon: "arrow-up" },
     { class: "down", key: "ArrowDown", icon: "arrow-down" },
     { class: "ok", key: "Enter", icon: "corner-down-left" },
+    { class: "home", key: "Home", icon: "home" },
+    { class: "tab", key: "Tab", icon: "arrow-right-to-line" },
+    { class: "sh-tab", key: "Shift,Tab", icon: "arrow-left-to-line" },
   ];
 
   let container = document.getElementById("keys");

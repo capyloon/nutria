@@ -282,6 +282,14 @@ class QuickSettings extends HTMLElement {
     } else {
       container.classList.remove("not-launchable");
     }
+
+    let controlApps = await navigator.b2g.activityUtils.getInstalled("remote-control");
+    let remoteDisabled = controlApps.length == 0;
+    if (remoteDisabled) {
+      container.classList.add("not-remotable");
+    } else {
+      container.classList.remove("not-remotable");
+    }
   }
 
   async addPeer(peer, handler) {
@@ -306,8 +314,8 @@ class QuickSettings extends HTMLElement {
 
     let remote = document.createElement("sl-button");
     remote.setAttribute("circle", "");
-    let icon = document.createElement("sl-icon");
-    icon.setAttribute("name", "keyboard");
+    let icon = document.createElement("img");
+    icon.src = "./resources/remotecontrol.png";
     remote.append(icon);
     remote.classList.add("remote");
     remote.classList.add("when-paired");

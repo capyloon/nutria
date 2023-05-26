@@ -159,6 +159,14 @@
   display: none;
 }
 
+:host .peers.not-remotable sl-button.remote {
+  display: none;
+}
+
+:host .peers sl-button.remote img {
+  width: 2.5em;
+}
+
 :host .peers div span {
   max-width: 25%;
   text-overflow: ellipsis;
