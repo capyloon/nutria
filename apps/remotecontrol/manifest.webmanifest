@@ -1,0 +1,34 @@
+{
+  "name": "RemoteControl",
+  "description": "Remote Control",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "/icons/icon.png",
+      "type": "image/png",
+      "sizes": "any"
+    }
+  ],
+  "b2g_features": {
+    "core": true,
+    "developer": {
+      "name": "The Capyloon team"
+    },
+    "permissions": {
+      "dweb": {},
+      "themeable": {}
+    },
+    "serviceworker": {
+      "script_url": "sw.js"
+    },
+    "activities": {
+      "remote-control": {
+        "filters": {
+          "session": { "required": true }
+        },
+        "href": "/index.html"
+      }
+    }
+  },
+  "version": "1.0"
+}

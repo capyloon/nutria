@@ -78,10 +78,16 @@ const kDeps = [
     param: ["./js/activity_handler.js"],
   },
   {
+    name: "remote control",
+    kind: "script",
+    param: ["./js/remote_control.js"],
+    deps: ["api daemon core"],
+  },
+  {
     name: "p2p",
     kind: "script",
     param: ["./js/p2p.js"],
-    deps: ["api daemon core", "content manager", "tiles"],
+    deps: ["api daemon core", "content manager", "tiles", "remote control"],
   },
   {
     name: "tiles",

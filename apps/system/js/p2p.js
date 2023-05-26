@@ -318,6 +318,14 @@ class P2pDiscovery {
         }
       }
 
+      async onRemoteControl(params) {
+        if (!this.remoteControl) {
+          this.remoteControl = new RemoteControl();
+        }
+
+        return await this.remoteControl.start(params.offer);
+      }
+
       async onDialed(peer, params) {
         this.log(`onDialed with ${JSON.stringify(params)}`);
 
@@ -331,6 +339,8 @@ class P2pDiscovery {
           return this.onTileAction(peer, params);
         } else if (params.action === "activity") {
           return this.onActivityAction(peer, params.activity);
+        } else if (params.action === "remote-control") {
+          return this.onRemoteControl(params.params);
         } else {
           console.error(`Unsupported peer action: ${params.action}`);
           return false;

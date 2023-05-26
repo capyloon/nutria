@@ -35,6 +35,7 @@
   padding-bottom: 0.5em;
   max-height: 40vh;
   overflow-y: scroll;
+  overflow-x: hidden;
 }
 
 :host section.notifications:not(:empty) > *,
@@ -142,12 +143,10 @@
   padding-right: 0.5em;
 }
 
-:host .peer > .when-paired,
 :host .peer > .when-paired {
   display: none;
 }
 
-:host .peer.paired > .when-paired,
 :host .peer.paired > .when-paired {
   display: initial;
 }
@@ -158,4 +157,19 @@
 
 :host .peers.not-launchable sl-button.launch {
   display: none;
+}
+
+:host .peers.not-remotable sl-button.remote {
+  display: none;
+}
+
+:host .peers sl-button.remote img {
+  width: 2.5em;
+}
+
+:host .peers div span {
+  max-width: 25%;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
