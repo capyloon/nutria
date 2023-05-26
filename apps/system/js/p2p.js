@@ -319,54 +319,11 @@ class P2pDiscovery {
       }
 
       async onRemoteControl(params) {
-        console.log(`onRemoteControl ${JSON.stringify(params)}`);
-
-        if (!!params.start) {
-          const random = new Uint8Array(16);
-          window.crypto.getRandomValues(random);
-          this.controlId = random.reduce(
-            (output, elem) => output + ("0" + elem.toString(16)).slice(-2),
-            ""
-          );
-          return this.controlId;
+        if (!this.remoteControl) {
+          this.remoteControl = new RemoteControl();
         }
 
-        if (
-          !params.controlId ||
-          !this.controlId ||
-          params.controlId !== this.controlId
-        ) {
-          console.error(`Invalid or missing controlId`);
-          return;
-        }
-
-        if (params.keypress) {
-          // Dispatch the keypress events to the active frame.
-          let keys = params.keypress.split(",");
-          let win = window.wm.currentFrame().webView.ownerGlobal;
-
-          // We can't use the KeyEventGenerator API because it doesn't support
-          // key sequences that change modifier states.
-          // Modifier state changes are needed eg. for [Shift]+[Tab] generation.
-          try {
-            let tip = Cc["@mozilla.org/text-input-processor;1"].createInstance(
-              Ci.nsITextInputProcessor
-            );
-            tip.beginInputTransaction(win, () => {});
-            keys.forEach((key) => {
-              tip.keydown(new win.KeyboardEvent("keydown", { key }));
-            });
-
-            keys.reverse().forEach((key) => {
-              tip.keyup(new win.KeyboardEvent("keyup", { key }));
-            });
-
-            tip = null;
-          } catch (e) {
-            console.error(`Failed to generate key event: ${e}`);
-          }
-        }
-        return true;
+        return await this.remoteControl.process(params);
       }
 
       async onDialed(peer, params) {
