@@ -363,7 +363,7 @@ class P2pDiscovery {
         } else if (params.action === "activity") {
           return this.onActivityAction(peer, params.activity);
         } else if (params.action === "remote-control") {
-          return this.onRemoteControl(peer, params.params);
+          return this.onRemoteControl(params.params);
         } else {
           console.error(`Unsupported peer action: ${params.action}`);
           return false;
