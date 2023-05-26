@@ -331,8 +331,9 @@ class P2pDiscovery {
           return this.controlId;
         }
 
+        console.log(`this.controlId=${this.controlId} params.controlId=${params.controlId}`);
         if (
-          !!params.controlId ||
+          !params.controlId ||
           !this.controlId ||
           params.controlId !== this.controlId
         ) {
