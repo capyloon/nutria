@@ -342,12 +342,14 @@ class P2pDiscovery {
         }
 
         if (params.keypress) {
-          let key = params.keypress;
-          console.log(`ZZZ Will send keypress event: ${key}`);
-          let event = new KeyboardEvent("keypress", { key });
-          // Dispatch the event to the active frame.
-          window.wm.currentFrame().webView.dispatchEvent(event);
+          // Dispatch the keypress event to the active frame.
+          let key = params.keypress;         
+          let win = window.wm.currentFrame().webView.ownerGlobal;
+          let keg = new win.KeyboardEventGenerator();
+          keg.generate(new win.KeyboardEvent("keydown", { key }));
+          keg.generate(new win.KeyboardEvent("keydown", { key }));
         }
+        return true;
       }
 
       async onDialed(peer, params) {
