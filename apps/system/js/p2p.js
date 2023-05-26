@@ -319,6 +319,8 @@ class P2pDiscovery {
       }
 
       async onRemoteControl(params) {
+        console.log(`onRemoteControl ${JSON.stringify(params)}`);
+
         if (!!params.start) {
           const random = new Uint8Array(16);
           window.crypto.getRandomValues(random);
