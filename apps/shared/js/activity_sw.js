@@ -68,7 +68,10 @@ async function handleActivity(handler) {
   // Get a handle to the app window.
   let win = await getClient(activityName);
 
-  if (HAS_RETURN_VALUE_ACTIVITIES.includes(activityName)) {
+  if (
+    HAS_RETURN_VALUE_ACTIVITIES &&
+    HAS_RETURN_VALUE_ACTIVITIES.includes(activityName)
+  ) {
     let activityId = ActivityRequests.addHandler(handler);
     log(`Sending message for ${activityName} with return value`);
 

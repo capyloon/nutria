@@ -318,6 +318,35 @@ class P2pDiscovery {
         }
       }
 
+      async onRemoteControl(params) {
+        if (!!params.start) {
+          const random = new Uint8Array(16);
+          window.crypto.getRandomValues(random);
+          this.controlId = random.reduce(
+            (output, elem) => output + ("0" + elem.toString(16)).slice(-2),
+            ""
+          );
+          return this.controlId;
+        }
+
+        if (
+          !!params.controlId ||
+          !this.controlId ||
+          params.controlId !== this.controlId
+        ) {
+          console.error(`Invalid or missing controlId`);
+          return;
+        }
+
+        if (params.keypress) {
+          let key = params.keypress;
+          console.log(`ZZZ Will send keypress event: ${key}`);
+          let event = new KeyboardEvent("keypress", { key });
+          // Dispatch the event to the active frame.
+          window.wm.currentFrame().webView.dispatchEvent(event);
+        }
+      }
+
       async onDialed(peer, params) {
         this.log(`onDialed with ${JSON.stringify(params)}`);
 
@@ -331,6 +360,8 @@ class P2pDiscovery {
           return this.onTileAction(peer, params);
         } else if (params.action === "activity") {
           return this.onActivityAction(peer, params.activity);
+        } else if (params.action === "remote-control") {
+          return this.onRemoteControl(peer, params.params);
         } else {
           console.error(`Unsupported peer action: ${params.action}`);
           return false;

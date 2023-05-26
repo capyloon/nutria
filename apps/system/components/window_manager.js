@@ -137,7 +137,7 @@ class WindowManagerKeys {
 
     // Open the url editor with [Ctrl] + [l]
     if (this.isCtrlDown && event.type === "keydown" && event.key === "l") {
-      let frame = wm.currentFrame();
+      let frame = this.wm.currentFrame();
       if (!frame?.config.isHomescreen) {
         actionsDispatcher.dispatch("open-url-editor", frame.state.url);
       }

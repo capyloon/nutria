@@ -304,6 +304,15 @@ class QuickSettings extends HTMLElement {
     apps.classList.add("when-paired");
     node.append(apps);
 
+    let remote = document.createElement("sl-button");
+    remote.setAttribute("circle", "");
+    let icon = document.createElement("sl-icon");
+    icon.setAttribute("name", "keyboard");
+    remote.append(icon);
+    remote.classList.add("remote");
+    remote.classList.add("when-paired");
+    node.append(remote);
+
     let button = document.createElement("sl-button");
     button.dataset.l10nId = "connect-peer";
     button.classList.add("when-unpaired");
@@ -347,6 +356,15 @@ class QuickSettings extends HTMLElement {
             `p2p: failed to launch tile for session ${session.id}: ${e}`
           );
         }
+      };
+
+      node.querySelector(".remote").onclick = () => {
+        this.drawer.hide();
+        console.log(
+          `ZZZ starting remote control of ${JSON.stringify(session)}`
+        );
+        let act = new WebActivity("remote-control", { session });
+        act.start();
       };
       node.classList.add("paired");
     }
