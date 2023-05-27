@@ -323,7 +323,7 @@ class P2pDiscovery {
           this.remoteControl = new RemoteControl();
         }
 
-        return await this.remoteControl.process(params);
+        return await this.remoteControl.start(params.offer);
       }
 
       async onDialed(peer, params) {

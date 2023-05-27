@@ -151,9 +151,9 @@ class RemoteControl {
   }
 
   async init(sessionId) {
-    await this.ensureDweb();
     try {
-      let offer = await webrtc.offer();
+      await this.ensureDweb();
+      let offer = await this.webrtc.offer();
       let session = await this.dweb.getSession(sessionId);
       let params = {
         action: "remote-control",
@@ -162,7 +162,7 @@ class RemoteControl {
       let answer = await this.dweb.dial(session, params);
       this.webrtc.setRemoteDescription(answer);
     } catch (e) {
-      log(`Oopps: ${e}`);
+      log(`Oopps: ${JSON.stringify(e)}`);
     }
   }
 
