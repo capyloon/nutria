@@ -81,7 +81,7 @@ const kDeps = [
     name: "remote control",
     kind: "script",
     param: ["./js/remote_control.js"],
-    deps: ["api daemon core", "content manager", "tiles"],
+    deps: ["api daemon core"],
   },
   {
     name: "p2p",

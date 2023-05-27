@@ -20,10 +20,105 @@ function log(msg) {
   console.log(`ZZZ RemoteControl: ${msg}`);
 }
 
+// Local copy of webrtc helper from shared/js/tile.js
+// TODO: share
+class Webrtc extends EventTarget {
+  constructor() {
+    super();
+    this.pc = null;
+    this.channel = null;
+  }
+
+  ensurePeerConnection() {
+    if (this.pc !== null) {
+      return;
+    }
+
+    this.pc = new RTCPeerConnection({
+      iceServers: [
+        {
+          urls: [
+            "stun:stun.l.google.com:19302",
+            "stun:global.stun.twilio.com:3478",
+          ],
+        },
+      ],
+      sdpSemantics: "unified-plan",
+    });
+
+    // This promise resolves when the local description is ready.
+    this._iceGatheringDone = null;
+    this.iceGatheringReady = new Promise((resolve) => {
+      this._iceGatheringDone = resolve;
+    });
+
+    [
+      // "iceconnectionstatechange",
+      "icegatheringstatechange",
+      // "signalingstatechange",
+      // "icecandidate",
+      "track",
+      "datachannel",
+    ].forEach((event) => this.pc.addEventListener(event, this));
+  }
+
+  setupChannel(channel) {
+    this.channel = channel;
+    this.channel.binaryType = "arraybuffer";
+    ["open", "close", "error"].forEach((event) =>
+      this.channel.addEventListener(event, (event) => {
+        this.dispatchEvent(new CustomEvent(`channel-${event.type}`));
+      })
+    );
+  }
+
+  async handleEvent(event) {
+    console.log(`webrtc: event ${event.type}`);
+
+    if (event.type === "icegatheringstatechange") {
+      console.log(
+        `dweb webrtc: gatheringState is ${this.pc.iceGatheringState}`
+      );
+      if (this.pc.iceGatheringState === "complete") {
+        this._iceGatheringDone();
+      }
+    } else if (event.type === "datachannel") {
+      this.setupChannel(event.channel);
+    }
+  }
+
+  async offer() {
+    this.ensurePeerConnection();
+    if (!this.channel) {
+      this.setupChannel(this.pc.createDataChannel("capyloon-p2p"));
+    }
+
+    let offer = await this.pc.createOffer();
+    this.pc.setLocalDescription(offer);
+    await this.iceGatheringReady;
+    return this.pc.localDescription;
+  }
+
+  async answer() {
+    this.ensurePeerConnection();
+    let answer = await this.pc.createAnswer();
+    this.pc.setLocalDescription(answer);
+    await this.iceGatheringReady;
+    return this.pc.localDescription;
+  }
+
+  setRemoteDescription(answer) {
+    this.ensurePeerConnection();
+    this.pc.setRemoteDescription(answer);
+  }
+}
+
 class RemoteControl {
   constructor() {
     this.dweb = null;
     this.session = null;
+    this.open = false;
+    this.webrtc = new Webrtc();
   }
 
   async ensureDweb() {
@@ -35,43 +130,64 @@ class RemoteControl {
     this.dweb = await apiDaemon.getDwebService();
   }
 
+  setupWebrtcEvents() {
+    this.webrtc.addEventListener("channel-open", () => {
+      log(`channel open`);
+      this.open = true;
+      this.webrtc.channel.addEventListener("message", (event) => {
+        this.handleMessage(event.data);
+      });
+    });
+
+    this.webrtc.addEventListener("channel-error", () => {
+      log(`channel error`);
+      this.open = false;
+    });
+
+    this.webrtc.addEventListener("channel-close", () => {
+      log(`channel closed`);
+      this.open = false;
+    });
+  }
+
   async init(sessionId) {
     await this.ensureDweb();
     try {
-      this.session = await this.dweb.getSession(sessionId);
+      let offer = await webrtc.offer();
+      let session = await this.dweb.getSession(sessionId);
       let params = {
         action: "remote-control",
-        params: { start: true },
+        params: { offer },
       };
-      let result = await this.dweb.dial(this.session, params);
-      log(`dial result for 'init': ${result}`);
-      this.controlId = result;
+      let answer = await this.dweb.dial(session, params);
+      this.webrtc.setRemoteDescription(answer);
     } catch (e) {
       log(`Oopps: ${e}`);
     }
   }
 
+  async handleMessage(data) {
+    log(`message: ${JSON.stringify(data)}`);
+  }
+
   async handleEvent(event) {
     log(
-      `Event ${event.type} for ${event.target.localName} ${event.target.dataset.keyName}`
+      `Event ${event.type}: ${event.target.dataset.keyName}`
     );
 
-    if (!this.session) {
-      log(`Error: no session available.`);
+    if (!this.open) {
+      log(`Error: no webrtc channel available.`);
+      return;
     }
-    await this.ensureDweb();
+
     try {
       let params = {
-        action: "remote-control",
-        params: {
-          controlId: this.controlId,
-          keypress: event.target.dataset.keyName,
-        },
+        command: "keypress",
+        keys: event.target.dataset.keyName,
       };
-      let result = await this.dweb.dial(this.session, params);
-      log(`dial result for 'keypress': ${result}`);
+      this.webrtc.channel.send(JSON.stringify(params));
     } catch (e) {
-      log(`Oopps: ${e}`);
+      log(`Failed to send 'keypress' command: ${e}`);
     }
   }
 }
@@ -94,25 +210,26 @@ document.addEventListener("DOMContentLoaded", async () => {
   await graph.waitForDeps("main");
 
   // Build the keys.
+  // 'area' maps to the CSS grid area.
   let keys = [
-    { class: "left", key: "ArrowLeft", icon: "arrow-left" },
-    { class: "right", key: "ArrowRight", icon: "arrow-right" },
-    { class: "up", key: "ArrowUp", icon: "arrow-up" },
-    { class: "down", key: "ArrowDown", icon: "arrow-down" },
-    { class: "ok", key: "Enter", icon: "corner-down-left" },
-    { class: "home", key: "Home", icon: "home" },
-    { class: "tab", key: "Tab", icon: "arrow-right-to-line" },
-    { class: "sh-tab", key: "Shift,Tab", icon: "arrow-left-to-line" },
+    { area: "left", key: "ArrowLeft", icon: "arrow-left" },
+    { area: "right", key: "ArrowRight", icon: "arrow-right" },
+    { area: "up", key: "ArrowUp", icon: "arrow-up" },
+    { area: "down", key: "ArrowDown", icon: "arrow-down" },
+    { area: "ok", key: "Enter", icon: "corner-down-left" },
+    { area: "home", key: "Home", icon: "home" },
+    { area: "tab", key: "Tab", icon: "arrow-right-to-line" },
+    { area: "sh-tab", key: "Shift,Tab", icon: "arrow-left-to-line" },
   ];
 
   let container = document.getElementById("keys");
   let keyHandler = remoteControl.handleEvent.bind(remoteControl);
   keys.forEach((item) => {
     let key = document.createElement("sl-icon");
-    key.classList.add(item.class);
+    key.classList.add(item.area);
     key.dataset.keyName = item.key;
     key.setAttribute("name", item.icon);
-    key.style.gridArea = item.class;
+    key.style.gridArea = item.area;
     container.append(key);
 
     key.onclick = keyHandler;
