@@ -63,6 +63,7 @@ class Webrtc extends EventTarget {
   }
 
   setupChannel(channel) {
+    log(`webrtc: setup channel`);
     this.channel = channel;
     this.channel.binaryType = "arraybuffer";
     ["open", "close", "error"].forEach((event) =>
@@ -73,12 +74,10 @@ class Webrtc extends EventTarget {
   }
 
   async handleEvent(event) {
-    console.log(`webrtc: event ${event.type}`);
+    log(`webrtc: event ${event.type}`);
 
     if (event.type === "icegatheringstatechange") {
-      console.log(
-        `dweb webrtc: gatheringState is ${this.pc.iceGatheringState}`
-      );
+      log(`webrtc: gatheringState is ${this.pc.iceGatheringState}`);
       if (this.pc.iceGatheringState === "complete") {
         this._iceGatheringDone();
       }
@@ -90,7 +89,7 @@ class Webrtc extends EventTarget {
   async offer() {
     this.ensurePeerConnection();
     if (!this.channel) {
-      this.setupChannel(this.pc.createDataChannel("capyloon-p2p"));
+      this.setupChannel(this.pc.createDataChannel("capyloon-remote-control"));
     }
 
     let offer = await this.pc.createOffer();
@@ -153,6 +152,7 @@ class RemoteControl {
   async init(sessionId) {
     try {
       await this.ensureDweb();
+      this.setupWebrtcEvents();
       let offer = await this.webrtc.offer();
       let session = await this.dweb.getSession(sessionId);
       let params = {
@@ -160,7 +160,9 @@ class RemoteControl {
         params: { offer },
       };
       let answer = await this.dweb.dial(session, params);
+      log(`Received webrtc answer: |${answer.type}|`);
       this.webrtc.setRemoteDescription(answer);
+      log(`remoteDescription set`);
     } catch (e) {
       log(`Oopps: ${JSON.stringify(e)}`);
     }
@@ -171,9 +173,7 @@ class RemoteControl {
   }
 
   async handleEvent(event) {
-    log(
-      `Event ${event.type}: ${event.target.dataset.keyName}`
-    );
+    log(`Event ${event.type}: ${event.target.dataset.keyName}`);
 
     if (!this.open) {
       log(`Error: no webrtc channel available.`);

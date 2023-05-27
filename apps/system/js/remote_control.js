@@ -59,9 +59,7 @@ class Webrtc extends EventTarget {
     console.log(`webrtc: event ${event.type}`);
 
     if (event.type === "icegatheringstatechange") {
-      console.log(
-        `dweb webrtc: gatheringState is ${this.pc.iceGatheringState}`
-      );
+      console.log(`webrtc: gatheringState is ${this.pc.iceGatheringState}`);
       if (this.pc.iceGatheringState === "complete") {
         this._iceGatheringDone();
       }
@@ -73,7 +71,7 @@ class Webrtc extends EventTarget {
   async offer() {
     this.ensurePeerConnection();
     if (!this.channel) {
-      this.setupChannel(this.pc.createDataChannel("capyloon-p2p"));
+      this.setupChannel(this.pc.createDataChannel("capyloon-remote-control"));
     }
 
     let offer = await this.pc.createOffer();
