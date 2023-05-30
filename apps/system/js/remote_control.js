@@ -96,6 +96,10 @@ class Webrtc extends EventTarget {
 
 class RemoteControl {
   constructor() {
+    this.reset();
+  }
+
+  reset() {
     this.webrtc = new Webrtc();
     this.open = false;
   }
@@ -117,12 +121,12 @@ class RemoteControl {
 
     this.webrtc.addEventListener("channel-error", () => {
       this.log(`channel error`);
-      this.open = false;
+      this.reset();
     });
 
     this.webrtc.addEventListener("channel-close", () => {
       this.log(`channel closed`);
-      this.open = false;
+      this.reset();
     });
   }
 
