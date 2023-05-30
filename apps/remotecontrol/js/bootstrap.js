@@ -209,6 +209,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await graph.waitForDeps("main");
 
+  document.body.oncontextmenu = (event) => {
+    event.preventDefault();
+  };
+
   // Build the keys.
   // 'area' maps to the CSS grid area.
   let keys = [
