@@ -115,10 +115,10 @@ class PairingDialog extends LitElement {
     this.timer = 100;
     let dialog = this.shadowRoot.querySelector("sl-dialog");
     dialog.show();
-    let interval = window.setInterval(() => {
+    this.interval = window.setInterval(() => {
       this.timer -= 3;
       if (this.timer <= 0) {
-        window.clearInterval(interval);
+        window.clearInterval(this.interval);
         dialog.hide();
         this.deferred.reject();
       }
@@ -129,11 +129,28 @@ class PairingDialog extends LitElement {
     });
   }
 
+  hide() {
+    window.clearInterval(this.interval);
+    this.shadowRoot.querySelector("sl-dialog").hide();
+    this.deferred = null;
+  }
+
+  static styles = css`
+    :host {
+      color: var(--sl-color-neutral-500);
+    }
+    :host pre {
+      text-align: center;
+      text-size: x-large;
+      padding: 1em;
+    }
+  `;
+
   render() {
     return html`
       <sl-dialog>
-        <span slot="label">Enter that code in the remote</span>
-        <div class="code">${this.code}</div>
+        <span slot="label" data-l10n-id="pairing-dialog-title"></span>
+        <pre class="code">${this.code}</pre>
         <sl-progress-bar
           value="${this.timer}"
           class="time-left"
@@ -216,6 +233,11 @@ class RemoteControl {
       );
       return false;
     }
+
+    // Close the pairing dialog.
+    this.pairingCode = null;
+    let dialog = document.querySelector("pairing-dialog");
+    dialog.hide();
 
     this.webrtc.setRemoteDescription(params.offer);
     this.setupWebrtcEvents();
