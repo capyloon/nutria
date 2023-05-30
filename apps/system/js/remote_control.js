@@ -116,6 +116,7 @@ class PairingDialog extends LitElement {
     let dialog = this.shadowRoot.querySelector("sl-dialog");
     dialog.show();
     this.interval = window.setInterval(() => {
+      // 3% less each second -> timer total duration is about 33 seconds.
       this.timer -= 3;
       if (this.timer <= 0) {
         window.clearInterval(this.interval);
@@ -141,16 +142,22 @@ class PairingDialog extends LitElement {
     }
     :host pre {
       text-align: center;
-      text-size: x-large;
+      font-size: 2em;
+      font-family: monospace;
       padding: 1em;
+      letter-spacing: 0.5em;
     }
   `;
+
+  updated() {
+    document.l10n.translateFragment(this.shadowRoot);
+  }
 
   render() {
     return html`
       <sl-dialog>
         <span slot="label" data-l10n-id="pairing-dialog-title"></span>
-        <pre class="code">${this.code}</pre>
+        <pre>${this.code}</pre>
         <sl-progress-bar
           value="${this.timer}"
           class="time-left"
@@ -207,8 +214,13 @@ class RemoteControl {
 
     let dialog = document.querySelector("pairing-dialog");
 
-    // TODO: generated random code.
-    this.pairingCode = "123456";
+    // Generate a random code.
+    const random = new Uint8Array(6);
+    window.crypto.getRandomValues(random);
+    this.pairingCode = random.reduce(
+      (output, elem) => output + ("0" + (elem % 10).toString(10)).slice(-1),
+      ""
+    );
 
     dialog.show(this.pairingCode).catch(() => {
       // The dialog was dismissed by timer.
