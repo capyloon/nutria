@@ -34,7 +34,11 @@ class P2pDiscovery {
   }
 
   log(msg) {
-    console.log(`p2p: dweb: ${msg}`);
+    console.log(`p2p: ${msg}`);
+  }
+
+  error(msg) {
+    console.error(`p2p: ${msg}`);
   }
 
   async getSetting(name, defaultValue) {
@@ -318,12 +322,23 @@ class P2pDiscovery {
         }
       }
 
-      async onRemoteControl(params) {
+      async onRemoteControlRequest(paams) {
         if (!this.remoteControl) {
           this.remoteControl = new RemoteControl();
         }
 
-        return await this.remoteControl.start(params.offer);
+        return await this.remoteControl.request();
+      }
+
+      async onRemoteControlPairing(params) {
+        if (!this.remoteControl) {
+          this.error(
+            `No remote control object available to anwser pairing request!`
+          );
+          return false;
+        }
+
+        return await this.remoteControl.pairing(params);
       }
 
       async onDialed(peer, params) {
@@ -339,8 +354,10 @@ class P2pDiscovery {
           return this.onTileAction(peer, params);
         } else if (params.action === "activity") {
           return this.onActivityAction(peer, params.activity);
-        } else if (params.action === "remote-control") {
-          return this.onRemoteControl(params.params);
+        } else if (params.action === "remote-control-request") {
+          return this.onRemoteControlRequest();
+        } else if (params.action === "remote-control-pairing") {
+          return this.onRemoteControlPairing(params.params);
         } else {
           console.error(`Unsupported peer action: ${params.action}`);
           return false;

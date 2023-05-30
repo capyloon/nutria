@@ -152,12 +152,23 @@ class RemoteControl {
   async init(sessionId) {
     try {
       await this.ensureDweb();
+
+      let pairingAccepted = await this.dweb.dial(session, {
+        action: "remote-control-request",
+      });
+      if (!pairingAccepted) {
+        return;
+      }
+
+      // TODO: get code from UI.
+      let code = "123456";
+
       this.setupWebrtcEvents();
       let offer = await this.webrtc.offer();
       let session = await this.dweb.getSession(sessionId);
       let params = {
-        action: "remote-control",
-        params: { offer },
+        action: "remote-control-pairing",
+        params: { offer, code },
       };
       let answer = await this.dweb.dial(session, params);
       log(`Received webrtc answer: |${answer.type}|`);
