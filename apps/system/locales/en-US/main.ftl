@@ -188,3 +188,5 @@ permissions-name-audio-capture = Audio Recording
 permissions-name-video-capture = Video Recording
 
 confirm-remember-my-choice = Remember My Choice
+
+pairing-dialog-title = Enter this code in the remote to connect

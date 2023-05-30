@@ -2,6 +2,14 @@
 // It is responsible for answering the dial query
 // with a webrtc answer, and after that to manage
 // remote commands.
+//
+// The pairing process is made of 2 phases:
+// 1. The remote control sends a "remote-control-request" message.
+// 2. The controlled device displays a pairing code for a limited time.
+// 2. The remote control sends a "remote-control-pairing" message with
+//    the pairing code and its webrtc offer.
+// 4. If the pairing code matches, the controlled device returns its
+//    webrtc answer.
 
 // Local copy of webrtc helper from shared/js/tile.js
 // TODO: share
@@ -94,6 +102,73 @@ class Webrtc extends EventTarget {
   }
 }
 
+class PairingDialog extends LitElement {
+  static get properties() {
+    return {
+      code: {},
+      timer: { state: true },
+    };
+  }
+
+  show(code) {
+    this.code = code;
+    this.timer = 100;
+    let dialog = this.shadowRoot.querySelector("sl-dialog");
+    dialog.show();
+    this.interval = window.setInterval(() => {
+      // 3% less each second -> timer total duration is about 33 seconds.
+      this.timer -= 3;
+      if (this.timer <= 0) {
+        window.clearInterval(this.interval);
+        dialog.hide();
+        this.deferred.reject();
+      }
+    }, 1000);
+
+    return new Promise((resolve, reject) => {
+      this.deferred = { resolve, reject };
+    });
+  }
+
+  hide() {
+    window.clearInterval(this.interval);
+    this.shadowRoot.querySelector("sl-dialog").hide();
+    this.deferred = null;
+  }
+
+  static styles = css`
+    :host {
+      color: var(--sl-color-neutral-500);
+    }
+    :host pre {
+      text-align: center;
+      font-size: 2.5em;
+      font-family: monospace;
+      letter-spacing: 0.5em;
+      font-weight: var(--sl-font-weight-bold);
+    }
+  `;
+
+  updated() {
+    document.l10n.translateFragment(this.shadowRoot);
+  }
+
+  render() {
+    return html`
+      <sl-dialog>
+        <span slot="label" data-l10n-id="pairing-dialog-title"></span>
+        <pre>${this.code}</pre>
+        <sl-progress-bar
+          value="${this.timer}"
+          class="time-left"
+        ></sl-progress-bar>
+      </sl-dialog>
+    `;
+  }
+}
+
+customElements.define("pairing-dialog", PairingDialog);
+
 class RemoteControl {
   constructor() {
     this.reset();
@@ -130,10 +205,53 @@ class RemoteControl {
     });
   }
 
-  // Receives the offer from the caller, and returns
-  // the answer.
-  async start(offer) {
-    this.webrtc.setRemoteDescription(offer);
+  // Displays the the pairing code.
+  async request() {
+    if (this.pairingCode) {
+      // A request is already happening, deny this one.
+      return false;
+    }
+
+    let dialog = document.querySelector("pairing-dialog");
+
+    // Generate a random code.
+    const random = new Uint8Array(6);
+    window.crypto.getRandomValues(random);
+    this.pairingCode = random.reduce(
+      (output, elem) => output + ("0" + (elem % 10).toString(10)).slice(-1),
+      ""
+    );
+
+    dialog.show(this.pairingCode).catch(() => {
+      // The dialog was dismissed by timer.
+      this.pairingCode = null;
+    });
+
+    return true;
+  }
+
+  // Receives the pairing code and webrtc offer from the caller,
+  // and returns the webrtc answer.
+  async pairing(params) {
+    // TODO: check pairing code.
+    if (!this.pairingCode) {
+      this.error(`No pairing code expected`);
+      return false;
+    }
+
+    if (this.pairingCode !== params.code) {
+      this.error(
+        `pairing code mismatch: expected ${this.pairingCode} but got ${params.code}`
+      );
+      return false;
+    }
+
+    // Close the pairing dialog.
+    this.pairingCode = null;
+    let dialog = document.querySelector("pairing-dialog");
+    dialog.hide();
+
+    this.webrtc.setRemoteDescription(params.offer);
     this.setupWebrtcEvents();
     let answer = await this.webrtc.answer();
     // answser is a RTCSessionDescription object that can't be cloned so

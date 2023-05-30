@@ -314,6 +314,7 @@ const UAHelper = {
   };
 
   exports.embedder = embedder;
+  embedder.uaHelper = UAHelper;
 
   // Hacks.
   // Force a Mobile User Agent string.
