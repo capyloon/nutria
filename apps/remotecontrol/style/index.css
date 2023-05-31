@@ -11,10 +11,6 @@ body {
   box-sizing: border-box;
 }
 
-.hidden {
-  display: none;
-}
-
 #main {
   display: flex;
   flex-direction: column;
@@ -31,7 +27,7 @@ h2 {
   max-width: 90vw;
 }
 
-#keys {
+#remote-keys {
   display: grid;
   gap: 0.3em;
   font-size: 2em;
@@ -46,8 +42,22 @@ h2 {
     "sh-tab tab  home";
 }
 
+#keyboard {
+  width: fit-content;
+  display: grid;
+  gap: 0.5em;
+  font-size: 2em;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-areas:
+    "n7 n8 n9"
+    "n4 n5 n6"
+    "n1 n2 n3"
+    "n0 back enter";
+}
+
 /* Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Element/kbd */
-sl-icon {
+sl-icon,
+#keyboard .key {
   background-color: #eee;
   border-radius: 3px;
   border: 1px solid #b4b4b4;
@@ -63,7 +73,35 @@ sl-icon {
   cursor: pointer;
 }
 
-sl-icon:active {
+sl-icon:active,
+#keyboard .key:active {
   box-shadow: 0 2px 0 0 rgba(255, 255, 255, 0.7),
     0 1px 1px rgba(0, 0, 0, 0.2) inset;
+}
+
+#code-input {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#code-input pre {
+  min-width: 70vw;
+  border-bottom: 2px solid var(--sl-panel-border-color);
+  padding: 0.5em;
+  text-align: center;
+  font-size: 2.5em;
+  font-family: monospace;
+  letter-spacing: 0.5em;
+  min-height: 3em;
+  font-weight: var(--sl-font-weight-bold);
+}
+
+#code-input pre.complete {
+  color: var(--sl-color-success-600);
+}
+
+#code-input.hidden,
+#remote-keys.hidden {
+  display: none;
 }

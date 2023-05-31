@@ -142,10 +142,10 @@ class PairingDialog extends LitElement {
     }
     :host pre {
       text-align: center;
-      font-size: 2em;
+      font-size: 2.5em;
       font-family: monospace;
-      padding: 1em;
       letter-spacing: 0.5em;
+      font-weight: var(--sl-font-weight-bold);
     }
   `;
 

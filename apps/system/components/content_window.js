@@ -434,7 +434,7 @@ class ContentWindow extends HTMLElement {
     let ua = window.uaStore.getUaFor(url);
     if (ua) {
       this.webView.linkedBrowser.browsingContext.customUserAgent =
-        UAHelper.get(ua);
+        embedder.uaHelper.get(ua);
       this.state.ua = ua;
     } else {
       this.state.ua = null;

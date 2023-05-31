@@ -20,6 +20,100 @@ function log(msg) {
   console.log(`ZZZ RemoteControl: ${msg}`);
 }
 
+// Helper class managing the pairing code input.
+class CodeInput {
+  constructor() {
+    this.promise = null;
+  }
+
+  init() {
+    // Build the code input keyboard.
+    let container = document.getElementById("keyboard");
+    for (let i = 0; i < 10; i++) {
+      let key = document.createElement("div");
+      key.classList.add("key");
+      key.textContent = `${i}`;
+      key.style.gridArea = `n${i}`;
+      container.append(key);
+      key.onclick = (event) => {
+        this.onKey(event.target);
+      };
+    }
+    // Add the backspace key and enter keys.
+    let key = document.createElement("sl-icon");
+    key.classList.add("key");
+    key.setAttribute("name", "delete");
+    key.style.gridArea = "back";
+    container.append(key);
+    key.onclick = () => {
+      this.onDelete();
+    };
+
+    key = document.createElement("sl-icon");
+    key.classList.add("key");
+    key.setAttribute("name", "corner-down-left");
+    key.style.gridArea = "enter";
+    container.append(key);
+    key.onclick = () => {
+      this.onEnter();
+    };
+
+    this.input = document.querySelector("#code-input pre");
+  }
+
+  updateInputStatus() {
+    if (this.input.textContent.length == 6) {
+      this.input.classList.add("complete");
+    } else {
+      this.input.classList.remove("complete");
+    }
+  }
+
+  onKey(target) {
+    if (this.input.textContent.length >= 6) {
+      return;
+    }
+    this.input.textContent += target.textContent;
+    this.updateInputStatus();
+  }
+
+  onDelete() {
+    if (this.input.textContent.length == 0) {
+      return;
+    }
+
+    this.input.textContent = this.input.textContent.slice(0, -1);
+    this.updateInputStatus();
+  }
+
+  onEnter() {
+    this.promise?.resolve();
+  }
+
+  async getCode() {
+    let keyboard = document.getElementById("code-input");
+    let remote = document.getElementById("remote-keys");
+    remote.classList.add("hidden");
+    keyboard.classList.remove("hidden");
+
+    let p = new Promise((resolve) => {
+      this.promise = { resolve };
+    });
+
+    try {
+      await p;
+    } catch (e) {}
+
+    this.promise = null;
+
+    remote.classList.remove("hidden");
+    keyboard.classList.add("hidden");
+    return this.input.textContent;
+  }
+}
+
+const codeInput = new CodeInput();
+
 // Local copy of webrtc helper from shared/js/tile.js
 // TODO: share
 class Webrtc extends EventTarget {
@@ -161,8 +255,8 @@ class RemoteControl {
         return;
       }
 
-      // TODO: get code from UI.
-      let code = "123456";
+      // Get the code.
+      let code = await codeInput.getCode();
 
       this.setupWebrtcEvents();
       let offer = await this.webrtc.offer();
@@ -224,7 +318,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault();
   };
 
-  // Build the keys.
+  // Build the remote control keys.
   // 'area' maps to the CSS grid area.
   let keys = [
     { area: "left", key: "ArrowLeft", icon: "arrow-left" },
@@ -237,7 +331,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     { area: "sh-tab", key: "Shift,Tab", icon: "arrow-left-to-line" },
   ];
 
-  let container = document.getElementById("keys");
+  let container = document.getElementById("remote-keys");
   let keyHandler = remoteControl.handleEvent.bind(remoteControl);
   keys.forEach((item) => {
     let key = document.createElement("sl-icon");
@@ -249,6 +343,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     key.onclick = keyHandler;
   });
+
+  codeInput.init();
 });
 
 // remote-control activity entry point.
