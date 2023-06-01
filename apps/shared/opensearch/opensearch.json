@@ -9,7 +9,7 @@
     "id": "ecosia.xml"
   },
   {
-    "source": "https://ipfs-search.com/opensearch.xml",
-    "id": "ipfs-search.xml"
+    "source": "https://www.mojeek.com/opensearch.xml",
+    "id": "mojeek.xml"
   }
 ]
