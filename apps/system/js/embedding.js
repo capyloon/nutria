@@ -136,9 +136,16 @@ const UAHelper = {
         }
       }
 
+      // Make sure we set openWindowInfo to null when
+      // aParams.openWindoInfo is undefined.
+      let openWindowInfo = null;
+      if (aParams.openWindoInfo) {
+        openWindowInfo = aParams.openWindoInfo;
+      }
+
       let webView = exports.wm.openFrame(aURI, {
         activate: !isPrinting,
-        openWindowInfo: aParams.openWindowInfo,
+        openWindowInfo,
         details,
       });
       return webView;
