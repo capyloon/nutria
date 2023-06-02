@@ -698,7 +698,7 @@ class OpenSearchManager extends ContentManager {
       let firstRun = !(await this.hasTopLevelContainer("opensearch"));
       this.container = await this.ensureTopLevelContainer("opensearch");
       this.svc = await this.service;
-      this.lib = await this.lib();
+      this._lib = await this.lib();
       await this.ensureHttpKey(this.svc);
 
       if (firstRun) {
@@ -710,8 +710,8 @@ class OpenSearchManager extends ContentManager {
   async onchange(change) {
     this.log(`list modified: ${JSON.stringify(change)}`);
     if (
-      change.kind == this.lib.ModificationKind.CHILD_CREATED ||
-      change.kind == this.lib.ModificationKind.CHILD_DELETED
+      change.kind == this._lib.ModificationKind.CHILD_CREATED ||
+      change.kind == this._lib.ModificationKind.CHILD_DELETED
     ) {
       await this.update();
     }
@@ -755,7 +755,7 @@ class OpenSearchManager extends ContentManager {
       try {
         let children = await cursor.next();
         for (let child of children) {
-          if (child.kind === this.lib.ResourceKind.LEAF) {
+          if (child.kind === this._lib.ResourceKind.LEAF) {
             let json = await this.svc.getVariantJson(child.id, "default");
             list.push(
               new ContentResource(
@@ -803,7 +803,7 @@ class OpenSearchManager extends ContentManager {
       {
         parent: this.container,
         name: url,
-        kind: this.lib.ResourceKind.LEAF,
+        kind: this._lib.ResourceKind.LEAF,
         tags,
       },
       "default",
@@ -1001,7 +1001,7 @@ class ContactsManager extends ContentManager {
     if (!this.container) {
       this.container = await this.ensureTopLevelContainer("contacts");
       this.svc = await this.service;
-      this.lib = await this.lib();
+      this._lib = await this.lib();
       await this.ensureHttpKey(this.svc);
     }
   }
@@ -1009,9 +1009,9 @@ class ContactsManager extends ContentManager {
   async onchange(change) {
     this.log(`list modified: ${JSON.stringify(change)}`);
     if (
-      change.kind == this.lib.ModificationKind.CHILD_CREATED ||
-      change.kind == this.lib.ModificationKind.CHILD_MODIFIED ||
-      change.kind == this.lib.ModificationKind.CHILD_DELETED
+      change.kind == this._lib.ModificationKind.CHILD_CREATED ||
+      change.kind == this._lib.ModificationKind.CHILD_MODIFIED ||
+      change.kind == this._lib.ModificationKind.CHILD_DELETED
     ) {
       await this.updateList();
     }
@@ -1049,7 +1049,7 @@ class ContactsManager extends ContentManager {
       try {
         let children = await cursor.next();
         for (let child of children) {
-          if (child.kind === this.lib.ResourceKind.LEAF) {
+          if (child.kind === this._lib.ResourceKind.LEAF) {
             let blob = await this.svc.getVariant(child.id, "default");
             if (blob.type === CONTACTS_MIME_TYPE) {
               let json = JSON.parse(await blob.text());
@@ -1095,7 +1095,7 @@ class ContactsManager extends ContentManager {
         {
           parent: this.container,
           name: contact.name,
-          kind: this.lib.ResourceKind.LEAF,
+          kind: this._lib.ResourceKind.LEAF,
           tags,
         },
         "default",
@@ -1159,7 +1159,7 @@ class ContainerManager extends ContentManager {
     if (!this.container) {
       this.container = await this.ensureTopLevelContainer(this.containerName);
       this.svc = await this.service;
-      this.lib = await this.lib();
+      this._lib = await this.lib();
       await this.ensureHttpKey(this.svc);
     }
   }
@@ -1168,9 +1168,9 @@ class ContainerManager extends ContentManager {
     // change format:
     // {kind:3, id:"9eac49dd-9c9f-4346-8dae-70012a14a938", parent:"24941cb3-b30f-4753-8fb3-119716913de2"}
     this.log(`list modified: ${JSON.stringify(change)}`);
-    if (change.kind == this.lib.ModificationKind.CHILD_CREATED) {
+    if (change.kind == this._lib.ModificationKind.CHILD_CREATED) {
       this.dispatchEvent(new CustomEvent("child-created", { detail: change }));
-    } else if (change.kind == this.lib.ModificationKind.CHILD_DELETED) {
+    } else if (change.kind == this._lib.ModificationKind.CHILD_DELETED) {
       this.dispatchEvent(new CustomEvent("child-deleted", { detail: change }));
     }
     return Promise.resolve();
@@ -1193,7 +1193,7 @@ class ContainerManager extends ContentManager {
       try {
         let children = await cursor.next();
         for (let child of children) {
-          if (child.kind === this.lib.ResourceKind.LEAF) {
+          if (child.kind === this._lib.ResourceKind.LEAF) {
             let blob = await this.svc.getVariant(child.id, "default");
             let resource = new ContentResource(
               this.svc,
