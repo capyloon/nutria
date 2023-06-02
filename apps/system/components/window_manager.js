@@ -187,6 +187,16 @@ class WindowManagerKeys {
         this.wm.zoomResetCurrentFrame();
       }
     }
+
+    // Go back in history with [Alt] [<-] and
+    // go forward with [Alt] [->]
+    if (this.isAltDown && event.type === "keydown" && !this.isCarouselOpen) {
+      if (event.key === "ArrowLeft") {
+        this.wm.goBack();
+      } else if (event.key === "ArrowRight") {
+        this.wm.goForward();
+      }
+    }
   }
 }
 
@@ -646,7 +656,7 @@ class WindowManager extends HTMLElement {
 
   forceFrameStateUpdate(id) {
     let frame = this.frames[id];
-    if (frame){
+    if (frame) {
       frame.dispatchStateUpdate(true);
     }
   }
