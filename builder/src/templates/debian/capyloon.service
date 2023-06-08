@@ -2,8 +2,8 @@
 Description=Capyloon, a Web Based OS
 Documentation=https://capyloon.org
 After=systemd-user-sessions.service plymouth-quit-wait.service
-After=getty@tty1.service
-Conflicts=getty@tty1.service
+After=getty@tty7.service
+Conflicts=getty@tty7.service
 
 # D-Bus is necessary for contacting logind. Logind is required.
 Wants=dbus.socket
@@ -15,7 +15,7 @@ ConditionPathExists=/dev/tty0
 [Service]
 Environment=LANG=C.UTF-8
 Environment=XDG_SESSION_TYPE=wayland
-Environment=CAPYLOON_LAUNCH_WESTON=1
+Environment=CAPYLOON_LAUNCH_WAYLAND=1
 ExecStart=/opt/capyloon/start.sh
 TimeoutStartSec=30
 User=1000

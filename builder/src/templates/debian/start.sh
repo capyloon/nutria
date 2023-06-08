@@ -4,14 +4,22 @@ cleanup() {
     pkill -P $$
 }
 
+START_LOG=/tmp/capyloon_start.log
+
+echo "Capyloon start.sh" > ${START_LOG}
+
 for FILE in /opt/capyloon/env.d/* ; do
     echo "Sourcing environment from $FILE"
     source $FILE;
 done
 
-if [ -z ${CAPYLOON_LAUNCH_WESTON+x} ];
+echo "=================" >> ${START_LOG}
+env >> ${START_LOG}
+echo "=================" >> ${START_LOG}
+
+if [ -z ${CAPYLOON_LAUNCH_WAYLAND+x} ];
 then
-    echo "CAPYLOON_LAUNCH_WESTON is not set: not starting weston"
+    echo "CAPYLOON_LAUNCH_WAYLAND is not set: not starting Wayland compositor"
 
 for sig in INT QUIT HUP TERM; do
   trap "
@@ -22,13 +30,27 @@ done
 trap cleanup EXIT
 
 else
-    # Start Weston in kiosk mode
-    weston --shell=kiosk-shell.so &
+    echo Starting Wayland compositor >> ${START_LOG}
 
-    sleep 2
+    # Create a basic sway configuration, disabling window decorations.
+    echo "default_border none" > /tmp/capyloon_sway.config
+
+    sway -c /tmp/capyloon_sway.config 2>&1 >> /tmp/capyloon_sway.log &
+
+    # Wait for wayland to have set its lock file.
+    # Consider it could be either wayland-0 or wayland-1
+    LOCK0="/run/user/1000/wayland-0.lock"
+    LOCK1="/run/user/1000/wayland-1.lock"
+    while [ ! -f "$LOCK0" ] && [ ! -f "$LOCK1" ]; do
+       echo "Waiting for Wayland lock" >> ${START_LOG}
+       sleep 1
+    done
 fi
 
-export WAYLAND_DISPLAY=wayland-1
+export WAYLAND_DISPLAY=`ls /run/user/1000/wayland-*|grep -v lock|cut -c 16-200`
+
+echo "Setting WAYLAND_DISPLAY to ${WAYLAND_DISPLAY}" >> ${START_LOG}
+echo "=================" >> ${START_LOG}
 
 mkdir -p ${HOME}/.capyloon/profile
 # Copy our prefs file.
@@ -45,6 +67,7 @@ rm -f ${HOME}/.local/share/iroh/iroh-one.lock
 export RUST_LOG=warn
 
 # Start the api-daemon
+echo Starting api-daemon >> ${START_LOG}
 export DEFAULT_SETTINGS=/opt/capyloon/api-daemon/default-settings.json
 rm -f /tmp/api-daemon-socket
 mkdir -p ${HOME}/.capyloon/api-daemon
@@ -53,6 +76,7 @@ pushd ${HOME}/.capyloon/api-daemon > /dev/null
 popd > /dev/null
 
 # Start ipfsd
+echo Starting ipfsd >> ${START_LOG}
 mkdir -p ${HOME}/.capyloon/ipfsd
 /opt/capyloon/ipfsd/ipfsd --cfg ${HOME}/.capyloon/ipfsd-config.toml 2>&1 | tee /tmp/capyloon_ipfsd.log &
 
@@ -64,4 +88,5 @@ do
 done
 
 # Start b2g
+echo Starting b2g >> ${START_LOG}
 /opt/capyloon/b2g/b2g $@ -profile ${HOME}/.capyloon/profile/ 2>&1 | tee /tmp/capyloon_gecko.log

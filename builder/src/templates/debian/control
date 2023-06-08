@@ -6,4 +6,3 @@ Priority: optional
 Standards-Version: 0.1
 Description: Reclaim Your Web!
 Architecture: ${ARCH}
-Depends: weston

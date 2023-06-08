@@ -1,3 +1,4 @@
 #!/bin/bash
 
-export GDK_DPI_SCALE=2
+# Needed when using weston as the wayland compositor
+# export GDK_DPI_SCALE=2
