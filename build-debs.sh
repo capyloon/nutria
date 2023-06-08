@@ -21,4 +21,13 @@ cp ./builder/output/debian/*.deb .
 # Switch back to default prebuilts.
 ./jackady update-prebuilts
 
+# Build the plymouth theme
+HERE=`pwd`
+pushd ../plymouth-theme-capyloon
+./build.sh ${HERE}
+popd
+mv ../plymouth-theme-capyloon*.deb .
+
+rm ../plymouth-theme-capyloon_*
+
 ls -lh *.deb
