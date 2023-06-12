@@ -1264,7 +1264,7 @@ class ContentWindow extends HTMLElement {
       case "loadstart":
         // Reset state when loading a new document.
         this.state.icon = null;
-        this.state.title = null;
+        this.state.title = this.config.details.title;
         this.state.manifestUrl = null;
         this.state.secure = "insecure";
         uiUpdateNeeded = true;
