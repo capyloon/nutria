@@ -49,7 +49,7 @@ class IdentityPanel {
     }
   }
 
-  async updateList() {
+  async updateDidList() {
     let list = await this.dweb.getDids();
     this.log(`Found ${list.length} DIDs`);
 
@@ -102,7 +102,13 @@ class IdentityPanel {
     try {
       let setting = await this.settings.get(settingsKey);
       input.value = setting.value;
-    } catch (e) {}
+    } catch (e) {
+      // Fallback to the deviceinfo.product_model setting
+      try {
+        let setting = await this.settings.get("deviceinfo.product_model");
+        input.value = setting.value;
+      } catch (e) {}
+    }
   }
 
   async init() {
@@ -122,13 +128,13 @@ class IdentityPanel {
     [this.dweb.DIDCREATED_EVENT, this.dweb.DIDREMOVED_EVENT].forEach(
       (event) => {
         this.dweb.addEventListener(event, () => {
-          this.updateList();
+          this.updateDidList();
         });
       }
     );
 
     await this.manageDeviceName();
-    await this.updateList();
+    await this.updateDidList();
 
     this.ready = true;
   }
