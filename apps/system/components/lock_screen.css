@@ -80,13 +80,17 @@
   width: 100%;
 }
 
-.slider-fill {
+:host .slider-fill {
   display: flex;
   flex-direction: column;
   justify-content: end;
   align-items: center;
   padding-bottom: 0.5em;
   animation: slideup-indicator 2s ease infinite 3s;
+}
+
+:host(.screen-off) .slider-fill {
+  animation: none;
 }
 
 @keyframes slideup-indicator {

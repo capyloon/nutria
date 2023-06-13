@@ -7,11 +7,13 @@ class ScreenManager {
     actionsDispatcher.addListener("set-screen-on", () => {
       // console.log(`ScreenManager set-screen-on`);
       document.body.classList.remove("screen-off");
+      window.lockscreen.classList.remove("screen-off");
     });
 
     actionsDispatcher.addListener("set-screen-off", () => {
       // console.log(`ScreenManager set-screen-off`);
       document.body.classList.add("screen-off");
+      window.lockscreen.classList.add("screen-off");
       window.lockscreen.lock();
     });
   }
