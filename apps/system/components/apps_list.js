@@ -154,7 +154,11 @@ class AppsList extends LitElement {
         appsNodes.push(node);
       }
     }
-    this.appsNodes = appsNodes;
+
+    // Sort the nodes to get consistent ordering of the apps.
+    this.appsNodes = appsNodes.sort((a, b) => {
+      return a.data.title.toLowerCase() > b.data.title.toLowerCase();
+    });
   }
 
   captureContextMenuEvent(event) {
