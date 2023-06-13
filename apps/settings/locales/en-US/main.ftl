@@ -55,6 +55,7 @@ search-error-no-enabled = Please enable at least one search engine!
 # WebExt panel
 webext-title = Web Extensions
 webext-get-more = Get More Web Extensions
+webext-none-installed = No Web Extensions Installed Yet
 
 # Identity panel
 identity-title = Identity

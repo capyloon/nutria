@@ -92,6 +92,8 @@ class WebextPanel {
     if (clearFirst) {
       this.menu.innerHTML = "";
     }
+
+    let isEmpty = true;
     try {
       let addons = await navigator.mozAddonManager.getAllAddons();
       addons
@@ -100,9 +102,17 @@ class WebextPanel {
           let item = document.createElement("li");
           item.append(new WebExtension(addon));
           this.menu.append(item);
+          isEmpty = false;
         });
     } catch (e) {
       this.error(`Failed to fetch extension list: ${e}`);
+    }
+
+    if (isEmpty) {
+      let item = document.createElement("li");
+      item.classList.add("empty-list");
+      item.dataset.l10nId = "webext-none-installed";
+      this.menu.append(item);
     }
   }
 

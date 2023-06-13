@@ -210,6 +210,10 @@ sl-input::part(password-toggle-button) {
   color: var(--sl-color-neutral-1000);
 }
 
+#webext-panel .empty-list {
+  text-align: center;
+}
+
 #systeminfo-panel img {
   width: 3em;
   margin-right: 1em;
