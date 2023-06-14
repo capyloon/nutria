@@ -836,6 +836,8 @@ class OpenSearchManager extends ContentManager {
       if (iconUrl) {
         await resource.updateVariantFromUrl(iconUrl, "icon");
       }
+    } else if (favicon) {
+      await resource.updateVariantFromUrl(favicon, "icon");
     }
 
     await this.update();
