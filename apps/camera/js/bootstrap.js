@@ -79,9 +79,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   let count = await cameraManager.getCameraCount();
   log(`Found ${count} cameras.`);
   if (count == 0) {
+    window["no-camera"].classList.remove("hidden");
     return;
   }
 
+  window["controls"].classList.remove("hidden");
   if (count == 1) {
     window["front-back"].remove();
   } else {
