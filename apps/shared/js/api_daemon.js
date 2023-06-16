@@ -64,6 +64,7 @@ export class ApiDaemon {
     this.registerService("contentmanager", "ContentManager");
     this.registerService("time", "TimeService");
     this.registerService("dweb", "DwebService");
+    this.registerService("evm", "EvmService");
 
     this.sessionReady = new Promise((resolve) => {
       this._resolveSessionReady = resolve;
@@ -210,6 +211,10 @@ export class ApiDaemon {
 
   getDwebService() {
     return this._getService("DwebService");
+  }
+
+  getEvmService() {
+    return this._getService("EvmService");
   }
 
   getLibraryFor(serviceName) {
