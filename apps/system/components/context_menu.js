@@ -298,6 +298,12 @@ class ContextMenu extends HTMLElement {
       data.selectionInfo.text?.length &&
       !data.selectionInfo.docSelectionIsCollapsed;
 
+    // Check if we got a link url from the selected text.
+    if (data.selectionInfo?.linkURL) {
+      hasLink = true;
+      this.linkUrl = data.selectionInfo?.linkURL;
+    }
+
     // If the JS character after our truncation point is a trail surrogate,
     // include it in the truncated string to avoid splitting a surrogate pair.
     if (hasSelection) {
