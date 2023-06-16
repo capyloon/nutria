@@ -22,7 +22,6 @@
       "system-time": { "access": "readwrite" },
       "wifi-manage": {},
       "mobileconnection": {},
-      "mobilenetwork": {},
       "sms": {},
       "telephony": {},
       "webapps-manage": {}
