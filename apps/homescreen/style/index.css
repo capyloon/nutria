@@ -14,8 +14,8 @@ body {
   --action-box-height: 6em;
   --action-per-line: 4;
 
-  --default-color: darkslategray;
-  --light-color: lightgray;
+  --default-color: env(theme-wallpaper-muted);
+  --light-color: env(theme-wallpaper-accent);
 }
 
 /* Desktop mode */
@@ -91,7 +91,7 @@ body {
   font-size: 1rem;
   background-color: rgba(255, 255, 255, 0.25);
   /* border-bottom: 1px solid var(--sl-color-primary-500); */
-  color: lightgray;
+  color: env(theme-wallpaper-accent);
   border-radius: 8px;
   padding: 0.5em;
 }
@@ -113,12 +113,9 @@ body {
   flex: 1;
   background: none;
   border: none;
-  color: white;
+  color: env(theme-wallpaper-accent);
   outline: none;
   font-family: var(--sl-font-sans);
-}
-
-#search-box {
 }
 
 #search-results {
