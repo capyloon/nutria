@@ -1,13 +1,13 @@
 [package]
 edition = "2021"
 name = "tosdr"
-version = "0.1.0"
+version = "0.1.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 env_logger = "0.10"
 log = "0.4"
-reqwest = {version = "0.11", features = ["blocking"]}
+reqwest = {version = "0.11", default-features = false, features = ["blocking", "rustls-tls-webpki-roots"]}
 serde = {version = "1", features = ["derive"]}
 serde_json = "1"

@@ -1,6 +1,6 @@
 use log::{error, info};
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Deserialize)]
 struct Service {
@@ -32,7 +32,7 @@ struct TosDrResponse {
 fn main() {
     env_logger::init();
 
-    let mut mapping = HashMap::new();
+    let mut mapping = BTreeMap::new();
 
     let mut current_page = 1;
     let mut max_page = 0;
@@ -50,7 +50,7 @@ fn main() {
                 info!("Found {} services", obj.parameters.services.len());
                 for service in obj.parameters.services {
                     for url in service.urls {
-                        mapping.insert(url, service.id);
+                        mapping.insert(url.trim().to_owned(), service.id);
                     }
                 }
                 max_page = obj.parameters._page.end;
