@@ -2,12 +2,6 @@
 
 /* darkish theme */
 :root {
-    --loader-background: rgba(0,0,0,0.5);
-    --loader-color: white;
-
-    --status-text-normal: lightslategray;
-    --status-text-highlum: rgb(50, 50, 50);
-
     --icon-background-active: skyblue;
     --icon-color-active: rgb(50, 50, 50);
     --icon-background-inactive: lightslategray;

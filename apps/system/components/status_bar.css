@@ -1,8 +1,7 @@
 /* <system-statusbar> styling */
 
 :host {
-  /* background-color: rgba(255, 255, 255, 0.15); */
-  color: var(--status-text-normal);
+  color: env(theme-wallpaper-vibrant);
   font-size: 1rem;
   height: var(--statusbar-height);
   transition: background-color 0.25s;
@@ -17,11 +16,11 @@
 }
 
 :host(.high-luminance) {
-  color: var(--status-text-highlum);
+  color: env(theme-wallpaper-muted);
 }
 
 :host(.transparent) {
-  color: lightgray;
+  color: env(theme-wallpaper-accent);
 }
 
 :host .container {
@@ -125,7 +124,7 @@ sl-badge::part(base) {
 sl-badge[variant="neutral"]::part(base) {
   background-color: transparent;
   border-color: transparent;
-  color: var(--status-text-normal);
+  color: env(theme-wallpaper-vibrant);
 }
 
 sl-badge[variant="primary"]::part(base) {
@@ -134,11 +133,11 @@ sl-badge[variant="primary"]::part(base) {
 }
 
 :host(.high-luminance) sl-badge[variant="neutral"]::part(base) {
-  color: var(--status-text-highlum);
+  color: env(theme-wallpaper-muted);
 }
 
 :host(.transparent) sl-badge[variant="neutral"]::part(base) {
-  color: lightgray;
+  color: env(theme-wallpaper-accent);
 }
 
 .go-back.disabled {

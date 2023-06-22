@@ -9,7 +9,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  color: white;
+  color: env(theme-wallpaper-accent);
   background-size: cover;
   background-repeat: no-repeat;
   background-position: 50% 50%;

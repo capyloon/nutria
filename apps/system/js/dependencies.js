@@ -165,7 +165,12 @@ const kDeps = [
     name: "wallpaper",
     kind: "module",
     param: "./js/wallpaper_manager.js",
-    deps: ["content manager"],
+    deps: ["content manager", "vibrant"],
+  },
+  {
+    name: "vibrant",
+    kind: "script",
+    param: "./third-party/node-vibrant/vibrant.min.js",
   },
   {
     name: "ua store",
