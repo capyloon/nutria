@@ -1,9 +1,9 @@
 function log(msg) {
-  console.log(`${self.location} ${msg}`);
+  console.log(`[act_sw:${self.location}] ${msg}`);
 }
 
 function error(msg) {
-  console.error(`${self.location} ${msg}`);
+  console.error(`[act_sw:${self.location}] ${msg}`);
 }
 
 self.addEventListener("install", (event) => {
@@ -109,11 +109,15 @@ self.addEventListener("message", async (event) => {
       ActivityRequests.removeHandler(data.activityId);
       // Stop the 'keepalive message interval' if there is no pending activity.
       if (ActivityRequests.size === 0) {
-        let win = await getClient("");
-        win.postMessage({
-          topic: "system",
-          data: "stop_activity_keepalive",
+        const allClients = await clients.matchAll({
+          includeUncontrolled: true,
         });
+        if (allClients.length > 0) {
+          allClients[0].postMessage({
+            topic: "system",
+            data: "stop_activity_keepalive",
+          });
+        }
       }
     }
   } else if (data.topic !== "keep-alive") {
@@ -127,13 +131,13 @@ const ActivityRequests = {
   addHandler(handler) {
     const activityId = `${+new Date()}`;
     this.map.set(activityId, handler);
-    log(`ActivityRequests::addHandler: ${this.map}`);
+    log(`ActivityRequests::addHandler: ${this.map.size} entries`);
     return activityId;
   },
 
   removeHandler(id) {
     this.map.delete(id);
-    log(`ActivityRequests::removeHandler: ${this.map}`);
+    log(`ActivityRequests::removeHandler: ${this.map.size} entries`);
   },
 
   getHandler(id) {
