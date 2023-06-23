@@ -609,6 +609,10 @@ class ContentResource {
     return this._meta;
   }
 
+  get id() {
+    return this._meta.id;
+  }
+
   async update(blob, variant = "default") {
     await this._svc.updateVariant(this._meta.id, variant, blob);
     this._variants.set(variant, blob);

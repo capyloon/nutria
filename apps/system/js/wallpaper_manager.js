@@ -28,7 +28,6 @@ class ColorUtil {
 class WallpaperManager extends EventTarget {
   constructor() {
     super();
-    this.image = null;
     this.loadOrUseDefault().then(() => {
       this.log(`ready`);
       this.updateBackground();
@@ -40,11 +39,9 @@ class WallpaperManager extends EventTarget {
 
       this.fetchAsBlob(url)
         .then(async (blob) => {
-          this.image = blob;
           this.ignoreNextChange = true;
-          await this.save();
+          await this.save(blob);
 
-          this.updateBackground();
           let msg = await window.utils.l10n("wallpaper-changed");
           window.toaster.show(msg, "success");
         })
@@ -64,7 +61,7 @@ class WallpaperManager extends EventTarget {
     originalImage.src = url;
     await loaded;
     let width = originalImage.naturalWidth;
-    let height = originalImage.naturalHeight * heightPercent / 100;
+    let height = (originalImage.naturalHeight * heightPercent) / 100;
     const canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext("2d");
 
@@ -113,7 +110,7 @@ class WallpaperManager extends EventTarget {
         accent = color;
       }
     });
-    this.log(`best constrast: ${bestContrast}`);
+    this.log(`best contrast: ${bestContrast}`);
 
     let themeData = {
       "theme.wallpaper.vibrant": toCSS(palette.Vibrant),
@@ -130,12 +127,15 @@ class WallpaperManager extends EventTarget {
 
   updateBackground() {
     let url = this.asURL();
-    this.log(`updateBackground -> ${this.url}`);
+    this.log(`updateBackground -> ${url}`);
     if (url) {
-      let bgUrl = `url(${url}?r=${Math.random()})`;
-      document.body.style.backgroundImage = bgUrl;
-      window.lockscreen.setBackground(bgUrl);
-      this.extractPalette(`${url}?r=${Math.random()}`);
+      let randomized = `${url}?r=${Math.random()}`;
+      this.extractPalette(randomized).then(() => {
+        let cssUrl = `url(${randomized})`;
+        document.body.style.backgroundImage = cssUrl;
+        window.lockscreen.setBackground(cssUrl);
+        this.log(`system & lockscreen updated`);
+      });
     } else {
       // Fallback to a gradient.
       let gradient =
@@ -177,13 +177,18 @@ class WallpaperManager extends EventTarget {
       );
 
       this.log(`ensureWallpaperContainer got ${this.wallpaperContainer}`);
+
+      // At first launch install an observer for the wallpaper container,
+      // making sure we switch when the content manager is used directly
+      // to manipulate the wallpaper.
+      await this.attachObserver();
     }
   }
 
-  async save() {
+  async save(image) {
     this.log("saving");
 
-    if (!this.image) {
+    if (!image) {
       this.error(`no wallpaper image to save!`);
       this.ignoreNextChange = false;
       return;
@@ -191,24 +196,54 @@ class WallpaperManager extends EventTarget {
 
     try {
       if (this.currentResource) {
-        await this.currentResource.update(this.image);
+        await this.currentResource.update(image);
       } else {
         await this.ensureWallpaperContainer();
         this.currentResource = await contentManager.create(
           this.wallpaperContainer,
-          "default",
-          this.image
+          "current",
+          image
         );
       }
     } catch (e) {
-      this.error(`Failed to save wallpaper: ${e}`);
+      this.error(`Failed to save wallpaper: ${JSON.stringify(e)}`);
     }
   }
 
+  async attachObserver() {
+    if (!this.wallpaperContainer) {
+      this.error(`Can't attach observer to a null resource!`);
+      return;
+    }
+
+    // Get an observable resource for the container.
+    let containerResource = await contentManager.resourceFromId(
+      this.wallpaperContainer
+    );
+
+    await containerResource.observe(async (change) => {
+      if (this.ignoreNextChange == true) {
+        this.ignoreNextChange = false;
+        return;
+      }
+
+      this.log(`id=${this.currentResource.id} ${JSON.stringify(change)}`);
+      // Update when the change is either ChildModified or ChildDeleted
+      if (
+        (change.kind == 4 || change.kind == 5) &&
+        change.id == this.currentResource.id &&
+        change.parent
+      ) {
+        await this.loadOrUseDefault();
+        this.updateBackground();
+      }
+    });
+  }
+
   async loadDefaultWallpaper() {
-    this.image = await this.fetchAsBlob("./resources/default-wallpaper.webp");
-    this.log(`got default blob ${this.image}`);
-    return this.save();
+    let image = await this.fetchAsBlob("./resources/default-wallpaper.webp");
+    this.log(`got default blob ${image}`);
+    await this.save(image);
   }
 
   // Retrieve the list of wallpapers from the content manager.
@@ -218,7 +253,7 @@ class WallpaperManager extends EventTarget {
 
       let current = await contentManager.childByName(
         this.wallpaperContainer,
-        "default"
+        "current"
       );
       this.log(`Found current: ${current?.debug()}`);
       return current;
@@ -228,39 +263,18 @@ class WallpaperManager extends EventTarget {
     }
   }
 
-  async loadOrUseDefault(firstLaunch = true) {
+  async loadOrUseDefault() {
     this.log(`loadOrUseDefault`);
 
     this.currentResource = await this.getCurrentWallpaper();
     if (!this.currentResource) {
-      this.error("No current wallpaper set");
-      return this.loadDefaultWallpaper();
-    }
-
-    this.url = this.currentResource.variantUrl("default");
-
-    // At first launch install an observer for the default wallpaper,
-    // making sure we switch when the content manager is used directly
-    // to change the wallpaper.
-    if (firstLaunch) {
-      await this.currentResource.observe(async (change) => {
-        if (this.ignoreNextChange == true) {
-          this.ignoreNextChange = false;
-          return;
-        }
-
-        this.log(`Wallpaper changed: ${JSON.stringify(change)}`);
-        await this.loadOrUseDefault(false);
-        this.updateBackground();
-      });
+      this.log("No current wallpaper set");
+      await this.loadDefaultWallpaper();
     }
   }
 
   asURL() {
-    if (!this.url) {
-      this.url = this.currentResource.variantUrl("default");
-    }
-    return this.url;
+    return this.currentResource.variantUrl("default");
   }
 }
 
