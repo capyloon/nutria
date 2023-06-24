@@ -2,6 +2,6 @@
 
 systemctl stop capyloon || true
 systemctl stop b2ghald || true
-systemctl enable capyloon || true
+systemctl disable capyloon || true
 systemctl disable b2ghald || true
 systemctl daemon-reload || true
