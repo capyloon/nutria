@@ -132,11 +132,13 @@ sl-badge[variant="primary"]::part(base) {
   border-color: transparent;
 }
 
-:host(.high-luminance) sl-badge[variant="neutral"]::part(base) {
+:host(.high-luminance) sl-badge[variant="neutral"]::part(base),
+:host(.high-luminance) sl-badge[variant="primary"]::part(base) {
   color: env(theme-wallpaper-muted);
 }
 
-:host(.transparent) sl-badge[variant="neutral"]::part(base) {
+:host(.transparent) sl-badge[variant="neutral"]::part(base),
+:host(.transparent) sl-badge[variant="primary"]::part(base) {
   color: env(theme-wallpaper-accent);
 }
 

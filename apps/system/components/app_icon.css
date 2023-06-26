@@ -23,7 +23,7 @@
   width: 100%;
   font-size: smaller;
   text-decoration: none;
-  color: white;
+  color: env(theme-wallpaper-accent);
   text-shadow: black 1px 1px;
 }
 
