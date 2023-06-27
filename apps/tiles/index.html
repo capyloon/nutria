@@ -29,6 +29,7 @@
       </p>
       <sl-button data-l10n-id="action-start-new"></sl-button>
       <sl-button data-l10n-id="action-start-fork"></sl-button>
+      <sl-button data-l10n-id="action-start-install"></sl-button>
     </div>
     <div id="ui" class="hidden">
       <header id="tile-name">Tile name</header>
@@ -94,7 +95,7 @@
     </sl-dialog>
 
     <sl-dialog id="fork-chooser">
-      <span slot="label" data-l10n-id="fork-dialog-title"></span>
+      <span slot="label" id="fork-chooser-title"></span>
       <div id="fork-content">
         <sl-select
           hoist
@@ -122,9 +123,8 @@
       </div>
       <div slot="footer">
         <sl-button
-          id="fork-chooser-fork"
+          id="fork-chooser-ok"
           variant="primary"
-          data-l10n-id="btn-fork"
         ></sl-button>
         <sl-button
           id="fork-chooser-cancel"

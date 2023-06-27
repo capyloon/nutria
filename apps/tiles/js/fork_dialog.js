@@ -1,15 +1,18 @@
 // Helper class to manage the Fork dialog
 
 class ForkDialog {
-  constructor() {
+  constructor(mode = "fork") {
+    document.getElementById(
+      "fork-chooser-title"
+    ).dataset.l10nId = `fork-dialog-title-${mode}`;
     this.dialog = document.getElementById("fork-chooser");
     this.dialog.addEventListener("sl-after-hide", this);
-    document
-      .getElementById("fork-chooser-fork")
-      .addEventListener("click", this);
+    let okButton = document.getElementById("fork-chooser-ok");
+    okButton.dataset.l10nId = `btn-${mode}`;
+    okButton.addEventListener("click", this, { once: true });
     document
       .getElementById("fork-chooser-cancel")
-      .addEventListener("click", this);
+      .addEventListener("click", this, { once: true });
     this.promise = null;
 
     this.dialog
@@ -37,7 +40,7 @@ class ForkDialog {
     }
 
     let id = event.target.getAttribute("id");
-    if (id === "fork-chooser-fork") {
+    if (id === "fork-chooser-ok") {
       let input = this.dialog.querySelector("#fork-url").value.trim();
       let result = input || this.dialog.querySelector("#fork-list").value;
       if (!result.endsWith("/manifest.webmanifest")) {
@@ -102,7 +105,7 @@ class ForkDialog {
       let list = this.dialog.querySelector("#fork-list");
       list.innerHTML = "";
 
-      let subtitle = document.createElement("small")
+      let subtitle = document.createElement("small");
       subtitle.dataset.l10nId = "fork-chooser-your-library";
       list.append(subtitle);
 
@@ -125,7 +128,7 @@ class ForkDialog {
       }
 
       list.append(document.createElement("sl-divider"));
-      subtitle = document.createElement("small")
+      subtitle = document.createElement("small");
       subtitle.dataset.l10nId = "fork-chooser-public-library";
       list.append(subtitle);
 

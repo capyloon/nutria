@@ -80,6 +80,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     `#start sl-button[data-l10n-id=action-start-fork]`
   ).onclick = startFork;
 
+  document.querySelector(
+    `#start sl-button[data-l10n-id=action-start-install]`
+  ).onclick = startInstall;
+
   document.body.classList.add("ready");
 });
 
@@ -95,6 +99,54 @@ async function startFork() {
     let editor = new TileEditor();
     editor.forkTileFrom(manifestUrl);
   } catch (e) {}
+}
+
+async function startInstall() {
+  let button = document.querySelector(
+    `#start sl-button[data-l10n-id=action-start-install]`
+  );
+  button.setAttribute("loading", "true");
+  try {
+    await graph.waitForDeps("fork dialog");
+    let dialog = new ForkDialog("install");
+    let manifestUrl = await dialog.open();
+    dialog = null;
+
+    // Install the tile and notify the user.
+    // Silently fork & publish the tile.
+    let tile = new Tile();
+    await tile.forkTileFrom(manifestUrl);
+    let url = await tile.onPublish();
+    await installFromManifestUrl(`${url}manifest.webmanifest`);
+    let msg = await document.l10n.formatValue("tile-install-success");
+    alert(msg);
+  } catch (e) {
+    console.error(`Failed to install tile: ${e}`);
+  }
+  button.removeAttribute("loading", "true");
+}
+
+async function installFromManifestUrl(manifestUrl) {
+  try {
+    let service = await window.apiDaemon.getAppsManager();
+    let app;
+    try {
+      // Check if the app is installed. getApp() expects the cached url, so instead
+      // we need to get all apps and check their update url...
+      let apps = await service.getAll();
+      app = apps.find((app) => {
+        return app.updateUrl == manifestUrl;
+      });
+    } catch (e) {}
+    if (!app) {
+      let appObject = await service.installPwa(manifestUrl);
+      log(`Tile registered: ${JSON.stringify(appObject)}`);
+    } else {
+      log(`This tile is already registered`);
+    }
+  } catch (e) {
+    log(`Failed to publish tile: ${e}`);
+  }
 }
 
 function startNew() {
@@ -136,29 +188,10 @@ class TileEditor {
   }
 
   async onPublish(target) {
-    try {
-      let manifestUrl = `${await this.tile?.onPublish(
-        target
-      )}manifest.webmanifest`;
-      let service = await window.apiDaemon.getAppsManager();
-      let app;
-      try {
-        // Check if the app is installed. getApp() expects the cached url, so instead
-        // we need to get all apps and check their update url...
-        let apps = await service.getAll();
-        app = apps.find((app) => {
-          return app.updateUrl == manifestUrl;
-        });
-      } catch (e) {}
-      if (!app) {
-        let appObject = await service.installPwa(manifestUrl);
-        log(`Tile registered: ${JSON.stringify(appObject)}`);
-      } else {
-        log(`This tile is already registered`);
-      }
-    } catch (e) {
-      log(`Failed to publish tile: ${e}`);
-    }
+    let manifestUrl = `${await this.tile?.onPublish(
+      target
+    )}manifest.webmanifest`;
+    await installFromManifestUrl(manifestUrl);
   }
 
   async onRun(target) {
@@ -540,7 +573,7 @@ class Tile {
     await this.saveAllEditors();
 
     // TODO: better progress UI.
-    target.setAttribute("loading", "true");
+    target?.setAttribute("loading", "true");
 
     let ipfsUrl = null;
     try {
@@ -572,7 +605,7 @@ class Tile {
       log(e);
     }
 
-    target.removeAttribute("loading");
+    target?.removeAttribute("loading");
     // Replace ipfs:// by tile://
     ipfsUrl = `tile://${ipfsUrl.substring(7)}`;
     return ipfsUrl;
