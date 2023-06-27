@@ -888,10 +888,32 @@ class WindowManager extends HTMLElement {
           frame.state.icon || window.config.brandLogo
         }" />
         <div class="flex-fill"></div>
-        <div class="close-icon">
-          <sl-icon name="x"></sl-icon>
-        </div>
+        <footer>
+          <div class="close-icon">
+            <sl-icon name="x"></sl-icon>
+          </div>
+          <div class="audio-play">
+            <sl-icon name="volume-1"></sl-icon>
+          </div>
+        </footer>
       </div>`;
+      let audioPlay = screenshot.querySelector(".audio-play");
+      if (frame.isPlayingAudio) {
+        let audioIcon = audioPlay.firstElementChild;
+        audioIcon.setAttribute(
+          "name",
+          frame.audioMuted ? "volume-x" : "volume-1"
+        );
+        let playingFrame = frame;
+        audioPlay.onclick = (event) => {
+          event.stopPropagation();
+          // Toggle the muted state.
+          let muted = playingFrame.toggleMutedState();
+          audioIcon.setAttribute("name", muted ? "volume-x" : "volume-1");
+        };
+      } else {
+        audioPlay.remove();
+      }
       screenshot.querySelector(".close-icon").addEventListener(
         "click",
         (event) => {

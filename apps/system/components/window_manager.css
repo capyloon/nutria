@@ -27,7 +27,7 @@ window-manager .windows {
   scroll-behavior: smooth;
   scrollbar-width: none;
 
-  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.1, 1);
 }
 
 window-manager.lock-swipe .windows {
@@ -42,11 +42,11 @@ window-manager .windows > content-window {
 }
 
 window-manager .windows > content-window.opening {
-  animation: windowOpen 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
+  animation: windowOpen 0.3s cubic-bezier(0.2, 0.9, 0.1, 1);
 }
 
 window-manager .windows > content-window.closing {
-  animation: windowClose 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
+  animation: windowClose 0.3s cubic-bezier(0.2, 0.9, 0.1, 1);
 }
 
 @keyframes windowOpen {
@@ -55,14 +55,14 @@ window-manager .windows > content-window.closing {
     opacity: 0;
   }
   to {
-    transform: scale(1.0);
+    transform: scale(1);
     opacity: 1;
   }
 }
 
 @keyframes windowClose {
   from {
-    transform: scale(1.0);
+    transform: scale(1);
     opacity: 1;
   }
   to {
@@ -89,7 +89,7 @@ window-manager .carousel {
   scroll-behavior: smooth;
   scrollbar-width: none;
 
-  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.1, 1.0);
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.1, 1);
 }
 
 window-manager .carousel > div:not(.empty-carousel) {
@@ -156,14 +156,20 @@ window-manager .carousel > div .head {
   height: 100%;
 }
 
-window-manager .carousel > div .head .close-icon {
+window-manager .carousel > div .head footer {
+  display: flex;
+  gap: 2em;
+  transform: translateY(1.5rem);
+}
+
+window-manager .carousel > div .head .close-icon,
+window-manager .carousel > div .head .audio-play {
   background-color: var(--sl-panel-background-color);
   color: var(--sl-color-neutral-700);
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 40%;
   box-shadow: 2px 2px 3px black;
-  transform: translateY(1em);
   font-size: 2rem;
   display: flex;
   justify-content: center;

@@ -641,6 +641,21 @@ class ContentWindow extends HTMLElement {
         await channel.setMuted(false);
       }
     });
+
+    // Initial audio state. isPlayingAudio is updated by the media controller
+    // and audioMuted reflect the changes triggered by toggleMutedState().
+    this.isPlayingAudio = false;
+    this.audioMuted = false;
+  }
+
+  toggleMutedState() {
+    this.audioMuted = !this.audioMuted;
+    if (this.audioMuted) {
+      this.webView.linkedBrowser.mute(false);
+    } else {
+      this.webView.linkedBrowser.unmute();
+    }
+    return this.audioMuted;
   }
 
   initWebView() {
@@ -665,6 +680,8 @@ class ContentWindow extends HTMLElement {
         if (this.state.url.startsWith("tile://")) {
           return;
         }
+
+        this.isPlayingAudio = this.mediaController.playbackState == "playing";
 
         // console.log(
         //   `MediaController: ${event.type}, state=${
