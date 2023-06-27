@@ -137,6 +137,19 @@ class PowerManagerService {
           },
           true
         );
+      } else if (!embedder.isGonk()) {
+        // Use [Esc] to unlock on desktop mobile emulator.
+        embedder.addSystemEventListener(
+          "keydown",
+          function keyWakeUp(event) {
+            if (event.key !== "Escape") {
+              return;
+            }
+            actionsDispatcher.dispatch("set-screen-on");
+            embedder.removeSystemEventListener("keydown", keyWakeUp, true);
+          },
+          true
+        );
       }
     });
   }
