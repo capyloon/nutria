@@ -31,7 +31,7 @@ class ForkDialog {
     if (event.type === "sl-after-hide") {
       // sl-after-hide is also dispatched when "closing" the sl-select drop down,
       // but we should not do anything in that case.
-      if (event.target !== this) {
+      if (event.target !== this.dialog) {
         return;
       }
 
