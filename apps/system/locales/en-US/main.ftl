@@ -190,3 +190,9 @@ permissions-name-video-capture = Video Recording
 confirm-remember-my-choice = Remember My Choice
 
 pairing-dialog-title = Enter this code in the remote to connect
+
+# Selection floatin menu
+caret-selection-copy = Copy
+caret-selection-search = Search
+caret-selection-select-all = Select all
+caret-selection-share = Share

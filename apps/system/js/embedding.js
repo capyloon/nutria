@@ -356,6 +356,7 @@ const UAHelper = {
   } else {
     Services.prefs.setBoolPref("dom.inputmethod.enabled", true);
     Services.prefs.setBoolPref("dom.flashlight.enabled", true);
+    Services.prefs.setBoolPref("layout.accessiblecaret.hide_carets_for_mouse_input", false);
     embedder.useVirtualKeyboard = true;
   }
   embedder.sessionType = sessionType;

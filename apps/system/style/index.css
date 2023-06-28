@@ -163,3 +163,14 @@ sl-drawer::part(overlay) {
 #status-top.carousel {
   backdrop-filter: saturate(180%) blur(20px);
 }
+
+#caret-selection {
+  position: absolute;
+  z-index: 5000;
+  transition: all 0.25s;
+}
+
+#caret-selection.hidden,
+#caret-selection .hidden {
+  display: none;
+}

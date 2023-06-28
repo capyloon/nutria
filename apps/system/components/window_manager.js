@@ -200,11 +200,125 @@ class WindowManagerKeys {
   }
 }
 
+class CaretManager {
+  constructor() {
+    this.caretSelection = document.getElementById("caret-selection");
+
+    embedder.addEventListener(
+      "caret-state-changed",
+      this.caretStateChanged.bind(this)
+    );
+    actionsDispatcher.addListener("lockscreen-locked", () => {
+      this.caretSelection.classList.add("hidden");
+    });
+
+    ["copy", "search", "select-all", "share"].forEach((name) => {
+      let elem = document.getElementById(`selection-${name}`);
+      elem.addEventListener("pointerdown", this, { capture: true });
+    });
+
+    this.selectedText = null;
+    this.previousTop = window.innerWidth / 2;
+    this.previousLeft = window.innerHeight / 2;
+    this.hideTimer = null;
+  }
+
+  handleEvent(event) {
+    let id = event.target.getAttribute("id");
+    switch (id) {
+      case "selection-copy":
+        embedder.doSelectionAction("copy");
+        break;
+      case "selection-select-all":
+        embedder.doSelectionAction("selectall");
+        break;
+      case "selection-share":
+        let act = new WebActivity("share", { text: this.selectedText });
+        act.start();
+        break;
+      case "selection-search":
+        window.utils.randomSearchEngineUrl(this.selectedText).then((url) => {
+          wm.openFrame(url, {
+            activate: true,
+            details: { search: this.selectedText },
+          });
+        });
+        break;
+      default:
+        return;
+    }
+    event.stopPropagation();
+    this.caretSelection.classList.add("hidden");
+  }
+
+  caretStateChanged(event) {
+    let { rect, commands, caretVisible, selectedTextContent } = event.detail;
+
+    if (caretVisible) {
+      if (this.hideTimer) {
+        clearTimeout(this.hideTimer);
+        this.hideTimer = null;
+      }
+
+      if (commands.canCopy) {
+        document.getElementById("selection-copy").classList.remove("hidden");
+      } else {
+        document.getElementById("selection-copy").classList.add("hidden");
+      }
+
+      if (commands.canSelectAll) {
+        document
+          .getElementById("selection-select-all")
+          .classList.remove("hidden");
+      } else {
+        document.getElementById("selection-select-all").classList.add("hidden");
+      }
+
+      this.selectedText = selectedTextContent;
+
+      let buttons = this.caretSelection.getBoundingClientRect();
+
+      let top =
+        buttons.height != 0 ? rect.top - buttons.height - 5 : this.previousTop;
+      if (top < 0) {
+        this.caretSelection.classList.add("hidden");
+        return;
+      }
+      this.caretSelection.style.top = `${top}px`;
+
+      // Try to center the buttons with the selection, but make
+      // sure it's fully on screen.
+      let left =
+        buttons.width != 0
+          ? rect.left + rect.width / 2 - buttons.width / 2
+          : this.previousLeft;
+      if (left < 5) {
+        left = 5;
+      }
+      if (left + buttons.width + 5 > window.innerWidth) {
+        left = window.innerWidth - buttons.width - 5;
+      }
+      this.caretSelection.style.left = `${left}px`;
+
+      this.previousTop = top;
+      this.previousLeft = left;
+
+      this.caretSelection.classList.remove("hidden");
+    } else {
+      this.hideTimer = setTimeout(() => {
+        this.caretSelection.classList.add("hidden");
+      }, 500);
+    }
+  }
+}
+
 class WindowManager extends HTMLElement {
   constructor() {
     super();
     this.keys = new WindowManagerKeys(this);
     this.log(`constructor`);
+
+    this.caretManager = new CaretManager();
   }
 
   log(msg) {
