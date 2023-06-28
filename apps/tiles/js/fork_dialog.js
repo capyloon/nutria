@@ -14,6 +14,7 @@ class ForkDialog {
       .getElementById("fork-chooser-cancel")
       .addEventListener("click", this, { once: true });
     this.promise = null;
+    this.mode = mode;
 
     this.dialog
       .querySelector("sl-dropdown")
@@ -101,34 +102,39 @@ class ForkDialog {
 
       await graph.waitForDeps("apps manager");
 
-      let apps = await appsManager.getAll();
       let list = this.dialog.querySelector("#fork-list");
       list.innerHTML = "";
 
       let subtitle = document.createElement("small");
-      subtitle.dataset.l10nId = "fork-chooser-your-library";
-      list.append(subtitle);
 
-      for (let app of apps) {
-        let summary = await appsManager.getSummary(app);
-        const isTile = summary.url?.startsWith("tile://");
-        if (isTile) {
-          let option = document.createElement("sl-option");
-          option.value = summary.updateUrl;
-          let icon = document.createElement("img");
-          icon.src = summary.icon;
-          icon.setAttribute("slot", "prefix");
-          let desc = document.createElement("span");
-          desc.textContent = summary.description;
-          option.append(icon);
-          option.append(desc);
+      // Show installed tiles when forking, but not when installing.
+      if (this.mode === "fork") {
+        subtitle.dataset.l10nId = "fork-chooser-your-library";
+        let apps = await appsManager.getAll();
+        list.append(subtitle);
 
-          list.append(option);
+        for (let app of apps) {
+          let summary = await appsManager.getSummary(app);
+          const isTile = summary.url?.startsWith("tile://");
+          if (isTile) {
+            let option = document.createElement("sl-option");
+            option.value = summary.updateUrl;
+            let icon = document.createElement("img");
+            icon.src = summary.icon;
+            icon.setAttribute("slot", "prefix");
+            let desc = document.createElement("span");
+            desc.textContent = summary.description;
+            option.append(icon);
+            option.append(desc);
+
+            list.append(option);
+          }
         }
+
+        list.append(document.createElement("sl-divider"));
+        subtitle = document.createElement("small");
       }
 
-      list.append(document.createElement("sl-divider"));
-      subtitle = document.createElement("small");
       subtitle.dataset.l10nId = "fork-chooser-public-library";
       list.append(subtitle);
 
