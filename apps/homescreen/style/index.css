@@ -150,7 +150,13 @@ body {
 #search-results li {
   padding-top: 0.25em;
   padding-bottom: 0.25em;
+  padding-left: 0.25em;
   cursor: pointer;
+}
+
+#search-results li:hover,
+#search-results li:active {
+  background-color: rgba(255, 255, 255, 0.25);
 }
 
 #suggestions-results {
