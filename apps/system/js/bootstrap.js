@@ -453,6 +453,8 @@ document.addEventListener(
     await graph.waitForDeps("phase1");
     await graph.waitForDeps("launch");
 
+    await manageFTU();
+
     keyManager.registerShortPressAction(config.powerKey, "power");
     keyManager.registerLongPressAction(config.powerKey, "power");
     keyManager.registerShortPressAction("PrintScreen", "printscreen");
@@ -472,8 +474,6 @@ document.addEventListener(
     // The opensearch resources need to be ready before launching the FTU.
     let openSearch = contentManager.getOpenSearchManager();
     await openSearch.ready();
-
-    await manageFTU();
 
     window.onuserproximity = (event) => {
       console.log(`D/hal === userproximity event: near=${event.near}`);
