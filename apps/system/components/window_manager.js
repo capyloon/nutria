@@ -649,6 +649,10 @@ class WindowManager extends HTMLElement {
     return this.activeFrame ? this.frames[this.activeFrame] : null;
   }
 
+  currentWebExtensionTabId() {
+    return this.currentFrame()?.webView._extensionId;
+  }
+
   goBack() {
     this.activeFrame && this.frames[this.activeFrame].goBack();
   }

@@ -57,6 +57,11 @@ export class WebExtensionsDelegate {
       return;
     }
 
+    // If that update is not targetted to the currently active web-view, ignore it.
+    if (wm.currentWebExtensionTabId() != tabId) {
+      return;
+    }
+
     let baNode = container.getBrowserAction(extensionId);
     if (baNode) {
       // Update existing node.
@@ -104,9 +109,10 @@ export class WebExtensionsDelegate {
   } = {}) {
     this.log(`createNewTab ${createProperties.url}`);
     try {
-      // TODO: properly deal with more parameters.
-      let webView = window.wm.openFrame(null, {
-        activate: createProperties.active,
+      let { url, active } = createProperties;
+      // TODO: Deal with more parameters.
+      let webView = window.wm.openFrame(url, {
+        activate: active,
       });
       return webView;
     } catch (e) {
