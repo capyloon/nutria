@@ -21,10 +21,13 @@ export class MediaController extends LitElement {
         flex-direction: column;
         gap: 0.5em;
         border-radius: var(--sl-border-radius-large);
+        background-size: cover;
       }
+
       :host img {
         width: 1.5em;
       }
+
       :host header {
         display: flex;
         align-items: center;
@@ -62,7 +65,7 @@ export class MediaController extends LitElement {
     return html`
       <header><img src="${this.meta.icon}" />${this.meta.title}</header>
       <div class="controls">
-        <sl-button circle @click=${this.togglePlay}>
+        <sl-button variant="neutral" circle @click=${this.togglePlay}>
           <sl-icon name="${playIcon}"></sl-icon>
         </sl-button>
       </div>
@@ -79,3 +82,42 @@ export class MediaController extends LitElement {
 }
 
 customElements.define("media-controller", MediaController);
+
+// <media-controller-list> web component
+// Manages a set of <media-controller> elements.
+
+export class MediaControllerList extends HTMLElement {
+  constructor() {
+    super();
+
+    let shadow = this.attachShadow({ mode: "open" });
+    shadow.innerHTML = `<link rel="stylesheet" href="components/media_controller.css">`;
+
+    actionsDispatcher.addListener("media-controller-change", (_name, data) => {
+      this.mediaControllerChange(data);
+    });
+  }
+
+  getMediaController(controller) {
+    return this.shadowRoot.querySelector(`#media-control-${controller.id}`);
+  }
+
+  mediaControllerChange(data) {
+    const { event, controller, meta } = data;
+
+    if (event === "activated") {
+      // Create a new controller.
+      let element = new MediaController(controller, meta);
+      element.setAttribute("id", `media-control-${controller.id}`);
+      this.shadowRoot.append(element);
+    } else if (event === "deactivated") {
+      // Remove an existing controller.
+      this.getMediaController(controller)?.remove();
+    } else {
+      // Update an existing controller.
+      this.getMediaController(controller)?.updateController(meta);
+    }
+  }
+}
+
+customElements.define("media-controller-list", MediaControllerList);

@@ -34,7 +34,7 @@ class QuickSettings extends HTMLElement {
       <section class="notifications"></section>
       <section class="peers"></section>
       <section class="browser-actions"></section>
-      <section class="media-controls"></section>
+      <media-controller-list></media-controller-list>
     </div>
     `;
 
@@ -82,10 +82,6 @@ class QuickSettings extends HTMLElement {
         { activate: true }
       );
     };
-
-    actionsDispatcher.addListener("media-controller-change", (_name, data) => {
-      this.mediaControllerChange(data);
-    });
   }
 
   connectedCallback() {
@@ -560,28 +556,6 @@ class QuickSettings extends HTMLElement {
     return this.shadowRoot.querySelector(
       `#browser-action-${this.safeExtensionId(extensionId)}`
     );
-  }
-
-  // Management of Media Controllers.
-  getMediaController(controller) {
-    return this.shadowRoot.querySelector(`#media-control-${controller.id}`);
-  }
-
-  mediaControllerChange(data) {
-    const { event, controller, meta } = data;
-
-    if (event === "activated") {
-      // Create a new controller.
-      let element = new MediaController(controller, meta);
-      element.setAttribute("id", `media-control-${controller.id}`);
-      this.shadowRoot.querySelector(".media-controls").append(element);
-    } else if (event === "deactivated") {
-      // Remove an existing controller.
-      this.getMediaController(controller)?.remove();
-    } else {
-      // Update an existing controller.
-      this.getMediaController(controller)?.updateController(meta);
-    }
   }
 }
 

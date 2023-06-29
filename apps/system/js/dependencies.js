@@ -49,6 +49,7 @@ const kDeps = [
       "api daemon core",
       "battery helper",
       "actions dispatcher",
+      "mediacontroller comp",
       "shoelace-icon",
     ],
   },
@@ -311,7 +312,7 @@ const kDeps = [
   {
     name: "mediacontroller comp",
     kind: "module",
-    param: ["./components/media-controller.js", ["MediaController"]],
+    param: ["./components/media_controller.js", ["MediaController"]],
     deps: ["shoelace-icon", "lit element"],
   },
   {

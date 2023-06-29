@@ -1,0 +1,7 @@
+/* <media-controller-list> styling */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
