@@ -676,12 +676,37 @@ class ContentWindow extends HTMLElement {
       "supportedkeyschange",
     ].forEach((name) => {
       this.mediaController.addEventListener(name, async (event) => {
+        // Special case when deactivating, since there is no need to
+        // get metadata etc.
+        if (event.type === "deactivated") {
+          actionsDispatcher.dispatch("media-controller-change", {
+            event: event.type,
+            controller: this.mediaController,
+          });
+
+          this.isPlayingAudio = false;
+          return;
+        }
+
+        let meta = this.mediaController.getMetadata();
+        if (this.ogImage) {
+          meta.ogImage = this.ogImage;
+        }
+        meta.backgroundColor = this.state.backgroundColor;
+        meta.icon = this.state.icon;
+
+        actionsDispatcher.dispatch("media-controller-change", {
+          event: event.type,
+          controller: this.mediaController,
+          meta,
+        });
+
+        this.isPlayingAudio = this.mediaController.isPlaying;
+
         // For now, prevent media playing in Tiles from being indexed.
         if (this.state.url.startsWith("tile://")) {
           return;
         }
-
-        this.isPlayingAudio = this.mediaController.playbackState == "playing";
 
         // console.log(
         //   `MediaController: ${event.type}, state=${
@@ -696,11 +721,6 @@ class ContentWindow extends HTMLElement {
             event.type === "playbackstatechange") &&
           this.mediaController.playbackState === "playing"
         ) {
-          let meta = this.mediaController.getMetadata();
-          if (this.ogImage) {
-            meta.ogImage = this.ogImage;
-          }
-          meta.backgroundColor = this.state.backgroundColor;
           await contentManager.createOrUpdateMediaEntry(
             this.state.url,
             this.state.icon,

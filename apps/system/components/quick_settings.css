@@ -43,6 +43,12 @@
   padding-bottom: 0.5em;
 }
 
+:host section.media-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
 :host sl-icon {
   padding: 0.5em;
   font-size: 1.5em;

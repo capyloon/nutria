@@ -266,6 +266,7 @@ const kDeps = [
     param: ["./components/quick_settings.js"],
     deps: [
       "notification comp",
+      "mediacontroller comp",
       "webext comp",
       "api daemon core",
       "shoelace-icon",
@@ -305,6 +306,12 @@ const kDeps = [
     name: "notification comp",
     kind: "module",
     param: ["./components/notification.js", ["WebNotification"]],
+    deps: ["shoelace-icon", "lit element"],
+  },
+  {
+    name: "mediacontroller comp",
+    kind: "module",
+    param: ["./components/media-controller.js", ["MediaController"]],
     deps: ["shoelace-icon", "lit element"],
   },
   {
