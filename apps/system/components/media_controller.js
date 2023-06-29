@@ -43,6 +43,10 @@ export class MediaController extends LitElement {
       :host sl-icon {
         font-size: larger;
       }
+
+      :host .hidden {
+        visibility: hidden;
+      }
     `;
   }
 
@@ -62,11 +66,37 @@ export class MediaController extends LitElement {
     let playIcon =
       this.controller.playbackState === "playing" ? "pause" : "play";
 
+    let prevTrackClass = "hidden";
+    let nextTrackClass = "hidden";
+    this.controller.supportedKeys.forEach((key) => {
+      if (key == "previoustrack") {
+        prevTrackClass = "";
+      } else if (key == "nexttrack") {
+        nextTrackClass = "";
+      }
+    });
+
     return html`
       <header><img src="${this.meta.icon}" />${this.meta.title}</header>
       <div class="controls">
+        <sl-button
+          class="${prevTrackClass}"
+          variant="neutral"
+          circle
+          @click=${this.prevTrack}
+        >
+          <sl-icon name="skip-back"></sl-icon>
+        </sl-button>
         <sl-button variant="neutral" circle @click=${this.togglePlay}>
           <sl-icon name="${playIcon}"></sl-icon>
+        </sl-button>
+        <sl-button
+          class="${nextTrackClass}"
+          variant="neutral"
+          circle
+          @click=${this.nextTrack}
+        >
+          <sl-icon name="skip-forward"></sl-icon>
         </sl-button>
       </div>
     `;
@@ -78,6 +108,14 @@ export class MediaController extends LitElement {
     } else {
       this.controller.play();
     }
+  }
+
+  prevTrack() {
+    this.controller.prevTrack();
+  }
+
+  nextTrack() {
+    this.controller.nextTrack();
   }
 }
 
