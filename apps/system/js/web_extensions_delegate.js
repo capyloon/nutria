@@ -58,7 +58,7 @@ export class WebExtensionsDelegate {
     }
 
     // If that update is not targetted to the currently active web-view, ignore it.
-    if (wm.currentWebExtensionTabId() != tabId) {
+    if (wm.currentWebExtensionTabId && wm.currentWebExtensionTabId() != tabId) {
       return;
     }
 
