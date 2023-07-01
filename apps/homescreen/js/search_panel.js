@@ -14,6 +14,13 @@ export class SearchPanel {
       this.clearAllResults();
     });
 
+    this.privateBrowsing = document.getElementById("private-browsing");
+    this.privateBrowsing.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.privateBrowsing.classList.toggle("active");
+    });
+
     this.sources = [
       new MediaSource("media"),
       new PlacesSource("places"),
@@ -30,6 +37,8 @@ export class SearchPanel {
   onOpen() {
     this.panel.classList.add("open");
     this.clearSearch.classList.remove("hidden");
+    this.privateBrowsing.classList.remove("hidden");
+    this.privateBrowsing.classList.remove("active");
     document.getElementById("search-results").classList.remove("hidden");
     this.panel.addEventListener(
       "transitionend",
@@ -47,6 +56,7 @@ export class SearchPanel {
   onClose() {
     this.panel.classList.remove("open");
     this.clearSearch.classList.add("hidden");
+    this.privateBrowsing.classList.add("hidden");
     document.getElementById("search-results").classList.add("hidden");
     document
       .getElementById("theme-color")

@@ -462,11 +462,17 @@ class ContentWindow extends HTMLElement {
       browsingContextGroupIdAttr = `browsingContextGroupId="${this.config.browsingContextGroupId}"`;
     }
 
+    this.state.privatebrowsing = !!this.config.details?.privatebrowsing;
+    let privateBrowsingAttr = "";
+    if (this.state.privatebrowsing) {
+      privateBrowsingAttr = `privatebrowsing="true"`;
+    }
+
     let container = document.createElement("div");
     container.classList.add("container");
     container.innerHTML = `
       <link rel="stylesheet" href="components/content_window.css">
-      <web-view remote="true" remoteType="${remoteType}" ${browsingContextGroupIdAttr} ${transparent}></web-view>
+      <web-view remote="true" remoteType="${remoteType}" ${privateBrowsingAttr} ${browsingContextGroupIdAttr} ${transparent}></web-view>
       <div class="loader running">
         <sl-icon name="loader"></sl-icon>
         <img class="hidden"/>
@@ -547,6 +553,12 @@ class ContentWindow extends HTMLElement {
       let { backgroundColor, icon, title } = this.config.details;
       if (backgroundColor) {
         this.loader.style.backgroundColor = backgroundColor;
+      }
+      if (this.state.privatebrowsing) {
+        this.loader.style.backgroundColor = null;
+        this.loader.classList.add("privatebrowsing");
+      } else {
+        this.loader.classList.remove("privatebrowsing");
       }
       if (icon) {
         this.loader.classList.remove("running");
@@ -719,7 +731,8 @@ class ContentWindow extends HTMLElement {
         if (
           (event.type === "metadatachange" ||
             event.type === "playbackstatechange") &&
-          this.mediaController.playbackState === "playing"
+          this.mediaController.playbackState === "playing" &&
+          !this.state.privatebrowsing
         ) {
           await contentManager.createOrUpdateMediaEntry(
             this.state.url,
@@ -991,7 +1004,7 @@ class ContentWindow extends HTMLElement {
       return;
     }
 
-    if (placesUpdateNeeded) {
+    if (placesUpdateNeeded && !this.state.privatebrowsing) {
       await contentManager.createOrUpdatePlacesEntry(
         this.state.url,
         this.state.title,
@@ -1317,7 +1330,11 @@ class ContentWindow extends HTMLElement {
 
     if (uiUpdateNeeded || placesUpdateNeeded) {
       await this.updateUi(placesUpdateNeeded);
-      if (!this.config.isHomescreen && eventType === "locationchange") {
+      if (
+        !this.state.privatebrowsing &&
+        !this.config.isHomescreen &&
+        eventType === "locationchange"
+      ) {
         await contentManager.visitPlace(this.state.url);
       }
     }
@@ -1325,7 +1342,7 @@ class ContentWindow extends HTMLElement {
 
   // Register an opensearch provider if it's not known yet.
   async maybeAddOpenSearch(url) {
-    if (!this.openSearchManager) {
+    if (!this.openSearchManager && !this.state.privatebrowsing) {
       this.openSearchManager = contentManager.getOpenSearchManager();
       await this.openSearchManager.init();
     }

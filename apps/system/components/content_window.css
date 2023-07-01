@@ -39,6 +39,14 @@ content-window .inline-activity {
   padding: 1em;
 }
 
+content-window .loader.privatebrowsing {
+  --pb-color: #8000d7;
+  --pb-background: rgb(37, 0, 62);
+
+  color: var(--pb-color);
+  background-color: var(--pb-background);
+}
+
 content-window .inline-activity {
   padding: 2em;
   /* TODO: switch background-color to 'unset' once

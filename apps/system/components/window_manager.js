@@ -998,6 +998,9 @@ class WindowManager extends HTMLElement {
 
       screenshot.setAttribute("frame", id);
       screenshot.setAttribute("id", `carousel-screenshot-${index}`);
+      if (frame.state.privatebrowsing) {
+        screenshot.classList.add("privatebrowsing");
+      }
       index += 1;
       screenshot.classList.add("screenshot");
       screenshot.innerHTML = `

@@ -31,6 +31,11 @@ function openSearchBox() {
   }
 }
 
+function isPrivateBrowsing() {
+  let elem = document.getElementById("private-browsing");
+  return elem.classList.contains("active");
+}
+
 // Helper to decide how to process an window.open url parameter.
 // Returns true if window.open() was called, false otherwise.
 function maybeOpenURL(url, details = {}) {
@@ -38,6 +43,8 @@ function maybeOpenURL(url, details = {}) {
   if (!url || url.length == 0) {
     return false;
   }
+
+  details.privatebrowsing = isPrivateBrowsing();
 
   let isUrl = false;
   try {

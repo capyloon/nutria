@@ -5,6 +5,8 @@
   font-size: 1rem;
   height: var(--statusbar-height);
   transition: background-color 0.25s;
+  --pb-color: #8000d7;
+  --pb-background: rgb(37, 0, 62);
 }
 
 :host .homescreen.session-desktop .left > * {
@@ -21,6 +23,11 @@
 
 :host(.transparent) {
   color: env(theme-wallpaper-accent);
+}
+
+:host(.privatebrowsing) {
+  color: var(--pb-color);
+  background-color: var(--pb-background);
 }
 
 :host .container {
@@ -140,6 +147,15 @@ sl-badge[variant="primary"]::part(base) {
 :host(.transparent) sl-badge[variant="neutral"]::part(base),
 :host(.transparent) sl-badge[variant="primary"]::part(base) {
   color: env(theme-wallpaper-accent);
+}
+
+:host(.privatebrowsing) sl-badge[variant="neutral"]::part(base),
+:host(.privatebrowsing) sl-badge[variant="primary"]::part(base) {
+  color: var(--pb-color);
+}
+
+:host(.privatebrowsing) .favicon {
+  color: var(--pb-color);
 }
 
 .go-back.disabled {

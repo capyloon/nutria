@@ -80,7 +80,6 @@ body {
 #search-panel .input sl-icon {
   font-size: 1.5rem;
   cursor: pointer;
-  padding-right: 0.25em;
 }
 
 #search-panel .input {
@@ -94,6 +93,7 @@ body {
   color: env(theme-wallpaper-accent);
   border-radius: 8px;
   padding: 0.5em;
+  gap: 0.25em;
 }
 
 /* Desktop mode */
@@ -248,4 +248,16 @@ body {
   justify-content: center;
   text-decoration: none;
   color: inherit;
+}
+
+#private-browsing {
+  /* background-color: rgb(37, 0, 62); */
+  padding-left: 0.25em;
+  padding-right: 0.25em;
+  border-radius: var(--sl-border-radius-small);
+}
+
+#private-browsing.active {
+  background-color: #8000d7;
+  color: white;
 }

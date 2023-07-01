@@ -118,6 +118,10 @@ window-manager .carousel > div.screenshot {
   opacity: 0;
 }
 
+window-manager .carousel > div.screenshot.privatebrowsing {
+  border: 4px solid #8000d7;
+}
+
 window-manager .carousel > div.screenshot.show {
   opacity: 1;
   transition: opacity 0.05s linear;

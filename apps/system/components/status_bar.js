@@ -270,7 +270,7 @@ class StatusBar extends HTMLElement {
     this.getElem(".container").classList.add("carousel");
     this.getElem(`sl-icon[name="home"]`).classList.add("carousel");
     this.getElem(`sl-icon[name="columns"]`).classList.add("hidden");
-    this.updateBackgroundColor("transparent");
+    this.updateBackgroundColor("transparent", true);
     document.getElementById("status-top").classList.add("carousel");
   }
 
@@ -415,9 +415,24 @@ class StatusBar extends HTMLElement {
     }
   }
 
-  updateBackgroundColor(backgroundColor) {
+  updateBackgroundColor(backgroundColor, enterCarousel = false) {
     // Manage the backgroundColor, if any
     this.classList.remove("transparent");
+
+    if (this.state.privatebrowsing) {
+      this.style.backgroundColor = null;
+      if (enterCarousel) {
+        this.classList.remove("privatebrowsing");
+        this.setTopStatusBarBackground(null);
+        this.classList.add("transparent");
+      } else {
+        this.classList.add("privatebrowsing");
+      }
+      return;
+    } else {
+      this.classList.remove("privatebrowsing");
+    }
+
     if (backgroundColor) {
       let color = backgroundColor;
       if (color == "transparent") {
@@ -483,9 +498,14 @@ class StatusBar extends HTMLElement {
       this.getElem(".container").classList.toggle("content");
     }
 
-    this.getElem(`.favicon`).src = state.isHomescreen
+    let favicon = this.getElem(`.favicon`);
+    favicon.src = state.isHomescreen
       ? ""
       : state.icon || window.config.brandLogo;
+
+    if (state.privatebrowsing) {
+      favicon.src = "resources/privatebrowsing.svg";
+    }
 
     // if (state.bringAttention) {
     //   this.getElem(`sl-icon[name="info"]`).classList.add("attention");

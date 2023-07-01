@@ -273,10 +273,14 @@ class ContentManagerResource extends LitElement {
 
     if (this.mimeType === PLACES_MIME_TYPE) {
       this.openURL(this.item.name);
-      contentManager.visitPlace(this.item.name, true);
+      if (!isPrivateBrowsing()) {
+        contentManager.visitPlace(this.item.name, true);
+      }
     } else if (this.mimeType === MEDIA_MIME_TYPE) {
       this.openURL(this.item.name);
-      contentManager.visitMedia(this.item.name, true);
+      if (!isPrivateBrowsing()) {
+        contentManager.visitMedia(this.item.name, true);
+      }
     } else {
       // Trigger a "view" activity for this mime type, sending the default variant and
       // the resource id.
@@ -291,7 +295,9 @@ class ContentManagerResource extends LitElement {
       });
       try {
         await activity.start();
-        svc.visit(id, this.lib.VisitPriority.HIGH);
+        if (!isPrivateBrowsing()) {
+          svc.visit(id, this.lib.VisitPriority.HIGH);
+        }
       } catch (e) {
         console.error(`Failure in 'view-resource' activity: ${e}`);
       }
