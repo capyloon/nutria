@@ -26,6 +26,7 @@ link-section-title = Link
 link-copy = Copy
 link-copied = Link Successfully copied to Clipboard
 link-new-tab = Open In New Tab
+link-new-private-tab = Open In New Private Tab
 link-share = Share…
 link-download = Save Link
 page-section-title = Page

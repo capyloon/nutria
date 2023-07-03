@@ -78,6 +78,7 @@ class ContextMenu extends HTMLElement {
         <sl-menu-item class="when-link" data-l10n-id="link-copy"></sl-menu-item>
         <sl-menu-item class="when-link" data-l10n-id="link-download"></sl-menu-item>
         <sl-menu-item class="when-link" data-l10n-id="link-new-tab"></sl-menu-item>
+        <sl-menu-item class="when-link" data-l10n-id="link-new-private-tab"></sl-menu-item>
         <sl-menu-item class="when-link" data-l10n-id="link-share"></sl-menu-item>
       </sl-menu>
     </sl-dialog>`;
@@ -111,6 +112,12 @@ class ContextMenu extends HTMLElement {
       () => {
         this.openUrlInNewTab(this.linkUrl);
       };
+
+    shadow.querySelector(
+      "sl-menu-item[data-l10n-id=link-new-private-tab]"
+    ).onclick = () => {
+      this.openUrlInNewPrivateTab(this.linkUrl);
+    };
 
     shadow.querySelector("sl-menu-item[data-l10n-id=link-share]").onclick =
       () => {
@@ -211,6 +218,20 @@ class ContextMenu extends HTMLElement {
       "sl-after-hide",
       () => {
         window.wm.openFrame(url, { activate: true });
+      },
+      { once: true }
+    );
+    this.close();
+  }
+
+  openUrlInNewPrivateTab(url) {
+    this.dialog.addEventListener(
+      "sl-after-hide",
+      () => {
+        window.wm.openFrame(url, {
+          activate: true,
+          details: { privatebrowsing: true },
+        });
       },
       { once: true }
     );
