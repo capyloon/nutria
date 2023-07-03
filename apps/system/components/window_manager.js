@@ -529,8 +529,14 @@ class WindowManager extends HTMLElement {
     // Close the webext action popup if it's open.
     document.querySelector("webext-browser-action").hide();
 
+    // If a frame was opened from the same url, switch to it.
     let startId = this.startedAt[url];
-    if (startId && this.frames[startId]) {
+    let reuse =
+      startId &&
+      this.frames[startId] &&
+      !!config.details?.privatebrowsing ==
+        this.frames[startId].state.privatebrowsing;
+    if (reuse) {
       if (this.isCarouselOpen) {
         actionsDispatcher.dispatch("close-carousel");
       }
