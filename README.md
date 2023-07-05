@@ -6,6 +6,7 @@ This repo contains a suite of apps and their build system. Several running mode 
 - Linux mobile form factor emulator.
 - Linux desktop form factor.
 - Linux desktop session.
+- Linux TV, large screen form factor.
 
 The included build system is available by running the `jackady` (spelled like the French "Jacques a dit") command. This lets you run locally in development or production mode, and manage device operations.
 
