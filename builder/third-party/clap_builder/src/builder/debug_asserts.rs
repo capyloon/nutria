@@ -482,7 +482,7 @@ fn assert_app_flags(cmd: &Command) {
                 )+
 
                 if !s.is_empty() {
-                    panic!("{}", s)
+                    panic!("{s}")
                 }
             }
         };
@@ -586,9 +586,8 @@ fn _verify_positionals(cmd: &Command) -> bool {
             || last.is_last_set();
         assert!(
             ok,
-            "When using a positional argument with `.num_args(1..)` that is *not the \
-                 last* positional argument, the last positional argument (i.e. the one \
-                 with the highest index) *must* have .required(true) or .last(true) set."
+            "Positional argument `{last}` *must* have `required(true)` or `last(true)` set \
+            because a prior positional argument (`{second_to_last}`) has `num_args(1..)`"
         );
 
         // We make sure if the second to last is Multiple the last is ArgSettings::Last
@@ -604,6 +603,7 @@ fn _verify_positionals(cmd: &Command) -> bool {
             .get_positionals()
             .filter(|p| {
                 p.is_multiple_values_set()
+                    && p.get_value_terminator().is_none()
                     && !p.get_num_args().expect(INTERNAL_ERROR_MSG).is_fixed()
             })
             .count();

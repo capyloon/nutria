@@ -35,6 +35,17 @@ fn test_relative_empty() {
 }
 
 #[test]
+fn test_strip_trailing_spaces_from_opaque_path() {
+    let mut url: Url = "data:space   ?query".parse().unwrap();
+    url.set_query(None);
+    assert_eq!(url.as_str(), "data:space");
+
+    let mut url: Url = "data:space   #hash".parse().unwrap();
+    url.set_fragment(None);
+    assert_eq!(url.as_str(), "data:space");
+}
+
+#[test]
 fn test_set_empty_host() {
     let mut base: Url = "moz://foo:bar@servo/baz".parse().unwrap();
     base.set_username("").unwrap();
@@ -54,6 +65,30 @@ fn test_set_empty_host() {
 }
 
 #[test]
+fn test_set_empty_username_and_password() {
+    let mut base: Url = "moz://foo:bar@servo/baz".parse().unwrap();
+    base.set_username("").unwrap();
+    assert_eq!(base.as_str(), "moz://:bar@servo/baz");
+
+    base.set_password(Some("")).unwrap();
+    assert_eq!(base.as_str(), "moz://servo/baz");
+
+    base.set_password(None).unwrap();
+    assert_eq!(base.as_str(), "moz://servo/baz");
+}
+
+#[test]
+fn test_set_empty_password() {
+    let mut base: Url = "moz://foo:bar@servo/baz".parse().unwrap();
+
+    base.set_password(Some("")).unwrap();
+    assert_eq!(base.as_str(), "moz://foo@servo/baz");
+
+    base.set_password(None).unwrap();
+    assert_eq!(base.as_str(), "moz://foo@servo/baz");
+}
+
+#[test]
 fn test_set_empty_hostname() {
     use url::quirks;
     let mut base: Url = "moz://foo@servo/baz".parse().unwrap();
@@ -69,6 +104,17 @@ fn test_set_empty_hostname() {
     base = "moz://servo/baz".parse().unwrap();
     quirks::set_hostname(&mut base, "").unwrap();
     assert_eq!(base.as_str(), "moz:///baz");
+}
+
+#[test]
+fn test_set_empty_query() {
+    let mut base: Url = "moz://example.com/path?query".parse().unwrap();
+
+    base.set_query(Some(""));
+    assert_eq!(base.as_str(), "moz://example.com/path?");
+
+    base.set_query(None);
+    assert_eq!(base.as_str(), "moz://example.com/path");
 }
 
 macro_rules! assert_from_file_path {
@@ -944,6 +990,16 @@ fn no_panic() {
 }
 
 #[test]
+fn test_null_host_with_leading_empty_path_segment() {
+    // since Note in item 3 of URL serializing in the URL Standard
+    // https://url.spec.whatwg.org/#url-serializing
+    let url = Url::parse("m:/.//\\").unwrap();
+    let encoded = url.as_str();
+    let reparsed = Url::parse(encoded).unwrap();
+    assert_eq!(reparsed, url);
+}
+
+#[test]
 fn pop_if_empty_in_bounds() {
     let mut url = Url::parse("m://").unwrap();
     let mut segments = url.path_segments_mut().unwrap();
@@ -1161,4 +1217,84 @@ fn test_make_relative() {
         let make_relative = base_uri.make_relative(&relative_uri);
         assert_eq!(make_relative, None, "base: {}, uri: {}", base, uri);
     }
+}
+
+#[test]
+fn test_has_authority() {
+    let url = Url::parse("mailto:joe@example.com").unwrap();
+    assert!(!url.has_authority());
+    let url = Url::parse("unix:/run/foo.socket").unwrap();
+    assert!(!url.has_authority());
+    let url = Url::parse("file:///tmp/foo").unwrap();
+    assert!(url.has_authority());
+    let url = Url::parse("http://example.com/tmp/foo").unwrap();
+    assert!(url.has_authority());
+}
+
+#[test]
+fn test_authority() {
+    let url = Url::parse("mailto:joe@example.com").unwrap();
+    assert_eq!(url.authority(), "");
+    let url = Url::parse("unix:/run/foo.socket").unwrap();
+    assert_eq!(url.authority(), "");
+    let url = Url::parse("file:///tmp/foo").unwrap();
+    assert_eq!(url.authority(), "");
+    let url = Url::parse("http://example.com/tmp/foo").unwrap();
+    assert_eq!(url.authority(), "example.com");
+    let url = Url::parse("ftp://127.0.0.1:21/").unwrap();
+    assert_eq!(url.authority(), "127.0.0.1");
+    let url = Url::parse("ftp://user@127.0.0.1:2121/").unwrap();
+    assert_eq!(url.authority(), "user@127.0.0.1:2121");
+    let url = Url::parse("https://:@example.com/").unwrap();
+    assert_eq!(url.authority(), "example.com");
+    let url = Url::parse("https://:password@[::1]:8080/").unwrap();
+    assert_eq!(url.authority(), ":password@[::1]:8080");
+    let url = Url::parse("gopher://user:@àlex.example.com:70").unwrap();
+    assert_eq!(url.authority(), "user@%C3%A0lex.example.com:70");
+    let url = Url::parse("irc://àlex:àlex@àlex.рф.example.com:6667/foo").unwrap();
+    assert_eq!(
+        url.authority(),
+        "%C3%A0lex:%C3%A0lex@%C3%A0lex.%D1%80%D1%84.example.com:6667"
+    );
+    let url = Url::parse("https://àlex:àlex@àlex.рф.example.com:443/foo").unwrap();
+    assert_eq!(
+        url.authority(),
+        "%C3%A0lex:%C3%A0lex@xn--lex-8ka.xn--p1ai.example.com"
+    );
+}
+
+#[test]
+/// https://github.com/servo/rust-url/issues/838
+fn test_file_with_drive() {
+    let s1 = "fIlE:p:?../";
+    let url = url::Url::parse(s1).unwrap();
+    assert_eq!(url.to_string(), "file:///p:?../");
+    assert_eq!(url.path(), "/p:");
+
+    let testcases = [
+        ("a", "file:///p:/a"),
+        ("", "file:///p:?../"),
+        ("?x", "file:///p:?x"),
+        (".", "file:///p:/"),
+        ("..", "file:///p:/"),
+        ("../", "file:///p:/"),
+    ];
+
+    for case in &testcases {
+        let url2 = url::Url::join(&url, case.0).unwrap();
+        assert_eq!(url2.to_string(), case.1);
+    }
+}
+
+#[test]
+/// Similar to test_file_with_drive, but with a path
+/// that could be confused for a drive.
+fn test_file_with_drive_and_path() {
+    let s1 = "fIlE:p:/x|?../";
+    let url = url::Url::parse(s1).unwrap();
+    assert_eq!(url.to_string(), "file:///p:/x|?../");
+    assert_eq!(url.path(), "/p:/x|");
+    let s2 = "a";
+    let url2 = url::Url::join(&url, s2).unwrap();
+    assert_eq!(url2.to_string(), "file:///p:/a");
 }

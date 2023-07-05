@@ -38,7 +38,7 @@ impl ErrorFormatter for KindFormatter {
         if let Some(msg) = error.kind().as_str() {
             styled.push_str(msg);
         } else if let Some(source) = error.inner.source.as_ref() {
-            let _ = write!(styled, "{}", source);
+            let _ = write!(styled, "{source}");
         } else {
             styled.push_str("unknown cause");
         }
@@ -68,7 +68,7 @@ impl ErrorFormatter for RichFormatter {
             if let Some(msg) = error.kind().as_str() {
                 styled.push_str(msg);
             } else if let Some(source) = error.inner.source.as_ref() {
-                let _ = write!(styled, "{}", source);
+                let _ = write!(styled, "{source}");
             } else {
                 styled.push_str("unknown cause");
             }
@@ -236,31 +236,9 @@ fn write_dynamic_context(
                     );
                 }
 
-                let possible_values = error.get(ContextKind::ValidValue);
-                if let Some(ContextValue::Strings(possible_values)) = possible_values {
-                    if !possible_values.is_empty() {
-                        let _ = write!(styled, "\n{TAB}[possible values: ");
-                        if let Some((last, elements)) = possible_values.split_last() {
-                            for v in elements {
-                                let _ = write!(
-                                    styled,
-                                    "{}{}{}, ",
-                                    valid.render(),
-                                    Escape(v),
-                                    valid.render_reset()
-                                );
-                            }
-                            let _ = write!(
-                                styled,
-                                "{}{}{}",
-                                valid.render(),
-                                Escape(last),
-                                valid.render_reset()
-                            );
-                        }
-                        styled.push_str("]");
-                    }
-                }
+                let values = error.get(ContextKind::ValidValue);
+                write_values_list("possible values", styled, valid, values);
+
                 true
             } else {
                 false
@@ -306,32 +284,8 @@ fn write_dynamic_context(
                     invalid.render(),
                     invalid.render_reset()
                 );
-
-                let possible_values = error.get(ContextKind::ValidSubcommand);
-                if let Some(ContextValue::Strings(possible_values)) = possible_values {
-                    if !possible_values.is_empty() {
-                        let _ = write!(styled, "\n{TAB}[subcommands: ");
-                        if let Some((last, elements)) = possible_values.split_last() {
-                            for v in elements {
-                                let _ = write!(
-                                    styled,
-                                    "{}{}{}, ",
-                                    valid.render(),
-                                    Escape(v),
-                                    valid.render_reset()
-                                );
-                            }
-                            let _ = write!(
-                                styled,
-                                "{}{}{}",
-                                valid.render(),
-                                Escape(last),
-                                valid.render_reset()
-                            );
-                        }
-                        styled.push_str("]");
-                    }
-                }
+                let values = error.get(ContextKind::ValidSubcommand);
+                write_values_list("subcommands", styled, valid, values);
 
                 true
             } else {
@@ -403,7 +357,7 @@ fn write_dynamic_context(
                     literal.render_reset(),
                 );
                 if let Some(source) = error.inner.source.as_deref() {
-                    let _ = write!(styled, ": {}", source);
+                    let _ = write!(styled, ": {source}");
                 }
                 true
             } else {
@@ -455,6 +409,32 @@ fn write_dynamic_context(
         | ErrorKind::DisplayVersion
         | ErrorKind::Io
         | ErrorKind::Format => false,
+    }
+}
+
+#[cfg(feature = "error-context")]
+fn write_values_list(
+    list_name: &'static str,
+    styled: &mut StyledStr,
+    valid: &anstyle::Style,
+    possible_values: Option<&ContextValue>,
+) {
+    use std::fmt::Write as _;
+    if let Some(ContextValue::Strings(possible_values)) = possible_values {
+        if !possible_values.is_empty() {
+            let _ = write!(styled, "\n{TAB}[{list_name}: ");
+
+            let style = valid.render();
+            let reset = valid.render_reset();
+            for (idx, val) in possible_values.iter().enumerate() {
+                if idx > 0 {
+                    styled.push_str(", ");
+                }
+                let _ = write!(styled, "{style}{}{reset}", Escape(val));
+            }
+
+            styled.push_str("]");
+        }
     }
 }
 

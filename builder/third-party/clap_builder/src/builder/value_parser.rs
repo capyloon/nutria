@@ -1162,7 +1162,7 @@ impl<E: crate::ValueEnum + Clone + Send + Sync + 'static> Default for EnumValueP
 pub struct PossibleValuesParser(Vec<super::PossibleValue>);
 
 impl PossibleValuesParser {
-    /// Verify the value is from an enumerated set pf [`PossibleValue`][crate::builder::PossibleValue].
+    /// Verify the value is from an enumerated set of [`PossibleValue`][crate::builder::PossibleValue].
     pub fn new(values: impl Into<PossibleValuesParser>) -> Self {
         values.into()
     }
@@ -2137,16 +2137,36 @@ impl ValueParserFactory for String {
         ValueParser::string() // Default `clap_derive` to optimized implementation
     }
 }
+impl ValueParserFactory for Box<str> {
+    type Parser = MapValueParser<StringValueParser, fn(String) -> Box<str>>;
+    fn value_parser() -> Self::Parser {
+        StringValueParser::new().map(String::into_boxed_str)
+    }
+}
 impl ValueParserFactory for std::ffi::OsString {
     type Parser = ValueParser;
     fn value_parser() -> Self::Parser {
         ValueParser::os_string() // Default `clap_derive` to optimized implementation
     }
 }
+impl ValueParserFactory for Box<std::ffi::OsStr> {
+    type Parser =
+        MapValueParser<OsStringValueParser, fn(std::ffi::OsString) -> Box<std::ffi::OsStr>>;
+    fn value_parser() -> Self::Parser {
+        OsStringValueParser::new().map(std::ffi::OsString::into_boxed_os_str)
+    }
+}
 impl ValueParserFactory for std::path::PathBuf {
     type Parser = ValueParser;
     fn value_parser() -> Self::Parser {
         ValueParser::path_buf() // Default `clap_derive` to optimized implementation
+    }
+}
+impl ValueParserFactory for Box<std::path::Path> {
+    type Parser =
+        MapValueParser<PathBufValueParser, fn(std::path::PathBuf) -> Box<std::path::Path>>;
+    fn value_parser() -> Self::Parser {
+        PathBufValueParser::new().map(std::path::PathBuf::into_boxed_path)
     }
 }
 impl ValueParserFactory for bool {
@@ -2203,16 +2223,49 @@ impl ValueParserFactory for i32 {
         RangedI64ValueParser::new().range(start..=end)
     }
 }
+impl ValueParserFactory for u64 {
+    type Parser = RangedU64ValueParser<u64>;
+    fn value_parser() -> Self::Parser {
+        RangedU64ValueParser::new()
+    }
+}
 impl ValueParserFactory for i64 {
     type Parser = RangedI64ValueParser<i64>;
     fn value_parser() -> Self::Parser {
         RangedI64ValueParser::new()
     }
 }
-impl ValueParserFactory for u64 {
-    type Parser = RangedU64ValueParser<u64>;
+impl<T> ValueParserFactory for std::num::Wrapping<T>
+where
+    T: ValueParserFactory,
+    <T as ValueParserFactory>::Parser: TypedValueParser<Value = T>,
+    T: Send + Sync + Clone,
+{
+    type Parser = MapValueParser<<T as ValueParserFactory>::Parser, fn(T) -> std::num::Wrapping<T>>;
     fn value_parser() -> Self::Parser {
-        RangedU64ValueParser::new()
+        T::value_parser().map(std::num::Wrapping)
+    }
+}
+impl<T> ValueParserFactory for Box<T>
+where
+    T: ValueParserFactory,
+    <T as ValueParserFactory>::Parser: TypedValueParser<Value = T>,
+    T: Send + Sync + Clone,
+{
+    type Parser = MapValueParser<<T as ValueParserFactory>::Parser, fn(T) -> Box<T>>;
+    fn value_parser() -> Self::Parser {
+        T::value_parser().map(Box::new)
+    }
+}
+impl<T> ValueParserFactory for std::sync::Arc<T>
+where
+    T: ValueParserFactory,
+    <T as ValueParserFactory>::Parser: TypedValueParser<Value = T>,
+    T: Send + Sync + Clone,
+{
+    type Parser = MapValueParser<<T as ValueParserFactory>::Parser, fn(T) -> std::sync::Arc<T>>;
+    fn value_parser() -> Self::Parser {
+        T::value_parser().map(std::sync::Arc::new)
     }
 }
 
@@ -2382,17 +2435,17 @@ pub mod via_prelude {
 /// # use clap::ColorChoice;
 /// // Built-in types
 /// let parser = clap::value_parser!(String);
-/// assert_eq!(format!("{:?}", parser), "ValueParser::string");
+/// assert_eq!(format!("{parser:?}"), "ValueParser::string");
 /// let parser = clap::value_parser!(std::ffi::OsString);
-/// assert_eq!(format!("{:?}", parser), "ValueParser::os_string");
+/// assert_eq!(format!("{parser:?}"), "ValueParser::os_string");
 /// let parser = clap::value_parser!(std::path::PathBuf);
-/// assert_eq!(format!("{:?}", parser), "ValueParser::path_buf");
+/// assert_eq!(format!("{parser:?}"), "ValueParser::path_buf");
 /// clap::value_parser!(u16).range(3000..);
 /// clap::value_parser!(u64).range(3000..);
 ///
 /// // FromStr types
 /// let parser = clap::value_parser!(usize);
-/// assert_eq!(format!("{:?}", parser), "_AnonymousValueParser(ValueParser::other(usize))");
+/// assert_eq!(format!("{parser:?}"), "_AnonymousValueParser(ValueParser::other(usize))");
 ///
 /// // ValueEnum types
 /// clap::value_parser!(ColorChoice);

@@ -11,7 +11,9 @@
 
 use self::Mapping::*;
 use crate::punycode;
-use std::{error::Error as StdError, fmt};
+
+use alloc::string::String;
+use core::fmt;
 use unicode_bidi::{bidi_class, BidiClass};
 use unicode_normalization::char::is_combining_mark;
 use unicode_normalization::{is_nfc, UnicodeNormalization};
@@ -70,10 +72,10 @@ fn find_char(codepoint: char) -> &'static Mapping {
 }
 
 struct Mapper<'a> {
-    chars: std::str::Chars<'a>,
+    chars: core::str::Chars<'a>,
     config: Config,
     errors: &'a mut Errors,
-    slice: Option<std::str::Chars<'static>>,
+    slice: Option<core::str::Chars<'static>>,
 }
 
 impl<'a> Iterator for Mapper<'a> {
@@ -274,7 +276,7 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
 fn check_validity(label: &str, config: Config, errors: &mut Errors) {
     let first_char = label.chars().next();
-    if first_char == None {
+    if first_char.is_none() {
         // Empty string, pass
         return;
     }
@@ -475,7 +477,7 @@ impl Idna {
 
     /// http://www.unicode.org/reports/tr46/#ToASCII
     #[allow(clippy::wrong_self_convention)]
-    pub fn to_ascii<'a>(&'a mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
+    pub fn to_ascii(&mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
         let mut errors = self.to_ascii_inner(domain, out);
 
         if self.config.verify_dns_length {
@@ -497,7 +499,7 @@ impl Idna {
 
     /// http://www.unicode.org/reports/tr46/#ToUnicode
     #[allow(clippy::wrong_self_convention)]
-    pub fn to_unicode<'a>(&'a mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
+    pub fn to_unicode(&mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
         if is_simple(domain) {
             out.push_str(domain);
             return Errors::default().into();
@@ -685,7 +687,7 @@ impl fmt::Debug for Errors {
                 if !empty {
                     f.write_str(", ")?;
                 }
-                f.write_str(*name)?;
+                f.write_str(name)?;
                 empty = false;
             }
         }
@@ -708,7 +710,8 @@ impl From<Errors> for Result<(), Errors> {
     }
 }
 
-impl StdError for Errors {}
+#[cfg(feature = "std")]
+impl std::error::Error for Errors {}
 
 impl fmt::Display for Errors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

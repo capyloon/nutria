@@ -858,21 +858,15 @@ impl Arg {
 
     #[inline]
     #[must_use]
-    pub(crate) fn setting<F>(mut self, setting: F) -> Self
-    where
-        F: Into<ArgFlags>,
-    {
-        self.settings.insert(setting.into());
+    pub(crate) fn setting(mut self, setting: ArgSettings) -> Self {
+        self.settings.set(setting);
         self
     }
 
     #[inline]
     #[must_use]
-    pub(crate) fn unset_setting<F>(mut self, setting: F) -> Self
-    where
-        F: Into<ArgFlags>,
-    {
-        self.settings.remove(setting.into());
+    pub(crate) fn unset_setting(mut self, setting: ArgSettings) -> Self {
+        self.settings.unset(setting);
         self
     }
 }
@@ -1656,8 +1650,6 @@ impl Arg {
     /// at runtime, nor were the conditions met for `Arg::default_value_if`, the `Arg::default_value`
     /// will be applied.
     ///
-    /// **NOTE:** This implicitly sets [`Arg::action(ArgAction::Set)`].
-    ///
     /// # Examples
     ///
     /// First we use the default value without providing any value at runtime.
@@ -2177,12 +2169,15 @@ impl Arg {
 
     /// Allows custom ordering of args within the help message.
     ///
-    /// Args with a lower value will be displayed first in the help message. This is helpful when
-    /// one would like to emphasise frequently used args, or prioritize those towards the top of
-    /// the list. Args with duplicate display orders will be displayed in the order they are
-    /// defined.
+    /// `Arg`s with a lower value will be displayed first in the help message.
+    /// Those with the same display order will be sorted.
     ///
-    /// **NOTE:** The default is 999 for all arguments.
+    /// `Arg`s are automatically assigned a display order based on the order they are added to the
+    /// [`Command`][crate::Command].
+    /// Overriding this is helpful when the order arguments are added in isn't the same as the
+    /// display order, whether in one-off cases or to automatically sort arguments.
+    ///
+    /// To change, see [`Command::next_display_order`][crate::Command::next_display_order].
     ///
     /// **NOTE:** This setting is ignored for [positional arguments] which are always displayed in
     /// [index] order.
@@ -2194,22 +2189,23 @@ impl Arg {
     /// # use clap_builder as clap;
     /// # use clap::{Command, Arg, ArgAction};
     /// let m = Command::new("prog")
-    ///     .arg(Arg::new("a") // Typically args are grouped alphabetically by name.
-    ///                              // Args without a display_order have a value of 999 and are
-    ///                              // displayed alphabetically with all other 999 valued args.
-    ///         .long("long-option")
-    ///         .short('o')
+    ///     .arg(Arg::new("boat")
+    ///         .short('b')
+    ///         .long("boat")
     ///         .action(ArgAction::Set)
+    ///         .display_order(0)  // Sort
     ///         .help("Some help and text"))
-    ///     .arg(Arg::new("b")
-    ///         .long("other-option")
-    ///         .short('O')
+    ///     .arg(Arg::new("airplane")
+    ///         .short('a')
+    ///         .long("airplane")
     ///         .action(ArgAction::Set)
-    ///         .display_order(1)   // In order to force this arg to appear *first*
-    ///                             // all we have to do is give it a value lower than 999.
-    ///                             // Any other args with a value of 1 will be displayed
-    ///                             // alphabetically with this one...then 2 values, then 3, etc.
+    ///         .display_order(0)  // Sort
     ///         .help("I should be first!"))
+    ///     .arg(Arg::new("custom-help")
+    ///         .short('?')
+    ///         .action(ArgAction::Help)
+    ///         .display_order(100)  // Don't sort
+    ///         .help("Alt help"))
     ///     .get_matches_from(vec![
     ///         "prog", "--help"
     ///     ]);
@@ -2224,10 +2220,10 @@ impl Arg {
     /// Usage: cust-ord [OPTIONS]
     ///
     /// Options:
-    ///     -h, --help                Print help information
-    ///     -V, --version             Print version information
-    ///     -O, --other-option <b>    I should be first!
-    ///     -o, --long-option <a>     Some help and text
+    ///     -a, --airplane <airplane>    I should be first!
+    ///     -b, --boat <boar>            Some help and text
+    ///     -h, --help                   Print help information
+    ///     -?                           Alt help
     /// ```
     /// [positional arguments]: Arg::index()
     /// [index]: Arg::index()
@@ -2737,8 +2733,6 @@ impl Arg {
     /// runtime **and** these other conditions are met as well. If you have set `Arg::default_value`
     /// and `Arg::default_value_if`, and the user **did not** provide this arg at runtime, nor were
     /// the conditions met for `Arg::default_value_if`, the `Arg::default_value` will be applied.
-    ///
-    /// **NOTE:** This implicitly sets [`Arg::action(ArgAction::Set)`].
     ///
     /// # Examples
     ///
@@ -4107,7 +4101,7 @@ impl Arg {
     /// let value_parser = cmd.get_arguments()
     ///     .find(|a| a.get_id() == "port").unwrap()
     ///     .get_value_parser();
-    /// println!("{:?}", value_parser);
+    /// println!("{value_parser:?}");
     /// ```
     pub fn get_value_parser(&self) -> &super::ValueParser {
         if let Some(value_parser) = self.value_parser.as_ref() {

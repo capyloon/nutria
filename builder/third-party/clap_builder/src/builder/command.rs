@@ -105,6 +105,7 @@ pub struct Command {
     subcommand_heading: Option<Str>,
     external_value_parser: Option<super::ValueParser>,
     long_help_exists: bool,
+    deferred: Option<fn(Command) -> Command>,
     app_ext: Extensions,
 }
 
@@ -428,6 +429,30 @@ impl Command {
         self
     }
 
+    /// Delay initialization for parts of the `Command`
+    ///
+    /// This is useful for large applications to delay definitions of subcommands until they are
+    /// being invoked.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use clap_builder as clap;
+    /// # use clap::{Command, arg};
+    /// Command::new("myprog")
+    ///     .subcommand(Command::new("config")
+    ///         .about("Controls configuration features")
+    ///         .defer(|cmd| {
+    ///             cmd.arg(arg!(<config> "Required configuration file to use"))
+    ///         })
+    ///     )
+    /// # ;
+    /// ```
+    pub fn defer(mut self, deferred: fn(Command) -> Command) -> Self {
+        self.deferred = Some(deferred);
+        self
+    }
+
     /// Catch problems earlier in the development cycle.
     ///
     /// Most error states are handled as asserts under the assumption they are programming mistake
@@ -684,10 +709,7 @@ impl Command {
                 if let Some(command) = argv0.file_stem().and_then(|f| f.to_str()) {
                     // Stop borrowing command so we can get another mut ref to it.
                     let command = command.to_owned();
-                    debug!(
-                        "Command::try_get_matches_from_mut: Parsed command {} from argv",
-                        command
-                    );
+                    debug!("Command::try_get_matches_from_mut: Parsed command {command} from argv");
 
                     debug!("Command::try_get_matches_from_mut: Reinserting command into arguments so subcommand parser matches it");
                     raw_args.insert(&cursor, [&command]);
@@ -789,7 +811,7 @@ impl Command {
     /// let mut cmd = Command::new("myprog");
     /// let mut out = io::stdout();
     /// let help = cmd.render_help();
-    /// println!("{}", help);
+    /// println!("{help}");
     /// ```
     /// [`io::Write`]: std::io::Write
     /// [`-h` (short)]: Arg::help()
@@ -816,7 +838,7 @@ impl Command {
     /// let mut cmd = Command::new("myprog");
     /// let mut out = io::stdout();
     /// let help = cmd.render_long_help();
-    /// println!("{}", help);
+    /// println!("{help}");
     /// ```
     /// [`io::Write`]: std::io::Write
     /// [`-h` (short)]: Arg::help()
@@ -984,7 +1006,7 @@ impl Command {
     ///
     /// let r = cmd.try_get_matches_from(vec!["cmd", "-c", "file", "-f", "-x"]);
     ///
-    /// assert!(r.is_ok(), "unexpected error: {:?}", r);
+    /// assert!(r.is_ok(), "unexpected error: {r:?}");
     /// let m = r.unwrap();
     /// assert_eq!(m.get_one::<String>("config").unwrap(), "file");
     /// assert!(m.get_flag("f"));
@@ -1262,6 +1284,8 @@ impl Command {
     }
 
     /// Disables the `help` [`subcommand`].
+    ///
+    /// **NOTE:** This choice is propagated to all child subcommands.
     ///
     /// # Examples
     ///
@@ -1883,21 +1907,15 @@ impl Command {
 
     #[inline]
     #[must_use]
-    pub(crate) fn setting<F>(mut self, setting: F) -> Self
-    where
-        F: Into<AppFlags>,
-    {
-        self.settings.insert(setting.into());
+    pub(crate) fn setting(mut self, setting: AppSettings) -> Self {
+        self.settings.set(setting);
         self
     }
 
     #[inline]
     #[must_use]
-    pub(crate) fn unset_setting<F>(mut self, setting: F) -> Self
-    where
-        F: Into<AppFlags>,
-    {
-        self.settings.remove(setting.into());
+    pub(crate) fn unset_setting(mut self, setting: AppSettings) -> Self {
+        self.settings.unset(setting);
         self
     }
 
@@ -2574,13 +2592,13 @@ impl Command {
 
     /// Set the placement of this subcommand within the help.
     ///
-    /// Subcommands with a lower value will be displayed first in the help message.  Subcommands
-    /// with duplicate display orders will be displayed in order they are defined.
+    /// Subcommands with a lower value will be displayed first in the help message.
+    /// Those with the same display order will be sorted.
     ///
-    /// This is helpful when one would like to emphasize frequently used subcommands, or prioritize
-    /// those towards the top of the list.
-    ///
-    /// **NOTE:** The default is 999 for all subcommands.
+    /// `Command`s are automatically assigned a display order based on the order they are added to
+    /// their parent [`Command`].
+    /// Overriding this is helpful when the order commands are added in isn't the same as the
+    /// display order, whether in one-off cases or to automatically sort commands.
     ///
     /// # Examples
     ///
@@ -2589,17 +2607,11 @@ impl Command {
     /// # use clap_builder as clap;
     /// # use clap::{Command, };
     /// let m = Command::new("cust-ord")
-    ///     .subcommand(Command::new("alpha") // typically subcommands are grouped
-    ///                                                // alphabetically by name. Subcommands
-    ///                                                // without a display_order have a value of
-    ///                                                // 999 and are displayed alphabetically with
-    ///                                                // all other 999 subcommands
-    ///         .about("Some help and text"))
     ///     .subcommand(Command::new("beta")
-    ///         .display_order(1)   // In order to force this subcommand to appear *first*
-    ///                             // all we have to do is give it a value lower than 999.
-    ///                             // Any other subcommands with a value of 1 will be displayed
-    ///                             // alphabetically with this one...then 2 values, then 3, etc.
+    ///         .display_order(0)  // Sort
+    ///         .about("Some help and text"))
+    ///     .subcommand(Command::new("alpha")
+    ///         .display_order(0)  // Sort
     ///         .about("I should be first!"))
     ///     .get_matches_from(vec![
     ///         "cust-ord", "--help"
@@ -2615,8 +2627,9 @@ impl Command {
     /// Usage: cust-ord [OPTIONS]
     ///
     /// Commands:
-    ///     beta    I should be first!
-    ///     alpha   Some help and text
+    ///     alpha    I should be first!
+    ///     beta     Some help and text
+    ///     help     Print help for the subcommand(s)
     ///
     /// Options:
     ///     -h, --help       Print help
@@ -3695,7 +3708,7 @@ impl Command {
     /// let cmd = clap::Command::new("raw")
     ///     .external_subcommand_value_parser(clap::value_parser!(String));
     /// let value_parser = cmd.get_external_subcommand_value_parser();
-    /// println!("{:?}", value_parser);
+    /// println!("{value_parser:?}");
     /// ```
     pub fn get_external_subcommand_value_parser(&self) -> Option<&super::ValueParser> {
         if !self.is_allow_external_subcommands_set() {
@@ -3791,8 +3804,8 @@ impl Command {
         // do the real parsing
         let mut parser = Parser::new(self);
         if let Err(error) = parser.get_matches_with(&mut matcher, raw_args, args_cursor) {
-            if self.is_set(AppSettings::IgnoreErrors) {
-                debug!("Command::_do_parse: ignoring error: {}", error);
+            if self.is_set(AppSettings::IgnoreErrors) && error.use_stderr() {
+                debug!("Command::_do_parse: ignoring error: {error}");
             } else {
                 return Err(error);
             }
@@ -3825,30 +3838,30 @@ impl Command {
     pub(crate) fn _build_self(&mut self, expand_help_tree: bool) {
         debug!("Command::_build: name={:?}", self.get_name());
         if !self.settings.is_set(AppSettings::Built) {
+            if let Some(deferred) = self.deferred.take() {
+                *self = (deferred)(std::mem::take(self));
+            }
+
             // Make sure all the globally set flags apply to us as well
             self.settings = self.settings | self.g_settings;
 
             if self.is_multicall_set() {
-                self.settings.insert(AppSettings::SubcommandRequired.into());
-                self.settings.insert(AppSettings::DisableHelpFlag.into());
-                self.settings.insert(AppSettings::DisableVersionFlag.into());
+                self.settings.set(AppSettings::SubcommandRequired);
+                self.settings.set(AppSettings::DisableHelpFlag);
+                self.settings.set(AppSettings::DisableVersionFlag);
             }
             if !cfg!(feature = "help") && self.get_override_help().is_none() {
-                self.settings.insert(AppSettings::DisableHelpFlag.into());
-                self.settings
-                    .insert(AppSettings::DisableHelpSubcommand.into());
+                self.settings.set(AppSettings::DisableHelpFlag);
+                self.settings.set(AppSettings::DisableHelpSubcommand);
             }
             if self.is_set(AppSettings::ArgsNegateSubcommands) {
-                self.settings
-                    .insert(AppSettings::SubcommandsNegateReqs.into());
+                self.settings.set(AppSettings::SubcommandsNegateReqs);
             }
             if self.external_value_parser.is_some() {
-                self.settings
-                    .insert(AppSettings::AllowExternalSubcommands.into());
+                self.settings.set(AppSettings::AllowExternalSubcommands);
             }
             if !self.has_subcommands() {
-                self.settings
-                    .insert(AppSettings::DisableHelpSubcommand.into());
+                self.settings.set(AppSettings::DisableHelpSubcommand);
             }
 
             self._propagate();
@@ -3901,14 +3914,13 @@ impl Command {
                 let is_allow_negative_numbers_set = self.is_allow_negative_numbers_set();
                 for arg in self.args.args_mut() {
                     if is_allow_hyphen_values_set && arg.is_takes_value_set() {
-                        arg.settings.insert(ArgSettings::AllowHyphenValues.into());
+                        arg.settings.set(ArgSettings::AllowHyphenValues);
                     }
                     if is_allow_negative_numbers_set && arg.is_takes_value_set() {
-                        arg.settings
-                            .insert(ArgSettings::AllowNegativeNumbers.into());
+                        arg.settings.set(ArgSettings::AllowNegativeNumbers);
                     }
                     if is_trailing_var_arg_set && arg.get_index() == Some(highest_idx) {
-                        arg.settings.insert(ArgSettings::TrailingVarArg.into());
+                        arg.settings.set(ArgSettings::TrailingVarArg);
                     }
                 }
             }
@@ -4031,7 +4043,7 @@ impl Command {
             }
             .to_owned();
 
-            for mut sc in &mut self.subcommands {
+            for sc in &mut self.subcommands {
                 debug!("Command::_build_bin_names:iter: bin_name set...");
 
                 if sc.usage_name.is_none() {
@@ -4436,7 +4448,7 @@ impl Command {
 
     /// Iterate through the groups this arg is member of.
     pub(crate) fn groups_for_arg<'a>(&'a self, arg: &Id) -> impl Iterator<Item = Id> + 'a {
-        debug!("Command::groups_for_arg: id={:?}", arg);
+        debug!("Command::groups_for_arg: id={arg:?}");
         let arg = arg.clone();
         self.groups
             .iter()
@@ -4476,7 +4488,7 @@ impl Command {
     }
 
     pub(crate) fn unroll_args_in_group(&self, group: &Id) -> Vec<Id> {
-        debug!("Command::unroll_args_in_group: group={:?}", group);
+        debug!("Command::unroll_args_in_group: group={group:?}");
         let mut g_vec = vec![group];
         let mut args = vec![];
 
@@ -4489,7 +4501,7 @@ impl Command {
                 .args
                 .iter()
             {
-                debug!("Command::unroll_args_in_group:iter: entity={:?}", n);
+                debug!("Command::unroll_args_in_group:iter: entity={n:?}");
                 if !args.contains(n) {
                     if self.find(n).is_some() {
                         debug!("Command::unroll_args_in_group:iter: this is an arg");
@@ -4653,6 +4665,7 @@ impl Default for Command {
             subcommand_heading: Default::default(),
             external_value_parser: Default::default(),
             long_help_exists: false,
+            deferred: None,
             app_ext: Default::default(),
         }
     }

@@ -43,7 +43,7 @@ use crate::INTERNAL_ERROR_MSG;
 /// // to get information about the "cfg" argument we created, such as the value supplied we use
 /// // various ArgMatches methods, such as [ArgMatches::get_one]
 /// if let Some(c) = matches.get_one::<String>("cfg") {
-///     println!("Value for -c: {}", c);
+///     println!("Value for -c: {c}");
 /// }
 ///
 /// // The ArgMatches::get_one method returns an Option because the user may not have supplied
@@ -143,10 +143,7 @@ impl ArgMatches {
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn get_count(&self, id: &str) -> u8 {
         *self.get_one::<u8>(id).unwrap_or_else(|| {
-            panic!(
-                "arg `{}`'s `ArgAction` should be `Count` which should provide a default",
-                id
-            )
+            panic!("arg `{id}`'s `ArgAction` should be `Count` which should provide a default")
         })
     }
 
@@ -182,8 +179,7 @@ impl ArgMatches {
             .get_one::<bool>(id)
             .unwrap_or_else(|| {
                 panic!(
-                    "arg `{}`'s `ArgAction` should be one of `SetTrue`, `SetFalse` which should provide a default",
-                    id
+                    "arg `{id}`'s `ArgAction` should be one of `SetTrue`, `SetFalse` which should provide a default"
                 )
             })
     }
@@ -928,7 +924,7 @@ impl ArgMatches {
     ///     ("clone",  sub_m) => {}, // clone was used
     ///     ("push",   sub_m) => {}, // push was used
     ///     ("commit", sub_m) => {}, // commit was used
-    ///     (name, _)         => unimplemented!("{}", name),
+    ///     (name, _)         => unimplemented!("{name}"),
     /// }
     /// ```
     ///

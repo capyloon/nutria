@@ -157,9 +157,11 @@ impl SchemeType {
     pub fn is_file(&self) -> bool {
         matches!(*self, SchemeType::File)
     }
+}
 
-    pub fn from(s: &str) -> Self {
-        match s {
+impl<T: AsRef<str>> From<T> for SchemeType {
+    fn from(s: T) -> Self {
+        match s.as_ref() {
             "http" | "https" | "ws" | "wss" | "ftp" => SchemeType::SpecialNotFile,
             "file" => SchemeType::File,
             _ => SchemeType::NotSpecial,
@@ -176,7 +178,7 @@ pub fn default_port(scheme: &str) -> Option<u16> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Input<'i> {
     chars: str::Chars<'i>,
 }
@@ -474,9 +476,8 @@ impl<'a> Parser<'a> {
         let host = HostInternal::None;
         let port = None;
         let remaining = if let Some(input) = input.split_prefix('/') {
-            let path_start = self.serialization.len();
             self.serialization.push('/');
-            self.parse_path(scheme_type, &mut false, path_start, input)
+            self.parse_path(scheme_type, &mut false, path_start as usize, input)
         } else {
             self.parse_cannot_be_a_base_path(input)
         };
@@ -1156,7 +1157,7 @@ impl<'a> Parser<'a> {
             return input;
         }
 
-        if maybe_c != None && maybe_c != Some('/') {
+        if maybe_c.is_some() && maybe_c != Some('/') {
             self.serialization.push('/');
         }
         // Otherwise, if c is not the EOF code point:
@@ -1172,7 +1173,7 @@ impl<'a> Parser<'a> {
     ) -> Input<'i> {
         // Relative path state
         loop {
-            let segment_start = self.serialization.len();
+            let mut segment_start = self.serialization.len();
             let mut ends_with_slash = false;
             loop {
                 let input_before_c = input.clone();
@@ -1201,6 +1202,14 @@ impl<'a> Parser<'a> {
                     }
                     _ => {
                         self.check_url_code_point(c, &input);
+                        if scheme_type.is_file()
+                            && is_normalized_windows_drive_letter(
+                                &self.serialization[path_start + 1..],
+                            )
+                        {
+                            self.serialization.push('/');
+                            segment_start += 1;
+                        }
                         if self.context == Context::PathSegmentSetter {
                             if scheme_type.is_special() {
                                 self.serialization
@@ -1248,7 +1257,10 @@ impl<'a> Parser<'a> {
                 }
                 _ => {
                     // If url’s scheme is "file", url’s path is empty, and buffer is a Windows drive letter, then
-                    if scheme_type.is_file() && is_windows_drive_letter(segment_before_slash) {
+                    if scheme_type.is_file()
+                        && segment_start == path_start + 1
+                        && is_windows_drive_letter(segment_before_slash)
+                    {
                         // Replace the second code point in buffer with U+003A (:).
                         if let Some(c) = segment_before_slash.chars().next() {
                             self.serialization.truncate(segment_start);
@@ -1354,9 +1366,50 @@ impl<'a> Parser<'a> {
         host_end: u32,
         host: HostInternal,
         port: Option<u16>,
-        path_start: u32,
+        mut path_start: u32,
         remaining: Input<'_>,
     ) -> ParseResult<Url> {
+        // Special case for anarchist URL's with a leading empty path segment
+        // This prevents web+demo:/.//not-a-host/ or web+demo:/path/..//not-a-host/,
+        // when parsed and then serialized, from ending up as web+demo://not-a-host/
+        // (they end up as web+demo:/.//not-a-host/).
+        //
+        // If url’s host is null, url does not have an opaque path,
+        // url’s path’s size is greater than 1, and url’s path[0] is the empty string,
+        // then append U+002F (/) followed by U+002E (.) to output.
+        let scheme_end_as_usize = scheme_end as usize;
+        let path_start_as_usize = path_start as usize;
+        if path_start_as_usize == scheme_end_as_usize + 1 {
+            // Anarchist URL
+            if self.serialization[path_start_as_usize..].starts_with("//") {
+                // Case 1: The base URL did not have an empty path segment, but the resulting one does
+                // Insert the "/." prefix
+                self.serialization.insert_str(path_start_as_usize, "/.");
+                path_start += 2;
+            }
+            assert!(!self.serialization[scheme_end_as_usize..].starts_with("://"));
+        } else if path_start_as_usize == scheme_end_as_usize + 3
+            && &self.serialization[scheme_end_as_usize..path_start_as_usize] == ":/."
+        {
+            // Anarchist URL with leading empty path segment
+            // The base URL has a "/." between the host and the path
+            assert_eq!(self.serialization.as_bytes()[path_start_as_usize], b'/');
+            if self
+                .serialization
+                .as_bytes()
+                .get(path_start_as_usize + 1)
+                .copied()
+                != Some(b'/')
+            {
+                // Case 2: The base URL had an empty path segment, but the resulting one does not
+                // Remove the "/." prefix
+                self.serialization
+                    .replace_range(scheme_end_as_usize..path_start_as_usize, ":");
+                path_start -= 2;
+            }
+            assert!(!self.serialization[scheme_end_as_usize..].starts_with("://"));
+        }
+
         let (query_start, fragment_start) =
             self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
         Ok(Url {
@@ -1477,7 +1530,7 @@ impl<'a> Parser<'a> {
             if c == '%' {
                 let mut input = input.clone();
                 if !matches!((input.next(), input.next()), (Some(a), Some(b))
-                             if is_ascii_hex_digit(a) && is_ascii_hex_digit(b))
+                             if a.is_ascii_hexdigit() && b.is_ascii_hexdigit())
                 {
                     vfn(SyntaxViolation::PercentDecode)
                 }
@@ -1486,11 +1539,6 @@ impl<'a> Parser<'a> {
             }
         }
     }
-}
-
-#[inline]
-fn is_ascii_hex_digit(c: char) -> bool {
-    matches!(c, 'a'..='f' | 'A'..='F' | '0'..='9')
 }
 
 // Non URL code points:
@@ -1534,7 +1582,7 @@ fn ascii_tab_or_new_line(ch: char) -> bool {
 /// https://url.spec.whatwg.org/#ascii-alpha
 #[inline]
 pub fn ascii_alpha(ch: char) -> bool {
-    matches!(ch, 'a'..='z' | 'A'..='Z')
+    ch.is_ascii_alphabetic()
 }
 
 #[inline]
