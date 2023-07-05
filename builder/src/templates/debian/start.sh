@@ -30,21 +30,22 @@ done
 trap cleanup EXIT
 
 else
-    echo Starting Wayland compositor >> ${START_LOG}
+    echo "Starting Wayland compositor" >> ${START_LOG}
+
+    export SWAY_STARTUP="$XDG_RUNTIME_DIR/sway-startup.$$.pipe"
+    mkfifo "$SWAY_STARTUP"
 
     # Create a basic sway configuration, disabling window decorations.
     echo "default_border none" > /tmp/capyloon_sway.config
+    echo "exec echo \"\$WAYLAND_DISPLAY\" > \"\$SWAY_STARTUP\"" >> /tmp/capyloon_sway.config
+    echo "exec \"systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP\"" >> /tmp/capyloon_sway.config
 
     sway -c /tmp/capyloon_sway.config 2>&1 >> /tmp/capyloon_sway.log &
 
-    # Wait for wayland to have set its lock file.
-    # Consider it could be either wayland-0 or wayland-1
-    LOCK0="/run/user/1000/wayland-0.lock"
-    LOCK1="/run/user/1000/wayland-1.lock"
-    while [ ! -f "$LOCK0" ] && [ ! -f "$LOCK1" ]; do
-       echo "Waiting for Wayland lock" >> ${START_LOG}
-       sleep 1
-    done
+    read wayland_display < "$SWAY_STARTUP"
+    rm "$SWAY_STARTUP"
+
+    export WAYLAND_DISPLAY="$wayland_display"
 fi
 
 export WAYLAND_DISPLAY=`ls /run/user/1000/wayland-*|grep -v lock|cut -c 16-200`
