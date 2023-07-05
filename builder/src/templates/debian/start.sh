@@ -90,4 +90,4 @@ done
 
 # Start b2g
 echo Starting b2g >> ${START_LOG}
-/opt/capyloon/b2g/b2g $@ -profile ${HOME}/.capyloon/profile/ 2>&1 | tee /tmp/capyloon_gecko.log
+/opt/capyloon/b2g/b2g ${B2G_ARGS} $@ -profile ${HOME}/.capyloon/profile/ 2>&1 | tee /tmp/capyloon_gecko.log

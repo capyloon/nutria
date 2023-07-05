@@ -61,6 +61,7 @@ static CONTROL: &str = include_str!("templates/debian/control");
 static B2GHALD_SERVICE: &str = include_str!("templates/debian/b2ghald.service");
 static CAPYLOON_SERVICE: &str = include_str!("templates/debian/capyloon.service");
 static PINEPHONE_ENV: &str = include_str!("templates/debian/env.d/pinephone.sh");
+static RPI_ENV: &str = include_str!("templates/debian/env.d/rpi.sh");
 static IPFSD_DESKTOP_CONFIG: &str = include_str!("templates/debian/ipfsd-desktop.toml");
 static IPFSD_MOBILE_CONFIG: &str = include_str!("templates/debian/ipfsd-mobile.toml");
 
@@ -84,13 +85,16 @@ pub enum DebianTarget {
     Desktop,
     Pinephone,
     Librem5,
+    Rpi,
 }
 
 impl DebianTarget {
     fn deb_arch(&self) -> String {
         match &self {
             DebianTarget::Desktop => "amd64".to_owned(),
-            DebianTarget::Pinephone | DebianTarget::Librem5 => "arm64".to_owned(),
+            DebianTarget::Pinephone | DebianTarget::Librem5 | DebianTarget::Rpi => {
+                "arm64".to_owned()
+            }
         }
     }
 
@@ -99,6 +103,7 @@ impl DebianTarget {
             DebianTarget::Desktop => None,
             DebianTarget::Pinephone => Some("pinephone.js".to_owned()),
             DebianTarget::Librem5 => Some("librem5.js".to_owned()),
+            DebianTarget::Rpi => Some("pinephone.js".to_owned()),
         }
     }
 
@@ -112,6 +117,12 @@ impl DebianTarget {
                     (IPFSD_MOBILE_CONFIG, "ipfsd/config.toml"),
                 ]
             }
+            DebianTarget::Rpi => {
+                vec![
+                    (RPI_ENV, "env.d/rpi.sh"),
+                    (IPFSD_MOBILE_CONFIG, "ipfsd/config.toml"),
+                ]
+            }
         }
     }
 }
@@ -122,6 +133,7 @@ impl fmt::Display for DebianTarget {
             DebianTarget::Desktop => formatter.write_str("desktop"),
             DebianTarget::Pinephone => formatter.write_str("pinephone"),
             DebianTarget::Librem5 => formatter.write_str("librem5"),
+            DebianTarget::Rpi => formatter.write_str("rpi"),
         }
     }
 }
