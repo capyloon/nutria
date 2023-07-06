@@ -1,6 +1,12 @@
 // Top sites search module.
 
 class TopSites {
+  constructor() {
+    if (topSites) {
+      topSites.push("about:processes");
+    }
+  }
+
   // Returns a Promise that resolves to a result set.
   search(what, count) {
     if (!topSites) {
