@@ -90,6 +90,12 @@ function maybeOpenURL(url, details = {}) {
     isUrl = true;
   } catch (e) {}
 
+  if (url.startsWith("about:")) {
+    let act = new WebActivity("open-about", { url });
+    act.start();
+    return true;
+  }
+
   const isFileUrl = url.startsWith("file://");
 
   // No "." in the url that is not a file:// or ipfs:// one, return false since this

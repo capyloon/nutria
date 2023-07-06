@@ -52,6 +52,12 @@ function maybeOpenURL(url, details = {}) {
     isUrl = true;
   } catch (e) {}
 
+  if (url.startsWith("about:")) {
+    let act = new WebActivity("open-about", { url });
+    act.start();
+    return true;
+  }
+
   const isFileUrl = url.startsWith("file://");
   console.log(`maybeOpenURL isUrl=${isUrl} isFileUrl=${isFileUrl}`);
 
