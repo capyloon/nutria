@@ -564,6 +564,10 @@ class WindowManager extends HTMLElement {
 
     config.startUrl = url;
 
+    if (config.remote === undefined) {
+      config.remote = true;
+    }
+
     // Activities can use the "fullscreen" disposition to launch
     // in fullscreen mode.
     if (config.disposition === "fullscreen") {
@@ -627,6 +631,15 @@ class WindowManager extends HTMLElement {
     this.updateFrameList();
 
     return contentWindow.webView;
+  }
+
+  // Specialized version of openFrame() tailored for about: pages.
+  openAbout(url) {
+    if (!url.startsWith("about:")) {
+      return;
+    }
+
+    this.openFrame(url, { remote: false, activate: true });
   }
 
   handleEvent(event) {

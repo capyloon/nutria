@@ -43,6 +43,14 @@ window.addEventListener("serviceworkermessage", ({ detail }) => {
           postActivityResult({ activityId, activityResult });
         });
         break;
+      case "open-about":
+        let url = source.data.url.toLowerCase();
+        if (url.startsWith("about:")) {
+          window.wm.openAbout(url);
+        } else {
+          console.error(`Invalid about: url: ${url}`);
+        }
+        break;
       default:
         console.error(`Unexpected system app activity name: ${source.name}`);
         break;

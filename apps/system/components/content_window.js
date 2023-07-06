@@ -472,7 +472,7 @@ class ContentWindow extends HTMLElement {
     container.classList.add("container");
     container.innerHTML = `
       <link rel="stylesheet" href="components/content_window.css">
-      <web-view remote="true" remoteType="${remoteType}" ${privateBrowsingAttr} ${browsingContextGroupIdAttr} ${transparent}></web-view>
+      <web-view remote="${this.config.remote}" remoteType="${remoteType}" ${privateBrowsingAttr} ${browsingContextGroupIdAttr} ${transparent}></web-view>
       <div class="loader running">
         <sl-icon name="loader"></sl-icon>
         <img class="hidden"/>
@@ -1191,7 +1191,8 @@ class ContentWindow extends HTMLElement {
         // when loading moz-extension:// documents.
         if (
           !this.loader.classList.contains("hidden") &&
-          this.state.url.startsWith("moz-extension://")
+          (this.state.url.startsWith("moz-extension://") ||
+            this.state.url.startsWith("about:"))
         ) {
           this.hideLoader();
         }
