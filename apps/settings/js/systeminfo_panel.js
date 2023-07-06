@@ -120,6 +120,16 @@ class SystemInfoPanel {
       "systeminfo-logo"
     ).src = `http://branding.localhost:${location.port}/resources/logo.webp`;
 
+    document.querySelectorAll(".about-link").forEach((elem) => {
+      let url = elem.getAttribute("href");
+      elem.onclick = (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        let act = new WebActivity("open-about", { url });
+        act.start();
+      };
+    });
+
     this.ready = true;
   }
 }
