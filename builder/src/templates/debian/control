@@ -1,5 +1,6 @@
 Package: ${PKG_NAME}
 Version: ${VERSION}-${RELEASE_NUMBER}
+Depends: libgtk-3-0 (>= 3.0.0), libasound2 (>= 1.0.16), libdbus-glib-1-2 (>= 0.78), fonts-arphic-ukai, fonts-arphic-uming, sway, network-manager
 Maintainer: Fabrice Desré <fabrice@capyloon.org>
 Section: misc
 Priority: optional
