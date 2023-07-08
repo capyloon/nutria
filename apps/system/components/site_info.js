@@ -116,7 +116,11 @@ class SiteInfo extends HTMLElement {
 
     // For now, consider all local packaged apps as safe.
     // tile:// pages are also safe because of their default CSP.
-    if (domain.endsWith(".localhost") || url.protocol === "tile:") {
+    if (
+      domain.endsWith(".localhost") ||
+      url.protocol === "tile:" ||
+      url.protocol === "about:"
+    ) {
       return;
     }
 

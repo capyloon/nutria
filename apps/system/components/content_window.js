@@ -1407,6 +1407,25 @@ class ContentWindow extends HTMLElement {
 
     // We have a new icon, update the UI state.
     if (found) {
+      // Used by about:processes to display the tab icon.
+      // This needs to be a base64 url to be loaded in the about: page.
+      let favicon = new Image();
+      favicon.onload = () => {
+        let canvas = new OffscreenCanvas(favicon.width, favicon.height);
+        let context = canvas.getContext("2d");
+        context.drawImage(favicon, 0, 0);
+
+        canvas.convertToBlob().then((blob) => {
+          let reader = new FileReader();
+          reader.onloadend = () => {
+            let url = reader.result;
+            this.webView.linkedBrowser.setAttribute("image", url);
+          };
+          reader.readAsDataURL(blob);
+        });
+      };
+      favicon.src = this.state.icon;
+
       await this.updateUi(true);
     }
   }

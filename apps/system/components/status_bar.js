@@ -345,15 +345,13 @@ class StatusBar extends HTMLElement {
       let url = new URL(state.url);
       isSecure =
         isSecure ||
+        url.protocol == "about:" ||
         url.protocol == "ipfs:" ||
         url.protocol == "ipns:" ||
         url.protocol == "tile:" ||
         url.protocol == "chrome:" ||
         url.protocol == "moz-extension:" ||
         url.hostname.endsWith(".localhost");
-
-      // about:blank is always secure.
-      isSecure = isSecure || state.url === "about:blank";
     }
 
     // Reader mode is secure
