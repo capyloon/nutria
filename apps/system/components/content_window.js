@@ -1405,6 +1405,11 @@ class ContentWindow extends HTMLElement {
       }
     });
 
+    // Replace Gecko's hardcoded icon by our brand logo.
+    if (this.state.icon == "chrome://branding/content/icon32.png") {
+      this.state.icon = window.config.brandLogo;
+    }
+
     // We have a new icon, update the UI state.
     if (found) {
       // Used by about:processes to display the tab icon.
