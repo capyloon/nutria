@@ -544,6 +544,8 @@ class ContentWindow extends HTMLElement {
 
     this.pid = this.webView.processid;
 
+    this.gotTheme = false;
+
     this.webViewHandler = this.handleBrowserEvent.bind(this);
 
     this.overscrollHandler = this.handleOverscrollEvent.bind(this);
@@ -1039,7 +1041,7 @@ class ContentWindow extends HTMLElement {
       this.state.backgroundColor = window.getComputedStyle(x).color;
       this.dispatchStateUpdate();
     } catch (e) {}
-    x.parentNode.removeChild(x);
+    x.remove();
   }
 
   hideLoader() {
