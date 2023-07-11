@@ -55,9 +55,6 @@ document.head.appendChild(link2);
 // Hack to force GMPProvider to initialize now because it needs a locale bundle
 // which triggers a gecko-Fluent race condition when using http:// file sources :(
 (function () {
-  const { Services } = ChromeUtils.import(
-    "resource://gre/modules/Services.jsm"
-  );
   Services.obs.notifyObservers(null, "force-gmp-provider-startup", null);
 })();
 

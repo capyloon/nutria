@@ -14,8 +14,6 @@ XPCOMUtils.defineLazyModuleGetters(modules, {
   SafeBrowsing: "resource://gre/modules/SafeBrowsing.jsm",
 });
 
-const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-
 window.config.platform = AppConstants.platform;
 window.config.metaOrControl =
   AppConstants.platform == "macosx" ? "Meta" : "Control";
