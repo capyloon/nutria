@@ -13,12 +13,6 @@ body {
   flex: 1;
 }
 
-:root {
-  --backdrop-z-index: 100;
-  --notifications-popup-z-index: 150;
-  --lockscreen-z-index: 200;
-}
-
 body {
   background-size: cover;
   background-repeat: no-repeat;
@@ -35,7 +29,7 @@ body.screen-off {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 2000;
+  z-index: 3000;
   width: 100%;
   height: 100%;
 
@@ -91,7 +85,7 @@ body.screen-off {
 }
 
 #lockscreen {
-  z-index: 1000;
+  z-index: 2000;
 }
 
 #lockscreen.unlocked {
