@@ -70,6 +70,12 @@ L10nRegistry.getInstance().registerSources([
     "chrome://system/content/locales/{locale}/"
   ),
   new L10nFileSource(
+    "gecko-l10n",
+    "system-app",
+    ["en-US"],
+    `http://gecko-l10n.localhost:${port}/locales/{locale}/`
+  ),
+  new L10nFileSource(
     "branding",
     "system-app",
     ["en-US"],

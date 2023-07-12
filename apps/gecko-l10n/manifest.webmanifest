@@ -1,0 +1,12 @@
+{
+  "name": "gecko-l10n",
+  "description": "Imported Gecko l10n resources",
+  "b2g_features": {
+    "core": true,
+    "role": "system",
+    "developer": {
+      "name": "The capyloon team"
+    }
+  },
+  "version": "1.0"
+}
