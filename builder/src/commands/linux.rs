@@ -10,7 +10,7 @@ use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
-static DEFAULT_LINUX_USER: &str = "mobian";
+static DEFAULT_LINUX_USER: &str = "capyloon";
 static DEFAULT_LINUX_HOST: &str = "pinephone";
 
 #[derive(Error, Debug)]
