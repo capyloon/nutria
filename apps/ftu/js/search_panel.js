@@ -51,17 +51,17 @@ class SearchPanel {
 
     let menu = this.panel.querySelector("sl-menu");
 
-    let rendered = false;
-
     await contentManager.as_superuser();
 
+    let rendered = new Set();
     this.openSearch = contentManager.getOpenSearchManager((items) => {
-      // TODO: smarter update of the engine list.
-      if (rendered) {
-        return;
-      }
       for (let item of items) {
         let meta = item.meta;
+        if (rendered.has(meta.name)) {
+          continue;
+        }
+        rendered.add(meta.name);
+
         this.log(`Adding ${meta.name} ${meta.tags}`);
         let json = item.variant("default").OpenSearchDescription;
         let menuItem = document.createElement("sl-menu-item");
@@ -82,8 +82,6 @@ class SearchPanel {
       }
 
       this.okBtn.disabled = this.alert.open = this.enabled === 0;
-
-      rendered = true;
     });
     await this.openSearch.init();
 

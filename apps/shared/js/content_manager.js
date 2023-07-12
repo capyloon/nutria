@@ -722,6 +722,7 @@ class OpenSearchManager extends ContentManager {
   }
 
   async init() {
+    this.frozen = false;
     await this.ready();
 
     await this.svc.addObserver(this.container, this.onchange.bind(this));
@@ -751,6 +752,10 @@ class OpenSearchManager extends ContentManager {
 
   // Refresh the list of search engines.
   async update() {
+    if (this.frozen) {
+      return;
+    }
+
     let cursor = await this.svc.childrenOf(this.container);
 
     let list = [];
@@ -915,6 +920,8 @@ class OpenSearchManager extends ContentManager {
 
   async loadDefaults() {
     try {
+      this.frozen = true;
+
       let response = await fetch(
         `http://shared.localhost:${config.port}/opensearch/opensearch.json`
       );
@@ -928,6 +935,9 @@ class OpenSearchManager extends ContentManager {
           item.source
         );
       }
+
+      this.frozen = false;
+      await this.update();
     } catch (e) {
       this.error(`Failed to load default search engines: ${e}`);
     }
