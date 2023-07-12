@@ -3,7 +3,26 @@
 class TopSites {
   constructor() {
     if (topSites) {
-      topSites.push("about:processes");
+      topSites.push(
+        "about:about",
+        "about:buildconfig",
+        "about:cache",
+        "about:certificate",
+        "about:checkerboard",
+        "about:config",
+        "about:crashes",
+        "about:license",
+        "about:logging",
+        "about:memory",
+        "about:mozilla",
+        "about:networking",
+        "about:processes",
+        "about:serviceworkers",
+        "about:support",
+        "about:telemetry",
+        "about:url-classifier",
+        "about:webrtc"
+      );
     }
   }
 
