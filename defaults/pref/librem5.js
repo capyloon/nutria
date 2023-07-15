@@ -9,3 +9,6 @@ user_pref("devtools.debugger.force-local", false);
 // The DBus service is not present and that causes a 25s timeout blocking
 // the startup.
 user_pref("widget.use-xdg-desktop-portal.settings", 0);
+
+// Enable pipewire camera
+user_pref("media.webrtc.camera.allow-pipewire", true);
