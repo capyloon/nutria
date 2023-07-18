@@ -41,6 +41,10 @@ body {
   width: 2em;
 }
 
+.peer-desc {
+  white-space: normal;
+}
+
 h2 {
   overflow: hidden;
   text-overflow: ellipsis;

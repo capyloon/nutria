@@ -181,6 +181,7 @@ async function onShare(data) {
         }
       }
       let text = document.createElement("span");
+      text.classList.add("peer-desc");
       text.dataset.l10nId = "peers-detail";
       text.dataset.l10nArgs = JSON.stringify({ did, deviceDesc });
       item.append(text);
