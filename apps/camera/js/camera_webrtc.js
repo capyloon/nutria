@@ -58,7 +58,7 @@ export class Camera extends CameraBase {
     let videoTrack = this.camera.getVideoTracks()[0];
     this.log(`videoTrack is ${videoTrack}`);
     let settings = videoTrack.getSettings();
-    this.log(`video settings: ${JSON.stringify(settings)}`);
+    this.log(`video settings for ${device.label}: ${JSON.stringify(settings)}`);
 
     if (this.preview.srcObject) {
       this.preview.srcObject = null;
@@ -72,9 +72,12 @@ export class Camera extends CameraBase {
       angle = 90;
     }
 
+    // workaround PPP bug.
+    const swapDims = device.label == "imx258" || device.label == "ov8858";
+
     let transform = this.getPreviewTransform({
-      width: settings.width,
-      height: settings.height,
+      width: swapDims ? settings.height : settings.width,
+      height: swapDims ? settings.width : settings.height,
       angle,
       name: settings.facingMode,
     });
