@@ -1,24 +1,24 @@
 {
   "aarch64-apple-darwin": {
-    "b2g": "https://w3s.link/ipfs/bafybeidt63yidramg7q3wef6fayib5t7ie4rvbj76xfcrz25ewpwdzeoty",
-    "api-daemon": "https://w3s.link/ipfs/bafybeied43uaoy2wfigl2t5i37yjdwr2wnsyk4uo72ccakwhpbjspelyuy",
-    "ipfsd": "https://w3s.link/ipfs/bafybeiesnd56vfhbxsyfdfkfyb4m64ddil72li42a756ol7ngwol3j5l7u"
+    "b2g": "https://w3s.link/ipfs/bafybeig55gitr3ihobyxtbnay7cnxtmf7cjuwciebaf3soytspznv2rpei",
+    "api-daemon": "https://w3s.link/ipfs/bafybeihrhczppnkxdfmth2zhrvjnx2f5jsdk77gaqm2h5oukffgndozv3u",
+    "ipfsd": "https://w3s.link/ipfs/bafybeibvzbogupd45bio4kprwv3pa7ueeobmooxzvhg3nsbc6qqfv3trsi"
   },
   "aarch64-unknown-linux-gnu": {
-    "b2g": "https://w3s.link/ipfs/bafybeieq25khib4qxl7k3xgnob2ojjldmp4ayx74bhvbgwfsbwejzqnagu",
-    "api-daemon": "https://w3s.link/ipfs/bafybeig2ufailakwvg6asevrjhxmipeieqgp27dxd47nxdb6sshvhfoxh4",
-    "b2ghald": "https://w3s.link/ipfs/bafkreigg2syyj5stahvoawch6fm6dy4wlfs7rgqpsjm6lg7rhmbhs3oexu",
-    "ipfsd": "https://w3s.link/ipfs/bafybeib4l2yfiqypcgeb3x24b6orj5ut54gkxumqatihr7yegg3fr7hmoq"
+    "b2g": "https://w3s.link/ipfs/bafybeifc64ybajd7tpxc4jiycomf5eum4bwn3ywad6vk6rtxjvf4gzg764",
+    "api-daemon": "https://w3s.link/ipfs/bafybeihksthn6mfxfos6gqdtynbp6pm6ufqzd76u7o6ea6ykkattzgn2ky",
+    "b2ghald": "https://w3s.link/ipfs/bafkreie7ygh5i7ycfqnf7qm4mab4nw2f2anly5hi5iicufg3hetfbsin7i",
+    "ipfsd": "https://w3s.link/ipfs/bafybeiauzvkgpyoqj7do6pud2rw5thhldcydgzatr6jwwsxpvx6nmmh7ue"
   },
   "x86_64-apple-darwin": {
-    "b2g": "https://w3s.link/ipfs/bafybeiee6xaa7vytxhh5palz2mac6dgu2eac7qzqjtjwjjpa3jvfbse2ma",
-    "api-daemon": "https://w3s.link/ipfs/bafybeig2wln2zm2mdac42ex5eqdrosfymssfvjyxveuybg7gfd4uycjvky",
-    "ipfsd": "https://w3s.link/ipfs/bafybeihtfbbdrww5du6ax6qbzroch3yi54rx4fltslaeu7kqrcvihlvp3m"
+    "b2g": "https://w3s.link/ipfs/bafybeievlrfflpnxcjsxaql532wk4nfsql5px7kbs25jetp66vtgzf7l6q",
+    "api-daemon": "https://w3s.link/ipfs/bafybeihyik6nnn3ka5nhkrgqvsvv4utcjdghp5ef4tk47rrp3pxzvjdnjy",
+    "ipfsd": "https://w3s.link/ipfs/bafybeiezaavw7pwbbfgcfgnbfly5knnuvlaw5y5fklud5zp3ex65z6mjzq"
   },
   "x86_64-unknown-linux-gnu": {
-    "b2g": "https://w3s.link/ipfs/bafybeicu46k5ugr2rroqqipedqiipau3bexwcsnk4lif6ebqoqivlwxq2q",
-    "api-daemon": "https://w3s.link/ipfs/bafybeicuayzes7tjybdmvum6vxj2qzed6az2ushikqtok4kokyi6tsrmvy",
-    "b2ghald": "https://w3s.link/ipfs/bafkreib3singihjeg5k5xadg3qxfttq6yr53h5uflbno5zmgvv76mr6uga",
-    "ipfsd": "https://w3s.link/ipfs/bafybeieg2p7sb3zf5l53bp64shf4aam4oy2evro7uxiytcuf74gvue5phe"
+    "b2g": "https://w3s.link/ipfs/bafybeidnqilwi6y3z3r7rdafhmcioql2f3vfj44r2w3kpy7fqamwhepl3u",
+    "api-daemon": "https://w3s.link/ipfs/bafybeiawmu4qtkchftihpcf2xgvpv44uar4lyrbbzxzlehkdeqi2knooiy",
+    "b2ghald": "https://w3s.link/ipfs/bafkreie7ggowkzm2ciovajobqy3gulzqb3whok5oizempwmjohfprauyia",
+    "ipfsd": "https://w3s.link/ipfs/bafybeicvrjf5u4xvycubtiyl6io7atg2q4ckvw52smtope3sx2byzgqi6e"
   }
 }
