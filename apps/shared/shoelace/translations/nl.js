@@ -1,1 +1,43 @@
-import"../chunks/chunk.7DJRGBBM.js";import{a as r}from"../chunks/chunk.2JOUTB7Y.js";import"../chunks/chunk.I4CX4JT3.js";var o={$code:"nl",$name:"Nederlands",$dir:"ltr",carousel:"Carrousel",clearEntry:"Invoer wissen",close:"Sluiten",copy:"Kopi\xEBren",currentValue:"Huidige waarde",goToSlide:(e,i)=>`Ga naar slide ${e} van ${i}`,hidePassword:"Verberg wachtwoord",loading:"Bezig met laden",nextSlide:"Volgende dia",numOptionsSelected:e=>e===0?"Geen optie geselecteerd":e===1?"1 optie geselecteerd":`${e} opties geselecteerd`,previousSlide:"Vorige dia",progress:"Voortgang",remove:"Verwijderen",resize:"Formaat wijzigen",scrollToEnd:"Scroll naar einde",scrollToStart:"Scroll naar begin",selectAColorFromTheScreen:"Selecteer een kleur van het scherm",showPassword:"Laat wachtwoord zien",slideNum:e=>`Schuif ${e}`,toggleColorFormat:"Wissel kleurnotatie"};r(o);var t=o;export{t as default};
+import "../chunks/chunk.BWLRNN6E.js";
+import {
+  registerTranslation
+} from "../chunks/chunk.BDQVKHPN.js";
+import "../chunks/chunk.LKA3TPUC.js";
+
+// src/translations/nl.ts
+var translation = {
+  $code: "nl",
+  $name: "Nederlands",
+  $dir: "ltr",
+  carousel: "Carrousel",
+  clearEntry: "Invoer wissen",
+  close: "Sluiten",
+  copy: "Kopi\xEBren",
+  currentValue: "Huidige waarde",
+  goToSlide: (slide, count) => `Ga naar slide ${slide} van ${count}`,
+  hidePassword: "Verberg wachtwoord",
+  loading: "Bezig met laden",
+  nextSlide: "Volgende dia",
+  numOptionsSelected: (num) => {
+    if (num === 0)
+      return "Geen optie geselecteerd";
+    if (num === 1)
+      return "1 optie geselecteerd";
+    return `${num} opties geselecteerd`;
+  },
+  previousSlide: "Vorige dia",
+  progress: "Voortgang",
+  remove: "Verwijderen",
+  resize: "Formaat wijzigen",
+  scrollToEnd: "Scroll naar einde",
+  scrollToStart: "Scroll naar begin",
+  selectAColorFromTheScreen: "Selecteer een kleur van het scherm",
+  showPassword: "Laat wachtwoord zien",
+  slideNum: (slide) => `Schuif ${slide}`,
+  toggleColorFormat: "Wissel kleurnotatie"
+};
+registerTranslation(translation);
+var nl_default = translation;
+export {
+  nl_default as default
+};

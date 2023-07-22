@@ -1,1 +1,0 @@
-var n=new Map;function l(e,r="cors"){let i=n.get(e);if(i!==void 0)return Promise.resolve(i);let s=fetch(e,{mode:r}).then(async t=>{let o={ok:t.ok,status:t.status,html:await t.text()};return n.set(e,o),o});return n.set(e,s),s}export{l as a};

@@ -1,1 +1,11 @@
-import{a,b,c}from"../chunks/chunk.UJEHPUK2.js";import"../chunks/chunk.I4CX4JT3.js";export{c as getAnimation,b as setAnimation,a as setDefaultAnimation};
+import {
+  getAnimation,
+  setAnimation,
+  setDefaultAnimation
+} from "../chunks/chunk.OAQT3AUQ.js";
+import "../chunks/chunk.LKA3TPUC.js";
+export {
+  getAnimation,
+  setAnimation,
+  setDefaultAnimation
+};

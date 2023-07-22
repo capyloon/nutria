@@ -1,1 +1,24 @@
-import{a as i}from"../chunks/chunk.VHKF6MZY.js";import"../chunks/chunk.7DJRGBBM.js";import{a as t}from"../chunks/chunk.2JOUTB7Y.js";import{a as e,b as r}from"../chunks/chunk.I4CX4JT3.js";var o=r(e({},i),{$code:"de-CH",$name:"Deutsch (Schweiz)",close:"Schliessen",resize:"Gr\xF6sse \xE4ndern"});t(o);var a=o;export{a as default};
+import {
+  de_default
+} from "../chunks/chunk.IUZT4FZQ.js";
+import "../chunks/chunk.BWLRNN6E.js";
+import {
+  registerTranslation
+} from "../chunks/chunk.BDQVKHPN.js";
+import {
+  __spreadProps,
+  __spreadValues
+} from "../chunks/chunk.LKA3TPUC.js";
+
+// src/translations/de-ch.ts
+var translation = __spreadProps(__spreadValues({}, de_default), {
+  $code: "de-CH",
+  $name: "Deutsch (Schweiz)",
+  close: "Schliessen",
+  resize: "Gr\xF6sse \xE4ndern"
+});
+registerTranslation(translation);
+var de_ch_default = translation;
+export {
+  de_ch_default as default
+};

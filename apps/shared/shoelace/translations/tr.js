@@ -1,1 +1,43 @@
-import"../chunks/chunk.7DJRGBBM.js";import{a as r}from"../chunks/chunk.2JOUTB7Y.js";import"../chunks/chunk.I4CX4JT3.js";var i={$code:"tr",$name:"T\xFCrk\xE7e",$dir:"ltr",carousel:"Atl\u0131kar\u0131nca",clearEntry:"Giri\u015Fi sil",close:"Kapat",copy:"Kopya",currentValue:"Mevcut de\u011Fer",goToSlide:(e,a)=>`${a} slayttan ${e} slayta gidin`,hidePassword:"\u015Eifreyi sakla",loading:"Y\xFCkleme",nextSlide:"Sonraki slayt",numOptionsSelected:e=>e===0?"Hi\xE7bir se\xE7enek se\xE7ilmedi":e===1?"1 se\xE7enek se\xE7ildi":`${e} se\xE7enek se\xE7ildi`,previousSlide:"Bir onceki slayt",progress:"\u0130lerleme",remove:"Kald\u0131r",resize:"Yeniden boyutland\u0131r",scrollToEnd:"Sona kay",scrollToStart:"Ba\u015Fa kay",selectAColorFromTheScreen:"Ekrandan bir renk se\xE7in",showPassword:"\u015Eifreyi g\xF6ster",slideNum:e=>`Slayt ${e}`,toggleColorFormat:"Renk bi\xE7imini de\u011Fi\u015Ftir"};r(i);var o=i;export{o as default};
+import "../chunks/chunk.BWLRNN6E.js";
+import {
+  registerTranslation
+} from "../chunks/chunk.BDQVKHPN.js";
+import "../chunks/chunk.LKA3TPUC.js";
+
+// src/translations/tr.ts
+var translation = {
+  $code: "tr",
+  $name: "T\xFCrk\xE7e",
+  $dir: "ltr",
+  carousel: "Atl\u0131kar\u0131nca",
+  clearEntry: "Giri\u015Fi sil",
+  close: "Kapat",
+  copy: "Kopya",
+  currentValue: "Mevcut de\u011Fer",
+  goToSlide: (slide, count) => `${count} slayttan ${slide} slayta gidin`,
+  hidePassword: "\u015Eifreyi sakla",
+  loading: "Y\xFCkleme",
+  nextSlide: "Sonraki slayt",
+  numOptionsSelected: (num) => {
+    if (num === 0)
+      return "Hi\xE7bir se\xE7enek se\xE7ilmedi";
+    if (num === 1)
+      return "1 se\xE7enek se\xE7ildi";
+    return `${num} se\xE7enek se\xE7ildi`;
+  },
+  previousSlide: "Bir onceki slayt",
+  progress: "\u0130lerleme",
+  remove: "Kald\u0131r",
+  resize: "Yeniden boyutland\u0131r",
+  scrollToEnd: "Sona kay",
+  scrollToStart: "Ba\u015Fa kay",
+  selectAColorFromTheScreen: "Ekrandan bir renk se\xE7in",
+  showPassword: "\u015Eifreyi g\xF6ster",
+  slideNum: (slide) => `Slayt ${slide}`,
+  toggleColorFormat: "Renk bi\xE7imini de\u011Fi\u015Ftir"
+};
+registerTranslation(translation);
+var tr_default = translation;
+export {
+  tr_default as default
+};

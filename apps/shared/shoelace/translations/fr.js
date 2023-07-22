@@ -1,1 +1,43 @@
-import"../chunks/chunk.7DJRGBBM.js";import{a as r}from"../chunks/chunk.2JOUTB7Y.js";import"../chunks/chunk.I4CX4JT3.js";var o={$code:"fr",$name:"Fran\xE7ais",$dir:"ltr",carousel:"Carrousel",clearEntry:"Effacer l'entr\xE9e",close:"Fermer",copy:"Copier",currentValue:"Valeur actuelle",goToSlide:(e,i)=>`Aller \xE0 la diapositive ${e} de ${i}`,hidePassword:"Masquer le mot de passe",loading:"Chargement",nextSlide:"Diapositive suivante",numOptionsSelected:e=>e===0?"Aucune option s\xE9lectionn\xE9e":e===1?"1 option s\xE9lectionn\xE9e":`${e} options s\xE9lectionn\xE9es`,previousSlide:"Diapositive pr\xE9c\xE9dente",progress:"Progr\xE8s",remove:"Retirer",resize:"Redimensionner",scrollToEnd:"Faire d\xE9filer jusqu'\xE0 la fin",scrollToStart:"Faire d\xE9filer jusqu'au d\xE9but",selectAColorFromTheScreen:"S\xE9lectionnez une couleur \xE0 l'\xE9cran",showPassword:"Montrer le mot de passe",slideNum:e=>`Diapositive ${e}`,toggleColorFormat:"Changer le format de couleur"};r(o);var l=o;export{l as default};
+import "../chunks/chunk.BWLRNN6E.js";
+import {
+  registerTranslation
+} from "../chunks/chunk.BDQVKHPN.js";
+import "../chunks/chunk.LKA3TPUC.js";
+
+// src/translations/fr.ts
+var translation = {
+  $code: "fr",
+  $name: "Fran\xE7ais",
+  $dir: "ltr",
+  carousel: "Carrousel",
+  clearEntry: `Effacer l'entr\xE9e`,
+  close: "Fermer",
+  copy: "Copier",
+  currentValue: "Valeur actuelle",
+  goToSlide: (slide, count) => `Aller \xE0 la diapositive ${slide} de ${count}`,
+  hidePassword: "Masquer le mot de passe",
+  loading: "Chargement",
+  nextSlide: "Diapositive suivante",
+  numOptionsSelected: (num) => {
+    if (num === 0)
+      return "Aucune option s\xE9lectionn\xE9e";
+    if (num === 1)
+      return "1 option s\xE9lectionn\xE9e";
+    return `${num} options s\xE9lectionn\xE9es`;
+  },
+  previousSlide: "Diapositive pr\xE9c\xE9dente",
+  progress: "Progr\xE8s",
+  remove: "Retirer",
+  resize: "Redimensionner",
+  scrollToEnd: `Faire d\xE9filer jusqu'\xE0 la fin`,
+  scrollToStart: `Faire d\xE9filer jusqu'au d\xE9but`,
+  selectAColorFromTheScreen: `S\xE9lectionnez une couleur \xE0 l'\xE9cran`,
+  showPassword: "Montrer le mot de passe",
+  slideNum: (slide) => `Diapositive ${slide}`,
+  toggleColorFormat: "Changer le format de couleur"
+};
+registerTranslation(translation);
+var fr_default = translation;
+export {
+  fr_default as default
+};

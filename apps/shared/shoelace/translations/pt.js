@@ -1,1 +1,43 @@
-import"../chunks/chunk.7DJRGBBM.js";import{a as r}from"../chunks/chunk.2JOUTB7Y.js";import"../chunks/chunk.I4CX4JT3.js";var e={$code:"pt",$name:"Portugu\xEAs",$dir:"ltr",carousel:"Carrossel",clearEntry:"Limpar entrada",close:"Fechar",copy:"Copiar",currentValue:"Valor atual",goToSlide:(o,a)=>`V\xE1 para o slide ${o} de ${a}`,hidePassword:"Esconder a senha",loading:"Carregando",nextSlide:"Pr\xF3ximo slide",numOptionsSelected:o=>o===0?"Nenhuma op\xE7\xE3o selecionada":o===1?"1 op\xE7\xE3o selecionada":`${o} op\xE7\xF5es selecionadas`,previousSlide:"Slide anterior",progress:"Progresso",remove:"Remover",resize:"Mudar o tamanho",scrollToEnd:"Rolar at\xE9 o final",scrollToStart:"Rolar at\xE9 o come\xE7o",selectAColorFromTheScreen:"Selecionar uma cor da tela",showPassword:"Mostrar senhaShow password",slideNum:o=>`Diapositivo ${o}`,toggleColorFormat:"Trocar o formato de cor"};r(e);var l=e;export{l as default};
+import "../chunks/chunk.BWLRNN6E.js";
+import {
+  registerTranslation
+} from "../chunks/chunk.BDQVKHPN.js";
+import "../chunks/chunk.LKA3TPUC.js";
+
+// src/translations/pt.ts
+var translation = {
+  $code: "pt",
+  $name: "Portugu\xEAs",
+  $dir: "ltr",
+  carousel: "Carrossel",
+  clearEntry: "Limpar entrada",
+  close: "Fechar",
+  copy: "Copiar",
+  currentValue: "Valor atual",
+  goToSlide: (slide, count) => `V\xE1 para o slide ${slide} de ${count}`,
+  hidePassword: "Esconder a senha",
+  loading: "Carregando",
+  nextSlide: "Pr\xF3ximo slide",
+  numOptionsSelected: (num) => {
+    if (num === 0)
+      return "Nenhuma op\xE7\xE3o selecionada";
+    if (num === 1)
+      return "1 op\xE7\xE3o selecionada";
+    return `${num} op\xE7\xF5es selecionadas`;
+  },
+  previousSlide: "Slide anterior",
+  progress: "Progresso",
+  remove: "Remover",
+  resize: "Mudar o tamanho",
+  scrollToEnd: "Rolar at\xE9 o final",
+  scrollToStart: "Rolar at\xE9 o in\xEDcio",
+  selectAColorFromTheScreen: "Selecionar uma cor da tela",
+  showPassword: "Mostrar senha",
+  slideNum: (slide) => `Slide ${slide}`,
+  toggleColorFormat: "Trocar o formato de cor"
+};
+registerTranslation(translation);
+var pt_default = translation;
+export {
+  pt_default as default
+};

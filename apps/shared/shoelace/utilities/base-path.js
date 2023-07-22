@@ -1,1 +1,9 @@
-import{a,b}from"../chunks/chunk.OO7QKRH3.js";import"../chunks/chunk.I4CX4JT3.js";export{b as getBasePath,a as setBasePath};
+import {
+  getBasePath,
+  setBasePath
+} from "../chunks/chunk.3Y6SB6QS.js";
+import "../chunks/chunk.LKA3TPUC.js";
+export {
+  getBasePath,
+  setBasePath
+};

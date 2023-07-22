@@ -1,1 +1,22 @@
-import{a as r}from"../chunks/chunk.7DJRGBBM.js";import{a as t}from"../chunks/chunk.2JOUTB7Y.js";import{a as o,b as e}from"../chunks/chunk.I4CX4JT3.js";var l=e(o({},r),{$code:"en-GB",$name:"English (United Kingdom)",selectAColorFromTheScreen:"Select a colour from the screen",toggleColorFormat:"Toggle colour format"});t(l);var i=l;export{i as default};
+import "../chunks/chunk.BWLRNN6E.js";
+import {
+  en_default,
+  registerTranslation
+} from "../chunks/chunk.BDQVKHPN.js";
+import {
+  __spreadProps,
+  __spreadValues
+} from "../chunks/chunk.LKA3TPUC.js";
+
+// src/translations/en-gb.ts
+var translation = __spreadProps(__spreadValues({}, en_default), {
+  $code: "en-GB",
+  $name: "English (United Kingdom)",
+  selectAColorFromTheScreen: "Select a colour from the screen",
+  toggleColorFormat: "Toggle colour format"
+});
+registerTranslation(translation);
+var en_gb_default = translation;
+export {
+  en_gb_default as default
+};

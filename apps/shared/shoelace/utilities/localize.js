@@ -1,1 +1,11 @@
-import{b}from"../chunks/chunk.7DJRGBBM.js";import{a}from"../chunks/chunk.2JOUTB7Y.js";import"../chunks/chunk.I4CX4JT3.js";export{b as LocalizeController,a as registerTranslation};
+import {
+  LocalizeController
+} from "../chunks/chunk.BWLRNN6E.js";
+import {
+  registerTranslation
+} from "../chunks/chunk.BDQVKHPN.js";
+import "../chunks/chunk.LKA3TPUC.js";
+export {
+  LocalizeController,
+  registerTranslation
+};
