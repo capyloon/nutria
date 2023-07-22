@@ -2,11 +2,6 @@ P0:
 - Fix UCAN bugs.
 - wnfs in costaeres
 
-UCAN improvements:
-- Store all UCANs (delete expired ones?)
-- Add a "blocked" flag
-- Check the UCAN blocked status when checking UCAN validity.
-
 P1:
 - CI: docker images for daily builds
 - CI: better integration avec Estuary/web3.storage
@@ -23,7 +18,6 @@ P2:
 - github workflows for jackadi
 - choose front end test framework
 - <input type=datetime-local|time|date>
-- about:performance, about:processes, about:config
 - investigate perf of l10n + custom elements (eg. <sl-select> in site_info.js)
 
 Ledger
@@ -34,10 +28,8 @@ Capyloon app:
 - store contacts pubkeys ??
 - UCANs
 
-libp2p discovery
-================
-- peer discovery: local network only
-- "share anything" once paired.
+p2p discovery
+=============
 - stage 2: remote peer discovery
 
 Next Release items
@@ -68,4 +60,8 @@ Various TODO:
 
 Ctrl+Click on links
 ===================
- whereToOpenLink at https://searchfox.org/mozilla-central/source/toolkit/modules/BrowserUtils.sys.mjs#338
+whereToOpenLink at https://searchfox.org/mozilla-central/source/toolkit/modules/BrowserUtils.sys.mjs#338
+
+Pinephone suspend
+=================
+https://github.com/mrmekon/circadian

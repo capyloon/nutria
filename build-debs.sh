@@ -2,6 +2,9 @@
 
 set -e
 
+# Move current output to not lose it.
+mv builder/output builder/output__
+
 # Build the x86 deb
 ./jackady update-prebuilts --target x86_64-unknown-linux-gnu
 ./jackady clean
@@ -25,6 +28,10 @@ cp ./builder/output/debian/*.deb .
 
 # Switch back to default prebuilts.
 ./jackady update-prebuilts
+./jackady clean
+
+# Restore the output.
+mv builder/output__ builder/output
 
 # Build the plymouth theme
 HERE=`pwd`
