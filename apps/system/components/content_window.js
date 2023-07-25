@@ -669,6 +669,8 @@ class ContentWindow extends HTMLElement {
     } else {
       this.webView.linkedBrowser.unmute();
     }
+    // Update the frame list to sync up the "playing audio" icon.
+    window.wm.updateFrameList();
     return this.audioMuted;
   }
 
@@ -699,6 +701,8 @@ class ContentWindow extends HTMLElement {
           });
 
           this.isPlayingAudio = false;
+          // Update the frame list to sync up the "playing audio" icon.
+          window.wm.updateFrameList();
           return;
         }
 
@@ -716,6 +720,8 @@ class ContentWindow extends HTMLElement {
         });
 
         this.isPlayingAudio = this.mediaController.isPlaying;
+        // Update the frame list to sync up the "playing audio" icon.
+        window.wm.updateFrameList();
 
         // For now, prevent media playing in Tiles from being indexed.
         if (this.state.url.startsWith("tile://")) {

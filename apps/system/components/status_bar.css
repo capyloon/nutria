@@ -190,17 +190,36 @@ sl-badge[variant="primary"]::part(base) {
   scrollbar-width: none;
   border-left: 1px solid currentColor;
   max-width: 40vw;
+  gap: 0.25em;
+  padding-left: 0.25em;
 }
 
-.frame-list img {
+.frame-list div {
   cursor: pointer;
   padding-left: 0.25em;
   padding-right: 0.25em;
   scroll-snap-align: start;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
 }
 
-.frame-list img.active {
-  opacity: 0.1;
+.frame-list div.active {
+  border: 1px solid currentColor;
+  border-radius: 5px;
+}
+
+.frame-list div sl-icon {
+  background-color: env(theme-wallpaper-muted);
+  color: env(theme-wallpaper-accent);
+  padding: 0.1em;
+  border-radius: 40%;
+  font-size: 1em;
+}
+
+.frame-list div .favicon {
+  margin-left: 0;
 }
 
 .container.homescreen .frame-list .favicon {

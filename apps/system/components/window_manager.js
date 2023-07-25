@@ -462,6 +462,10 @@ class WindowManager extends HTMLElement {
     this.activeFrame && this.frames[this.activeFrame].zoomReset();
   }
 
+  toggleMutedState(frameId) {
+    this.frames[frameId]?.toggleMutedState();
+  }
+
   splitScreen() {
     if (!this.activeFrame) {
       return;
@@ -749,7 +753,13 @@ class WindowManager extends HTMLElement {
       if (!frame.config.isHomescreen) {
         const { title, icon } = frame.state;
         let id = frame.getAttribute("id");
-        list.push({ id, title, icon });
+        list.push({
+          id,
+          title,
+          icon,
+          isPlayingAudio: frame.isPlayingAudio,
+          audioMuted: frame.audioMuted,
+        });
       }
       frame = frame.nextElementSibling;
     }

@@ -73,9 +73,9 @@ class StatusBar extends HTMLElement {
           <sl-icon name="layout-grid" class="quicklaunch homescreen-icon"></sl-icon>
         </div>
         <div class="right">
+          <sl-icon name="chevron-left" class="go-back content-icon"></sl-icon>
           <div class="frame-list homescreen-icon content-icon"></div>
           <sl-icon name="columns" class="homescreen-icon"></sl-icon>
-          <sl-icon name="chevron-left" class="go-back content-icon"></sl-icon>
           <sl-icon name="home" class="content-icon"></sl-icon>
           <sl-badge pill variant="neutral">
              <sl-icon name="more-vertical" class="homescreen-icon content-icon"></sl-icon>
@@ -221,11 +221,28 @@ class StatusBar extends HTMLElement {
         this.updateFrameList.bind(this)
       );
       this.getElem(`.frame-list`).onclick = (event) => {
-        let id = event.target.getAttribute("id").split("-")[1];
-        if (this.isCarouselOpen) {
-          actionsDispatcher.dispatch("close-carousel");
+        console.log(`ZZZ click on ${event.target.localName}`);
+
+        let localName = event.target.localName;
+        let target = event.target;
+        switch (localName) {
+          case "img":
+            target = target.parentElement;
+          case "div":
+            let id = target.getAttribute("id").split("-")[1];
+            if (this.isCarouselOpen) {
+              actionsDispatcher.dispatch("close-carousel");
+            }
+            window.wm.switchToFrame(id);
+            break;
+          case "sl-icon":
+            // Toggle the muted state of the frame.
+            let frameId = target.parentElement.getAttribute("id").split("-")[1];
+            window.wm.toggleMutedState(frameId);
+            break;
+          default:
+            console.log(`Unexpected frame-list target: ${localName}`);
         }
-        window.wm.switchToFrame(id);
       };
     }
   }
@@ -259,8 +276,18 @@ class StatusBar extends HTMLElement {
     let content = "";
     list.forEach((frame) => {
       let icon = frame.icon || window.config.brandLogo;
-      let iconClass = frame.id == this.currentActive ? `class="active"` : "";
-      content += `<img class="favicon" src="${icon}" ${iconClass} title="${frame.title}" alt="${frame.title}" id="shortcut-${frame.id}"/>`;
+      let iconClass = frame.id == this.currentActive ? "active" : "";
+      if (frame.isPlayingAudio) {
+        iconClass += " audio";
+      }
+      content += `<div class="${iconClass}" id="shortcut-${frame.id}">
+                    <img class="favicon" src="${icon}" title="${frame.title}" alt="${frame.title}"/>`;
+      if (frame.isPlayingAudio) {
+        content += `<sl-icon name="${
+          frame.audioMuted ? "volume-x" : "volume-1"
+        }" class="content-icon homescreen-icon"></sl-icon>`;
+      }
+      content += "</div>";
     });
     frames.innerHTML = content;
   }
@@ -516,22 +543,22 @@ class StatusBar extends HTMLElement {
     // Update the frame list state.
     if (embedder.sessionType !== "mobile") {
       if (this.currentActive !== state.id) {
-        let selector = this.currentActiveId
-          ? `#shortcut-${this.currentActiveId}`
-          : `.frame-list img.active`;
+        let selector = this.currentActive
+          ? `#shortcut-${this.currentActive}`
+          : `.frame-list div.active`;
         let currentActive = this.shadowRoot.querySelector(selector);
         if (currentActive) {
           currentActive.classList.remove("active");
         }
       }
       let frameListElem = this.shadowRoot.querySelector(
-        `#shortcut-${state.id}`
+        `#shortcut-${state.id} img`
       );
       if (frameListElem) {
         frameListElem.src = state.icon || window.config.brandLogo;
         frameListElem.setAttribute("alt", state.title);
         frameListElem.setAttribute("title", state.title);
-        frameListElem.classList.add("active");
+        frameListElem.parentElement.classList.add("active");
       }
       this.currentActive = state.id;
     }
