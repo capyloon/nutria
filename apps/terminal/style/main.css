@@ -15,7 +15,7 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  color: white;
+  color: env(theme-wallpaper-accent);
   height: 100%;
   width: 100%;
 }
@@ -27,7 +27,6 @@ body {
 
 pre {
   font-size: large;
-  margin-left: auto;
 }
 
 #welcome.hidden,

@@ -56,7 +56,7 @@ let deck = new Deck();
 
 function openTerminal() {
   var term;
-  var websocket = new WebSocket("ws://127.0.0.1:7703");
+  const websocket = new WebSocket("ws://127.0.0.1:7703");
   websocket.binaryType = "arraybuffer";
 
   websocket.onopen = (evt) => {
@@ -78,11 +78,9 @@ function openTerminal() {
     websocket.send(command);
 
     term = new Terminal({
-      screenKeys: true,
-      useStyle: true,
       cursorBlink: true,
-      fontFamily: "Droid Sans Mono, mono, monospace",
-      windowsMode: true,
+      fontFamily: "CommitMono, Droid Sans Mono, mono, monospace",
+      scrollback: 1000,
     });
 
     deck.switchTo("xterm");
@@ -138,17 +136,11 @@ function openTerminal() {
       );
     };
 
-    websocket.onclose = (_event) => {
-      term.write("Session terminated");
-      term.dispose();
-      term = null;
-      deck.switchTo("welcome");
-    };
-
-    websocket.onerror = (_event) => {
+    websocket.onclose = websocket.onerror = (_event) => {
       if (term) {
         term.write("Session terminated");
         term.dispose();
+        term = null;
       }
       deck.switchTo("welcome");
     };
