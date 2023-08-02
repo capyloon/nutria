@@ -221,8 +221,6 @@ class StatusBar extends HTMLElement {
         this.updateFrameList.bind(this)
       );
       this.getElem(`.frame-list`).onclick = (event) => {
-        console.log(`ZZZ click on ${event.target.localName}`);
-
         let localName = event.target.localName;
         let target = event.target;
         switch (localName) {

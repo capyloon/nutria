@@ -868,16 +868,16 @@ class WindowManager extends HTMLElement {
     this.closeFrame(this.captivePortalId);
   }
 
-  openCarousel() {
+  async openCarousel() {
     if (this.isCarouselOpen) {
       return;
     }
 
     // We don't put the homescreen in the carousel.
-    let frameCount = Object.keys(this.frames).length;
+    let frameCount = Object.keys(this.frames).length - 1;
 
     // No content open except the homescreen: just display a message.
-    if (frameCount == 1) {
+    if (frameCount == 0) {
       this.carousel.setAttribute("style", "grid-template-column: 1fr");
       this.carousel.innerHTML = `<div class="empty-carousel">
                                    <img src="${window.config.brandLogo}" />
@@ -917,9 +917,7 @@ class WindowManager extends HTMLElement {
     // window-manager .carousel > div:not(.empty-carousel)
     let screenshotSize = embedder.sessionType === "mobile" ? 75 : 50;
     let marginSize = (100 - screenshotSize) / 2;
-    this.carousel.style.gridTemplateColumns = `${marginSize}% repeat(${
-      frameCount - 1
-    }, ${screenshotSize}%) ${marginSize}%`;
+    this.carousel.style.gridTemplateColumns = `${marginSize}% repeat(${frameCount}, ${screenshotSize}%) ${marginSize}%`;
     // Add the elements to the carousel.
     this.carousel.innerHTML = "";
 
@@ -986,6 +984,8 @@ class WindowManager extends HTMLElement {
     this.carousel.appendChild(padding);
 
     // Add screenshots for all windows except the homescreen.
+    let readyPromises = new Array();
+
     let index = 0;
     let selectedIndex = -1;
     let frame = this.windows.firstElementChild;
@@ -1003,27 +1003,21 @@ class WindowManager extends HTMLElement {
         screenshot.classList.add("selected");
       }
 
-      let { current, next } = frame.getScreenshot();
-      if (current) {
-        screenshot.blobUrl = URL.createObjectURL(current);
-        screenshot.style.backgroundImage = `url(${screenshot.blobUrl})`;
-      }
-
-      next.then((blob) => {
-        // Optimistic heuristic: if blob are the exact same size, images should be the same.
-        // This is obviously not true in general, but good enough here to prevent most
-        // useless background updates.
-        if (blob.size === current?.size) {
+      let promise = new Promise((resolve) => {
+        frame.updateScreenshot(false).then((blob) => {
+          if (blob) {
+            if (screenshot.blobUrl) {
+              URL.revokeObjectURL(screenshot.blobUrl);
+            }
+            screenshot.blobUrl = URL.createObjectURL(blob);
+            screenshot.style.backgroundImage = `url(${screenshot.blobUrl})`;
+          }
           screenshot.classList.add("show");
-          return;
-        }
-        if (screenshot.blobUrl) {
-          URL.revokeObjectURL(screenshot.blobUrl);
-        }
-        screenshot.blobUrl = URL.createObjectURL(blob);
-        screenshot.style.backgroundImage = `url(${screenshot.blobUrl})`;
-        screenshot.classList.add("show");
+          resolve();
+        });
       });
+
+      readyPromises.push(promise);
 
       screenshot.setAttribute("frame", id);
       screenshot.setAttribute("id", `carousel-screenshot-${index}`);
@@ -1074,15 +1068,13 @@ class WindowManager extends HTMLElement {
             screenshot.remove();
             this.closeFrame(id);
             // Update the grid columns definitions.
-            let frameCount = Object.keys(this.frames).length;
-            if (frameCount > 1) {
-              this.carousel.style.gridTemplateColumns = `${marginSize}% repeat(${
-                frameCount - 1
-              }, ${screenshotSize}%) ${marginSize}%`;
+            let frameCount = Object.keys(this.frames).length - 1;
+            if (frameCount > 0) {
+              this.carousel.style.gridTemplateColumns = `${marginSize}% repeat(${frameCount}, ${screenshotSize}%) ${marginSize}%`;
             }
 
             // Exit the carousel when closing the last window.
-            if (frameCount == 1) {
+            if (frameCount == 0) {
               actionsDispatcher.dispatch("close-carousel");
             }
           };
@@ -1111,10 +1103,6 @@ class WindowManager extends HTMLElement {
     this.carouselObserver.observe(padding);
     this.carousel.appendChild(padding);
 
-    // Hide the live content and show the carousel.
-    this.windows.classList.add("hidden");
-    this.carousel.classList.remove("hidden");
-
     // Select the current frame, unless we come from the homescreen.
     if (selectedIndex !== -1) {
       document
@@ -1125,6 +1113,12 @@ class WindowManager extends HTMLElement {
           inline: "center",
         });
     }
+
+    await Promise.all(readyPromises);
+
+    // Hide the live content and show the carousel.
+    this.windows.classList.add("hidden");
+    this.carousel.classList.remove("hidden");
 
     this.isCarouselOpen = true;
     this.keys.changeCarouselState(true);

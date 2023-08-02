@@ -350,6 +350,8 @@ class ContentWindow extends HTMLElement {
     // Track the keyboard state, to re-open it if needed when switching back
     // to a frame with a focused element.
     this.keyboardOpen = false;
+
+    this.screenshot = null;
   }
 
   addSiteInfoListeners() {
@@ -1443,11 +1445,24 @@ class ContentWindow extends HTMLElement {
     }
   }
 
-  updateScreenshot() {
+  updateScreenshot(onIdle = true) {
     if (this.config.isHomescreen) {
       // No need to take screenshots of the homescreen since it doesn't
       // appear in the carousel view.
       return Promise.resolve(new Blob());
+    }
+
+    if (!onIdle) {
+      return new Promise((resolve) => {
+        let start = Date.now();
+        this.webView
+          .getScreenshot(window.innerWidth, window.innerHeight, "image/png")
+          .then((blob) => {
+            console.log(`Got screenshot: ${blob} in ${Date.now() - start}ms`);
+            this.screenshot = blob;
+            resolve(blob);
+          });
+      });
     }
 
     // We are already waiting for a screenshot, bail out.
@@ -1458,9 +1473,8 @@ class ContentWindow extends HTMLElement {
     return new Promise((resolve) => {
       this.screenshotId = window.requestIdleCallback(() => {
         let start = Date.now();
-        let mimeType = this.config.isHomescreen ? "image/png" : "image/jpeg";
         this.webView
-          .getScreenshot(window.innerWidth, window.innerHeight, mimeType)
+          .getScreenshot(window.innerWidth, window.innerHeight, "image/png")
           .then((blob) => {
             this.screenshotId = null;
             console.log(`Got screenshot: ${blob} in ${Date.now() - start}ms`);
@@ -1469,16 +1483,6 @@ class ContentWindow extends HTMLElement {
           });
       });
     });
-  }
-
-  // Returns the current screenshot if any, and a promise resolving to an updated one.
-  getScreenshot() {
-    if (this.config.isHomescreen) {
-      console.error(`getScreenShot() called for the homescreen!`);
-      return { current: null, next: Promise.resolve(new Blob()) };
-    }
-
-    return { current: this.screenshot, next: this.updateScreenshot() };
   }
 
   // Show the <select> UI as a tab-modal component.
