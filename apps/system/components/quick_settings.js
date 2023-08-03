@@ -207,8 +207,11 @@ class QuickSettings extends HTMLElement {
     actionsDispatcher.addListener(
       "flashlight-state-change",
       (_name, enabled) => {
-        flIcon.parentNode.variant = enabled ? "primary" : "neutral";
-        flIcon.setAttribute("name", enabled ? "flashlight" : "flashlight-off");
+        flIcon.variant = enabled ? "primary" : "neutral";
+        flIcon.firstElementChild.setAttribute(
+          "name",
+          enabled ? "flashlight" : "flashlight-off"
+        );
       }
     );
   }

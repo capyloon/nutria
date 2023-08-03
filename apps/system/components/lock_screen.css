@@ -44,10 +44,12 @@
 :host sl-icon {
   padding: 0.5em;
   font-size: 1.5em;
+  border-radius: 40%;
 }
 
 :host sl-icon.active {
-  color: var(--icon-background-active);
+  color: env(theme-wallpaper-muted);
+  background-color: env(theme-wallpaper-accent);
 }
 
 .clock {

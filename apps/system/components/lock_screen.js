@@ -215,7 +215,7 @@ class LockScreen extends HTMLElement {
         } else {
           flIcon.classList.remove("active");
         }
-        flIcon.setAttribute("kind", enabled ? "flashlight" : "flashlight-off");
+        flIcon.setAttribute("name", enabled ? "flashlight" : "flashlight-off");
       }
     );
   }
