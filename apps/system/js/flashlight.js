@@ -3,12 +3,6 @@
 class Flashlight {
   constructor() {
     this.fl = null;
-
-    // Initialize after 3s in case the flashlight initial state
-    // is not off.
-    setTimeout(() => {
-      this.ensureManager();
-    }, 3000);
   }
 
   ensureManager() {
