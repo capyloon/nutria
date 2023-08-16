@@ -1,24 +1,24 @@
 {
   "aarch64-apple-darwin": {
-    "b2g": "https://w3s.link/ipfs/bafybeigrn4ybnlgqvbxbzmjofsggolhix7dl4kj5javv64a3ghmegcbmpe",
-    "api-daemon": "https://w3s.link/ipfs/bafybeibg5ka6nbvggudcm6w4byxvfcngs5mcbuvqu26ne43u54yotifjte",
-    "ipfsd": "https://w3s.link/ipfs/bafybeibqt3a47dtwkqm6px2e3qkozznu7nbh5b7dxr6wxqlsnhodqo6mji"
+    "b2g": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeigadocgwb23vpejlwhbrk3udq23i2hnxmhxmoxz72v5edolodkcvu",
+    "api-daemon": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeia744hhnsfweenhzdpdzm3e2x4fz7cgw4grwtqdtk237dwqkncz4i",
+    "ipfsd": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeiehlhki2p3o2r5gokjaqjacg5uptcifiezw6g6l5bliv6rq5d5p3m"
   },
   "aarch64-unknown-linux-gnu": {
-    "b2g": "https://w3s.link/ipfs/bafybeibci2hm5xcsnersw3untu6gizko3nz4axymu57g3gw7m7hvfmkamq",
-    "api-daemon": "https://w3s.link/ipfs/bafybeic5vxncurhcxxohi6dz2lni3o7svv3djcl2oq6r5lfibryekvx7ny",
-    "b2ghald": "https://w3s.link/ipfs/bafybeig5hkc6oakedfaemayd6e2tupqwcoc2an3df3cmglsern2mbc3rzi",
-    "ipfsd": "https://w3s.link/ipfs/bafybeif6rc66hfglepkqe45fivhrvhmqirlplxsh62mygg3xkjabvmmlau"
+    "b2g": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeieakvjd6t5r3hm6oq24uetmml6sjo3jnaektp6fev7ucprstrx4r4",
+    "api-daemon": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeidiyjk3bvdbt4rg5dkxr2umjsdnssfuqtswazzhxpwzwa474owce4",
+    "b2ghald": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeifgonbvvc6y7te3fksrztflktznvoreg3aim5pwal3umfnee2j3ky",
+    "ipfsd": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeie3flh7kseow7z63dmhhq3oohewyczycqkvh26ayinxcqu2tzb54e"
   },
   "x86_64-apple-darwin": {
-    "b2g": "https://w3s.link/ipfs/bafybeiebgigxnmcykvdywf6qgza6235wmlithosa576orr7v4xlraqbwzy",
-    "api-daemon": "https://w3s.link/ipfs/bafybeihdjyaavc3oyvqprejqigwmoru5pctugjzumfrb4l6v5bffcw7yvi",
-    "ipfsd": "https://w3s.link/ipfs/bafybeigvrndbjmfbernnvhpjhbvc5avqromaonaoogvwhkgg23a2xojfnq"
+    "b2g": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeifthqvdpyoihaly5xbai4o5dofwb4aozmmvtkqi23blbul3txagha",
+    "api-daemon": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeic54rmtxlmf32vak3lemsaznjzeuqrewju2fijc5mewmmjklbvwvm",
+    "ipfsd": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeifhkhvszx2j7w75vr26y3fldqybpxffigfgc43zd3swo526ngaeim"
   },
   "x86_64-unknown-linux-gnu": {
-    "b2g": "https://w3s.link/ipfs/bafybeidhhp37cc2slwnctknv5tqykv2jc6izcvwxhblhuxxy3i6qem5v2a",
-    "api-daemon": "https://w3s.link/ipfs/bafybeiavsljqhu3rkyrgkvalmnvbhycvoqbzlu5hp5dhmsac3vj4x62try",
-    "b2ghald": "https://w3s.link/ipfs/bafybeiedonpcwavljrvne3gevgaked46emvtycgcx2gnmnusapi3nwtwbq",
-    "ipfsd": "https://w3s.link/ipfs/bafybeidkonxbk7wbteub5w2r4uvduyhneg5fquiliurak4girqx364gvmq"
+    "b2g": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeid3yt57dgg7rjsx42ybznwm5dj4vcqfhfzoq4h6h7he2lghpjz7gi",
+    "api-daemon": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeid43fzdslxibaykxnqjeaccynip2c27kpxjln6yov26ebwsqr43h4",
+    "b2ghald": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeihzgxhsepbka62ct4fcganb6zkamdxhrjhey3uvwivimsgox6l5di",
+    "ipfsd": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeibglyl5y7wbj4x35v46ecgsgvtq5ks4kdx3pimyn5serermigyxma"
   }
 }
