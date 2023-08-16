@@ -2,16 +2,12 @@
 /* global WebEmbedder */
 "use strict";
 
-const { XPCOMUtils } = ChromeUtils.importESModule(
-  "resource://gre/modules/XPCOMUtils.sys.mjs"
-);
-
 // TODO: move to web-view.js
 let modules = {};
-XPCOMUtils.defineLazyModuleGetters(modules, {
+ChromeUtils.defineESModuleGetters(modules, {
   ContentBlockingAllowList:
-    "resource://gre/modules/ContentBlockingAllowList.jsm",
-  SafeBrowsing: "resource://gre/modules/SafeBrowsing.jsm",
+    "resource://gre/modules/ContentBlockingAllowList.sys.js",
+  SafeBrowsing: "resource://gre/modules/SafeBrowsing.sys.js",
 });
 
 window.config.platform = AppConstants.platform;
