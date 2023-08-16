@@ -1456,7 +1456,7 @@ class ContentWindow extends HTMLElement {
       return new Promise((resolve) => {
         let start = Date.now();
         this.webView
-          .getScreenshot(window.innerWidth, window.innerHeight, "image/png")
+          .getScreenshot(window.innerWidth, window.innerHeight, "image/jpeg")
           .then((blob) => {
             console.log(`Got screenshot: ${blob} in ${Date.now() - start}ms`);
             this.screenshot = blob;
@@ -1474,7 +1474,7 @@ class ContentWindow extends HTMLElement {
       this.screenshotId = window.requestIdleCallback(() => {
         let start = Date.now();
         this.webView
-          .getScreenshot(window.innerWidth, window.innerHeight, "image/png")
+          .getScreenshot(window.innerWidth, window.innerHeight, "image/jpeg")
           .then((blob) => {
             this.screenshotId = null;
             console.log(`Got screenshot: ${blob} in ${Date.now() - start}ms`);

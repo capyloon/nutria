@@ -65,7 +65,7 @@ class WallpaperManager extends EventTarget {
     const canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext("2d");
 
-    //draw the image
+    // Draw the image.
     ctx.drawImage(
       originalImage,
       0,

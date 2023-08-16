@@ -915,9 +915,10 @@ class WindowManager extends HTMLElement {
 
     // Keep the 75% vs 50% in sync with this rule in window_manager.css :
     // window-manager .carousel > div:not(.empty-carousel)
-    let screenshotSize = embedder.sessionType === "mobile" ? 75 : 50;
-    let marginSize = (100 - screenshotSize) / 2;
-    this.carousel.style.gridTemplateColumns = `${marginSize}% repeat(${frameCount}, ${screenshotSize}%) ${marginSize}%`;
+    let screenshotPercent = embedder.sessionType === "mobile" ? 75 : 50;
+    let marginPercent = (100 - screenshotPercent) / 2;
+
+    this.carousel.style.gridTemplateColumns = `${marginPercent}% repeat(${frameCount}, ${screenshotPercent}%) ${marginPercent}%`;
     // Add the elements to the carousel.
     this.carousel.innerHTML = "";
 
@@ -996,11 +997,11 @@ class WindowManager extends HTMLElement {
       }
 
       let screenshot = document.createElement("div");
+      screenshot.classList.add("sideline");
       let id = frame.getAttribute("id");
 
       if (id == this.activeFrame) {
         selectedIndex = index;
-        screenshot.classList.add("selected");
       }
 
       let promise = new Promise((resolve) => {
@@ -1070,7 +1071,7 @@ class WindowManager extends HTMLElement {
             // Update the grid columns definitions.
             let frameCount = Object.keys(this.frames).length - 1;
             if (frameCount > 0) {
-              this.carousel.style.gridTemplateColumns = `${marginSize}% repeat(${frameCount}, ${screenshotSize}%) ${marginSize}%`;
+              this.carousel.style.gridTemplateColumns = `${marginPercent}% repeat(${frameCount}, ${screenshotPercent}%) ${marginPercent}%`;
             }
 
             // Exit the carousel when closing the last window.
@@ -1103,16 +1104,21 @@ class WindowManager extends HTMLElement {
     this.carouselObserver.observe(padding);
     this.carousel.appendChild(padding);
 
-    // Select the current frame, unless we come from the homescreen.
-    if (selectedIndex !== -1) {
-      document
-        .querySelector(`#carousel-screenshot-${selectedIndex}`)
-        .scrollIntoView({
-          behavior: "instant",
-          block: "end",
-          inline: "center",
-        });
+    // Select the current frame, unless we come from the homescreen,
+    // in which case we select the first frame.
+    if (selectedIndex == -1) {
+      selectedIndex = 0;
     }
+
+    let selectedFrame = document.querySelector(
+      `#carousel-screenshot-${selectedIndex}`
+    );
+    selectedFrame.classList.remove("sideline");
+    selectedFrame.scrollIntoView({
+      behavior: "instant",
+      block: "end",
+      inline: "center",
+    });
 
     await Promise.all(readyPromises);
 
