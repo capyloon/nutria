@@ -91,7 +91,7 @@ window-manager .carousel {
   transition: all 0.3s cubic-bezier(0.2, 0.9, 0.1, 1);
 }
 
-window-manager .carousel > div:not(.empty-carousel) {
+window-manager .carousel > div {
   scroll-snap-align: center;
   scroll-snap-stop: always;
   height: 75%;
@@ -101,7 +101,7 @@ window-manager .carousel > div:not(.empty-carousel) {
 
 /* Desktop mode */
 @media (min-width: 800px) {
-  window-manager .carousel > div:not(.empty-carousel) {
+  window-manager .carousel > div {
     height: 50%;
   }
 }
@@ -151,14 +151,6 @@ window-manager .carousel > div.screenshot.closing {
   transition: all 0.3s ease;
 }
 
-window-manager .carousel > div.empty-carousel {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
 window-manager .carousel > div .head {
   display: flex;
   flex-direction: column;
@@ -193,25 +185,6 @@ window-manager .carousel > div .head .favicon {
   box-shadow: 2px 2px 3px black;
   backdrop-filter: blur(10px);
   transform: translateY(-1em);
-}
-
-window-manager .carousel .empty-carousel {
-  text-align: center;
-  color: var(--sl-color-primary-500);
-  text-shadow: black 1px 1px;
-}
-
-window-manager .carousel .empty-carousel img {
-  width: 128px;
-  height: 128px;
-  animation: logo-anim 6s linear infinite;
-}
-
-window-manager .carousel .empty-carousel .learn-something {
-  padding: 1em;
-  text-decoration: underline;
-  cursor: pointer;
-  font-weight: bolder;
 }
 
 window-manager .hidden {
