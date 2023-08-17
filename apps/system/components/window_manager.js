@@ -151,8 +151,7 @@ class WindowManagerKeys {
       event.key === "t" &&
       !window.lockscreen.isLocked()
     ) {
-      this.wm.goHome();
-      window.XacHomescreen.newTab();
+      actionsDispatcher.dispatch("new-tab");
     }
 
     // Do a WebRender Capture with [Ctrl] + [Shift] + [w]
@@ -432,6 +431,12 @@ class WindowManager extends HTMLElement {
     });
     actionsDispatcher.addListener("frame-split-screen", () => {
       this.splitScreen();
+    });
+
+    actionsDispatcher.addListener("new-tab", async () => {
+      this.goHome();
+      this.homescreenFrame().focus();
+      window.XacHomescreen.newTab();
     });
 
     // This event is sent when calling WindowClient.focus() from a Service Worker.
@@ -873,45 +878,9 @@ class WindowManager extends HTMLElement {
       return;
     }
 
-    // We don't put the homescreen in the carousel.
-    let frameCount = Object.keys(this.frames).length - 1;
-
-    // No content open except the homescreen: just display a message.
-    if (frameCount == 0) {
-      this.carousel.setAttribute("style", "grid-template-column: 1fr");
-      this.carousel.innerHTML = `<div class="empty-carousel">
-                                   <img src="${window.config.brandLogo}" />
-                                   <div data-l10n-id="empty-carousel"></div>
-                                   <div class="learn-something" data-l10n-id="learn-something-text"></div>
-                                 </div>`;
-
-      // Hide the live content and show the carousel.
-      this.windows.classList.add("hidden");
-      this.carousel.classList.remove("hidden");
-      this.isCarouselOpen = true;
-
-      // Open a new frame when clicking on the "learn something" text.
-      // We can't use a <a href="..." target="_blank"> because Gecko prevents
-      // chrome documents from opening https:// ones.
-      this.carousel.querySelector(".learn-something").addEventListener(
-        "click",
-        async () => {
-          actionsDispatcher.dispatch("close-carousel");
-          let url = await window.utils.l10n("learn-something-url");
-          this.openFrame(url, { activate: true });
-        },
-        { once: true }
-      );
-
-      this.carousel.querySelector(".empty-carousel").addEventListener(
-        "click",
-        () => {
-          actionsDispatcher.dispatch("close-carousel");
-        },
-        { once: true }
-      );
-      return;
-    }
+    // We don't put the homescreen in the carousel but we add the new-tab
+    // card so the frame count is as if we added the homescreen.
+    let frameCount = Object.keys(this.frames).length;
 
     // Keep the 75% vs 50% in sync with this rule in window_manager.css :
     // window-manager .carousel > div:not(.empty-carousel)
@@ -1069,7 +1038,7 @@ class WindowManager extends HTMLElement {
             screenshot.remove();
             this.closeFrame(id);
             // Update the grid columns definitions.
-            let frameCount = Object.keys(this.frames).length - 1;
+            let frameCount = Object.keys(this.frames).length;
             if (frameCount > 0) {
               this.carousel.style.gridTemplateColumns = `${marginPercent}% repeat(${frameCount}, ${screenshotPercent}%) ${marginPercent}%`;
             }
@@ -1098,6 +1067,31 @@ class WindowManager extends HTMLElement {
       frame = frame.nextElementSibling;
     }
 
+    // Create an empty frame with the [+] used as a discoverable way to
+    // open a new frame.
+    let screenshot = document.createElement("div");
+    screenshot.classList.add("sideline", "screenshot", "show", "new-tab");
+    screenshot.setAttribute("frame", "<new-tab>");
+    screenshot.innerHTML = `
+      <div class="head">
+        <div class="flex-fill"></div>
+        <sl-icon name="plus-circle"></sl-icon>
+        <div class="flex-fill"></div>
+      </div>`;
+    screenshot.addEventListener(
+      "click",
+      () => {
+        actionsDispatcher.dispatch("close-carousel");
+        // TODO: figure out why we need this setTimeout
+        window.setTimeout(() => {
+          actionsDispatcher.dispatch("new-tab");
+        }, 250);
+      },
+      { once: true }
+    );
+    this.carouselObserver.observe(screenshot);
+    this.carousel.appendChild(screenshot);
+
     // Right padding div.
     padding = document.createElement("div");
     padding.classList.add("padding");
@@ -1110,9 +1104,13 @@ class WindowManager extends HTMLElement {
       selectedIndex = 0;
     }
 
-    let selectedFrame = document.querySelector(
+    let selectedFrame = this.carousel.querySelector(
       `#carousel-screenshot-${selectedIndex}`
     );
+    if (!selectedFrame) {
+      // When only the "new frame" screenshot is available, select it.
+      selectedFrame = this.carousel.querySelector(`div.screenshot`);
+    }
     selectedFrame.classList.remove("sideline");
     selectedFrame.scrollIntoView({
       behavior: "instant",

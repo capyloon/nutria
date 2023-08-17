@@ -7,11 +7,6 @@ action-shutdown = Shutdown
 action-reboot = Restart
 action-screenshot = Screenshot
 
-# The content of the empty carousel screen
-empty-carousel = No content open :(
-learn-something-text = Let's learn something!
-learn-something-url = https://en.wikipedia.org/wiki/Special:Random
-
 # Message displayed when a site crashes.
 content-crashed = Something went wrong with this page!
 content-reload = Reload

@@ -116,6 +116,15 @@ window-manager .carousel > div.screenshot {
   opacity: 0;
 }
 
+window-manager .carousel > div.new-tab sl-icon {
+  font-size: 5rem;
+}
+
+window-manager .carousel > div.new-tab {
+  background-color: var(--sl-panel-background-color);
+  color: env(theme-wallpaper-accent);
+}
+
 window-manager .carousel > div.screenshot.privatebrowsing {
   border: 4px solid #8000d7;
 }
