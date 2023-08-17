@@ -118,6 +118,7 @@ so can't be part of component specific css file.
 #activity-chooser::part(body) {
   background-color: transparent;
   padding: 0;
+  box-shadow: none;
 }
 
 #reboot-menu::part(panel) {
