@@ -78,6 +78,10 @@ sl-icon {
   grid-gap: 0.25em;
 }
 
+.container.carousel .center {
+  visibility: hidden;
+}
+
 .left {
   overflow: hidden;
   white-space: nowrap;
