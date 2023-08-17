@@ -10,6 +10,17 @@ class SwipeDetector extends EventTarget {
     this.startX = undefined;
     this.startY = undefined;
     this.startedAt = undefined;
+
+    let box = elem.getBoundingClientRect();
+
+    // Half the height of the box -> swipe detected in Y axis.
+    this.yTolerance = Math.round(box.height / 2) || 0;
+
+    // 0.5cm -> swipe detected in X axis.
+    let cm = (box.width * window.devicePixelRatio) / (96.0 * 2.56);
+    this.xTolerance = Math.round((box.width * 0.5) / cm) || 0;
+
+    this.log(`xTolerance=${this.xTolerance} yTolerance=${this.yTolerance}`);
   }
 
   log(msg) {
@@ -26,14 +37,14 @@ class SwipeDetector extends EventTarget {
       let dx = event.clientX - this.startX;
       let dy = event.clientY - this.startY;
 
-      let xTolerance = 70;
-      let yTolerance = 20;
-
       // this.log(`dx=${dx} dy=${dy} elapsed=${elapsed}`);
 
       if (elapsed > 500) {
         return;
       }
+
+      const xTolerance = this.xTolerance;
+      const yTolerance = this.yTolerance;
 
       if (dx < xTolerance && dx > -xTolerance && dy < -yTolerance) {
         // this.log("Swiped Up");
@@ -173,16 +184,8 @@ class StatusBar extends HTMLElement {
         actionsDispatcher.dispatch("open-url-editor", this.state.url);
       }
     };
-    const swipeDetector = new SwipeDetector(leftText);
-    swipeDetector.addEventListener("swipe-up", () => {
-      this.triggerCarousel();
-    });
-    swipeDetector.addEventListener("swipe-left", () => {
-      this.state.canGoBack && actionsDispatcher.dispatch("go-back");
-    });
-    swipeDetector.addEventListener("swipe-right", () => {
-      this.state.canGoForward && actionsDispatcher.dispatch("go-forward");
-    });
+
+    this.setupSwipeDetector();
 
     actionsDispatcher.addListener(
       "update-page-state",
@@ -243,6 +246,19 @@ class StatusBar extends HTMLElement {
         }
       };
     }
+  }
+
+  setupSwipeDetector() {
+    const swipeDetector = new SwipeDetector(this);
+    swipeDetector.addEventListener("swipe-up", () => {
+      this.triggerCarousel();
+    });
+    swipeDetector.addEventListener("swipe-left", () => {
+      this.state.canGoBack && actionsDispatcher.dispatch("go-back");
+    });
+    swipeDetector.addEventListener("swipe-right", () => {
+      this.state.canGoForward && actionsDispatcher.dispatch("go-forward");
+    });
   }
 
   triggerCarousel() {
