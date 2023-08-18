@@ -14,7 +14,7 @@ body {
 }
 
 :root {
-  /* TODO: Make that device dependent instead of Teracube specific */
+  /* Use the ui.status-top-height pref to change the default value */
   --status-top-height: 26px;
 }
 

@@ -421,6 +421,10 @@ document.addEventListener(
     window.config.topStatusBar = enableTopStatus;
     if (!enableTopStatus) {
       document.getElementById("screen").classList.add("no-top-status-bar");
+    } else {
+      let height = Services.prefs.getIntPref("ui.status-top-height", 26);
+      const rootElement = document.documentElement;
+      rootElement.style.setProperty("--status-top-height", `${height}px`);
     }
 
     // Make sure the embedding is setup.

@@ -78,7 +78,8 @@ user_pref("extensions.webextensions.remote", true);
 user_pref("extensions.webextensions.background-delayed-startup", true);
 
 // Simulate space for the "drop" camera at the top.
-// user_pref("ui.status-top.enabled", true);
+user_pref("ui.status-top.enabled", false);
+user_pref("ui.status-top-height", 50);
 
 // For the ImageCapture() api to take photos.
 user_pref("dom.imagecapture.enabled", true);
