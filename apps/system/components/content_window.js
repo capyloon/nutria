@@ -1445,43 +1445,22 @@ class ContentWindow extends HTMLElement {
     }
   }
 
-  updateScreenshot(onIdle = true) {
+  updateScreenshot() {
     if (this.config.isHomescreen) {
       // No need to take screenshots of the homescreen since it doesn't
       // appear in the carousel view.
       return Promise.resolve(new Blob());
     }
 
-    if (!onIdle) {
-      return new Promise((resolve) => {
-        let start = Date.now();
-        this.webView
-          .getScreenshot(window.innerWidth, window.innerHeight, "image/jpeg")
-          .then((blob) => {
-            console.log(`Got screenshot: ${blob} in ${Date.now() - start}ms`);
-            this.screenshot = blob;
-            resolve(blob);
-          });
-      });
-    }
-
-    // We are already waiting for a screenshot, bail out.
-    if (this.screenshotId) {
-      return Promise.resolve(new Blob());
-    }
-
     return new Promise((resolve) => {
-      this.screenshotId = window.requestIdleCallback(() => {
-        let start = Date.now();
-        this.webView
-          .getScreenshot(window.innerWidth, window.innerHeight, "image/jpeg")
-          .then((blob) => {
-            this.screenshotId = null;
-            console.log(`Got screenshot: ${blob} in ${Date.now() - start}ms`);
-            this.screenshot = blob;
-            resolve(blob);
-          });
-      });
+      let start = Date.now();
+      this.webView
+        .getScreenshot(window.innerWidth, window.innerHeight, "image/jpeg")
+        .then((blob) => {
+          console.log(`Got screenshot: ${blob} in ${Date.now() - start}ms`);
+          this.screenshot = blob;
+          resolve(blob);
+        });
     });
   }
 

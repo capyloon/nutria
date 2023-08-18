@@ -1000,7 +1000,7 @@ class WindowManager extends HTMLElement {
       }
 
       let promise = new Promise((resolve) => {
-        frame.updateScreenshot(false).then((blob) => {
+        frame.updateScreenshot().then((blob) => {
           if (blob) {
             if (screenshot.blobUrl) {
               URL.revokeObjectURL(screenshot.blobUrl);
