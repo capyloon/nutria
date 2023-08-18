@@ -72,6 +72,9 @@ class StatusBar extends HTMLElement {
 
     this.shadow = this.attachShadow({ mode: "open" });
 
+    this.carouselIcon =
+      embedder.sessionType === "mobile" ? "layout-grid" : "columns";
+
     this.shadow.innerHTML = `
     <link rel="stylesheet" href="components/status_bar.css">
       <div class="container homescreen session-${embedder.sessionType}">
@@ -81,12 +84,12 @@ class StatusBar extends HTMLElement {
           <span class="left-text">Current page title that could be way too long to fit so we need to clip it some way.</span>
         </div>
         <div class="center">
-          <sl-icon name="layout-grid" class="quicklaunch homescreen-icon"></sl-icon>
+          <sl-icon name="circle-ellipsis" class="quicklaunch homescreen-icon"></sl-icon>
         </div>
         <div class="right">
           <sl-icon name="chevron-left" class="go-back content-icon"></sl-icon>
           <div class="frame-list homescreen-icon content-icon"></div>
-          <sl-icon name="columns" class="homescreen-icon"></sl-icon>
+          <sl-icon name="${this.carouselIcon}" class="homescreen-icon"></sl-icon>
           <sl-icon name="home" class="content-icon"></sl-icon>
           <sl-badge pill variant="neutral">
              <sl-icon name="more-vertical" class="homescreen-icon content-icon"></sl-icon>
@@ -135,7 +138,7 @@ class StatusBar extends HTMLElement {
       actionsDispatcher.dispatch("go-home");
     };
 
-    let gridElem = this.getElem(`sl-icon[name="columns"]`);
+    let gridElem = this.getElem(`sl-icon[name="${this.carouselIcon}"]`);
     hapticFeedback.register(gridElem);
     gridElem.onclick = () => {
       actionsDispatcher.dispatch("open-carousel");
@@ -315,7 +318,9 @@ class StatusBar extends HTMLElement {
     this.isCarouselOpen = true;
     this.getElem(".container").classList.add("carousel");
     this.getElem(`sl-icon[name="home"]`).classList.add("carousel");
-    this.getElem(`sl-icon[name="columns"]`).classList.add("hidden");
+    this.getElem(`sl-icon[name="${this.carouselIcon}"]`).classList.add(
+      "hidden"
+    );
     this.updateBackgroundColor("transparent", true);
     document.getElementById("status-top").classList.add("carousel");
   }
@@ -324,7 +329,9 @@ class StatusBar extends HTMLElement {
     this.isCarouselOpen = false;
     this.getElem(".container").classList.remove("carousel");
     this.getElem(`sl-icon[name="home"]`).classList.remove("carousel");
-    this.getElem(`sl-icon[name="columns"]`).classList.remove("hidden");
+    this.getElem(`sl-icon[name="${this.carouselIcon}"]`).classList.remove(
+      "hidden"
+    );
     document.getElementById("status-top").classList.remove("carousel");
   }
 

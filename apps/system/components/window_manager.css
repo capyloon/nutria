@@ -108,7 +108,7 @@ window-manager .carousel > div {
 
 window-manager .carousel > div.screenshot {
   background-color: rgba(255, 255, 255, 0.5);
-  background-size: contain;
+  background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
   transition: all 0.1s linear;
@@ -191,4 +191,38 @@ window-manager .hidden {
   visibility: hidden;
   opacity: 0;
   transform: scale(0.9);
+}
+
+/* Carousel in vertical scroll mode with 2 columns */
+
+window-manager .carousel.vertical {
+  grid-template-columns: 42vw 42vw;
+  grid-template-rows: repeat(auto-fill, 40vh);
+  grid-auto-flow: row;
+  gap: 6vw;
+  padding: 5vw;
+  overflow-y: scroll;
+}
+
+window-manager .carousel.vertical.single-row {
+  padding-top: 30vh;
+}
+
+window-manager .carousel.vertical.single-column {
+  padding-left: 29vw;
+}
+
+window-manager .carousel.vertical > div {
+  height: initial;
+  margin-top: initial;
+  margin-bottom: initial;
+  border-radius: 1em;
+}
+
+window-manager .carousel.vertical > div .head {
+  height: 40vh;
+}
+
+window-manager .carousel.vertical > div .head footer {
+  transform: translateY(-0.5em);
 }

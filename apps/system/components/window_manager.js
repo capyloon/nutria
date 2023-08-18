@@ -878,6 +878,19 @@ class WindowManager extends HTMLElement {
       return;
     }
 
+    let verticalMode = embedder.sessionType === "mobile";
+
+    let updateCarouselAttr = (frameCount) => {
+      this.carousel.classList.remove("single-row");
+      this.carousel.classList.remove("single-column");
+      if (frameCount <= 2) {
+        this.carousel.classList.add("single-row");
+      }
+      if (frameCount <= 1) {
+        this.carousel.classList.add("single-column");
+      }
+    };
+
     // We don't put the homescreen in the carousel but we add the new-tab
     // card so the frame count is as if we added the homescreen.
     let frameCount = Object.keys(this.frames).length;
@@ -887,7 +900,14 @@ class WindowManager extends HTMLElement {
     let screenshotPercent = embedder.sessionType === "mobile" ? 75 : 50;
     let marginPercent = (100 - screenshotPercent) / 2;
 
-    this.carousel.style.gridTemplateColumns = `${marginPercent}% repeat(${frameCount}, ${screenshotPercent}%) ${marginPercent}%`;
+    if (verticalMode) {
+      this.carousel.classList.add("vertical");
+      updateCarouselAttr(frameCount);
+    } else {
+      this.carousel.style.gridTemplateColumns = `${marginPercent}% repeat(${frameCount}, ${screenshotPercent}%) ${marginPercent}%`;
+      this.carousel.classList.remove("vertical");
+    }
+
     // Add the elements to the carousel.
     this.carousel.innerHTML = "";
 
@@ -942,16 +962,20 @@ class WindowManager extends HTMLElement {
       });
     };
 
-    this.carouselObserver = new IntersectionObserver(
-      intersectionCallback,
-      options
-    );
+    if (!verticalMode) {
+      this.carouselObserver = new IntersectionObserver(
+        intersectionCallback,
+        options
+      );
+    }
 
     // Left padding div.
-    let padding = document.createElement("div");
-    padding.classList.add("padding");
-    this.carouselObserver.observe(padding);
-    this.carousel.appendChild(padding);
+    if (!verticalMode) {
+      let padding = document.createElement("div");
+      padding.classList.add("padding");
+      this.carouselObserver.observe(padding);
+      this.carousel.appendChild(padding);
+    }
 
     // Add screenshots for all windows except the homescreen.
     let readyPromises = new Array();
@@ -966,7 +990,9 @@ class WindowManager extends HTMLElement {
       }
 
       let screenshot = document.createElement("div");
-      screenshot.classList.add("sideline");
+      if (!verticalMode) {
+        screenshot.classList.add("sideline");
+      }
       let id = frame.getAttribute("id");
 
       if (id == this.activeFrame) {
@@ -1037,10 +1063,14 @@ class WindowManager extends HTMLElement {
           screenshot.ontransitionend = screenshot.ontransitioncancel = () => {
             screenshot.remove();
             this.closeFrame(id);
-            // Update the grid columns definitions.
             let frameCount = Object.keys(this.frames).length;
-            if (frameCount > 0) {
-              this.carousel.style.gridTemplateColumns = `${marginPercent}% repeat(${frameCount}, ${screenshotPercent}%) ${marginPercent}%`;
+            if (!verticalMode) {
+              // Update the grid columns definitions.
+              if (frameCount > 0) {
+                this.carousel.style.gridTemplateColumns = `${marginPercent}% repeat(${frameCount}, ${screenshotPercent}%) ${marginPercent}%`;
+              }
+            } else {
+              updateCarouselAttr(frameCount);
             }
 
             // Exit the carousel when closing the last window.
@@ -1061,7 +1091,9 @@ class WindowManager extends HTMLElement {
         },
         { once: true }
       );
-      this.carouselObserver.observe(screenshot);
+      if (!verticalMode) {
+        this.carouselObserver.observe(screenshot);
+      }
       this.carousel.appendChild(screenshot);
 
       frame = frame.nextElementSibling;
@@ -1070,7 +1102,10 @@ class WindowManager extends HTMLElement {
     // Create an empty frame with the [+] used as a discoverable way to
     // open a new frame.
     let screenshot = document.createElement("div");
-    screenshot.classList.add("sideline", "screenshot", "show", "new-tab");
+    screenshot.classList.add("screenshot", "show", "new-tab");
+    if (!verticalMode) {
+      screenshot.classList.add("sideline");
+    }
     screenshot.setAttribute("frame", "<new-tab>");
     screenshot.innerHTML = `
       <div class="head">
@@ -1089,14 +1124,18 @@ class WindowManager extends HTMLElement {
       },
       { once: true }
     );
-    this.carouselObserver.observe(screenshot);
+    if (!verticalMode) {
+      this.carouselObserver.observe(screenshot);
+    }
     this.carousel.appendChild(screenshot);
 
     // Right padding div.
-    padding = document.createElement("div");
-    padding.classList.add("padding");
-    this.carouselObserver.observe(padding);
-    this.carousel.appendChild(padding);
+    if (!verticalMode) {
+      let padding = document.createElement("div");
+      padding.classList.add("padding");
+      this.carouselObserver.observe(padding);
+      this.carousel.appendChild(padding);
+    }
 
     // Select the current frame, unless we come from the homescreen,
     // in which case we select the first frame.
