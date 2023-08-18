@@ -11,10 +11,10 @@
   {
     "id": "default-1",
     "kind": "bookmark",
-    "title": "Elk",
-    "url": "https://elk.zone/",
-    "icon": "./resources/elk.png",
-    "backgroundColor": "#111111",
+    "title": "Phanpy",
+    "url": "https://phanpy.social/",
+    "icon": "./resources/phanpy.png",
+    "backgroundColor": "#242526",
     "position": "0, 1"
   },
   {
