@@ -73,13 +73,17 @@ body.screen-off {
   width: 100%;
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: min-content calc(
-      100vh - var(--statusbar-height) - var(--status-top-height)
-    ) min-content;
+  grid-template-rows:
+    min-content calc(100vh - var(--statusbar-height) - var(--status-top-height))
+    min-content;
 }
 
 #screen.no-top-status-bar {
   grid-template-rows: 0px calc(100vh - var(--statusbar-height)) min-content;
+}
+
+#screen.fullscreen {
+  grid-template-rows: min-content calc(100vh) min-content;
 }
 
 #status-top {

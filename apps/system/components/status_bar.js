@@ -372,12 +372,15 @@ class StatusBar extends HTMLElement {
   updateDisplayState(state) {
     let display = state.display || "browser";
     let statustop = document.getElementById("status-top");
+    let screenElem = document.getElementById("screen");
     if (display === "fullscreen") {
       this.classList.add("fullscreen");
       statustop.classList.add("fullscreen");
+      screenElem.classList.add("fullscreen");
     } else {
       this.classList.remove("fullscreen");
       statustop.classList.remove("fullscreen");
+      screenElem.classList.remove("fullscreen");
     }
   }
 
