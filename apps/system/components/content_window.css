@@ -225,3 +225,7 @@ content-window > .container .permissions .items div {
   align-items: center;
   gap: 0.5em;
 }
+
+content-window > .container .permissions #permission-remember {
+  margin-top: 1em;
+}

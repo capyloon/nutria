@@ -179,6 +179,7 @@ activity-process-image = Process image with…
 permissions-title = Permission Request
 permissions-block = Block
 permissions-allow = Allow
+permissions-remember = Remember my choice
 permissions-name-geolocation = Geolocation
 permissions-name-audio-capture = Audio Recording
 permissions-name-video-capture = Video Recording

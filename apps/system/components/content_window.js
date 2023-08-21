@@ -136,6 +136,7 @@ class PermissionsHelper {
     this.origin = drawer.querySelector(".origin");
     this.btnAllow = drawer.querySelector("#permission-allow");
     this.btnBlock = drawer.querySelector("#permission-block");
+    this.rememberMe = drawer.querySelector("#permission-remember");
     this.btnAllow.addEventListener("click", this);
     this.btnBlock.addEventListener("click", this);
     this.current = null;
@@ -154,11 +155,13 @@ class PermissionsHelper {
       return;
     }
 
+    let remember = this.rememberMe.checked;
+
     if (event.target === this.btnBlock) {
       let detail = {
         origin: this.current.origin,
         granted: false,
-        remember: false,
+        remember,
         choices: {},
       };
       this.dispatchResult(detail);
@@ -176,7 +179,7 @@ class PermissionsHelper {
       let detail = {
         origin: this.current.origin,
         granted: true,
-        remember: false,
+        remember,
         choices,
       };
       // console.log(`Will dispatch ${JSON.stringify(detail)}`);
@@ -503,6 +506,7 @@ class ContentWindow extends HTMLElement {
         <header class="origin"></header>
         <div class="items">
         </div>
+        <sl-switch id="permission-remember" data-l10n-id="permissions-remember"></sl-switch>
         <div slot="footer">
           <sl-button id="permission-allow" variant="success" data-l10n-id="permissions-allow"></sl-button>
           <sl-button id="permission-block" variant="danger" data-l10n-id="permissions-block"></sl-button>
