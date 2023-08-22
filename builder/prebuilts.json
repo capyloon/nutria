@@ -1,24 +1,24 @@
 {
   "aarch64-apple-darwin": {
-    "b2g": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeigadocgwb23vpejlwhbrk3udq23i2hnxmhxmoxz72v5edolodkcvu",
-    "api-daemon": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeia744hhnsfweenhzdpdzm3e2x4fz7cgw4grwtqdtk237dwqkncz4i",
-    "ipfsd": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeiehlhki2p3o2r5gokjaqjacg5uptcifiezw6g6l5bliv6rq5d5p3m"
+    "b2g": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/b2g-118.0.en-US.mac-aarch64.tar.bz2",
+    "api-daemon": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/api-daemon-aarch64-apple-darwin.tar.xz",
+    "ipfsd": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/ipfsd-aarch64-apple-darwin.tar.xz"
   },
   "aarch64-unknown-linux-gnu": {
-    "b2g": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeieakvjd6t5r3hm6oq24uetmml6sjo3jnaektp6fev7ucprstrx4r4",
-    "api-daemon": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeidiyjk3bvdbt4rg5dkxr2umjsdnssfuqtswazzhxpwzwa474owce4",
-    "b2ghald": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeifgonbvvc6y7te3fksrztflktznvoreg3aim5pwal3umfnee2j3ky",
-    "ipfsd": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeie3flh7kseow7z63dmhhq3oohewyczycqkvh26ayinxcqu2tzb54e"
+    "b2g": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/b2g-118.0.en-US.linux-aarch64.tar.bz2",
+    "api-daemon": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/api-daemon-aarch64-unknown-linux-gnu.tar.xz",
+    "b2ghald": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/b2ghald-aarch64-unknown-linux-gnu.tar.xz",
+    "ipfsd": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/ipfsd-aarch64-unknown-linux-gnu.tar.xz"
   },
   "x86_64-apple-darwin": {
-    "b2g": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeifthqvdpyoihaly5xbai4o5dofwb4aozmmvtkqi23blbul3txagha",
-    "api-daemon": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeic54rmtxlmf32vak3lemsaznjzeuqrewju2fijc5mewmmjklbvwvm",
-    "ipfsd": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeifhkhvszx2j7w75vr26y3fldqybpxffigfgc43zd3swo526ngaeim"
+    "b2g": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/b2g-118.0.en-US.mac-x86_64.tar.bz2",
+    "api-daemon": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/api-daemon-x86_64-apple-darwin.tar.xz",
+    "ipfsd": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/ipfsd-x86_64-apple-darwin.tar.xz"
   },
   "x86_64-unknown-linux-gnu": {
-    "b2g": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeid3yt57dgg7rjsx42ybznwm5dj4vcqfhfzoq4h6h7he2lghpjz7gi",
-    "api-daemon": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeid43fzdslxibaykxnqjeaccynip2c27kpxjln6yov26ebwsqr43h4",
-    "b2ghald": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeihzgxhsepbka62ct4fcganb6zkamdxhrjhey3uvwivimsgox6l5di",
-    "ipfsd": "https://delta.vulcaniclabs.com/gw/ipfs/bafybeibglyl5y7wbj4x35v46ecgsgvtq5ks4kdx3pimyn5serermigyxma"
+    "b2g": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/b2g-118.0.en-US.linux-x86_64.tar.bz2",
+    "api-daemon": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/api-daemon-x86_64-unknown-linux-gnu.tar.xz",
+    "b2ghald": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/b2ghald-x86_64-unknown-linux-gnu.tar.xz",
+    "ipfsd": "https://debian.capyloon.org/prebuilts/f27f0d56-a3f2-4a78-80fc-ec79e26a634b/ipfsd-x86_64-unknown-linux-gnu.tar.xz"
   }
 }
