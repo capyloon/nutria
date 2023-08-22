@@ -30,8 +30,56 @@ export class WebExtensionsDelegate {
     console.error(`WebExtensionsDelegate: ${msg}`);
   }
 
+  // The extension object looks like:
+  // {
+  //   "webExtensionId": "uBlock0@raymondhill.net",
+  //   "locationURI": "https://addons.mozilla.org/firefox/downloads/file/4141256/ublock_origin-1.51.0.xpi",
+  //   "isBuiltIn": false,
+  //   "metaData": {
+  //     "origins": [
+  //       "<all_urls>",
+  //       "http://*/*",
+  //       "https://*/*",
+  //       "file://*/*",
+  //       "https://easylist.to/*",
+  //       "https://*.fanboy.co.nz/*",
+  //       "https://filterlists.com/*",
+  //       "https://forums.lanik.us/*",
+  //       "https://github.com/*",
+  //       "https://*.github.io/*",
+  //       "https://*.letsblock.it/*"
+  //     ],
+  //     "promptPermissions": [
+  //       "privacy",
+  //       "tabs",
+  //       "webNavigation"
+  //     ],
+  //     "description": "Finally, an efficient blocker. Easy on CPU and memory.",
+  //     "enabled": false,
+  //     "temporary": false,
+  //     "disabledFlags": [],
+  //     "version": "1.51.0",
+  //     "creatorName": "Raymond Hill & contributors",
+  //     "name": "uBlock Origin",
+  //     "optionsPageURL": null,
+  //     "openOptionsPageInTab": false,
+  //     "isRecommended": true,
+  //     "blocklistState": 0,
+  //     "signedState": 2,
+  //     "icons": {
+  //       "16": "jar:file:///tmp/tmp-f27.xpi!/img/ublock.svg",
+  //       "32": "jar:file:///tmp/tmp-f27.xpi!/img/ublock.svg",
+  //       "48": "jar:file:///tmp/tmp-f27.xpi!/img/ublock.svg",
+  //       "64": "jar:file:///tmp/tmp-f27.xpi!/img/ublock.svg",
+  //       "96": "jar:file:///tmp/tmp-f27.xpi!/img/ublock.svg"
+  //     },
+  //     "baseURL": "",
+  //     "privateBrowsingAllowed": false
+  //   }
+  // }
   permissionPrompt(extension) {
     this.log(`permissionPrompt`);
+    console.log(extension);
     // TODO: Install prompt UI.
     return Promise.resolve();
   }
