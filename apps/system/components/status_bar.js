@@ -256,6 +256,7 @@ class StatusBar extends HTMLElement {
     swipeDetector.addEventListener("swipe-down", () => {
       if (this.isCarouselOpen) {
         actionsDispatcher.dispatch("close-carousel");
+        actionsDispatcher.dispatch("go-home");
       }
     });
     swipeDetector.addEventListener("swipe-up", () => {
