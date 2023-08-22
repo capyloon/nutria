@@ -195,21 +195,36 @@ window-manager .hidden {
 
 /* Carousel in vertical scroll mode with 2 columns */
 
+:root {
+  --carousel-screenshot-height: 35vh;
+  --carousel-screenshot-width: 41vw;
+  --carousel-gap: calc((100vw - 2 * var(--carousel-screenshot-width)) / 3);
+}
+
 window-manager .carousel.vertical {
-  grid-template-columns: 42vw 42vw;
-  grid-template-rows: repeat(auto-fill, 40vh);
+  grid-template-columns: var(--carousel-screenshot-width) var(
+      --carousel-screenshot-width
+    );
+  grid-template-rows: repeat(auto-fill, var(--carousel-screenshot-height));
   grid-auto-flow: row;
-  gap: 6vw;
-  padding: 5vw;
+  gap: var(--carousel-gap);
+  padding: var(--carousel-gap);
   overflow-y: scroll;
 }
 
 window-manager .carousel.vertical.single-row {
-  padding-top: 30vh;
+  padding-top: calc((100vh - var(--carousel-screenshot-height)) / 2);
+}
+
+window-manager .carousel.vertical.two-rows {
+  padding-top: calc(
+    (100vh - var(--carousel-gap) - 2 * var(--carousel-screenshot-height)) / 2
+  );
 }
 
 window-manager .carousel.vertical.single-column {
-  padding-left: 29vw;
+  padding-left: calc((100vw - var(--carousel-screenshot-width)) / 2);
+  padding-right: calc((100vw - var(--carousel-screenshot-width)) / 2);
 }
 
 window-manager .carousel.vertical > div {
@@ -217,10 +232,11 @@ window-manager .carousel.vertical > div {
   margin-top: initial;
   margin-bottom: initial;
   border-radius: 1em;
+  background-position-y: top;
 }
 
 window-manager .carousel.vertical > div .head {
-  height: 40vh;
+  height: var(--carousel-screenshot-height);
 }
 
 window-manager .carousel.vertical > div .head footer {

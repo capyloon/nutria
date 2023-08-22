@@ -260,7 +260,12 @@ class StatusBar extends HTMLElement {
       }
     });
     swipeDetector.addEventListener("swipe-up", () => {
-      this.triggerCarousel();
+      if (this.isCarouselOpen) {
+        actionsDispatcher.dispatch("close-carousel");
+        actionsDispatcher.dispatch("go-home");
+      } else {
+        this.triggerCarousel();
+      }
     });
     swipeDetector.addEventListener("swipe-left", () => {
       this.state.canGoBack && actionsDispatcher.dispatch("go-back");
@@ -538,6 +543,10 @@ class StatusBar extends HTMLElement {
   }
 
   updateState(_name, state) {
+    if (this.isCarouselOpen) {
+      return;
+    }
+
     // We switched from homescreen <-> content, reorder the sections
     // so they get events properly.
     if (this.isHomescreen !== state.isHomescreen) {

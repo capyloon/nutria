@@ -882,9 +882,12 @@ class WindowManager extends HTMLElement {
 
     let updateCarouselAttr = (frameCount) => {
       this.carousel.classList.remove("single-row");
+      this.carousel.classList.remove("two-rows");
       this.carousel.classList.remove("single-column");
       if (frameCount <= 2) {
         this.carousel.classList.add("single-row");
+      } else if (frameCount <= 4) {
+        this.carousel.classList.add("two-rows");
       }
       if (frameCount <= 1) {
         this.carousel.classList.add("single-column");
