@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 use core::mem::MaybeUninit;
 
-use crate::process::Pid;
+use crate::pid::Pid;
 use crate::{backend, io};
 
 /// `__user_cap_data_struct`
@@ -17,6 +17,8 @@ pub struct CapabilitySets {
 
 bitflags! {
     /// `CAP_*` constants.
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct CapabilityFlags: u64 {
         /// `CAP_CHOWN`
         const CHOWN = 1 << linux_raw_sys::general::CAP_CHOWN;
@@ -145,28 +147,20 @@ fn capget(pid: Option<Pid>) -> io::Result<CapabilitySets> {
         unsafe { (data[0].assume_init(), data[1].assume_init()) }
     };
 
-    {
-        // TODO: With Rust 1.53, we can use u32::BITS in the shifts.
-        const BITS: u32 = 32;
-        let effective = u64::from(data.0.effective) | (u64::from(data.1.effective) << BITS);
-        let permitted = u64::from(data.0.permitted) | (u64::from(data.1.permitted) << BITS);
-        let inheritable = u64::from(data.0.inheritable) | (u64::from(data.1.inheritable) << BITS);
+    let effective = u64::from(data.0.effective) | (u64::from(data.1.effective) << u32::BITS);
+    let permitted = u64::from(data.0.permitted) | (u64::from(data.1.permitted) << u32::BITS);
+    let inheritable = u64::from(data.0.inheritable) | (u64::from(data.1.inheritable) << u32::BITS);
 
-        // SAFETY: The kernel returns a partitioned bitset that we just
-        // combined above.
-        Ok(CapabilitySets {
-            effective: unsafe { CapabilityFlags::from_bits_unchecked(effective) },
-            permitted: unsafe { CapabilityFlags::from_bits_unchecked(permitted) },
-            inheritable: unsafe { CapabilityFlags::from_bits_unchecked(inheritable) },
-        })
-    }
+    // The kernel returns a partitioned bitset that we just combined above.
+    Ok(CapabilitySets {
+        effective: CapabilityFlags::from_bits_retain(effective),
+        permitted: CapabilityFlags::from_bits_retain(permitted),
+        inheritable: CapabilityFlags::from_bits_retain(inheritable),
+    })
 }
 
 #[inline]
 fn capset(pid: Option<Pid>, sets: CapabilitySets) -> io::Result<()> {
-    // TODO: With Rust 1.53, we can use u32::BITS in the shifts.
-    const BITS: u32 = 32;
-
     let mut header = linux_raw_sys::general::__user_cap_header_struct {
         version: linux_raw_sys::general::_LINUX_CAPABILITY_VERSION_3,
         pid: Pid::as_raw(pid) as backend::c::c_int,
@@ -178,9 +172,9 @@ fn capset(pid: Option<Pid>, sets: CapabilitySets) -> io::Result<()> {
             inheritable: sets.inheritable.bits() as u32,
         },
         linux_raw_sys::general::__user_cap_data_struct {
-            effective: (sets.effective.bits() >> BITS) as u32,
-            permitted: (sets.permitted.bits() >> BITS) as u32,
-            inheritable: (sets.inheritable.bits() >> BITS) as u32,
+            effective: (sets.effective.bits() >> u32::BITS) as u32,
+            permitted: (sets.permitted.bits() >> u32::BITS) as u32,
+            inheritable: (sets.inheritable.bits() >> u32::BITS) as u32,
         },
     ];
 

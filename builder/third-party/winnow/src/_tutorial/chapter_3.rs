@@ -10,15 +10,14 @@
 //! Now that we can create more interesting parsers, we can sequence them together, like:
 //!
 //! ```rust
+//! # use winnow::prelude::*;
 //! # use winnow::token::take_while;
-//! # use winnow::Parser;
-//! # use winnow::IResult;
 //! #
-//! fn parse_prefix(input: &str) -> IResult<&str, &str> {
+//! fn parse_prefix<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //!     "0x".parse_next(input)
 //! }
 //!
-//! fn parse_digits(input: &str) -> IResult<&str, &str> {
+//! fn parse_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //!     take_while(1.., (
 //!         ('0'..='9'),
 //!         ('A'..='F'),
@@ -27,28 +26,27 @@
 //! }
 //!
 //! fn main()  {
-//!     let input = "0x1a2b Hello";
+//!     let mut input = "0x1a2b Hello";
 //!
-//!     let (remainder, prefix) = parse_prefix.parse_next(input).unwrap();
-//!     let (remainder, digits) = parse_digits.parse_next(remainder).unwrap();
+//!     let prefix = parse_prefix.parse_next(&mut input).unwrap();
+//!     let digits = parse_digits.parse_next(&mut input).unwrap();
 //!
 //!     assert_eq!(prefix, "0x");
 //!     assert_eq!(digits, "1a2b");
-//!     assert_eq!(remainder, " Hello");
+//!     assert_eq!(input, " Hello");
 //! }
 //! ```
 //!
 //! To sequence these together, you can just put them in a tuple:
 //! ```rust
+//! # use winnow::prelude::*;
 //! # use winnow::token::take_while;
-//! # use winnow::Parser;
-//! # use winnow::IResult;
 //! #
-//! # fn parse_prefix(input: &str) -> IResult<&str, &str> {
+//! # fn parse_prefix<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     "0x".parse_next(input)
 //! # }
 //! #
-//! # fn parse_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #         ('A'..='F'),
@@ -59,32 +57,31 @@
 //! //...
 //!
 //! fn main()  {
-//!     let input = "0x1a2b Hello";
+//!     let mut input = "0x1a2b Hello";
 //!
-//!     let (remainder, (prefix, digits)) = (
+//!     let (prefix, digits) = (
 //!         parse_prefix,
 //!         parse_digits
-//!     ).parse_next(input).unwrap();
+//!     ).parse_next(&mut input).unwrap();
 //!
 //!     assert_eq!(prefix, "0x");
 //!     assert_eq!(digits, "1a2b");
-//!     assert_eq!(remainder, " Hello");
+//!     assert_eq!(input, " Hello");
 //! }
 //! ```
 //!
 //! Frequently, you won't care about the tag and you can instead use one of the provided combinators,
 //! like [`preceded`]:
 //! ```rust
+//! # use winnow::prelude::*;
 //! # use winnow::token::take_while;
-//! # use winnow::Parser;
-//! # use winnow::IResult;
 //! use winnow::combinator::preceded;
 //!
-//! # fn parse_prefix(input: &str) -> IResult<&str, &str> {
+//! # fn parse_prefix<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     "0x".parse_next(input)
 //! # }
 //! #
-//! # fn parse_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #         ('A'..='F'),
@@ -95,63 +92,72 @@
 //! //...
 //!
 //! fn main() {
-//!     let input = "0x1a2b Hello";
+//!     let mut input = "0x1a2b Hello";
 //!
-//!     let (remainder, digits) = preceded(
+//!     let digits = preceded(
 //!         parse_prefix,
 //!         parse_digits
-//!     ).parse_next(input).unwrap();
+//!     ).parse_next(&mut input).unwrap();
 //!
 //!     assert_eq!(digits, "1a2b");
-//!     assert_eq!(remainder, " Hello");
+//!     assert_eq!(input, " Hello");
 //! }
 //! ```
+//!
+//! See [`combinator`] for more sequencing parsers.
 //!
 //! ## Alternatives
 //!
 //! Sometimes, we might want to choose between two parsers; and we're happy with
 //! either being used.
 //!
-//! The de facto way to do this in winnow is with the [`alt()`] combinator which will execute each
-//! parser in a tuple until it finds one that does not error. If all error, then by default you are
-//! given the error from the last parser.
-//!
-//! We can see a basic example of `alt()` below.
+//! [`Stream::checkpoint`] helps us to retry parsing:
 //! ```rust
-//! # use winnow::IResult;
-//! # use winnow::Parser;
+//! # use winnow::prelude::*;
 //! # use winnow::token::take_while;
-//! use winnow::combinator::alt;
+//! use winnow::stream::Stream;
 //!
-//! fn parse_digits(input: &str) -> IResult<&str, (&str, &str)> {
-//!     alt((
-//!         ("0b", parse_bin_digits),
-//!         ("0o", parse_oct_digits),
-//!         ("0d", parse_dec_digits),
-//!         ("0x", parse_hex_digits),
-//!     )).parse_next(input)
+//! fn parse_digits<'s>(input: &mut &'s str) -> PResult<(&'s str, &'s str)> {
+//!     let start = input.checkpoint();
+//!
+//!     if let Ok(output) = ("0b", parse_bin_digits).parse_next(input) {
+//!         return Ok(output);
+//!     }
+//!
+//!     input.reset(start);
+//!     if let Ok(output) = ("0o", parse_oct_digits).parse_next(input) {
+//!         return Ok(output);
+//!     }
+//!
+//!     input.reset(start);
+//!     if let Ok(output) = ("0d", parse_dec_digits).parse_next(input) {
+//!         return Ok(output);
+//!     }
+//!
+//!     input.reset(start);
+//!     ("0x", parse_hex_digits).parse_next(input)
 //! }
 //!
 //! // ...
-//! # fn parse_bin_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_bin_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
-//! # fn parse_oct_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_oct_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
-//! # fn parse_dec_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_dec_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #     )).parse_next(input)
 //! # }
 //! #
-//! # fn parse_hex_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_hex_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #         ('A'..='F'),
@@ -160,31 +166,147 @@
 //! # }
 //!
 //! fn main() {
-//!     let input = "0x1a2b Hello";
+//!     let mut input = "0x1a2b Hello";
 //!
-//!     let (remainder, (prefix, digits)) = parse_digits.parse_next(input).unwrap();
+//!     let (prefix, digits) = parse_digits.parse_next(&mut input).unwrap();
 //!
-//!     assert_eq!(remainder, " Hello");
+//!     assert_eq!(input, " Hello");
 //!     assert_eq!(prefix, "0x");
 //!     assert_eq!(digits, "1a2b");
 //!
-//!     assert!(parse_digits("ghiWorld").is_err());
+//!     assert!(parse_digits(&mut "ghiWorld").is_err());
 //! }
 //! ```
+//!
+//! > **Warning:** the above example is for illustrative purposes and relying on `Result::Ok` or
+//! > `Result::Err` can lead to incorrect behavior.  This will be clarified in later when covering
+//! > [error handling][`chapter_6`#errmode]
+//!
+//! [`opt`] is a basic building block for correctly handling retrying parsing:
+//! ```rust
+//! # use winnow::prelude::*;
+//! # use winnow::token::take_while;
+//! use winnow::combinator::opt;
+//!
+//! fn parse_digits<'s>(input: &mut &'s str) -> PResult<(&'s str, &'s str)> {
+//!     if let Some(output) = opt(("0b", parse_bin_digits)).parse_next(input)? {
+//!         Ok(output)
+//!     } else if let Some(output) = opt(("0o", parse_oct_digits)).parse_next(input)? {
+//!         Ok(output)
+//!     } else if let Some(output) = opt(("0d", parse_dec_digits)).parse_next(input)? {
+//!         Ok(output)
+//!     } else {
+//!         ("0x", parse_hex_digits).parse_next(input)
+//!     }
+//! }
+//! #
+//! # fn parse_bin_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//! #     take_while(1.., (
+//! #         ('0'..='7'),
+//! #     )).parse_next(input)
+//! # }
+//! #
+//! # fn parse_oct_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//! #     take_while(1.., (
+//! #         ('0'..='7'),
+//! #     )).parse_next(input)
+//! # }
+//! #
+//! # fn parse_dec_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//! #     take_while(1.., (
+//! #         ('0'..='9'),
+//! #     )).parse_next(input)
+//! # }
+//! #
+//! # fn parse_hex_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//! #     take_while(1.., (
+//! #         ('0'..='9'),
+//! #         ('A'..='F'),
+//! #         ('a'..='f'),
+//! #     )).parse_next(input)
+//! # }
+//! #
+//! # fn main() {
+//! #     let mut input = "0x1a2b Hello";
+//! #
+//! #     let (prefix, digits) = parse_digits.parse_next(&mut input).unwrap();
+//! #
+//! #     assert_eq!(input, " Hello");
+//! #     assert_eq!(prefix, "0x");
+//! #     assert_eq!(digits, "1a2b");
+//! #
+//! #     assert!(parse_digits(&mut "ghiWorld").is_err());
+//! # }
+//! ```
+//!
+//! [`alt`] encapsulates this if/else-if ladder pattern, with the last case being the `else`:
+//! ```rust
+//! # use winnow::prelude::*;
+//! # use winnow::token::take_while;
+//! use winnow::combinator::alt;
+//!
+//! fn parse_digits<'s>(input: &mut &'s str) -> PResult<(&'s str, &'s str)> {
+//!     alt((
+//!         ("0b", parse_bin_digits),
+//!         ("0o", parse_oct_digits),
+//!         ("0d", parse_dec_digits),
+//!         ("0x", parse_hex_digits),
+//!     )).parse_next(input)
+//! }
+//! #
+//! # fn parse_bin_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//! #     take_while(1.., (
+//! #         ('0'..='7'),
+//! #     )).parse_next(input)
+//! # }
+//! #
+//! # fn parse_oct_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//! #     take_while(1.., (
+//! #         ('0'..='7'),
+//! #     )).parse_next(input)
+//! # }
+//! #
+//! # fn parse_dec_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//! #     take_while(1.., (
+//! #         ('0'..='9'),
+//! #     )).parse_next(input)
+//! # }
+//! #
+//! # fn parse_hex_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//! #     take_while(1.., (
+//! #         ('0'..='9'),
+//! #         ('A'..='F'),
+//! #         ('a'..='f'),
+//! #     )).parse_next(input)
+//! # }
+//! #
+//! # fn main() {
+//! #     let mut input = "0x1a2b Hello";
+//! #
+//! #     let (prefix, digits) = parse_digits.parse_next(&mut input).unwrap();
+//! #
+//! #     assert_eq!(input, " Hello");
+//! #     assert_eq!(prefix, "0x");
+//! #     assert_eq!(digits, "1a2b");
+//! #
+//! #     assert!(parse_digits(&mut "ghiWorld").is_err());
+//! # }
+//! ```
+//!
+//! > **Note:** [`success`] and [`fail`] are parsers that might be useful in the `else` case.
 //!
 //! Sometimes a giant if/else-if ladder can be slow and you'd rather have a `match` statement for
 //! branches of your parser that have unique prefixes.  In this case, you can use the
 //! [`dispatch`][crate::combinator::dispatch] macro:
 //!
 //! ```rust
-//! # use winnow::IResult;
-//! # use winnow::Parser;
+//! # use winnow::prelude::*;
 //! # use winnow::token::take_while;
 //! use winnow::combinator::dispatch;
 //! use winnow::token::take;
 //! use winnow::combinator::fail;
 //!
-//! fn parse_digits(input: &str) -> IResult<&str, &str> {
+//! fn parse_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //!     dispatch!(take(2usize);
 //!         "0b" => parse_bin_digits,
 //!         "0o" => parse_oct_digits,
@@ -195,25 +317,25 @@
 //! }
 //!
 //! // ...
-//! # fn parse_bin_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_bin_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
-//! # fn parse_oct_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_oct_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
-//! # fn parse_dec_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_dec_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #     )).parse_next(input)
 //! # }
 //! #
-//! # fn parse_hex_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_hex_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #         ('A'..='F'),
@@ -222,21 +344,33 @@
 //! # }
 //!
 //! fn main() {
-//!     let input = "0x1a2b Hello";
+//!     let mut input = "0x1a2b Hello";
 //!
-//!     let (remainder, digits) = parse_digits.parse_next(input).unwrap();
+//!     let digits = parse_digits.parse_next(&mut input).unwrap();
 //!
-//!     assert_eq!(remainder, " Hello");
+//!     assert_eq!(input, " Hello");
 //!     assert_eq!(digits, "1a2b");
 //!
-//!     assert!(parse_digits("ghiWorld").is_err());
+//!     assert!(parse_digits(&mut "ghiWorld").is_err());
 //! }
 //! ```
+//!
+//! > **Note:** [`peek`] may be useful when [`dispatch`]ing from hints from each case's parser.
+//!
+//! See [`combinator`] for more alternative parsers.
 
 #![allow(unused_imports)]
+use super::chapter_6;
+use crate::combinator;
 use crate::combinator::alt;
 use crate::combinator::dispatch;
+use crate::combinator::fail;
+use crate::combinator::opt;
+use crate::combinator::peek;
 use crate::combinator::preceded;
+use crate::combinator::success;
+use crate::stream::Stream;
 
 pub use super::chapter_2 as previous;
 pub use super::chapter_4 as next;
+pub use crate::_tutorial as table_of_content;

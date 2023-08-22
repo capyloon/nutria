@@ -48,6 +48,9 @@ pub type suseconds_t = ::c_int;
 pub type tcflag_t = u32;
 pub type time_t = ::c_longlong;
 pub type id_t = ::c_uint;
+pub type pid_t = usize;
+pub type uid_t = u32;
+pub type gid_t = u32;
 
 #[cfg_attr(feature = "extra_traits", derive(Debug))]
 pub enum timezone {}
@@ -256,6 +259,12 @@ s! {
         pub tm_gmtoff: ::c_long,
         pub tm_zone: *const ::c_char,
     }
+
+    pub struct ucred {
+        pub pid: pid_t,
+        pub uid: uid_t,
+        pub gid: gid_t,
+    }
 }
 
 pub const UTSLENGTH: usize = 65;
@@ -278,6 +287,10 @@ pub const PATH_MAX: ::c_int = 4096;
 pub const F_GETLK: ::c_int = 5;
 pub const F_SETLK: ::c_int = 6;
 pub const F_SETLKW: ::c_int = 7;
+pub const F_ULOCK: ::c_int = 0;
+pub const F_LOCK: ::c_int = 1;
+pub const F_TLOCK: ::c_int = 2;
+pub const F_TEST: ::c_int = 3;
 
 // FIXME: relibc {
 pub const RTLD_DEFAULT: *mut ::c_void = 0i64 as *mut ::c_void;
@@ -1080,6 +1093,12 @@ extern "C" {
     ) -> ::c_int;
     pub fn pthread_cancel(thread: ::pthread_t) -> ::c_int;
     pub fn pthread_kill(thread: ::pthread_t, sig: ::c_int) -> ::c_int;
+    pub fn sigtimedwait(
+        set: *const sigset_t,
+        sig: *mut siginfo_t,
+        timeout: *const ::timespec,
+    ) -> ::c_int;
+    pub fn sigwait(set: *const sigset_t, sig: *mut ::c_int) -> ::c_int;
 
     // stdlib.h
     pub fn reallocarray(ptr: *mut ::c_void, nmemb: ::size_t, size: ::size_t) -> *mut ::c_void;

@@ -209,8 +209,8 @@ impl Display for HttpDate {
         buf[0] = wday[0];
         buf[1] = wday[1];
         buf[2] = wday[2];
-        buf[5] = b'0' + (self.day / 10) as u8;
-        buf[6] = b'0' + (self.day % 10) as u8;
+        buf[5] = b'0' + (self.day / 10);
+        buf[6] = b'0' + (self.day % 10);
         buf[8] = mon[0];
         buf[9] = mon[1];
         buf[10] = mon[2];
@@ -218,12 +218,12 @@ impl Display for HttpDate {
         buf[13] = b'0' + (self.year / 100 % 10) as u8;
         buf[14] = b'0' + (self.year / 10 % 10) as u8;
         buf[15] = b'0' + (self.year % 10) as u8;
-        buf[17] = b'0' + (self.hour / 10) as u8;
-        buf[18] = b'0' + (self.hour % 10) as u8;
-        buf[20] = b'0' + (self.min / 10) as u8;
-        buf[21] = b'0' + (self.min % 10) as u8;
-        buf[23] = b'0' + (self.sec / 10) as u8;
-        buf[24] = b'0' + (self.sec % 10) as u8;
+        buf[17] = b'0' + (self.hour / 10);
+        buf[18] = b'0' + (self.hour % 10);
+        buf[20] = b'0' + (self.min / 10);
+        buf[21] = b'0' + (self.min % 10);
+        buf[23] = b'0' + (self.sec / 10);
+        buf[24] = b'0' + (self.sec % 10);
         f.write_str(std::str::from_utf8(&buf[..]).unwrap())
     }
 }

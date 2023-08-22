@@ -1,4 +1,4 @@
-use lib::*;
+use crate::lib::*;
 
 const TAG_CONT: u8 = 0b1000_0000;
 const TAG_TWO_B: u8 = 0b1100_0000;
@@ -31,7 +31,7 @@ pub fn encode(c: char) -> Encode {
         buf[3] = (code & 0x3F) as u8 | TAG_CONT;
         0
     };
-    Encode { buf: buf, pos: pos }
+    Encode { buf, pos }
 }
 
 pub struct Encode {

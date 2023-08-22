@@ -12,6 +12,7 @@ use std::time::Duration;
 use tokio::io::{ReadBuf, SeekFrom};
 
 use crate::progress_bar::ProgressBar;
+use crate::state::ProgressFinish;
 use crate::style::ProgressStyle;
 
 /// Wraps an iterator to display its progress.
@@ -101,6 +102,14 @@ impl<T> ProgressBarIter<T> {
     /// See [ProgressBar::with_elapsed].
     pub fn with_elapsed(mut self, elapsed: Duration) -> Self {
         self.progress = self.progress.with_elapsed(elapsed);
+        self
+    }
+
+    /// Builder-like function for setting underlying progress bar's finish behavior.
+    ///
+    /// See [ProgressBar::with_finish].
+    pub fn with_finish(mut self, finish: ProgressFinish) -> Self {
+        self.progress = self.progress.with_finish(finish);
         self
     }
 }
@@ -265,6 +274,26 @@ impl<W: tokio::io::AsyncBufRead + Unpin + tokio::io::AsyncRead> tokio::io::Async
 
     fn consume(mut self: Pin<&mut Self>, amt: usize) {
         Pin::new(&mut self.it).consume(amt);
+    }
+}
+
+#[cfg(feature = "futures")]
+#[cfg_attr(docsrs, doc(cfg(feature = "futures")))]
+impl<S: futures_core::Stream + Unpin> futures_core::Stream for ProgressBarIter<S> {
+    type Item = S::Item;
+
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        let item = std::pin::Pin::new(&mut this.it).poll_next(cx);
+        match &item {
+            std::task::Poll::Ready(Some(_)) => this.progress.inc(1),
+            std::task::Poll::Ready(None) => this.progress.finish_using_style(),
+            std::task::Poll::Pending => {}
+        }
+        item
     }
 }
 

@@ -13,11 +13,12 @@
 edition = "2021"
 rust-version = "1.64.0"
 name = "winnow"
-version = "0.4.6"
+version = "0.5.14"
 include = [
     "build.rs",
     "src/**/*",
     "Cargo.toml",
+    "Cargo.lock",
     "LICENSE*",
     "README.md",
     "benches/**/*",
@@ -86,7 +87,7 @@ search = "<!-- next-url -->"
 [profile.bench]
 lto = true
 codegen-units = 1
-debug = true
+debug = 2
 
 [[example]]
 name = "arithmetic"
@@ -168,32 +169,32 @@ path = "examples/json/bench.rs"
 harness = false
 required-features = ["std"]
 
-[dependencies.anstyle]
-version = "0.3.1"
+[dependencies.anstream]
+version = "0.3.2"
 optional = true
 
-[dependencies.anstyle-stream]
-version = "0.2.0"
+[dependencies.anstyle]
+version = "1.0.1"
 optional = true
 
 [dependencies.is-terminal]
-version = "0.4.3"
+version = "0.4.9"
 optional = true
 
 [dependencies.memchr]
-version = "2.3"
+version = "2.5"
 optional = true
 default-features = false
 
 [dependencies.terminal_size]
-version = "0.2.3"
+version = "0.2.6"
 optional = true
 
 [dev-dependencies.circular]
 version = "0.3.0"
 
 [dev-dependencies.criterion]
-version = "0.3.5"
+version = "0.5.1"
 
 [dev-dependencies.doc-comment]
 version = "0.3"
@@ -205,10 +206,10 @@ version = "0.5.7"
 version = "0.3.0"
 
 [dev-dependencies.proptest]
-version = "1.0.0"
+version = "1.2.0"
 
 [dev-dependencies.snapbox]
-version = "0.4.6"
+version = "0.4.11"
 features = ["examples"]
 
 [dev-dependencies.term-transcript]
@@ -217,10 +218,10 @@ version = "0.2.0"
 [features]
 alloc = []
 debug = [
+    "dep:anstream",
     "dep:anstyle",
     "dep:is-terminal",
     "dep:terminal_size",
-    "dep:anstyle-stream",
 ]
 default = ["std"]
 simd = ["dep:memchr"]

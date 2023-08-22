@@ -17,70 +17,126 @@ use ring::signature;
 
 /// X.509 certificates and related items that are signed are almost always
 /// encoded in the format "tbs||signatureAlgorithm||signature". This structure
-/// captures this pattern.
-pub struct SignedData<'a> {
+/// captures this pattern as an owned data type.
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
+#[cfg(feature = "alloc")]
+#[derive(Clone, Debug)]
+pub(crate) struct OwnedSignedData {
     /// The signed data. This would be `tbsCertificate` in the case of an X.509
-    /// certificate, `tbsResponseData` in the case of an OCSP response, and the
-    /// data nested in the `digitally-signed` construct for TLS 1.2 signed
-    /// data.
+    /// certificate, `tbsResponseData` in the case of an OCSP response, `tbsCertList`
+    /// in the case of a CRL, and the data nested in the `digitally-signed` construct for
+    /// TLS 1.2 signed data.
+    pub(crate) data: Vec<u8>,
+
+    /// The value of the `AlgorithmIdentifier`. This would be
+    /// `signatureAlgorithm` in the case of an X.509 certificate, OCSP
+    /// response or CRL. This would have to be synthesized in the case of TLS 1.2
+    /// signed data, since TLS does not identify algorithms by ASN.1 OIDs.
+    pub(crate) algorithm: Vec<u8>,
+
+    /// The value of the signature. This would be `signature` in an X.509
+    /// certificate, OCSP response or CRL. This would be the value of
+    /// `DigitallySigned.signature` for TLS 1.2 signed data.
+    pub(crate) signature: Vec<u8>,
+}
+
+#[cfg(feature = "alloc")]
+impl OwnedSignedData {
+    /// Return a borrowed [`SignedData`] from the owned representation.
+    pub(crate) fn borrow(&self) -> SignedData<'_> {
+        SignedData {
+            data: untrusted::Input::from(&self.data),
+            algorithm: untrusted::Input::from(&self.algorithm),
+            signature: untrusted::Input::from(&self.signature),
+        }
+    }
+}
+
+/// X.509 certificates and related items that are signed are almost always
+/// encoded in the format "tbs||signatureAlgorithm||signature". This structure
+/// captures this pattern.
+#[derive(Debug)]
+pub(crate) struct SignedData<'a> {
+    /// The signed data. This would be `tbsCertificate` in the case of an X.509
+    /// certificate, `tbsResponseData` in the case of an OCSP response, `tbsCertList`
+    /// in the case of a CRL, and the data nested in the `digitally-signed` construct for
+    /// TLS 1.2 signed data.
     data: untrusted::Input<'a>,
 
     /// The value of the `AlgorithmIdentifier`. This would be
-    /// `signatureAlgorithm` in the case of an X.509 certificate or OCSP
-    /// response. This would have to be synthesized in the case of TLS 1.2
+    /// `signatureAlgorithm` in the case of an X.509 certificate, OCSP
+    /// response or CRL. This would have to be synthesized in the case of TLS 1.2
     /// signed data, since TLS does not identify algorithms by ASN.1 OIDs.
     pub(crate) algorithm: untrusted::Input<'a>,
 
     /// The value of the signature. This would be `signature` in an X.509
-    /// certificate or OCSP response. This would be the value of
+    /// certificate, OCSP response or CRL. This would be the value of
     /// `DigitallySigned.signature` for TLS 1.2 signed data.
     signature: untrusted::Input<'a>,
 }
 
-/// Parses the concatenation of "tbs||signatureAlgorithm||signature" that
-/// is common in the X.509 certificate and OCSP response syntaxes.
-///
-/// X.509 Certificates (RFC 5280) look like this:
-///
-/// ```ASN.1
-/// Certificate (SEQUENCE) {
-///     tbsCertificate TBSCertificate,
-///     signatureAlgorithm AlgorithmIdentifier,
-///     signatureValue BIT STRING
-/// }
-///
-/// OCSP responses (RFC 6960) look like this:
-/// ```ASN.1
-/// BasicOCSPResponse {
-///     tbsResponseData ResponseData,
-///     signatureAlgorithm AlgorithmIdentifier,
-///     signature BIT STRING,
-///     certs [0] EXPLICIT SEQUENCE OF Certificate OPTIONAL
-/// }
-/// ```
-///
-/// Note that this function does NOT parse the outermost `SEQUENCE` or the
-/// `certs` value.
-///
-/// The return value's first component is the contents of
-/// `tbsCertificate`/`tbsResponseData`; the second component is a `SignedData`
-/// structure that can be passed to `verify_signed_data`.
-pub(crate) fn parse_signed_data<'a>(
-    der: &mut untrusted::Reader<'a>,
-) -> Result<(untrusted::Input<'a>, SignedData<'a>), Error> {
-    let (data, tbs) =
-        der.read_partial(|input| der::expect_tag_and_get_value(input, der::Tag::Sequence))?;
-    let algorithm = der::expect_tag_and_get_value(der, der::Tag::Sequence)?;
-    let signature = der::bit_string_with_no_unused_bits(der)?;
+impl<'a> SignedData<'a> {
+    /// Parses the concatenation of "tbs||signatureAlgorithm||signature" that
+    /// is common in the X.509 certificate and OCSP response syntaxes.
+    ///
+    /// X.509 Certificates (RFC 5280) look like this:
+    ///
+    /// ```ASN.1
+    /// Certificate (SEQUENCE) {
+    ///     tbsCertificate TBSCertificate,
+    ///     signatureAlgorithm AlgorithmIdentifier,
+    ///     signatureValue BIT STRING
+    /// }
+    ///
+    /// OCSP responses (RFC 6960) look like this:
+    /// ```ASN.1
+    /// BasicOCSPResponse {
+    ///     tbsResponseData ResponseData,
+    ///     signatureAlgorithm AlgorithmIdentifier,
+    ///     signature BIT STRING,
+    ///     certs [0] EXPLICIT SEQUENCE OF Certificate OPTIONAL
+    /// }
+    /// ```
+    ///
+    /// Note that this function does NOT parse the outermost `SEQUENCE` or the
+    /// `certs` value.
+    ///
+    /// The return value's first component is the contents of
+    /// `tbsCertificate`/`tbsResponseData`; the second component is a `SignedData`
+    /// structure that can be passed to `verify_signed_data`.
+    ///
+    /// The provided size_limit will enforce the largest possible outermost `SEQUENCE` this
+    /// function will read.
+    pub(crate) fn from_der(
+        der: &mut untrusted::Reader<'a>,
+        size_limit: usize,
+    ) -> Result<(untrusted::Input<'a>, Self), Error> {
+        let (data, tbs) = der.read_partial(|input| {
+            der::expect_tag_and_get_value_limited(input, der::Tag::Sequence, size_limit)
+        })?;
+        let algorithm = der::expect_tag_and_get_value(der, der::Tag::Sequence)?;
+        let signature = der::bit_string_with_no_unused_bits(der)?;
 
-    Ok((
-        tbs,
-        SignedData {
-            data,
-            algorithm,
-            signature,
-        },
-    ))
+        Ok((
+            tbs,
+            SignedData {
+                data,
+                algorithm,
+                signature,
+            },
+        ))
+    }
+
+    /// Convert the borrowed signed data to an [`OwnedSignedData`].
+    #[cfg(feature = "alloc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
+    pub(crate) fn to_owned(&self) -> OwnedSignedData {
+        OwnedSignedData {
+            data: self.data.as_slice_less_safe().to_vec(),
+            algorithm: self.algorithm.as_slice_less_safe().to_vec(),
+            signature: self.signature.as_slice_less_safe().to_vec(),
+        }
+    }
 }
 
 /// Verify `signed_data` using the public key in the DER-encoded
@@ -150,7 +206,7 @@ pub(crate) fn verify_signature(
     msg: untrusted::Input,
     signature: untrusted::Input,
 ) -> Result<(), Error> {
-    let spki = parse_spki_value(spki_value)?;
+    let spki = SubjectPublicKeyInfo::from_der(spki_value)?;
     if !signature_alg
         .public_key_alg_id
         .matches_algorithm_id_value(spki.algorithm_id_value)
@@ -170,19 +226,21 @@ struct SubjectPublicKeyInfo<'a> {
     key_value: untrusted::Input<'a>,
 }
 
-// Parse the public key into an algorithm OID, an optional curve OID, and the
-// key value. The caller needs to check whether these match the
-// `PublicKeyAlgorithm` for the `SignatureAlgorithm` that is matched when
-// parsing the signature.
-fn parse_spki_value(input: untrusted::Input) -> Result<SubjectPublicKeyInfo, Error> {
-    input.read_all(Error::BadDer, |input| {
-        let algorithm_id_value = der::expect_tag_and_get_value(input, der::Tag::Sequence)?;
-        let key_value = der::bit_string_with_no_unused_bits(input)?;
-        Ok(SubjectPublicKeyInfo {
-            algorithm_id_value,
-            key_value,
+impl<'a> SubjectPublicKeyInfo<'a> {
+    // Parse the public key into an algorithm OID, an optional curve OID, and the
+    // key value. The caller needs to check whether these match the
+    // `PublicKeyAlgorithm` for the `SignatureAlgorithm` that is matched when
+    // parsing the signature.
+    fn from_der(input: untrusted::Input<'a>) -> Result<Self, Error> {
+        input.read_all(Error::BadDer, |input| {
+            let algorithm_id_value = der::expect_tag_and_get_value(input, der::Tag::Sequence)?;
+            let key_value = der::bit_string_with_no_unused_bits(input)?;
+            Ok(SubjectPublicKeyInfo {
+                algorithm_id_value,
+                key_value,
+            })
         })
-    })
+    }
 }
 
 /// A signature algorithm.
@@ -375,6 +433,8 @@ const ED_25519: AlgorithmIdentifier = AlgorithmIdentifier {
 
 #[cfg(test)]
 mod tests {
+    use base64::{engine::general_purpose, Engine as _};
+
     use crate::{der, signed_data, Error};
     use alloc::{string::String, vec::Vec};
 
@@ -758,7 +818,7 @@ mod tests {
             base64.push_str(line);
         }
 
-        base64::decode(&base64).unwrap()
+        general_purpose::STANDARD.decode(&base64).unwrap()
     }
 
     static SUPPORTED_ALGORITHMS_IN_TESTS: &[&signed_data::SignatureAlgorithm] = &[

@@ -40,12 +40,17 @@ impl<'buf, Fd: AsFd> RawDir<'buf, Fd> {
     ///
     /// Using the heap:
     ///
-    /// ```notrust
-    /// # // The `notrust` above can be removed when we can depend on Rust 1.60.
+    /// ```
     /// # use std::mem::MaybeUninit;
-    /// # use rustix::fs::{cwd, Mode, OFlags, openat, RawDir};
+    /// # use rustix::fs::{CWD, Mode, OFlags, openat, RawDir};
     ///
-    /// let fd = openat(cwd(), ".", OFlags::RDONLY | OFlags::DIRECTORY, Mode::empty()).unwrap();
+    /// let fd = openat(
+    ///     CWD,
+    ///     ".",
+    ///     OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
+    ///     Mode::empty(),
+    /// )
+    /// .unwrap();
     ///
     /// let mut buf = Vec::with_capacity(8192);
     /// let mut iter = RawDir::new(fd, buf.spare_capacity_mut());
@@ -59,12 +64,12 @@ impl<'buf, Fd: AsFd> RawDir<'buf, Fd> {
     ///
     /// ```
     /// # use std::mem::MaybeUninit;
-    /// # use rustix::fs::{cwd, Mode, OFlags, openat, RawDir};
+    /// # use rustix::fs::{CWD, Mode, OFlags, openat, RawDir};
     ///
     /// let fd = openat(
-    ///     cwd(),
+    ///     CWD,
     ///     ".",
-    ///     OFlags::RDONLY | OFlags::DIRECTORY,
+    ///     OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
     ///     Mode::empty(),
     /// )
     /// .unwrap();
@@ -83,12 +88,18 @@ impl<'buf, Fd: AsFd> RawDir<'buf, Fd> {
     /// arbitrarily large file names:
     ///
     /// ```notrust
-    /// # // The `notrust` above can be removed when we can depend on Rust 1.60.
+    /// # // The `notrust` above can be removed when we can depend on Rust 1.65.
     /// # use std::mem::MaybeUninit;
-    /// # use rustix::fs::{cwd, Mode, OFlags, openat, RawDir};
+    /// # use rustix::fs::{CWD, Mode, OFlags, openat, RawDir};
     /// # use rustix::io::Errno;
     ///
-    /// let fd = openat(cwd(), ".", OFlags::RDONLY | OFlags::DIRECTORY, Mode::empty()).unwrap();
+    /// let fd = openat(
+    ///     CWD,
+    ///     ".",
+    ///     OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
+    ///     Mode::empty(),
+    /// )
+    /// .unwrap();
     ///
     /// let mut buf = Vec::with_capacity(8192);
     /// 'read: loop {
@@ -125,10 +136,9 @@ impl<'buf, Fd: AsFd> RawDir<'buf, Fd> {
     }
 }
 
-/// A raw directory entry, similar to `std::fs::DirEntry`.
+/// A raw directory entry, similar to [`std::fs::DirEntry`].
 ///
-/// Note that unlike the std version, this may represent the `.` or `..`
-/// entries.
+/// Unlike the std version, this may represent the `.` or `..` entries.
 pub struct RawDirEntry<'a> {
     file_name: &'a CStr,
     file_type: u8,
@@ -176,8 +186,8 @@ impl<'a> RawDirEntry<'a> {
 }
 
 impl<'buf, Fd: AsFd> RawDir<'buf, Fd> {
-    /// Identical to [Iterator::next] except that [Iterator::Item] borrows from
-    /// self.
+    /// Identical to [`Iterator::next`] except that [`Iterator::Item`] borrows
+    /// from self.
     ///
     /// Note: this interface will be broken to implement a stdlib iterator API
     /// with GAT support once one becomes available.

@@ -10,9 +10,9 @@ use rustls::internal::msgs::persist;
 use rustls::server::{ClientHello, ServerConfig, ServerConnection};
 use rustls::{
     self, client, kx_group, server, sign, version, AlertDescription, Certificate, CertificateError,
-    Connection, DistinguishedName, Error, InvalidMessage, NamedGroup, PeerMisbehaved, PrivateKey,
-    ProtocolVersion, ServerName, Side, SignatureAlgorithm, SignatureScheme, SupportedKxGroup,
-    SupportedProtocolVersion, Ticketer, ALL_KX_GROUPS,
+    Connection, DistinguishedName, Error, InvalidMessage, NamedGroup, PeerIncompatible,
+    PeerMisbehaved, PrivateKey, ProtocolVersion, ServerName, Side, SignatureAlgorithm,
+    SignatureScheme, SupportedKxGroup, SupportedProtocolVersion, Ticketer, ALL_KX_GROUPS,
 };
 
 use base64::prelude::{Engine, BASE64_STANDARD};
@@ -54,6 +54,7 @@ struct Options {
     key_file: String,
     cert_file: String,
     protocols: Vec<String>,
+    reject_alpn: bool,
     support_tls13: bool,
     support_tls12: bool,
     min_version: Option<ProtocolVersion>,
@@ -75,6 +76,7 @@ struct Options {
     expect_reject_early_data: bool,
     expect_version: u16,
     resumption_delay: u32,
+    queue_early_data_after_received_messages: Vec<usize>,
 }
 
 impl Options {
@@ -101,6 +103,7 @@ impl Options {
             key_file: "".to_string(),
             cert_file: "".to_string(),
             protocols: vec![],
+            reject_alpn: false,
             support_tls13: true,
             support_tls12: true,
             min_version: None,
@@ -122,6 +125,7 @@ impl Options {
             expect_reject_early_data: false,
             expect_version: 0,
             resumption_delay: 0,
+            queue_early_data_after_received_messages: vec![],
         }
     }
 
@@ -448,6 +452,10 @@ fn make_server_cfg(opts: &Options) -> Arc<ServerConfig> {
             .collect::<Vec<_>>();
     }
 
+    if opts.reject_alpn {
+        cfg.alpn_protocols = vec![b"invalid".to_vec()];
+    }
+
     if opts.enable_early_data {
         // see kMaxEarlyDataAccepted in boringssl, which bogo validates
         cfg.max_early_data_size = 14336;
@@ -537,7 +545,8 @@ fn make_client_cfg(opts: &Options) -> Arc<ClientConfig> {
     let mut cfg = if !opts.cert_file.is_empty() && !opts.key_file.is_empty() {
         let cert = load_cert(&opts.cert_file);
         let key = load_key(&opts.key_file);
-        cfg.with_single_cert(cert, key).unwrap()
+        cfg.with_client_auth_cert(cert, key)
+            .unwrap()
     } else {
         cfg.with_no_client_auth()
     };
@@ -619,7 +628,14 @@ fn handle_err(err: Error) -> ! {
         | Error::InvalidMessage(InvalidMessage::MessageTooLarge) => quit(":GARBAGE:"),
         Error::InvalidMessage(InvalidMessage::UnexpectedMessage(_)) => quit(":GARBAGE:"),
         Error::DecryptError => quit(":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:"),
+        Error::NoApplicationProtocol => quit(":NO_APPLICATION_PROTOCOL:"),
+        Error::PeerIncompatible(
+            PeerIncompatible::ServerSentHelloRetryRequestWithUnknownExtension,
+        ) => quit(":UNEXPECTED_EXTENSION:"),
         Error::PeerIncompatible(_) => quit(":INCOMPATIBLE:"),
+        Error::PeerMisbehaved(PeerMisbehaved::MissingPskModesExtension) => {
+            quit(":MISSING_EXTENSION:")
+        }
         Error::PeerMisbehaved(PeerMisbehaved::TooMuchEarlyDataReceived) => {
             quit(":TOO_MUCH_READ_EARLY_DATA:")
         }
@@ -666,25 +682,42 @@ fn server(conn: &mut Connection) -> &mut ServerConnection {
     }
 }
 
+const MAX_MESSAGE_SIZE: usize = 0xffff + 5;
+
+fn after_read(sess: &mut Connection, conn: &mut net::TcpStream) {
+    if let Err(err) = sess.process_new_packets() {
+        flush(sess, conn); /* send any alerts before exiting */
+        handle_err(err);
+    }
+}
+
+fn read_n_bytes(sess: &mut Connection, conn: &mut net::TcpStream, n: usize) {
+    let mut bytes = [0u8; MAX_MESSAGE_SIZE];
+    match conn.read(&mut bytes[..n]) {
+        Ok(count) => {
+            println!("read {:?} bytes", count);
+            sess.read_tls(&mut io::Cursor::new(&mut bytes[..count]))
+                .expect("read_tls not expected to fail reading from buffer");
+        }
+        Err(ref err) if err.kind() == io::ErrorKind::ConnectionReset => {}
+        Err(err) => panic!("invalid read: {}", err),
+    };
+
+    after_read(sess, conn);
+}
+
+fn read_all_bytes(sess: &mut Connection, conn: &mut net::TcpStream) {
+    match sess.read_tls(conn) {
+        Ok(_) => {}
+        Err(ref err) if err.kind() == io::ErrorKind::ConnectionReset => {}
+        Err(err) => panic!("invalid read: {}", err),
+    };
+
+    after_read(sess, conn);
+}
+
 fn exec(opts: &Options, mut sess: Connection, count: usize) {
     let mut sent_message = false;
-
-    if opts.queue_data || (opts.queue_data_on_resume && count > 0) {
-        if count > 0 && opts.enable_early_data {
-            let len = client(&mut sess)
-                .early_data()
-                .expect("0rtt not available")
-                .write(b"hello")
-                .expect("0rtt write failed");
-            sess.writer()
-                .write_all(&b"hello"[len..])
-                .unwrap();
-            sent_message = true;
-        } else if !opts.only_write_one_byte_after_handshake {
-            let _ = sess.writer().write_all(b"hello");
-            sent_message = true;
-        }
-    }
 
     let addrs = [
         net::SocketAddr::from((net::Ipv6Addr::LOCALHOST, opts.port)),
@@ -696,21 +729,40 @@ fn exec(opts: &Options, mut sess: Connection, count: usize) {
     let mut quench_writes = false;
 
     loop {
+        if !sent_message && (opts.queue_data || (opts.queue_data_on_resume && count > 0)) {
+            if !opts
+                .queue_early_data_after_received_messages
+                .is_empty()
+            {
+                flush(&mut sess, &mut conn);
+                for message_size_estimate in &opts.queue_early_data_after_received_messages {
+                    read_n_bytes(&mut sess, &mut conn, *message_size_estimate);
+                }
+                println!("now ready for early data");
+            }
+
+            if count > 0 && opts.enable_early_data {
+                let len = client(&mut sess)
+                    .early_data()
+                    .expect("0rtt not available")
+                    .write(b"hello")
+                    .expect("0rtt write failed");
+                sess.writer()
+                    .write_all(&b"hello"[len..])
+                    .unwrap();
+                sent_message = true;
+            } else if !opts.only_write_one_byte_after_handshake {
+                let _ = sess.writer().write_all(b"hello");
+                sent_message = true;
+            }
+        }
+
         if !quench_writes {
             flush(&mut sess, &mut conn);
         }
 
         if sess.wants_read() {
-            match sess.read_tls(&mut conn) {
-                Ok(_) => {}
-                Err(ref err) if err.kind() == io::ErrorKind::ConnectionReset => {}
-                Err(err) => panic!("invalid read: {}", err),
-            };
-
-            if let Err(err) = sess.process_new_packets() {
-                flush(&mut sess, &mut conn); /* send any alerts before exiting */
-                handle_err(err);
-            }
+            read_all_bytes(&mut sess, &mut conn);
         }
 
         if opts.side == Side::Server && opts.enable_early_data {
@@ -1008,6 +1060,9 @@ fn main() {
             "-advertise-alpn" => {
                 opts.protocols = split_protocols(&args.remove(0));
             }
+            "-reject-alpn" => {
+                opts.reject_alpn = true;
+            }
             "-use-null-client-ca-list" => {
                 opts.offer_no_client_cas = true;
             }
@@ -1024,6 +1079,17 @@ fn main() {
             "-on-resume-read-with-unfinished-write" => {
                 opts.queue_data_on_resume = true;
                 opts.only_write_one_byte_after_handshake_on_resume = true;
+            }
+            "-on-resume-early-write-after-message" => {
+                opts.queue_early_data_after_received_messages= match args.remove(0).parse::<u8>().unwrap() {
+                    // estimate where these messages appear in the server's first flight.
+                    2 => vec![5 + 128 + 5 + 32],
+                    8 => vec![5 + 128 + 5 + 32, 5 + 64],
+                    _ => {
+                        panic!("unhandled -on-resume-early-write-after-message");
+                    }
+                };
+                opts.queue_data_on_resume = true;
             }
             "-expect-ticket-supports-early-data" => {
                 opts.expect_ticket_supports_early_data = true;
@@ -1130,6 +1196,11 @@ fn main() {
             "-expect-peer-cert-file" |
             "-no-rsa-pss-rsae-certs" |
             "-ignore-tls13-downgrade" |
+            "-allow-hint-mismatch" |
+            "-fips-202205" |
+            "-wpa-202304" |
+            "-srtp-profiles" |
+            "-permute-extensions" |
             "-on-initial-expect-peer-cert-file" => {
                 println!("NYI option {:?}", arg);
                 process::exit(BOGO_NACK);

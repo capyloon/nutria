@@ -1,8 +1,7 @@
-use super::super::c;
-use super::super::conv::owned_fd;
-use super::super::offset::libc_ino_t;
-#[cfg(not(any(solarish, target_os = "haiku")))]
+#[cfg(not(any(solarish, target_os = "haiku", target_os = "nto")))]
 use super::types::FileType;
+use crate::backend::c;
+use crate::backend::conv::owned_fd;
 use crate::fd::{AsFd, BorrowedFd};
 use crate::ffi::{CStr, CString};
 use crate::fs::{fcntl_getfl, fstat, openat, Mode, OFlags, Stat};
@@ -10,6 +9,7 @@ use crate::fs::{fcntl_getfl, fstat, openat, Mode, OFlags, Stat};
     solarish,
     target_os = "haiku",
     target_os = "netbsd",
+    target_os = "nto",
     target_os = "redox",
     target_os = "wasi",
 )))]
@@ -18,6 +18,7 @@ use crate::fs::{fstatfs, StatFs};
 use crate::fs::{fstatvfs, StatVfs};
 use crate::io;
 #[cfg(not(any(target_os = "fuchsia", target_os = "wasi")))]
+#[cfg(feature = "process")]
 use crate::process::fchdir;
 use alloc::borrow::ToOwned;
 #[cfg(not(linux_like))]
@@ -94,7 +95,12 @@ impl Dir {
                 check_dirent_layout(dirent);
 
                 let result = DirEntry {
-                    #[cfg(not(any(solarish, target_os = "aix", target_os = "haiku")))]
+                    #[cfg(not(any(
+                        solarish,
+                        target_os = "aix",
+                        target_os = "haiku",
+                        target_os = "nto"
+                    )))]
                     d_type: dirent.d_type,
 
                     #[cfg(not(any(freebsdlike, netbsdlike)))]
@@ -122,6 +128,7 @@ impl Dir {
         solarish,
         target_os = "haiku",
         target_os = "netbsd",
+        target_os = "nto",
         target_os = "redox",
         target_os = "wasi",
     )))]
@@ -138,7 +145,9 @@ impl Dir {
     }
 
     /// `fchdir(self)`
+    #[cfg(feature = "process")]
     #[cfg(not(any(target_os = "fuchsia", target_os = "wasi")))]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "process")))]
     #[inline]
     pub fn chdir(&self) -> io::Result<()> {
         fchdir(unsafe { BorrowedFd::borrow_raw(c::dirfd(self.0.as_ptr())) })
@@ -178,14 +187,14 @@ impl fmt::Debug for Dir {
 /// `struct dirent`
 #[derive(Debug)]
 pub struct DirEntry {
-    #[cfg(not(any(solarish, target_os = "aix", target_os = "haiku")))]
+    #[cfg(not(any(solarish, target_os = "aix", target_os = "haiku", target_os = "nto")))]
     d_type: u8,
 
     #[cfg(not(any(freebsdlike, netbsdlike)))]
-    d_ino: libc_ino_t,
+    d_ino: c::ino_t,
 
     #[cfg(any(freebsdlike, netbsdlike))]
-    d_fileno: libc_ino_t,
+    d_fileno: c::ino_t,
 
     name: CString,
 }
@@ -198,7 +207,7 @@ impl DirEntry {
     }
 
     /// Returns the type of this directory entry.
-    #[cfg(not(any(solarish, target_os = "aix", target_os = "haiku")))]
+    #[cfg(not(any(solarish, target_os = "aix", target_os = "haiku", target_os = "nto")))]
     #[inline]
     pub fn file_type(&self) -> FileType {
         FileType::from_dirent_d_type(self.d_type)
@@ -240,11 +249,13 @@ struct libc_dirent {
 #[cfg(target_os = "openbsd")]
 fn check_dirent_layout(dirent: &c::dirent) {
     use crate::utils::as_ptr;
-    use core::mem::{align_of, size_of};
 
     // Check that the basic layouts match.
-    assert_eq!(size_of::<libc_dirent>(), size_of::<c::dirent>());
-    assert_eq!(align_of::<libc_dirent>(), align_of::<c::dirent>());
+    #[cfg(test)]
+    {
+        assert_eq_size!(libc_dirent, c::dirent);
+        assert_eq_size!(libc_dirent, c::dirent);
+    }
 
     // Check that the field offsets match.
     assert_eq!(

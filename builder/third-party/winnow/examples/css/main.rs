@@ -49,7 +49,7 @@ impl Args {
 #[test]
 fn parse_color() {
     assert_eq!(
-        hex_color("#2F14DF"),
+        hex_color.parse_peek("#2F14DF"),
         Ok((
             "",
             parser::Color {

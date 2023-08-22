@@ -1,4 +1,4 @@
-use super::super::c;
+use crate::backend::c;
 use bitflags::bitflags;
 
 bitflags! {
@@ -7,6 +7,8 @@ bitflags! {
     /// For `PROT_NONE`, use `ProtFlags::empty()`.
     ///
     /// [`mmap`]: crate::io::mmap
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct ProtFlags: u32 {
         /// `PROT_READ`
         const READ = linux_raw_sys::general::PROT_READ;
@@ -23,6 +25,8 @@ bitflags! {
     /// For `PROT_NONE`, use `MprotectFlags::empty()`.
     ///
     /// [`mprotect`]: crate::io::mprotect
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct MprotectFlags: u32 {
         /// `PROT_READ`
         const READ = linux_raw_sys::general::PROT_READ;
@@ -34,6 +38,20 @@ bitflags! {
         const GROWSUP = linux_raw_sys::general::PROT_GROWSUP;
         /// `PROT_GROWSDOWN`
         const GROWSDOWN = linux_raw_sys::general::PROT_GROWSDOWN;
+        /// `PROT_SEM`
+        const SEM = linux_raw_sys::general::PROT_SEM;
+        /// `PROT_BTI`
+        #[cfg(target_arch = "aarch64")]
+        const BTI = linux_raw_sys::general::PROT_BTI;
+        /// `PROT_MTE`
+        #[cfg(target_arch = "aarch64")]
+        const MTE = linux_raw_sys::general::PROT_MTE;
+        /// `PROT_SAO`
+        #[cfg(any(target_arch = "powerpc", target_arch = "powerpc64"))]
+        const SAO = linux_raw_sys::general::PROT_SAO;
+        /// `PROT_ADI`
+        #[cfg(any(target_arch = "sparc", target_arch = "sparc64"))]
+        const ADI = linux_raw_sys::general::PROT_ADI;
     }
 }
 
@@ -44,6 +62,8 @@ bitflags! {
     ///
     /// [`mmap`]: crate::io::mmap
     /// [`mmap_anonymous`]: crates::io::mmap_anonymous
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct MapFlags: u32 {
         /// `MAP_SHARED`
         const SHARED = linux_raw_sys::general::MAP_SHARED;
@@ -74,10 +94,10 @@ bitflags! {
         /// `MAP_STACK`
         const STACK = linux_raw_sys::general::MAP_STACK;
         /// `MAP_SYNC` (since Linux 4.15)
-        #[cfg(not(any(target_arch = "mips", target_arch = "mips64")))]
+        #[cfg(not(any(target_arch = "mips", target_arch = "mips32r6", target_arch = "mips64", target_arch = "mips64r6")))]
         const SYNC = linux_raw_sys::general::MAP_SYNC;
         /// `MAP_UNINITIALIZED`
-        #[cfg(not(any(target_arch = "mips", target_arch = "mips64")))]
+        #[cfg(not(any(target_arch = "mips", target_arch = "mips32r6", target_arch = "mips64", target_arch = "mips64r6")))]
         const UNINITIALIZED = linux_raw_sys::general::MAP_UNINITIALIZED;
     }
 }
@@ -89,6 +109,8 @@ bitflags! {
     ///
     /// [`mremap`]: crate::io::mremap
     /// [`mremap_fixed`]: crate::io::mremap_fixed
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct MremapFlags: u32 {
         /// `MREMAP_MAYMOVE`
         const MAYMOVE = linux_raw_sys::general::MREMAP_MAYMOVE;
@@ -98,19 +120,11 @@ bitflags! {
 }
 
 bitflags! {
-    /// `MLOCK_*` flags for use with [`mlock_with`].
-    ///
-    /// [`mlock_with`]: crate::io::mlock_with
-    pub struct MlockFlags: u32 {
-        /// `MLOCK_ONFAULT`
-        const ONFAULT = linux_raw_sys::general::MLOCK_ONFAULT;
-    }
-}
-
-bitflags! {
     /// `MS_*` flags for use with [`msync`].
     ///
     /// [`msync`]: crate::io::msync
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct MsyncFlags: u32 {
         /// `MS_SYNC`—Requests an update and waits for it to complete.
         const SYNC = linux_raw_sys::general::MS_SYNC;
@@ -125,14 +139,14 @@ bitflags! {
 }
 
 bitflags! {
-    /// `O_*` flags for use with [`userfaultfd`].
+    /// `MLOCK_*` flags for use with [`mlock_with`].
     ///
-    /// [`userfaultfd`]: crate::io::userfaultfd
-    pub struct UserfaultfdFlags: c::c_uint {
-        /// `O_CLOEXEC`
-        const CLOEXEC = linux_raw_sys::general::O_CLOEXEC;
-        /// `O_NONBLOCK`
-        const NONBLOCK = linux_raw_sys::general::O_NONBLOCK;
+    /// [`mlock_with`]: crate::io::mlock_with
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct MlockFlags: u32 {
+        /// `MLOCK_ONFAULT`
+        const ONFAULT = linux_raw_sys::general::MLOCK_ONFAULT;
     }
 }
 
@@ -169,7 +183,12 @@ pub enum Advice {
     /// `MADV_HWPOISON`
     LinuxHwPoison = linux_raw_sys::general::MADV_HWPOISON,
     /// `MADV_SOFT_OFFLINE`
-    #[cfg(not(any(target_arch = "mips", target_arch = "mips64")))]
+    #[cfg(not(any(
+        target_arch = "mips",
+        target_arch = "mips32r6",
+        target_arch = "mips64",
+        target_arch = "mips64r6"
+    )))]
     LinuxSoftOffline = linux_raw_sys::general::MADV_SOFT_OFFLINE,
     /// `MADV_MERGEABLE`
     LinuxMergeable = linux_raw_sys::general::MADV_MERGEABLE,
@@ -195,6 +214,8 @@ pub enum Advice {
     LinuxPopulateRead = linux_raw_sys::general::MADV_POPULATE_READ,
     /// `MADV_POPULATE_WRITE` (since Linux 5.14)
     LinuxPopulateWrite = linux_raw_sys::general::MADV_POPULATE_WRITE,
+    /// `MADV_DONTNEED_LOCKED` (since Linux 5.18)
+    LinuxDontneedLocked = linux_raw_sys::general::MADV_DONTNEED_LOCKED,
 }
 
 #[allow(non_upper_case_globals)]
@@ -205,4 +226,18 @@ impl Advice {
     /// Linux's `MADV_DONTNEED` differs from `POSIX_MADV_DONTNEED`. See
     /// `LinuxDontNeed` for the Linux behavior.
     pub const DontNeed: Self = Self::Normal;
+}
+
+bitflags! {
+    /// `O_*` flags for use with [`userfaultfd`].
+    ///
+    /// [`userfaultfd`]: crate::io::userfaultfd
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct UserfaultfdFlags: c::c_uint {
+        /// `O_CLOEXEC`
+        const CLOEXEC = linux_raw_sys::general::O_CLOEXEC;
+        /// `O_NONBLOCK`
+        const NONBLOCK = linux_raw_sys::general::O_NONBLOCK;
+    }
 }

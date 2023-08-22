@@ -3,8 +3,9 @@ mod parser;
 use std::io::Read;
 
 use winnow::error::ErrMode;
-use winnow::error::Error;
+use winnow::error::InputError;
 use winnow::error::Needed;
+use winnow::prelude::*;
 use winnow::stream::Offset;
 
 fn main() -> Result<(), lexopt::Error> {
@@ -38,12 +39,12 @@ fn main() -> Result<(), lexopt::Error> {
 
         loop {
             let input = parser::Stream::new(std::str::from_utf8(buffer.data()).map_err(to_lexopt)?);
-            match parser::ndjson::<Error<parser::Stream>>(input) {
+            match parser::ndjson::<InputError<parser::Stream>>.parse_peek(input) {
                 Ok((remainder, value)) => {
                     println!("{:?}", value);
                     println!();
                     // Tell the buffer how much we read
-                    let consumed = input.offset_to(&remainder);
+                    let consumed = remainder.offset_from(&input);
                     buffer.consume(consumed);
                 }
                 Err(ErrMode::Backtrack(e)) | Err(ErrMode::Cut(e)) => {

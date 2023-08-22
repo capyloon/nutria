@@ -95,7 +95,7 @@ pub struct JsValue {
 }
 
 const JSIDX_OFFSET: u32 = 128; // keep in sync with js/mod.rs
-const JSIDX_UNDEFINED: u32 = JSIDX_OFFSET + 0;
+const JSIDX_UNDEFINED: u32 = JSIDX_OFFSET;
 const JSIDX_NULL: u32 = JSIDX_OFFSET + 1;
 const JSIDX_TRUE: u32 = JSIDX_OFFSET + 2;
 const JSIDX_FALSE: u32 = JSIDX_OFFSET + 3;
@@ -126,6 +126,7 @@ impl JsValue {
     ///
     /// The utf-8 string provided is copied to the JS heap and the string will
     /// be owned by the JS garbage collector.
+    #[allow(clippy::should_implement_trait)] // cannot fix without breaking change
     #[inline]
     pub fn from_str(s: &str) -> JsValue {
         unsafe { JsValue::_new(__wbindgen_string_new(s.as_ptr(), s.len())) }
@@ -608,10 +609,10 @@ impl TryFrom<&JsValue> for f64 {
     #[inline]
     fn try_from(val: &JsValue) -> Result<Self, Self::Error> {
         let jsval = unsafe { JsValue::_new(__wbindgen_try_into_number(val.idx)) };
-        return match jsval.as_f64() {
+        match jsval.as_f64() {
             Some(num) => Ok(num),
             None => Err(jsval),
-        };
+        }
     }
 }
 
@@ -1565,11 +1566,9 @@ pub mod __rt {
 
     if_std! {
         use std::alloc::{alloc, dealloc, realloc, Layout};
-        use std::mem;
 
         #[no_mangle]
-        pub extern "C" fn __wbindgen_malloc(size: usize) -> *mut u8 {
-            let align = mem::align_of::<usize>();
+        pub extern "C" fn __wbindgen_malloc(size: usize, align: usize) -> *mut u8 {
             if let Ok(layout) = Layout::from_size_align(size, align) {
                 unsafe {
                     if layout.size() > 0 {
@@ -1587,8 +1586,7 @@ pub mod __rt {
         }
 
         #[no_mangle]
-        pub unsafe extern "C" fn __wbindgen_realloc(ptr: *mut u8, old_size: usize, new_size: usize) -> *mut u8 {
-            let align = mem::align_of::<usize>();
+        pub unsafe extern "C" fn __wbindgen_realloc(ptr: *mut u8, old_size: usize, new_size: usize, align: usize) -> *mut u8 {
             debug_assert!(old_size > 0);
             debug_assert!(new_size > 0);
             if let Ok(layout) = Layout::from_size_align(old_size, align) {
@@ -1610,13 +1608,12 @@ pub mod __rt {
         }
 
         #[no_mangle]
-        pub unsafe extern "C" fn __wbindgen_free(ptr: *mut u8, size: usize) {
+        pub unsafe extern "C" fn __wbindgen_free(ptr: *mut u8, size: usize, align: usize) {
             // This happens for zero-length slices, and in that case `ptr` is
             // likely bogus so don't actually send this to the system allocator
             if size == 0 {
                 return
             }
-            let align = mem::align_of::<usize>();
             let layout = Layout::from_size_align_unchecked(size, align);
             dealloc(ptr, layout);
         }
@@ -1677,7 +1674,7 @@ pub mod __rt {
             };
             GLOBAL_EXNDATA[0] = 0;
             GLOBAL_EXNDATA[1] = 0;
-            return ret;
+            ret
         }
     }
 

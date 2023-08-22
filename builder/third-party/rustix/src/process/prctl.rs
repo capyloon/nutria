@@ -5,63 +5,20 @@
 
 #![allow(unsafe_code)]
 
-use core::convert::{TryFrom, TryInto};
-use core::mem::{size_of, MaybeUninit};
+use core::mem::size_of;
 use core::ptr::{null, null_mut, NonNull};
 
 use bitflags::bitflags;
 
 use crate::backend::c::{c_int, c_uint, c_void};
-use crate::backend::process::syscalls;
-use crate::backend::process::types::Signal;
+use crate::backend::prctl::syscalls;
 use crate::fd::{AsRawFd, BorrowedFd};
 use crate::ffi::CStr;
 use crate::io;
+use crate::prctl::*;
 use crate::process::{Pid, RawPid};
+use crate::signal::Signal;
 use crate::utils::{as_mut_ptr, as_ptr};
-
-//
-// Helper functions.
-//
-
-#[inline]
-pub(crate) unsafe fn prctl_1arg(option: c_int) -> io::Result<c_int> {
-    const NULL: *mut c_void = null_mut();
-    syscalls::prctl(option, NULL, NULL, NULL, NULL)
-}
-
-#[inline]
-pub(crate) unsafe fn prctl_2args(option: c_int, arg2: *mut c_void) -> io::Result<c_int> {
-    const NULL: *mut c_void = null_mut();
-    syscalls::prctl(option, arg2, NULL, NULL, NULL)
-}
-
-#[inline]
-pub(crate) unsafe fn prctl_3args(
-    option: c_int,
-    arg2: *mut c_void,
-    arg3: *mut c_void,
-) -> io::Result<c_int> {
-    syscalls::prctl(option, arg2, arg3, null_mut(), null_mut())
-}
-
-#[inline]
-pub(crate) unsafe fn prctl_get_at_arg2_optional<P>(option: i32) -> io::Result<P> {
-    let mut value: MaybeUninit<P> = MaybeUninit::uninit();
-    prctl_2args(option, value.as_mut_ptr().cast())?;
-    Ok(value.assume_init())
-}
-
-#[inline]
-pub(crate) unsafe fn prctl_get_at_arg2<P, T>(option: i32) -> io::Result<T>
-where
-    P: Default,
-    T: TryFrom<P, Error = io::Errno>,
-{
-    let mut value: P = Default::default();
-    prctl_2args(option, as_mut_ptr(&mut value).cast())?;
-    TryFrom::try_from(value)
-}
 
 //
 // PR_GET_PDEATHSIG/PR_SET_PDEATHSIG
@@ -78,6 +35,7 @@ const PR_GET_PDEATHSIG: c_int = 2;
 /// [Linux: `prctl(PR_GET_PDEATHSIG,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 /// [FreeBSD: `procctl(PROC_PDEATHSIG_STATUS,...)`]: https://man.freebsd.org/cgi/man.cgi?query=procctl&sektion=2
 #[inline]
+#[doc(alias = "PR_GET_PDEATHSIG")]
 pub fn parent_process_death_signal() -> io::Result<Option<Signal>> {
     unsafe { prctl_get_at_arg2_optional::<c_int>(PR_GET_PDEATHSIG) }.map(Signal::from_raw)
 }
@@ -93,6 +51,7 @@ const PR_SET_PDEATHSIG: c_int = 1;
 /// [Linux: `prctl(PR_SET_PDEATHSIG,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 /// [FreeBSD: `procctl(PROC_PDEATHSIG_CTL,...)`]: https://man.freebsd.org/cgi/man.cgi?query=procctl&sektion=2
 #[inline]
+#[doc(alias = "PR_SET_PDEATHSIG")]
 pub fn set_parent_process_death_signal(signal: Option<Signal>) -> io::Result<()> {
     let signal = signal.map_or(0_usize, |signal| signal as usize);
     unsafe { prctl_2args(PR_SET_PDEATHSIG, signal as *mut _) }.map(|_r| ())
@@ -108,15 +67,19 @@ const SUID_DUMP_DISABLE: i32 = 0;
 const SUID_DUMP_USER: i32 = 1;
 const SUID_DUMP_ROOT: i32 = 2;
 
-/// `SUID_DUMP_*`.
+/// `SUID_DUMP_*` values for use with [`dumpable_behavior`] and
+/// [`set_dumpable_behavior`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(i32)]
 pub enum DumpableBehavior {
     /// Not dumpable.
+    #[doc(alias = "SUID_DUMP_DISABLE")]
     NotDumpable = SUID_DUMP_DISABLE,
     /// Dumpable.
+    #[doc(alias = "SUID_DUMP_USER")]
     Dumpable = SUID_DUMP_USER,
     /// Dumpable but only readable by root.
+    #[doc(alias = "SUID_DUMP_ROOT")]
     DumpableReadableOnlyByRoot = SUID_DUMP_ROOT,
 }
 
@@ -133,13 +96,14 @@ impl TryFrom<i32> for DumpableBehavior {
     }
 }
 
-/// Get the current state of the calling process's `dumpable` attribute.
+/// Get the current state of the calling process' `dumpable` attribute.
 ///
 /// # References
 ///  - [`prctl(PR_GET_DUMPABLE,...)`]
 ///
 /// [`prctl(PR_GET_DUMPABLE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_GET_DUMPABLE")]
 pub fn dumpable_behavior() -> io::Result<DumpableBehavior> {
     unsafe { prctl_1arg(PR_GET_DUMPABLE) }.and_then(TryInto::try_into)
 }
@@ -160,6 +124,7 @@ const PR_SET_DUMPABLE: c_int = 4;
 ///
 /// [`prctl(PR_SET_DUMPABLE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_DUMPABLE")]
 pub fn set_dumpable_behavior(config: DumpableBehavior) -> io::Result<()> {
     unsafe { prctl_2args(PR_SET_DUMPABLE, config as usize as *mut _) }.map(|_r| ())
 }
@@ -171,11 +136,17 @@ pub fn set_dumpable_behavior(config: DumpableBehavior) -> io::Result<()> {
 const PR_GET_UNALIGN: c_int = 5;
 
 bitflags! {
-    /// `PR_UNALIGN_*`.
+    /// `PR_UNALIGN_*` flags for use with [`unaligned_access_control`] and
+    /// [`set_unaligned_access_control`].
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct UnalignedAccessControl: u32 {
         /// Silently fix up unaligned user accesses.
+        #[doc(alias = "NOPRINT")]
+        #[doc(alias = "PR_UNALIGN_NOPRINT")]
         const NO_PRINT = 1;
         /// Generate a [`Signal::Bus`] signal on unaligned user access.
+        #[doc(alias = "PR_UNALIGN_SIGBUS")]
         const SIGBUS = 2;
     }
 }
@@ -187,6 +158,7 @@ bitflags! {
 ///
 /// [`prctl(PR_GET_UNALIGN,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_GET_UNALIGN")]
 pub fn unaligned_access_control() -> io::Result<UnalignedAccessControl> {
     let r = unsafe { prctl_get_at_arg2_optional::<c_uint>(PR_GET_UNALIGN)? };
     UnalignedAccessControl::from_bits(r).ok_or(io::Errno::RANGE)
@@ -201,6 +173,7 @@ const PR_SET_UNALIGN: c_int = 6;
 ///
 /// [`prctl(PR_SET_UNALIGN,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_UNALIGN")]
 pub fn set_unaligned_access_control(config: UnalignedAccessControl) -> io::Result<()> {
     unsafe { prctl_2args(PR_SET_UNALIGN, config.bits() as usize as *mut _) }.map(|_r| ())
 }
@@ -212,12 +185,17 @@ pub fn set_unaligned_access_control(config: UnalignedAccessControl) -> io::Resul
 const PR_GET_FPEMU: c_int = 9;
 
 bitflags! {
-    /// `PR_FPEMU_*`.
+    /// `PR_FPEMU_*` flags for use with [`floating_point_emulation_control`]
+    /// and [`set_floating_point_emulation_control`].
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct FloatingPointEmulationControl: u32 {
         /// Silently emulate floating point operations accesses.
+        #[doc(alias = "PR_UNALIGN_NOPRINT")]
         const NO_PRINT = 1;
         /// Don't emulate floating point operations, send a [`Signal::Fpe`]
         /// signal instead.
+        #[doc(alias = "PR_UNALIGN_SIGFPE")]
         const SIGFPE = 2;
     }
 }
@@ -229,6 +207,7 @@ bitflags! {
 ///
 /// [`prctl(PR_GET_FPEMU,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_GET_FPEMU")]
 pub fn floating_point_emulation_control() -> io::Result<FloatingPointEmulationControl> {
     let r = unsafe { prctl_get_at_arg2_optional::<c_uint>(PR_GET_FPEMU)? };
     FloatingPointEmulationControl::from_bits(r).ok_or(io::Errno::RANGE)
@@ -243,6 +222,7 @@ const PR_SET_FPEMU: c_int = 10;
 ///
 /// [`prctl(PR_SET_FPEMU,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_FPEMU")]
 pub fn set_floating_point_emulation_control(
     config: FloatingPointEmulationControl,
 ) -> io::Result<()> {
@@ -257,6 +237,8 @@ const PR_GET_FPEXC: c_int = 11;
 
 bitflags! {
     /// Zero means floating point exceptions are disabled.
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct FloatingPointExceptionMode: u32 {
         /// Async non-recoverable exception mode.
         const NONRECOV = 1;
@@ -287,6 +269,7 @@ bitflags! {
 ///
 /// [`prctl(PR_GET_FPEXC,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_GET_FPEXEC")]
 pub fn floating_point_exception_mode() -> io::Result<Option<FloatingPointExceptionMode>> {
     unsafe { prctl_get_at_arg2_optional::<c_uint>(PR_GET_FPEXC) }
         .map(FloatingPointExceptionMode::from_bits)
@@ -301,6 +284,7 @@ const PR_SET_FPEXC: c_int = 12;
 ///
 /// [`prctl(PR_SET_FPEXC,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_FPEXEC")]
 pub fn set_floating_point_exception_mode(
     config: Option<FloatingPointExceptionMode>,
 ) -> io::Result<()> {
@@ -317,7 +301,8 @@ const PR_GET_TIMING: c_int = 13;
 const PR_TIMING_STATISTICAL: i32 = 0;
 const PR_TIMING_TIMESTAMP: i32 = 1;
 
-/// `PR_TIMING_*`.
+/// `PR_TIMING_*` values for use with [`timing_method`] and
+/// [`set_timing_method`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(i32)]
 pub enum TimingMethod {
@@ -346,6 +331,7 @@ impl TryFrom<i32> for TimingMethod {
 ///
 /// [`prctl(PR_GET_TIMING,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_GET_TIMING")]
 pub fn timing_method() -> io::Result<TimingMethod> {
     unsafe { prctl_1arg(PR_GET_TIMING) }.and_then(TryInto::try_into)
 }
@@ -360,6 +346,7 @@ const PR_SET_TIMING: c_int = 14;
 ///
 /// [`prctl(PR_SET_TIMING,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_TIMING")]
 pub fn set_timing_method(method: TimingMethod) -> io::Result<()> {
     unsafe { prctl_2args(PR_SET_TIMING, method as usize as *mut _) }.map(|_r| ())
 }
@@ -374,7 +361,7 @@ const PR_ENDIAN_BIG: u32 = 0;
 const PR_ENDIAN_LITTLE: u32 = 1;
 const PR_ENDIAN_PPC_LITTLE: u32 = 2;
 
-/// `PR_ENDIAN_*`.
+/// `PR_ENDIAN_*` values for use with [`endian_mode`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum EndianMode {
@@ -406,6 +393,7 @@ impl TryFrom<u32> for EndianMode {
 ///
 /// [`prctl(PR_GET_ENDIAN,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_GET_ENDIAN")]
 pub fn endian_mode() -> io::Result<EndianMode> {
     unsafe { prctl_get_at_arg2::<c_uint, _>(PR_GET_ENDIAN) }
 }
@@ -424,6 +412,7 @@ const PR_SET_ENDIAN: c_int = 20;
 ///
 /// [`prctl(PR_SET_ENDIAN,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_ENDIAN")]
 pub unsafe fn set_endian_mode(mode: EndianMode) -> io::Result<()> {
     prctl_2args(PR_SET_ENDIAN, mode as usize as *mut _).map(|_r| ())
 }
@@ -437,7 +426,8 @@ const PR_GET_TSC: c_int = 25;
 const PR_TSC_ENABLE: u32 = 1;
 const PR_TSC_SIGSEGV: u32 = 2;
 
-/// `PR_TSC_*`.
+/// `PR_TSC_*` values for use with [`time_stamp_counter_readability`] and
+/// [`set_time_stamp_counter_readability`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum TimeStampCounterReadability {
@@ -466,6 +456,7 @@ impl TryFrom<u32> for TimeStampCounterReadability {
 ///
 /// [`prctl(PR_GET_TSC,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_GET_TSC")]
 pub fn time_stamp_counter_readability() -> io::Result<TimeStampCounterReadability> {
     unsafe { prctl_get_at_arg2::<c_uint, _>(PR_GET_TSC) }
 }
@@ -480,6 +471,7 @@ const PR_SET_TSC: c_int = 26;
 ///
 /// [`prctl(PR_SET_TSC,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_TSC")]
 pub fn set_time_stamp_counter_readability(
     readability: TimeStampCounterReadability,
 ) -> io::Result<()> {
@@ -502,6 +494,8 @@ const PR_TASK_PERF_EVENTS_ENABLE: c_int = 32;
 /// [`prctl(PR_TASK_PERF_EVENTS_ENABLE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 /// [`prctl(PR_TASK_PERF_EVENTS_DISABLE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_TASK_PERF_EVENTS_ENABLE")]
+#[doc(alias = "PR_TASK_PERF_EVENTS_DISABLE")]
 pub fn configure_performance_counters(enable: bool) -> io::Result<()> {
     let option = if enable {
         PR_TASK_PERF_EVENTS_ENABLE
@@ -522,15 +516,20 @@ const PR_MCE_KILL_LATE: u32 = 0;
 const PR_MCE_KILL_EARLY: u32 = 1;
 const PR_MCE_KILL_DEFAULT: u32 = 2;
 
-/// `PR_MCE_KILL_*`.
+/// `PR_MCE_KILL_*` values for use with
+/// [`machine_check_memory_corruption_kill_policy`] and
+/// [`set_machine_check_memory_corruption_kill_policy`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum MachineCheckMemoryCorruptionKillPolicy {
     /// Late kill policy.
+    #[doc(alias = "PR_MCE_KILL_LATE")]
     Late = PR_MCE_KILL_LATE,
     /// Early kill policy.
+    #[doc(alias = "PR_MCE_KILL_EARLY")]
     Early = PR_MCE_KILL_EARLY,
     /// System-wide default policy.
+    #[doc(alias = "PR_MCE_KILL_DEFAULT")]
     Default = PR_MCE_KILL_DEFAULT,
 }
 
@@ -554,6 +553,7 @@ impl TryFrom<u32> for MachineCheckMemoryCorruptionKillPolicy {
 ///
 /// [`prctl(PR_MCE_KILL_GET,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_MCE_KILL_GET")]
 pub fn machine_check_memory_corruption_kill_policy(
 ) -> io::Result<MachineCheckMemoryCorruptionKillPolicy> {
     let r = unsafe { prctl_1arg(PR_MCE_KILL_GET)? } as c_uint;
@@ -572,6 +572,7 @@ const PR_MCE_KILL_SET: usize = 1;
 ///
 /// [`prctl(PR_MCE_KILL,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_MCE_KILL")]
 pub fn set_machine_check_memory_corruption_kill_policy(
     policy: Option<MachineCheckMemoryCorruptionKillPolicy>,
 ) -> io::Result<()> {
@@ -606,7 +607,7 @@ const PR_SET_MM_EXE_FILE: usize = 13;
 const PR_SET_MM_MAP: usize = 14;
 const PR_SET_MM_MAP_SIZE: usize = 15;
 
-/// `PR_SET_MM_*`.
+/// `PR_SET_MM_*` values for use with [`set_virtual_memory_map_address`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum VirtualMemoryMapAddress {
@@ -650,6 +651,7 @@ pub enum VirtualMemoryMapAddress {
 ///
 /// [`prctl(PR_SET_MM,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_MM")]
 pub unsafe fn set_virtual_memory_map_address(
     option: VirtualMemoryMapAddress,
     address: Option<NonNull<c_void>>,
@@ -666,6 +668,8 @@ pub unsafe fn set_virtual_memory_map_address(
 ///
 /// [`prctl(PR_SET_MM,PR_SET_MM_EXE_FILE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_MM")]
+#[doc(alias = "PR_SET_MM_EXE_FILE")]
 pub fn set_executable_file(fd: BorrowedFd) -> io::Result<()> {
     let fd = usize::try_from(fd.as_raw_fd()).map_err(|_r| io::Errno::RANGE)?;
     unsafe { prctl_3args(PR_SET_MM, PR_SET_MM_EXE_FILE as *mut _, fd as *mut _) }.map(|_r| ())
@@ -683,6 +687,8 @@ pub fn set_executable_file(fd: BorrowedFd) -> io::Result<()> {
 ///
 /// [`prctl(PR_SET_MM,PR_SET_MM_AUXV,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_MM")]
+#[doc(alias = "PR_SET_MM_AUXV")]
 pub unsafe fn set_auxiliary_vector(auxv: &[*const c_void]) -> io::Result<()> {
     syscalls::prctl(
         PR_SET_MM,
@@ -701,6 +707,8 @@ pub unsafe fn set_auxiliary_vector(auxv: &[*const c_void]) -> io::Result<()> {
 ///
 /// [`prctl(PR_SET_MM,PR_SET_MM_MAP_SIZE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_MM")]
+#[doc(alias = "PR_SET_MM_MAP_SIZE")]
 pub fn virtual_memory_map_config_struct_size() -> io::Result<usize> {
     let mut value: c_uint = 0;
     let value_ptr = as_mut_ptr(&mut value);
@@ -758,6 +766,8 @@ pub struct PrctlMmMap {
 ///
 /// [`prctl(PR_SET_MM,PR_SET_MM_MAP,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_MM")]
+#[doc(alias = "PR_SET_MM_MAP")]
 pub unsafe fn configure_virtual_memory_map(config: &PrctlMmMap) -> io::Result<()> {
     syscalls::prctl(
         PR_SET_MM,
@@ -796,6 +806,7 @@ pub enum PTracer {
 ///
 /// [`prctl(PR_SET_PTRACER,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_PTRACER")]
 pub fn set_ptracer(tracer: PTracer) -> io::Result<()> {
     let pid = match tracer {
         PTracer::None => null_mut(),
@@ -819,6 +830,7 @@ const PR_GET_CHILD_SUBREAPER: c_int = 37;
 ///
 /// [`prctl(PR_GET_CHILD_SUBREAPER,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_GET_CHILD_SUBREAPER")]
 pub fn child_subreaper() -> io::Result<Option<Pid>> {
     unsafe {
         let r = prctl_get_at_arg2_optional::<c_uint>(PR_GET_CHILD_SUBREAPER)?;
@@ -835,6 +847,7 @@ const PR_SET_CHILD_SUBREAPER: c_int = 36;
 ///
 /// [`prctl(PR_SET_CHILD_SUBREAPER,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_CHILD_SUBREAPER")]
 pub fn set_child_subreaper(pid: Option<Pid>) -> io::Result<()> {
     let pid = pid.map_or(0_usize, |pid| pid.as_raw_nonzero().get() as usize);
     unsafe { prctl_2args(PR_SET_CHILD_SUBREAPER, pid as *mut _) }.map(|_r| ())
@@ -849,7 +862,8 @@ const PR_GET_FP_MODE: c_int = 46;
 const PR_FP_MODE_FR: u32 = 1_u32 << 0;
 const PR_FP_MODE_FRE: u32 = 1_u32 << 1;
 
-/// `PR_FP_MODE_*`.
+/// `PR_FP_MODE_*` values for use with [`floating_point_mode`] and
+/// [`set_floating_point_mode`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum FloatingPointMode {
@@ -878,6 +892,7 @@ impl TryFrom<u32> for FloatingPointMode {
 ///
 /// [`prctl(PR_GET_FP_MODE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_GET_FP_MODE")]
 pub fn floating_point_mode() -> io::Result<FloatingPointMode> {
     let r = unsafe { prctl_1arg(PR_GET_FP_MODE)? } as c_uint;
     FloatingPointMode::try_from(r)
@@ -892,6 +907,7 @@ const PR_SET_FP_MODE: c_int = 45;
 ///
 /// [`prctl(PR_SET_FP_MODE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_FP_MODE")]
 pub fn set_floating_point_mode(mode: FloatingPointMode) -> io::Result<()> {
     unsafe { prctl_2args(PR_SET_FP_MODE, mode as usize as *mut _) }.map(|_r| ())
 }
@@ -906,7 +922,8 @@ const PR_SPEC_STORE_BYPASS: u32 = 0;
 const PR_SPEC_INDIRECT_BRANCH: u32 = 1;
 const PR_SPEC_L1D_FLUSH: u32 = 2;
 
-/// `PR_SPEC_*`.
+/// `PR_SPEC_*` values for use with [`speculative_feature_state`] and
+/// [`control_speculative_feature`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum SpeculationFeature {
@@ -932,7 +949,9 @@ impl TryFrom<u32> for SpeculationFeature {
 }
 
 bitflags! {
-    /// `PR_SPEC_*`.
+    /// `PR_SPEC_*` flags for use with [`control_speculative_feature`].
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct SpeculationFeatureControl: u32 {
         /// The speculation feature is enabled, mitigation is disabled.
         const ENABLE = 1_u32 << 1;
@@ -947,6 +966,8 @@ bitflags! {
 
 bitflags! {
     /// Zero means the processors are not vulnerable.
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct SpeculationFeatureState: u32 {
         /// Mitigation can be controlled per thread by `PR_SET_SPECULATION_CTRL`.
         const PRCTL = 1_u32 << 0;
@@ -968,6 +989,7 @@ bitflags! {
 ///
 /// [`prctl(PR_GET_SPECULATION_CTRL,...)`]: https://www.kernel.org/doc/html/v5.18/userspace-api/spec_ctrl.html
 #[inline]
+#[doc(alias = "PR_GET_SPECULATION_CTRL")]
 pub fn speculative_feature_state(
     feature: SpeculationFeature,
 ) -> io::Result<Option<SpeculationFeatureState>> {
@@ -984,6 +1006,7 @@ const PR_SET_SPECULATION_CTRL: c_int = 53;
 ///
 /// [`prctl(PR_SET_SPECULATION_CTRL,...)`]: https://www.kernel.org/doc/html/v5.18/userspace-api/spec_ctrl.html
 #[inline]
+#[doc(alias = "PR_SET_SPECULATION_CTRL")]
 pub fn control_speculative_feature(
     feature: SpeculationFeature,
     config: SpeculationFeatureControl,
@@ -1006,6 +1029,7 @@ const PR_GET_IO_FLUSHER: c_int = 58;
 ///
 /// [`prctl(PR_GET_IO_FLUSHER,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_GET_IO_FLUSHER")]
 pub fn is_io_flusher() -> io::Result<bool> {
     unsafe { prctl_1arg(PR_GET_IO_FLUSHER) }.map(|r| r != 0)
 }
@@ -1020,8 +1044,9 @@ const PR_SET_IO_FLUSHER: c_int = 57;
 ///
 /// [`prctl(PR_SET_IO_FLUSHER,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[doc(alias = "PR_SET_IO_FLUSHER")]
 pub fn configure_io_flusher_behavior(enable: bool) -> io::Result<()> {
-    unsafe { prctl_2args(PR_SET_IO_FLUSHER, enable as usize as *mut _) }.map(|_r| ())
+    unsafe { prctl_2args(PR_SET_IO_FLUSHER, usize::from(enable) as *mut _) }.map(|_r| ())
 }
 
 //
@@ -1030,22 +1055,6 @@ pub fn configure_io_flusher_behavior(enable: bool) -> io::Result<()> {
 
 const PR_PAC_GET_ENABLED_KEYS: c_int = 61;
 
-bitflags! {
-    /// `PR_PAC_AP*`.
-    pub struct PointerAuthenticationKeys: u32 {
-        /// Instruction authentication key `A`.
-        const INSTRUCTION_AUTHENTICATION_KEY_A = 1_u32 << 0;
-        /// Instruction authentication key `B`.
-        const INSTRUCTION_AUTHENTICATION_KEY_B = 1_u32 << 1;
-        /// Data authentication key `A`.
-        const DATA_AUTHENTICATION_KEY_A = 1_u32 << 2;
-        /// Data authentication key `B`.
-        const DATA_AUTHENTICATION_KEY_B = 1_u32 << 3;
-        /// Generic authentication `A` key.
-        const GENERIC_AUTHENTICATION_KEY_A = 1_u32 << 4;
-    }
-}
-
 /// Get enabled pointer authentication keys.
 ///
 /// # References
@@ -1053,6 +1062,7 @@ bitflags! {
 ///
 /// [`prctl(PR_PAC_GET_ENABLED_KEYS,...)`]: https://www.kernel.org/doc/html/v5.18/arm64/pointer-authentication.html
 #[inline]
+#[doc(alias = "PR_PAC_GET_ENABLED_KEYS")]
 pub fn enabled_pointer_authentication_keys() -> io::Result<PointerAuthenticationKeys> {
     let r = unsafe { prctl_1arg(PR_PAC_GET_ENABLED_KEYS)? } as c_uint;
     PointerAuthenticationKeys::from_bits(r).ok_or(io::Errno::RANGE)
@@ -1072,6 +1082,7 @@ const PR_PAC_SET_ENABLED_KEYS: c_int = 60;
 ///
 /// [`prctl(PR_PAC_SET_ENABLED_KEYS,...)`]: https://www.kernel.org/doc/html/v5.18/arm64/pointer-authentication.html
 #[inline]
+#[doc(alias = "PR_PAC_SET_ENABLED_KEYS")]
 pub unsafe fn configure_pointer_authentication_keys(
     config: impl Iterator<Item = (PointerAuthenticationKeys, bool)>,
 ) -> io::Result<()> {
@@ -1116,6 +1127,8 @@ const PR_SET_VMA_ANON_NAME: usize = 0;
 ///
 /// [`prctl(PR_SET_VMA,PR_SET_VMA_ANON_NAME,...)`]: https://lwn.net/Articles/867818/
 #[inline]
+#[doc(alias = "PR_SET_VMA")]
+#[doc(alias = "PR_SET_VMA_ANON_NAME")]
 pub fn set_virtual_memory_region_name(region: &[u8], name: Option<&CStr>) -> io::Result<()> {
     unsafe {
         syscalls::prctl(

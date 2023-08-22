@@ -38,6 +38,9 @@ pub enum Error {
     /// for is earlier than the certificate's notBefore time.
     CertNotValidYet,
 
+    /// The certificate, or one of its issuers, has been revoked.
+    CertRevoked,
+
     /// An end-entity certificate is being used as a CA certificate.
     EndEntityUsedAsCa,
 
@@ -48,8 +51,50 @@ pub enum Error {
     /// the notAfter time is earlier than the notBefore time.
     InvalidCertValidity,
 
+    /// A CRL number extension was invalid:
+    ///  - it was mis-encoded
+    ///  - it was negative
+    ///  - it was too long
+    InvalidCrlNumber,
+
+    /// A iPAddress name constraint was invalid:
+    /// - it had a sparse network mask (ie, cannot be written in CIDR form).
+    /// - it was too long or short
+    InvalidNetworkMaskConstraint,
+
+    /// A serial number was invalid:
+    ///  - it was misencoded
+    ///  - it was negative
+    ///  - it was too long
+    InvalidSerialNumber,
+
+    /// The CRL signature is invalid for the issuer's public key.
+    InvalidCrlSignatureForPublicKey,
+
     /// The signature is invalid for the given public key.
     InvalidSignatureForPublicKey,
+
+    /// A CRL was signed by an issuer that has a KeyUsage bitstring that does not include
+    /// the cRLSign key usage bit.
+    IssuerNotCrlSigner,
+
+    /// A presented or reference DNS identifier was malformed, potentially
+    /// containing invalid characters or invalid labels.
+    MalformedDnsIdentifier,
+
+    /// The certificate extensions are malformed.
+    ///
+    /// In particular, webpki requires the DNS name(s) be in the subjectAltName
+    /// extension as required by the CA/Browser Forum Baseline Requirements
+    /// and as recommended by RFC6125.
+    MalformedExtensions,
+
+    /// A name constraint was malformed, potentially containing invalid characters or
+    /// invalid labels.
+    MalformedNameConstraint,
+
+    /// The maximum number of signature checks has been reached. Path complexity is too great.
+    MaximumSignatureChecksExceeded,
 
     /// The certificate violates one or more name constraints.
     NameConstraintViolation,
@@ -57,13 +102,13 @@ pub enum Error {
     /// The certificate violates one or more path length constraints.
     PathLenConstraintViolated,
 
-    /// The algorithm in the TBSCertificate "signature" field of a certificate
-    /// does not match the algorithm in the signature of the certificate.
-    SignatureAlgorithmMismatch,
-
     /// The certificate is not valid for the Extended Key Usage for which it is
     /// being validated.
     RequiredEkuNotFound,
+
+    /// The algorithm in the TBSCertificate "signature" field of a certificate
+    /// does not match the algorithm in the signature of the certificate.
+    SignatureAlgorithmMismatch,
 
     /// A valid issuer for the certificate could not be found.
     UnknownIssuer,
@@ -74,18 +119,42 @@ pub enum Error {
     /// is malformed.
     UnsupportedCertVersion,
 
-    /// The certificate extensions are malformed.
-    ///
-    /// In particular, webpki requires the DNS name(s) be in the subjectAltName
-    /// extension as required by the CA/Browser Forum Baseline Requirements
-    /// and as recommended by RFC6125.
-    MalformedExtensions,
-
-    /// The maximum number of signature checks has been reached. Path complexity is too great.
-    MaximumSignatureChecksExceeded,
-
     /// The certificate contains an unsupported critical extension.
     UnsupportedCriticalExtension,
+
+    /// The CRL is not a v2 X.509 CRL.
+    ///
+    /// The RFC 5280 web PKI profile mandates only version 2 be used. See section
+    /// 5.1.2.1 for more information.
+    ///
+    /// This error may also be reported if the CRL version field is malformed.
+    UnsupportedCrlVersion,
+
+    /// The CRL is an unsupported "delta" CRL.
+    UnsupportedDeltaCrl,
+
+    /// The CRL contains unsupported "indirect" entries.
+    UnsupportedIndirectCrl,
+
+    /// The revocation reason is not in the set of supported revocation reasons.
+    UnsupportedRevocationReason,
+
+    /// The signature algorithm for a signature over a CRL is not in the set of supported
+    /// signature algorithms given.
+    UnsupportedCrlSignatureAlgorithm,
+
+    /// The signature algorithm for a signature is not in the set of supported
+    /// signature algorithms given.
+    UnsupportedSignatureAlgorithm,
+
+    /// The CRL signature's algorithm does not match the algorithm of the issuer
+    /// public key it is being validated for. This may be because the public key
+    /// algorithm's OID isn't recognized (e.g. DSA), or the public key
+    /// algorithm's parameters don't match the supported parameters for that
+    /// algorithm (e.g. ECC keys for unsupported curves), or the public key
+    /// algorithm and the signature algorithm simply don't match (e.g.
+    /// verifying an RSA signature with an ECC public key).
+    UnsupportedCrlSignatureAlgorithmForPublicKey,
 
     /// The signature's algorithm does not match the algorithm of the public
     /// key it is being validated for. This may be because the public key
@@ -95,15 +164,72 @@ pub enum Error {
     /// algorithm and the signature algorithm simply don't match (e.g.
     /// verifying an RSA signature with an ECC public key).
     UnsupportedSignatureAlgorithmForPublicKey,
+}
 
-    /// The signature algorithm for a signature is not in the set of supported
-    /// signature algorithms given.
-    UnsupportedSignatureAlgorithm,
+impl Error {
+    // Compare the Error with the new error by rank, returning the higher rank of the two as
+    // the most specific error.
+    pub(crate) fn most_specific(self, new: Error) -> Error {
+        // Assign an error a numeric value ranking it by specificity.
+        if self.rank() >= new.rank() {
+            self
+        } else {
+            new
+        }
+    }
 
-    /// A iPAddress name constraint was invalid:
-    /// - it had a sparse network mask (ie, cannot be written in CIDR form).
-    /// - it was too long or short
-    InvalidNetworkMaskConstraint,
+    // Return a numeric indication of how specific the error is, where an error with a higher rank
+    // is considered more useful to an end user than an error with a lower rank. This is used by
+    // Error::most_specific to compare two errors in order to return which is more specific.
+    #[allow(clippy::as_conversions)] // We won't exceed u32 errors.
+    pub(crate) fn rank(&self) -> u32 {
+        match &self {
+            // Errors related to certificate validity
+            Error::CertNotValidYet | Error::CertExpired => 27,
+            Error::CertNotValidForName => 26,
+            Error::CertRevoked => 25,
+            Error::InvalidCrlSignatureForPublicKey | Error::InvalidSignatureForPublicKey => 24,
+            Error::SignatureAlgorithmMismatch => 23,
+            Error::RequiredEkuNotFound => 22,
+            Error::NameConstraintViolation => 21,
+            Error::PathLenConstraintViolated => 20,
+            Error::CaUsedAsEndEntity | Error::EndEntityUsedAsCa => 19,
+            Error::IssuerNotCrlSigner => 18,
+
+            // Errors related to supported features used in an invalid way.
+            Error::InvalidCertValidity => 17,
+            Error::InvalidNetworkMaskConstraint => 16,
+            Error::InvalidSerialNumber => 15,
+            Error::InvalidCrlNumber => 14,
+
+            // Errors related to unsupported features.
+            Error::UnsupportedCrlSignatureAlgorithmForPublicKey
+            | Error::UnsupportedSignatureAlgorithmForPublicKey => 13,
+            Error::UnsupportedCrlSignatureAlgorithm | Error::UnsupportedSignatureAlgorithm => 12,
+            Error::UnsupportedCriticalExtension => 11,
+            Error::UnsupportedCertVersion => 11,
+            Error::UnsupportedCrlVersion => 10,
+            Error::UnsupportedDeltaCrl => 9,
+            Error::UnsupportedIndirectCrl => 8,
+            Error::UnsupportedRevocationReason => 7,
+
+            // Errors related to malformed data.
+            Error::MalformedDnsIdentifier => 6,
+            Error::MalformedNameConstraint => 5,
+            Error::MalformedExtensions => 4,
+            Error::ExtensionValueInvalid => 3,
+
+            // Generic DER errors.
+            Error::BadDerTime => 2,
+            Error::BadDer => 1,
+
+            // Special case error - not subject to ranking.
+            Error::MaximumSignatureChecksExceeded => 0,
+
+            // Default catch all error - should be renamed in the future.
+            Error::UnknownIssuer => 0,
+        }
+    }
 }
 
 impl fmt::Display for Error {
@@ -112,6 +238,12 @@ impl fmt::Display for Error {
     }
 }
 
-/// Requires the `std` feature.
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl ::std::error::Error for Error {}
+
+impl From<untrusted::EndOfInput> for Error {
+    fn from(_: untrusted::EndOfInput) -> Self {
+        Error::BadDer
+    }
+}

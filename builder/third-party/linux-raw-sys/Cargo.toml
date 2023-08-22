@@ -10,10 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
-rust-version = "1.48"
+edition = "2021"
+rust-version = "1.63"
 name = "linux-raw-sys"
-version = "0.3.7"
+version = "0.4.5"
 authors = ["Dan Gohman <dev@sunfishcode.online>"]
 exclude = [
     "/gen",
@@ -65,12 +65,17 @@ default = [
 ]
 errno = []
 general = []
+if_ether = []
+io_uring = []
 ioctl = []
+net = []
 netlink = []
 no_std = []
+prctl = []
 rustc-dep-of-std = [
     "core",
     "compiler_builtins",
     "no_std",
 ]
 std = []
+system = []

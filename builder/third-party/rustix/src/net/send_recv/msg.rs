@@ -1,4 +1,4 @@
-//! [`recvmsg`], [`sendmsg_noaddr`], and related functions.
+//! [`recvmsg`], [`sendmsg`], and related functions.
 
 #![allow(unsafe_code)]
 
@@ -6,8 +6,7 @@ use crate::backend::{self, c};
 use crate::fd::{AsFd, BorrowedFd, OwnedFd};
 use crate::io::{self, IoSlice, IoSliceMut};
 
-use core::convert::{TryFrom, TryInto};
-use core::iter::{FromIterator, FusedIterator};
+use core::iter::FusedIterator;
 use core::marker::PhantomData;
 use core::mem::{size_of, size_of_val, take};
 use core::{ptr, slice};
@@ -38,7 +37,7 @@ pub fn __cmsg_space(len: usize) -> usize {
     unsafe { c::CMSG_SPACE(len.try_into().expect("CMSG_SPACE size overflow")) as usize }
 }
 
-/// Ancillary message for [`sendmsg_noaddr`], [`sendmsg_v4`], [`sendmsg_v6`],
+/// Ancillary message for [`sendmsg`], [`sendmsg_v4`], [`sendmsg_v6`],
 /// [`sendmsg_unix`], and [`sendmsg_any`].
 #[non_exhaustive]
 pub enum SendAncillaryMessage<'slice, 'fd> {
@@ -108,11 +107,15 @@ impl<'buf, 'slice, 'fd> SendAncillaryBuffer<'buf, 'slice, 'fd> {
 
     /// Returns a pointer to the message data.
     pub(crate) fn as_control_ptr(&mut self) -> *mut u8 {
-        if self.length > 0 {
-            self.buffer.as_mut_ptr()
-        } else {
-            ptr::null_mut()
+        // When the length is zero, we may be using a `&[]` address, which may
+        // be an invalid but non-null pointer, and on some platforms, that
+        // causes `sendmsg` to fail with `EFAULT` or `EINVAL`
+        #[cfg(not(linux_kernel))]
+        if self.length == 0 {
+            return core::ptr::null_mut();
         }
+
+        self.buffer.as_mut_ptr()
     }
 
     /// Returns the length of the message data.
@@ -158,13 +161,7 @@ impl<'buf, 'slice, 'fd> SendAncillaryBuffer<'buf, 'slice, 'fd> {
         let buffer = leap!(self.buffer.get_mut(..new_length));
 
         // Fill the new part of the buffer with zeroes.
-        // TODO: In Rust 1.50 we can use `fill` here.
-        unsafe {
-            buffer
-                .as_mut_ptr()
-                .add(self.length)
-                .write_bytes(0, new_length - self.length);
-        }
+        buffer[self.length..new_length].fill(0);
         self.length = new_length;
 
         // Get the last header in the buffer.
@@ -230,6 +227,14 @@ impl<'buf> RecvAncillaryBuffer<'buf> {
 
     /// Returns a pointer to the message data.
     pub(crate) fn as_control_ptr(&mut self) -> *mut u8 {
+        // When the length is zero, we may be using a `&[]` address, which may
+        // be an invalid but non-null pointer, and on some platforms, that
+        // causes `sendmsg` to fail with `EFAULT` or `EINVAL`
+        #[cfg(not(linux_kernel))]
+        if self.buffer.is_empty() {
+            return core::ptr::null_mut();
+        }
+
         self.buffer.as_mut_ptr()
     }
 
@@ -248,6 +253,11 @@ impl<'buf> RecvAncillaryBuffer<'buf> {
         self.read = 0;
     }
 
+    /// Delete all messages from the buffer.
+    pub(crate) fn clear(&mut self) {
+        self.drain().for_each(drop);
+    }
+
     /// Drain all messages from the buffer.
     pub fn drain(&mut self) -> AncillaryDrain<'_> {
         AncillaryDrain {
@@ -260,7 +270,7 @@ impl<'buf> RecvAncillaryBuffer<'buf> {
 
 impl Drop for RecvAncillaryBuffer<'_> {
     fn drop(&mut self) {
-        self.drain().for_each(drop);
+        self.clear();
     }
 }
 
@@ -325,43 +335,43 @@ impl<'buf> Iterator for AncillaryDrain<'buf> {
         (0, max)
     }
 
-    fn fold<B, F>(mut self, init: B, f: F) -> B
+    fn fold<B, F>(self, init: B, f: F) -> B
     where
         Self: Sized,
         F: FnMut(B, Self::Item) -> B,
     {
-        let read = &mut self.read;
-        let length = &mut self.length;
+        let read = self.read;
+        let length = self.length;
         self.messages
             .filter_map(|ev| Self::cvt_msg(read, length, ev))
             .fold(init, f)
     }
 
-    fn count(mut self) -> usize {
-        let read = &mut self.read;
-        let length = &mut self.length;
+    fn count(self) -> usize {
+        let read = self.read;
+        let length = self.length;
         self.messages
             .filter_map(|ev| Self::cvt_msg(read, length, ev))
             .count()
     }
 
-    fn last(mut self) -> Option<Self::Item>
+    fn last(self) -> Option<Self::Item>
     where
         Self: Sized,
     {
-        let read = &mut self.read;
-        let length = &mut self.length;
+        let read = self.read;
+        let length = self.length;
         self.messages
             .filter_map(|ev| Self::cvt_msg(read, length, ev))
             .last()
     }
 
-    fn collect<B: FromIterator<Self::Item>>(mut self) -> B
+    fn collect<B: FromIterator<Self::Item>>(self) -> B
     where
         Self: Sized,
     {
-        let read = &mut self.read;
-        let length = &mut self.length;
+        let read = self.read;
+        let length = self.length;
         self.messages
             .filter_map(|ev| Self::cvt_msg(read, length, ev))
             .collect()
@@ -391,13 +401,13 @@ impl FusedIterator for AncillaryDrain<'_> {}
 /// [DragonFly BSD]: https://man.dragonflybsd.org/?command=sendmsg&section=2
 /// [illumos]: https://illumos.org/man/3SOCKET/sendmsg
 #[inline]
-pub fn sendmsg_noaddr(
+pub fn sendmsg(
     socket: impl AsFd,
     iov: &[IoSlice<'_>],
     control: &mut SendAncillaryBuffer<'_, '_, '_>,
     flags: SendFlags,
 ) -> io::Result<usize> {
-    backend::net::syscalls::sendmsg_noaddr(socket.as_fd(), iov, control, flags)
+    backend::net::syscalls::sendmsg(socket.as_fd(), iov, control, flags)
 }
 
 /// `sendmsg(msghdr)`—Sends a message on a socket to a specific IPv4 address.
@@ -524,7 +534,7 @@ pub fn sendmsg_any(
     flags: SendFlags,
 ) -> io::Result<usize> {
     match addr {
-        None => backend::net::syscalls::sendmsg_noaddr(socket.as_fd(), iov, control, flags),
+        None => backend::net::syscalls::sendmsg(socket.as_fd(), iov, control, flags),
         Some(SocketAddrAny::V4(addr)) => {
             backend::net::syscalls::sendmsg_v4(socket.as_fd(), addr, iov, control, flags)
         }
@@ -676,10 +686,9 @@ impl<T> DoubleEndedIterator for AncillaryIter<'_, T> {
 
 mod messages {
     use crate::backend::c;
-    use core::convert::TryInto;
+    use crate::backend::net::msghdr;
     use core::iter::FusedIterator;
     use core::marker::PhantomData;
-    use core::mem::zeroed;
     use core::ptr::NonNull;
 
     /// An iterator over the messages in an ancillary buffer.
@@ -700,7 +709,7 @@ mod messages {
         /// Create a new iterator over messages from a byte buffer.
         pub(super) fn new(buf: &'buf mut [u8]) -> Self {
             let msghdr = {
-                let mut h: c::msghdr = unsafe { zeroed() };
+                let mut h = msghdr::zero_msghdr();
                 h.msg_control = buf.as_mut_ptr().cast();
                 h.msg_controllen = buf.len().try_into().expect("buffer too large for msghdr");
                 h

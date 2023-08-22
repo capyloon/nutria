@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/want/0.3.0")]
+#![doc(html_root_url = "https://docs.rs/want/0.3.1")]
 #![deny(warnings)]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
@@ -80,9 +80,6 @@
 //! # fn main() {}
 //! ```
 
-#[macro_use]
-extern crate log;
-
 use std::fmt;
 use std::future::Future;
 use std::mem;
@@ -106,7 +103,7 @@ pub fn new() -> (Giver, Taker) {
     let inner2 = inner.clone();
     (
         Giver {
-            inner: inner,
+            inner,
         },
         Taker {
             inner: inner2,
@@ -178,7 +175,7 @@ struct Inner {
 
 impl Giver {
     /// Returns a `Future` that fulfills when the `Taker` has done some action.
-    pub fn want<'a>(&'a mut self) -> impl Future<Output = Result<(), Closed>> + 'a {
+    pub fn want(&mut self) -> impl Future<Output = Result<(), Closed>> + '_ {
         Want(self)
     }
 
@@ -197,37 +194,36 @@ impl Giver {
             let state = self.inner.state.load(SeqCst).into();
             match state {
                 State::Want => {
-                    trace!("poll_want: taker wants!");
                     return Poll::Ready(Ok(()));
                 },
                 State::Closed => {
-                    trace!("poll_want: closed");
                     return Poll::Ready(Err(Closed { _inner: () }));
                 },
                 State::Idle | State::Give => {
                     // Taker doesn't want anything yet, so park.
-                    if let Some(mut locked) = self.inner.task.try_lock_order(SeqCst, SeqCst) {
+                    if let Some(mut locked) = self.inner.task.try_lock_explicit(SeqCst, SeqCst) {
 
                         // While we have the lock, try to set to GIVE.
-                        let old = self.inner.state.compare_and_swap(
+                        let old = self.inner.state.compare_exchange(
                             state.into(),
                             State::Give.into(),
                             SeqCst,
+                            SeqCst,
                         );
                         // If it's still the first state (Idle or Give), park current task.
-                        if old == state.into() {
+                        if old == Ok(state.into()) {
                             let park = locked.as_ref()
                                 .map(|w| !w.will_wake(cx.waker()))
                                 .unwrap_or(true);
                             if park {
                                 let old = mem::replace(&mut *locked, Some(cx.waker().clone()));
                                 drop(locked);
-                                old.map(|prev_task| {
+                                if let Some(prev_task) = old {
                                     // there was an old task parked here.
                                     // it might be waiting to be notified,
                                     // so poke it before dropping.
                                     prev_task.wake();
-                                });
+                                };
                             }
                             return Poll::Pending;
                         }
@@ -250,11 +246,12 @@ impl Giver {
     #[inline]
     pub fn give(&self) -> bool {
         // only set to IDLE if it is still Want
-        self.inner.state.compare_and_swap(
+        let old = self.inner.state.compare_exchange(
             State::Want.into(),
             State::Idle.into(),
             SeqCst,
-        ) == State::Want.into()
+            SeqCst);
+        old == Ok(State::Want.into())
     }
 
     /// Check if the `Taker` has called `want()` without parking a task.
@@ -283,7 +280,7 @@ impl Giver {
 }
 
 impl fmt::Debug for Giver {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Giver")
             .field("state", &self.inner.state())
             .finish()
@@ -311,7 +308,7 @@ impl SharedGiver {
 }
 
 impl fmt::Debug for SharedGiver {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SharedGiver")
             .field("state", &self.inner.state())
             .finish()
@@ -327,7 +324,6 @@ impl Taker {
     /// drop the value yet.
     #[inline]
     pub fn cancel(&mut self) {
-        trace!("signal: {:?}", State::Closed);
         self.signal(State::Closed)
     }
 
@@ -338,7 +334,6 @@ impl Taker {
             self.inner.state.load(SeqCst) != State::Closed.into(),
             "want called after cancel"
         );
-        trace!("signal: {:?}", State::Want);
         self.signal(State::Want)
     }
 
@@ -349,10 +344,9 @@ impl Taker {
             State::Idle | State::Want | State::Closed => (),
             State::Give => {
                 loop {
-                    if let Some(mut locked) = self.inner.task.try_lock_order(SeqCst, SeqCst) {
+                    if let Some(mut locked) = self.inner.task.try_lock_explicit(SeqCst, SeqCst) {
                         if let Some(task) = locked.take() {
                             drop(locked);
-                            trace!("signal found waiting giver, notifying");
                             task.wake();
                         }
                         return;
@@ -376,7 +370,7 @@ impl Drop for Taker {
 }
 
 impl fmt::Debug for Taker {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Taker")
             .field("state", &self.inner.state())
             .finish()
@@ -386,7 +380,7 @@ impl fmt::Debug for Taker {
 // ===== impl Closed ======
 
 impl fmt::Debug for Closed {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Closed")
             .finish()
     }

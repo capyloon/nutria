@@ -1,3 +1,177 @@
+1.9.3 (2023-08-05)
+==================
+This is a patch release that fixes a bug where some searches could result in
+incorrect match offsets being reported. It is difficult to characterize the
+types of regexes susceptible to this bug. They generally involve patterns
+that contain no prefix or suffix literals, but have an inner literal along with
+a regex prefix that can conditionally match.
+
+Bug fixes:
+
+* [BUG #1060](https://github.com/rust-lang/regex/issues/1060):
+Fix a bug with the reverse inner literal optimization reporting incorrect match
+offsets.
+
+
+1.9.2 (2023-08-05)
+==================
+This is a patch release that fixes another memory usage regression. This
+particular regression occurred only when using a `RegexSet`. In some cases,
+much more heap memory (by one or two orders of magnitude) was allocated than in
+versions prior to 1.9.0.
+
+Bug fixes:
+
+* [BUG #1059](https://github.com/rust-lang/regex/issues/1059):
+Fix a memory usage regression when using a `RegexSet`.
+
+
+1.9.1 (2023-07-07)
+==================
+This is a patch release which fixes a memory usage regression. In the regex
+1.9 release, one of the internal engines used a more aggressive allocation
+strategy than what was done previously. This patch release reverts to the
+prior on-demand strategy.
+
+Bug fixes:
+
+* [BUG #1027](https://github.com/rust-lang/regex/issues/1027):
+Change the allocation strategy for the backtracker to be less aggressive.
+
+
+1.9.0 (2023-07-05)
+==================
+This release marks the end of a [years long rewrite of the regex crate
+internals](https://github.com/rust-lang/regex/issues/656). Since this is
+such a big release, please report any issues or regressions you find. We would
+also love to hear about improvements as well.
+
+In addition to many internal improvements that should hopefully result in
+"my regex searches are faster," there have also been a few API additions:
+
+* A new `Captures::extract` method for quickly accessing the substrings
+that match each capture group in a regex.
+* A new inline flag, `R`, which enables CRLF mode. This makes `.` match any
+Unicode scalar value except for `\r` and `\n`, and also makes `(?m:^)` and
+`(?m:$)` match after and before both `\r` and `\n`, respectively, but never
+between a `\r` and `\n`.
+* `RegexBuilder::line_terminator` was added to further customize the line
+terminator used by `(?m:^)` and `(?m:$)` to be any arbitrary byte.
+* The `std` Cargo feature is now actually optional. That is, the `regex` crate
+can be used without the standard library.
+* Because `regex 1.9` may make binary size and compile times even worse, a
+new experimental crate called `regex-lite` has been published. It prioritizes
+binary size and compile times over functionality (like Unicode) and
+performance. It shares no code with the `regex` crate.
+
+New features:
+
+* [FEATURE #244](https://github.com/rust-lang/regex/issues/244):
+One can opt into CRLF mode via the `R` flag.
+e.g., `(?mR:$)` matches just before `\r\n`.
+* [FEATURE #259](https://github.com/rust-lang/regex/issues/259):
+Multi-pattern searches with offsets can be done with `regex-automata 0.3`.
+* [FEATURE #476](https://github.com/rust-lang/regex/issues/476):
+`std` is now an optional feature. `regex` may be used with only `alloc`.
+* [FEATURE #644](https://github.com/rust-lang/regex/issues/644):
+`RegexBuilder::line_terminator` configures how `(?m:^)` and `(?m:$)` behave.
+* [FEATURE #675](https://github.com/rust-lang/regex/issues/675):
+Anchored search APIs are now available in `regex-automata 0.3`.
+* [FEATURE #824](https://github.com/rust-lang/regex/issues/824):
+Add new `Captures::extract` method for easier capture group access.
+* [FEATURE #961](https://github.com/rust-lang/regex/issues/961):
+Add `regex-lite` crate with smaller binary sizes and faster compile times.
+* [FEATURE #1022](https://github.com/rust-lang/regex/pull/1022):
+Add `TryFrom` implementations for the `Regex` type.
+
+Performance improvements:
+
+* [PERF #68](https://github.com/rust-lang/regex/issues/68):
+Added a one-pass DFA engine for faster capture group matching.
+* [PERF #510](https://github.com/rust-lang/regex/issues/510):
+Inner literals are now used to accelerate searches, e.g., `\w+@\w+` will scan
+for `@`.
+* [PERF #787](https://github.com/rust-lang/regex/issues/787),
+[PERF #891](https://github.com/rust-lang/regex/issues/891):
+Makes literal optimizations apply to regexes of the form `\b(foo|bar|quux)\b`.
+
+(There are many more performance improvements as well, but not all of them have
+specific issues devoted to them.)
+
+Bug fixes:
+
+* [BUG #429](https://github.com/rust-lang/regex/issues/429):
+Fix matching bugs related to `\B` and inconsistencies across internal engines.
+* [BUG #517](https://github.com/rust-lang/regex/issues/517):
+Fix matching bug with capture groups.
+* [BUG #579](https://github.com/rust-lang/regex/issues/579):
+Fix matching bug with word boundaries.
+* [BUG #779](https://github.com/rust-lang/regex/issues/779):
+Fix bug where some regexes like `(re)+` were not equivalent to `(re)(re)*`.
+* [BUG #850](https://github.com/rust-lang/regex/issues/850):
+Fix matching bug inconsistency between NFA and DFA engines.
+* [BUG #921](https://github.com/rust-lang/regex/issues/921):
+Fix matching bug where literal extraction got confused by `$`.
+* [BUG #976](https://github.com/rust-lang/regex/issues/976):
+Add documentation to replacement routines about dealing with fallibility.
+* [BUG #1002](https://github.com/rust-lang/regex/issues/1002):
+Use corpus rejection in fuzz testing.
+
+
+1.8.4 (2023-06-05)
+==================
+This is a patch release that fixes a bug where `(?-u:\B)` was allowed in
+Unicode regexes, despite the fact that the current matching engines can report
+match offsets between the code units of a single UTF-8 encoded codepoint. That
+in turn means that match offsets that split a codepoint could be reported,
+which in turn results in panicking when one uses them to slice a `&str`.
+
+This bug occurred in the transition to `regex 1.8` because the underlying
+syntactical error that prevented this regex from compiling was intentionally
+removed. That's because `(?-u:\B)` will be permitted in Unicode regexes in
+`regex 1.9`, but the matching engines will guarantee to never report match
+offsets that split a codepoint. When the underlying syntactical error was
+removed, no code was added to ensure that `(?-u:\B)` didn't compile in the
+`regex 1.8` transition release. This release, `regex 1.8.4`, adds that code
+such that `Regex::new(r"(?-u:\B)")` returns to the `regex <1.8` behavior of
+not compiling. (A `bytes::Regex` can still of course compile it.)
+
+Bug fixes:
+
+* [BUG #1006](https://github.com/rust-lang/regex/issues/1006):
+Fix a bug where `(?-u:\B)` was allowed in Unicode regexes, and in turn could
+lead to match offsets that split a codepoint in `&str`.
+
+
+1.8.3 (2023-05-25)
+==================
+This is a patch release that fixes a bug where the regex would report a
+match at every position even when it shouldn't. This could occur in a very
+small subset of regexes, usually an alternation of simple literals that
+have particular properties. (See the issue linked below for a more precise
+description.)
+
+Bug fixes:
+
+* [BUG #999](https://github.com/rust-lang/regex/issues/999):
+Fix a bug where a match at every position is erroneously reported.
+
+
+1.8.2 (2023-05-22)
+==================
+This is a patch release that fixes a bug where regex compilation could panic
+in debug mode for regexes with large counted repetitions. For example,
+`a{2147483516}{2147483416}{5}` resulted in an integer overflow that wrapped
+in release mode but panicking in debug mode. Despite the unintended wrapping
+arithmetic in release mode, it didn't cause any other logical bugs since the
+errant code was for new analysis that wasn't used yet.
+
+Bug fixes:
+
+* [BUG #995](https://github.com/rust-lang/regex/issues/995):
+Fix a bug where regex compilation with large counted repetitions could panic.
+
+
 1.8.1 (2023-04-21)
 ==================
 This is a patch release that fixes a bug where a regex match could be reported
@@ -17,11 +191,11 @@ optimizations and lead to a false positive match.
 This is a sizeable release that will be soon followed by another sizeable
 release. Both of them will combined close over 40 existing issues and PRs.
 
-This first release, despite its size, essentially represent preparatory work
+This first release, despite its size, essentially represents preparatory work
 for the second release, which will be even bigger. Namely, this release:
 
 * Increases the MSRV to Rust 1.60.0, which was released about 1 year ago.
-* Upgrades its dependency on `aho-corasick` to the recently release 1.0
+* Upgrades its dependency on `aho-corasick` to the recently released 1.0
 version.
 * Upgrades its dependency on `regex-syntax` to the simultaneously released
 `0.7` version. The changes to `regex-syntax` principally revolve around a
@@ -54,7 +228,7 @@ More specifically, any ASCII character except for `[0-9A-Za-z<>]` can now be
 escaped. Also, a new routine, `is_escapeable_character`, has been added to
 `regex-syntax` to query whether a character is escapeable or not.
 * [FEATURE #547](https://github.com/rust-lang/regex/issues/547):
-Add `Regex::captures_at`. This filles a hole in the API, but doesn't otherwise
+Add `Regex::captures_at`. This fills a hole in the API, but doesn't otherwise
 introduce any new expressive power.
 * [FEATURE #595](https://github.com/rust-lang/regex/issues/595):
 Capture group names are now Unicode-aware. They can now begin with either a `_`

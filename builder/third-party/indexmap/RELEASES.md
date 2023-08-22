@@ -1,3 +1,39 @@
+- 2.0.0
+
+  - **MSRV**: Rust 1.64.0 or later is now required.
+
+  - The `"std"` feature is no longer auto-detected. It is included in the
+    default feature set, or else can be enabled like any other Cargo feature.
+
+  - The `"serde-1"` feature has been removed, leaving just the optional
+    `"serde"` dependency to be enabled like a feature itself.
+
+  - `IndexMap::get_index_mut` now returns `Option<(&K, &mut V)>`, changing
+    the key part from `&mut K` to `&K`. There is also a new alternative
+    `MutableKeys::get_index_mut2` to access the former behavior.
+
+  - The new `map::Slice<K, V>` and `set::Slice<T>` offer a linear view of maps
+    and sets, behaving a lot like normal `[(K, V)]` and `[T]` slices. Notably,
+    comparison traits like `Eq` only consider items in order, rather than hash
+    lookups, and slices even implement `Hash`.
+
+  - `IndexMap` and `IndexSet` now have `sort_by_cached_key` and
+    `par_sort_by_cached_key` methods which perform stable sorts in place
+    using a key extraction function.
+
+  - `IndexMap` and `IndexSet` now have `reserve_exact`, `try_reserve`, and
+    `try_reserve_exact` methods that correspond to the same methods on `Vec`.
+    However, exactness only applies to the direct capacity for items, while the
+    raw hash table still follows its own rules for capacity and load factor.
+
+  - The `Equivalent` trait is now re-exported from the `equivalent` crate,
+    intended as a common base to allow types to work with multiple map types.
+
+  - The `hashbrown` dependency has been updated to version 0.14.
+
+  - The `serde_seq` module has been moved from the crate root to below the
+    `map` module.
+
 - 1.9.3
 
   - Bump the `rustc-rayon` dependency, for compiler use only.

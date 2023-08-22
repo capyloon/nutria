@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "net"), allow(unreachable_pub))]
 
+use crate::io::interest::Interest;
+
 use std::fmt;
 use std::ops;
 
@@ -7,6 +9,9 @@ const READABLE: usize = 0b0_01;
 const WRITABLE: usize = 0b0_10;
 const READ_CLOSED: usize = 0b0_0100;
 const WRITE_CLOSED: usize = 0b0_1000;
+#[cfg(any(target_os = "linux", target_os = "android"))]
+const PRIORITY: usize = 0b1_0000;
+const ERROR: usize = 0b10_0000;
 
 /// Describes the readiness state of an I/O resources.
 ///
@@ -31,8 +36,22 @@ impl Ready {
     /// Returns a `Ready` representing write closed readiness.
     pub const WRITE_CLOSED: Ready = Ready(WRITE_CLOSED);
 
+    /// Returns a `Ready` representing priority readiness.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "android"))))]
+    pub const PRIORITY: Ready = Ready(PRIORITY);
+
+    /// Returns a `Ready` representing error readiness.
+    pub const ERROR: Ready = Ready(ERROR);
+
     /// Returns a `Ready` representing readiness for all operations.
-    pub const ALL: Ready = Ready(READABLE | WRITABLE | READ_CLOSED | WRITE_CLOSED);
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    pub const ALL: Ready =
+        Ready(READABLE | WRITABLE | READ_CLOSED | WRITE_CLOSED | ERROR | PRIORITY);
+
+    /// Returns a `Ready` representing readiness for all operations.
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    pub const ALL: Ready = Ready(READABLE | WRITABLE | READ_CLOSED | WRITE_CLOSED | ERROR);
 
     // Must remain crate-private to avoid adding a public dependency on Mio.
     pub(crate) fn from_mio(event: &mio::event::Event) -> Ready {
@@ -63,6 +82,17 @@ impl Ready {
 
         if event.is_write_closed() {
             ready |= Ready::WRITE_CLOSED;
+        }
+
+        if event.is_error() {
+            ready |= Ready::ERROR;
+        }
+
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        {
+            if event.is_priority() {
+                ready |= Ready::PRIORITY;
+            }
         }
 
         ready
@@ -144,6 +174,38 @@ impl Ready {
         self.contains(Ready::WRITE_CLOSED)
     }
 
+    /// Returns `true` if the value includes priority `readiness`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tokio::io::Ready;
+    ///
+    /// assert!(!Ready::EMPTY.is_priority());
+    /// assert!(!Ready::WRITABLE.is_priority());
+    /// assert!(Ready::PRIORITY.is_priority());
+    /// ```
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "android"))))]
+    pub fn is_priority(self) -> bool {
+        self.contains(Ready::PRIORITY)
+    }
+
+    /// Returns `true` if the value includes error `readiness`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tokio::io::Ready;
+    ///
+    /// assert!(!Ready::EMPTY.is_error());
+    /// assert!(!Ready::WRITABLE.is_error());
+    /// assert!(Ready::ERROR.is_error());
+    /// ```
+    pub fn is_error(self) -> bool {
+        self.contains(Ready::ERROR)
+    }
+
     /// Returns true if `self` is a superset of `other`.
     ///
     /// `other` may represent more than one readiness operations, in which case
@@ -172,35 +234,39 @@ impl Ready {
     pub(crate) fn as_usize(self) -> usize {
         self.0
     }
-}
 
-cfg_io_readiness! {
-    use crate::io::Interest;
+    pub(crate) fn from_interest(interest: Interest) -> Ready {
+        let mut ready = Ready::EMPTY;
 
-    impl Ready {
-        pub(crate) fn from_interest(interest: Interest) -> Ready {
-            let mut ready = Ready::EMPTY;
-
-            if interest.is_readable() {
-                ready |= Ready::READABLE;
-                ready |= Ready::READ_CLOSED;
-            }
-
-            if interest.is_writable() {
-                ready |= Ready::WRITABLE;
-                ready |= Ready::WRITE_CLOSED;
-            }
-
-            ready
+        if interest.is_readable() {
+            ready |= Ready::READABLE;
+            ready |= Ready::READ_CLOSED;
         }
 
-        pub(crate) fn intersection(self, interest: Interest) -> Ready {
-            Ready(self.0 & Ready::from_interest(interest).0)
+        if interest.is_writable() {
+            ready |= Ready::WRITABLE;
+            ready |= Ready::WRITE_CLOSED;
         }
 
-        pub(crate) fn satisfies(self, interest: Interest) -> bool {
-            self.0 & Ready::from_interest(interest).0 != 0
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        if interest.is_priority() {
+            ready |= Ready::PRIORITY;
+            ready |= Ready::READ_CLOSED;
         }
+
+        if interest.is_error() {
+            ready |= Ready::ERROR;
+        }
+
+        ready
+    }
+
+    pub(crate) fn intersection(self, interest: Interest) -> Ready {
+        Ready(self.0 & Ready::from_interest(interest).0)
+    }
+
+    pub(crate) fn satisfies(self, interest: Interest) -> bool {
+        self.0 & Ready::from_interest(interest).0 != 0
     }
 }
 
@@ -240,11 +306,17 @@ impl ops::Sub<Ready> for Ready {
 
 impl fmt::Debug for Ready {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("Ready")
-            .field("is_readable", &self.is_readable())
+        let mut fmt = fmt.debug_struct("Ready");
+
+        fmt.field("is_readable", &self.is_readable())
             .field("is_writable", &self.is_writable())
             .field("is_read_closed", &self.is_read_closed())
             .field("is_write_closed", &self.is_write_closed())
-            .finish()
+            .field("is_error", &self.is_error());
+
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        fmt.field("is_priority", &self.is_priority());
+
+        fmt.finish()
     }
 }

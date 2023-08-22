@@ -24,9 +24,19 @@
 //! | `alloc` | Enable features that require use of the heap. Currently all RSA signature algorithms require this feature. |
 //! | `std` | Enable features that require libstd. Implies `alloc`. |
 
-#![doc(html_root_url = "https://briansmith.org/rustdoc/")]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(unreachable_pub)]
+#![deny(warnings, missing_docs, clippy::as_conversions)]
+#![allow(
+    clippy::len_without_is_empty,
+    clippy::new_without_default,
+    clippy::single_match,
+    clippy::single_match_else,
+    clippy::type_complexity,
+    clippy::upper_case_acronyms
+)]
+// Enable documentation for all features on docs.rs
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(any(test, feature = "alloc"))]
 #[cfg_attr(test, macro_use)]
@@ -44,9 +54,15 @@ mod subject_name;
 mod time;
 mod trust_anchor;
 
+mod crl;
 mod verify_cert;
+mod x509;
 
+#[allow(deprecated)]
+pub use trust_anchor::{TlsClientTrustAnchors, TlsServerTrustAnchors};
 pub use {
+    cert::{Cert, EndEntityOrCa},
+    crl::{BorrowedCertRevocationList, BorrowedRevokedCert, CertRevocationList, RevocationReason},
     end_entity::EndEntityCert,
     error::Error,
     signed_data::{
@@ -58,11 +74,13 @@ pub use {
         SubjectNameRef,
     },
     time::Time,
-    trust_anchor::{TlsClientTrustAnchors, TlsServerTrustAnchors, TrustAnchor},
+    trust_anchor::TrustAnchor,
+    verify_cert::KeyUsage,
 };
 
 #[cfg(feature = "alloc")]
 pub use {
+    crl::{OwnedCertRevocationList, OwnedRevokedCert},
     signed_data::{
         RSA_PKCS1_2048_8192_SHA256, RSA_PKCS1_2048_8192_SHA384, RSA_PKCS1_2048_8192_SHA512,
         RSA_PKCS1_3072_8192_SHA384, RSA_PSS_2048_8192_SHA256_LEGACY_KEY,

@@ -4,8 +4,6 @@ use crate::value::{to_value, Value};
 use alloc::borrow::ToOwned;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-#[cfg(not(feature = "arbitrary_precision"))]
-use core::convert::TryFrom;
 use core::fmt::Display;
 use core::result;
 use serde::ser::{Impossible, Serialize};
@@ -451,6 +449,10 @@ fn key_must_be_a_string() -> Error {
     Error::syntax(ErrorCode::KeyMustBeAString, 0, 0)
 }
 
+fn float_key_must_be_finite() -> Error {
+    Error::syntax(ErrorCode::FloatKeyMustBeFinite, 0, 0)
+}
+
 impl serde::Serializer for MapKeySerializer {
     type Ok = String;
     type Error = Error;
@@ -481,8 +483,8 @@ impl serde::Serializer for MapKeySerializer {
         value.serialize(self)
     }
 
-    fn serialize_bool(self, _value: bool) -> Result<String> {
-        Err(key_must_be_a_string())
+    fn serialize_bool(self, value: bool) -> Result<String> {
+        Ok(value.to_string())
     }
 
     fn serialize_i8(self, value: i8) -> Result<String> {
@@ -517,12 +519,20 @@ impl serde::Serializer for MapKeySerializer {
         Ok(value.to_string())
     }
 
-    fn serialize_f32(self, _value: f32) -> Result<String> {
-        Err(key_must_be_a_string())
+    fn serialize_f32(self, value: f32) -> Result<String> {
+        if value.is_finite() {
+            Ok(ryu::Buffer::new().format_finite(value).to_owned())
+        } else {
+            Err(float_key_must_be_finite())
+        }
     }
 
-    fn serialize_f64(self, _value: f64) -> Result<String> {
-        Err(key_must_be_a_string())
+    fn serialize_f64(self, value: f64) -> Result<String> {
+        if value.is_finite() {
+            Ok(ryu::Buffer::new().format_finite(value).to_owned())
+        } else {
+            Err(float_key_must_be_finite())
+        }
     }
 
     #[inline]
@@ -640,7 +650,7 @@ impl serde::ser::SerializeStruct for SerializeMap {
             #[cfg(feature = "arbitrary_precision")]
             SerializeMap::Number { out_value } => {
                 if key == crate::number::TOKEN {
-                    *out_value = Some(value.serialize(NumberValueEmitter)?);
+                    *out_value = Some(tri!(value.serialize(NumberValueEmitter)));
                     Ok(())
                 } else {
                     Err(invalid_number())
@@ -649,7 +659,7 @@ impl serde::ser::SerializeStruct for SerializeMap {
             #[cfg(feature = "raw_value")]
             SerializeMap::RawValue { out_value } => {
                 if key == crate::raw::TOKEN {
-                    *out_value = Some(value.serialize(RawValueEmitter)?);
+                    *out_value = Some(tri!(value.serialize(RawValueEmitter)));
                     Ok(())
                 } else {
                     Err(invalid_raw_value())

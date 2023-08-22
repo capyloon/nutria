@@ -1,5 +1,9 @@
 #![cfg_attr(not(all(test, feature = "float")), allow(dead_code, unused_macros))]
 
+#[macro_use]
+#[path = "gen/utils.rs"]
+mod gen;
+
 use core::sync::atomic::Ordering;
 
 macro_rules! static_assert {
@@ -42,7 +46,7 @@ macro_rules! doc_comment {
     target_arch = "aarch64",
     target_arch = "arm",
     target_arch = "powerpc64",
-    all(target_arch = "x86_64", not(target_env = "sgx")),
+    all(target_arch = "x86_64", not(any(target_env = "sgx", miri))),
 ))]
 macro_rules! ifunc {
     (unsafe fn($($arg_pat:ident: $arg_ty:ty),*) $(-> $ret_ty:ty)? { $($detect_body:tt)* }) => {{
@@ -75,7 +79,7 @@ macro_rules! ifunc {
     target_arch = "aarch64",
     target_arch = "arm",
     target_arch = "powerpc64",
-    all(target_arch = "x86_64", not(target_env = "sgx")),
+    all(target_arch = "x86_64", not(any(target_env = "sgx", miri))),
 ))]
 macro_rules! fn_alias {
     (
@@ -126,7 +130,7 @@ macro_rules! impl_debug_and_serde {
         impl fmt::Debug for $atomic_type {
             #[allow(clippy::missing_inline_in_public_items)] // fmt is not hot path
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                // std atomic types use Relaxed in Debug::fmt: https://github.com/rust-lang/rust/blob/1.69.0/library/core/src/sync/atomic.rs#L2023
+                // std atomic types use Relaxed in Debug::fmt: https://github.com/rust-lang/rust/blob/1.70.0/library/core/src/sync/atomic.rs#L2024
                 fmt::Debug::fmt(&self.load(Ordering::Relaxed), f)
             }
         }
@@ -441,7 +445,7 @@ mod atomic_64_macros {
                     feature = "fallback",
                     not(portable_atomic_no_cmpxchg16b_target_feature),
                     not(portable_atomic_no_outline_atomics),
-                    not(target_env = "sgx"),
+                    not(any(target_env = "sgx", miri)),
                 ),
             ),
             target_arch = "x86_64",
@@ -520,7 +524,7 @@ mod atomic_128_macros {
                     feature = "fallback",
                     not(portable_atomic_no_cmpxchg16b_target_feature),
                     not(portable_atomic_no_outline_atomics),
-                    not(target_env = "sgx"),
+                    not(any(target_env = "sgx", miri)),
                 ),
             ),
             target_arch = "x86_64",
@@ -641,7 +645,7 @@ mod atomic_cas_macros {
     }
 }
 
-// https://github.com/rust-lang/rust/blob/1.69.0/library/core/src/sync/atomic.rs#L3156
+// https://github.com/rust-lang/rust/blob/1.70.0/library/core/src/sync/atomic.rs#L3155
 #[inline]
 #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
 pub(crate) fn assert_load_ordering(order: Ordering) {
@@ -653,7 +657,7 @@ pub(crate) fn assert_load_ordering(order: Ordering) {
     }
 }
 
-// https://github.com/rust-lang/rust/blob/1.69.0/library/core/src/sync/atomic.rs#L3141
+// https://github.com/rust-lang/rust/blob/1.70.0/library/core/src/sync/atomic.rs#L3140
 #[inline]
 #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
 pub(crate) fn assert_store_ordering(order: Ordering) {
@@ -665,7 +669,7 @@ pub(crate) fn assert_store_ordering(order: Ordering) {
     }
 }
 
-// https://github.com/rust-lang/rust/blob/1.69.0/library/core/src/sync/atomic.rs#L3226
+// https://github.com/rust-lang/rust/blob/1.70.0/library/core/src/sync/atomic.rs#L3221
 #[inline]
 #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
 pub(crate) fn assert_compare_exchange_ordering(success: Ordering, failure: Ordering) {

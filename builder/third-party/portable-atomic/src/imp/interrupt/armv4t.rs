@@ -1,4 +1,4 @@
-// Refs: https://developer.arm.com/documentation/ddi0406/cb/System-Level-Architecture/The-System-Level-Programmers--Model/ARM-processor-modes-and-ARM-core-registers/Program-Status-Registers--PSRs-?lang=en#CIHJBHJA
+// Refs: https://developer.arm.com/documentation/ddi0406/cb/System-Level-Architecture/The-System-Level-Programmers--Model/ARM-processor-modes-and-ARM-core-registers/Program-Status-Registers--PSRs-?lang=en
 //
 // Generated asm:
 // - armv5te https://godbolt.org/z/5arYrfzYc
@@ -25,7 +25,7 @@ pub(super) type State = u32;
 #[inline]
 #[instruction_set(arm::a32)]
 pub(super) fn disable() -> State {
-    let cpsr: u32;
+    let cpsr: State;
     // SAFETY: reading CPSR and disabling interrupts are safe.
     // (see module-level comments of interrupt/mod.rs on the safety of using privileged instructions)
     unsafe {
@@ -66,39 +66,11 @@ pub(super) unsafe fn restore(cpsr: State) {
 // have Data Memory Barrier).
 //
 // Generated asm:
-// - armv5te https://godbolt.org/z/W7343aob8
+// - armv5te https://godbolt.org/z/a7zcs9hKa
 pub(crate) mod atomic {
     #[cfg(not(portable_atomic_no_asm))]
     use core::arch::asm;
     use core::{cell::UnsafeCell, sync::atomic::Ordering};
-
-    #[repr(transparent)]
-    pub(crate) struct AtomicBool {
-        #[allow(dead_code)]
-        v: UnsafeCell<u8>,
-    }
-
-    // Send is implicitly implemented.
-    // SAFETY: any data races are prevented by atomic operations.
-    unsafe impl Sync for AtomicBool {}
-
-    impl AtomicBool {
-        #[inline]
-        pub(crate) fn load(&self, order: Ordering) -> bool {
-            self.as_atomic_u8().load(order) != 0
-        }
-
-        #[inline]
-        pub(crate) fn store(&self, val: bool, order: Ordering) {
-            self.as_atomic_u8().store(val as u8, order);
-        }
-
-        #[inline]
-        fn as_atomic_u8(&self) -> &AtomicU8 {
-            // SAFETY: AtomicBool and AtomicU8 have the same layout,
-            unsafe { &*(self as *const AtomicBool).cast::<AtomicU8>() }
-        }
-    }
 
     macro_rules! atomic {
         ($([$($generics:tt)*])? $atomic_type:ident, $value_type:ty, $asm_suffix:tt) => {

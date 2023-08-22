@@ -17,11 +17,11 @@
 /// # use winnow::combinator::success;
 /// # use winnow::combinator::fail;
 ///
-/// fn escaped(input: &str) -> IResult<&str, char> {
+/// fn escaped(input: &mut &str) -> PResult<char> {
 ///     preceded('\\', escape_seq_char).parse_next(input)
 /// }
 ///
-/// fn escape_seq_char(input: &str) -> IResult<&str, char> {
+/// fn escape_seq_char(input: &mut &str) -> PResult<char> {
 ///     dispatch! {any;
 ///         'b' => success('\u{8}'),
 ///         'f' => success('\u{c}'),
@@ -35,15 +35,15 @@
 ///     .parse_next(input)
 /// }
 ///
-/// assert_eq!(escaped.parse_next("\\nHello"), Ok(("Hello", '\n')));
+/// assert_eq!(escaped.parse_peek("\\nHello"), Ok(("Hello", '\n')));
 /// ```
 #[macro_export]
 macro_rules! dispatch {
     ($match_parser: expr; $( $pat:pat $(if $pred:expr)? => $expr: expr ),+ $(,)? ) => {
-        $crate::trace::trace("dispatch", move |i|
+        $crate::trace::trace("dispatch", move |i: &mut _|
         {
             use $crate::Parser;
-            let (i, initial) = $match_parser.parse_next(i)?;
+            let initial = $match_parser.parse_next(i)?;
             match initial {
                 $(
                     $pat $(if $pred)? => $expr.parse_next(i),

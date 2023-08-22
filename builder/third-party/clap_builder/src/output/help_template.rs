@@ -101,19 +101,7 @@ impl<'cmd, 'writer> HelpTemplate<'cmd, 'writer> {
             cmd.get_name(),
             use_long
         );
-        let term_w = match cmd.get_term_width() {
-            Some(0) => usize::MAX,
-            Some(w) => w,
-            None => {
-                let (current_width, _h) = dimensions();
-                let current_width = current_width.unwrap_or(100);
-                let max_width = match cmd.get_max_term_width() {
-                    None | Some(0) => usize::MAX,
-                    Some(mw) => mw,
-                };
-                cmp::min(current_width, max_width)
-            }
-        };
+        let term_w = Self::term_w(cmd);
         let next_line_help = cmd.is_next_line_help_set();
 
         HelpTemplate {
@@ -125,6 +113,43 @@ impl<'cmd, 'writer> HelpTemplate<'cmd, 'writer> {
             term_w,
             use_long,
         }
+    }
+
+    #[cfg(not(feature = "unstable-v5"))]
+    fn term_w(cmd: &'cmd Command) -> usize {
+        match cmd.get_term_width() {
+            Some(0) => usize::MAX,
+            Some(w) => w,
+            None => {
+                let (current_width, _h) = dimensions();
+                let current_width = current_width.unwrap_or(100);
+                let max_width = match cmd.get_max_term_width() {
+                    None | Some(0) => usize::MAX,
+                    Some(mw) => mw,
+                };
+                cmp::min(current_width, max_width)
+            }
+        }
+    }
+
+    #[cfg(feature = "unstable-v5")]
+    fn term_w(cmd: &'cmd Command) -> usize {
+        let term_w = match cmd.get_term_width() {
+            Some(0) => usize::MAX,
+            Some(w) => w,
+            None => {
+                let (current_width, _h) = dimensions();
+                current_width.unwrap_or(usize::MAX)
+            }
+        };
+
+        let max_term_w = match cmd.get_max_term_width() {
+            Some(0) => usize::MAX,
+            Some(mw) => mw,
+            None => 100,
+        };
+
+        cmp::min(term_w, max_term_w)
     }
 
     /// Write help to stream for the parser in the format defined by the template.
@@ -676,32 +701,33 @@ impl<'cmd, 'writer> HelpTemplate<'cmd, 'writer> {
                 self.writer.push_str("Possible values:");
                 for pv in possible_vals.iter().filter(|pv| !pv.is_hide_set()) {
                     let name = pv.get_name();
+
+                    let mut descr = StyledStr::new();
                     let _ = write!(
-                        self.writer,
-                        "\n{:spaces$}- {}{name}{}",
-                        "",
+                        &mut descr,
+                        "{}{name}{}",
                         literal.render(),
                         literal.render_reset()
                     );
                     if let Some(help) = pv.get_help() {
                         debug!("HelpTemplate::help: Possible Value help");
-
                         // To align help messages
-                        let padding = longest - display_width(pv.get_name());
-                        let _ = write!(self.writer, ": {:padding$}", "");
-
-                        let avail_chars = if self.term_w > trailing_indent.len() {
-                            self.term_w - trailing_indent.len()
-                        } else {
-                            usize::MAX
-                        };
-
-                        let mut help = help.clone();
-                        help.replace_newline_var();
-                        help.wrap(avail_chars);
-                        help.indent("", &trailing_indent);
-                        self.writer.push_styled(&help);
+                        let padding = longest - display_width(name);
+                        let _ = write!(&mut descr, ": {:padding$}", "");
+                        descr.push_styled(help);
                     }
+
+                    let avail_chars = if self.term_w > trailing_indent.len() {
+                        self.term_w - trailing_indent.len()
+                    } else {
+                        usize::MAX
+                    };
+                    descr.replace_newline_var();
+                    descr.wrap(avail_chars);
+                    descr.indent("", &trailing_indent);
+
+                    let _ = write!(self.writer, "\n{:spaces$}- ", "",);
+                    self.writer.push_styled(&descr);
                 }
             }
         }

@@ -14,8 +14,7 @@ The underlying data is MPL-licensed, and `src/lib.rs`
 is therefore a derived work.
 
 # Regenerating sources
-You will need python3 and curl.
-
-Run `build.py` which will output a new version of `src/lib.rs`.  You can now
-compare and audit.  The code is generated in deterministic order so changes
+Sources are generated in an integration test, in `tests/codegen.rs`. The test
+will fail if the sources are out of date relative to upstream, and update
+`src/lib.rs` if so. The code is generated in deterministic order so changes
 to the source should only result from upstream changes.

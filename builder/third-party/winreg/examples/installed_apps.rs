@@ -1,11 +1,9 @@
-// Copyright 2017, Igor Shaula
+// Copyright 2023, Igor Shaula
 // Licensed under the MIT License <LICENSE or
 // http://opensource.org/licenses/MIT>. This file
 // may not be copied, modified, or distributed
 // except according to those terms.
-#[macro_use]
-extern crate serde_derive;
-extern crate winreg;
+use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use winreg::enums::*;

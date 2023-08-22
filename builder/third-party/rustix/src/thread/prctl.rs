@@ -9,7 +9,6 @@
 //! correctly.
 #![allow(unsafe_code)]
 
-use core::convert::TryFrom;
 use core::mem::MaybeUninit;
 use core::num::NonZeroU64;
 use core::ptr;
@@ -19,12 +18,12 @@ use core::sync::atomic::AtomicU8;
 use bitflags::bitflags;
 
 use crate::backend::c::{c_int, c_uint, c_void};
-use crate::backend::process::syscalls;
+use crate::backend::prctl::syscalls;
 use crate::ffi::{CStr, CString};
 use crate::io;
-use crate::process::{
-    prctl_1arg, prctl_2args, prctl_3args, prctl_get_at_arg2_optional, Pid,
-    PointerAuthenticationKeys,
+use crate::pid::Pid;
+use crate::prctl::{
+    prctl_1arg, prctl_2args, prctl_3args, prctl_get_at_arg2_optional, PointerAuthenticationKeys,
 };
 use crate::utils::as_ptr;
 
@@ -55,7 +54,7 @@ const PR_SET_KEEPCAPS: c_int = 8;
 /// [`prctl(PR_SET_KEEPCAPS,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
 pub fn set_keep_capabilities(enable: bool) -> io::Result<()> {
-    unsafe { prctl_2args(PR_SET_KEEPCAPS, enable as usize as *mut _) }.map(|_r| ())
+    unsafe { prctl_2args(PR_SET_KEEPCAPS, usize::from(enable) as *mut _) }.map(|_r| ())
 }
 
 //
@@ -135,8 +134,8 @@ impl TryFrom<i32> for SecureComputingMode {
 /// computing mode, then this call will cause a [`Signal::Kill`] signal to be
 /// sent to the process. If the caller is in filter mode, and this system call
 /// is allowed by the seccomp filters, it returns
-/// [`SecureComputingMode::Filter`]; otherwise, the process is killed with
-/// a [`Signal::Kill`] signal.
+/// [`SecureComputingMode::Filter`]; otherwise, the process is killed with a
+/// [`Signal::Kill`] signal.
 ///
 /// Since Linux 3.8, the Seccomp field of the `/proc/[pid]/status` file
 /// provides a method of obtaining the same information, without the risk that
@@ -412,26 +411,30 @@ const PR_GET_SECUREBITS: c_int = 27;
 
 bitflags! {
     /// `SECBIT_*`.
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct CapabilitiesSecureBits: u32 {
-        /// If this bit is set, then the kernel does not grant capabilities when
-        /// a `set-user-ID-root` program is executed, or when a process with an effective or real
-        /// UID of 0 calls `execve`.
+        /// If this bit is set, then the kernel does not grant capabilities
+        /// when a `set-user-ID-root` program is executed, or when a process
+        /// with an effective or real UID of 0 calls `execve`.
         const NO_ROOT = 1_u32 << 0;
         /// Set [`NO_ROOT`] irreversibly.
         const NO_ROOT_LOCKED = 1_u32 << 1;
-        /// Setting this flag stops the kernel from adjusting the process's permitted, effective,
-        /// and ambient capability sets when the thread's effective and filesystem UIDs are switched
-        /// between zero and nonzero values.
+        /// Setting this flag stops the kernel from adjusting the process'
+        /// permitted, effective, and ambient capability sets when the thread's
+        /// effective and filesystem UIDs are switched between zero and nonzero
+        /// values.
         const NO_SETUID_FIXUP = 1_u32 << 2;
         /// Set [`NO_SETUID_FIXUP`] irreversibly.
         const NO_SETUID_FIXUP_LOCKED = 1_u32 << 3;
-        /// Setting this flag allows a thread that has one or more 0 UIDs to retain capabilities in
-        /// its permitted set when it switches all of its UIDs to nonzero values.
+        /// Setting this flag allows a thread that has one or more 0 UIDs to
+        /// retain capabilities in its permitted set when it switches all of
+        /// its UIDs to nonzero values.
         const KEEP_CAPS = 1_u32 << 4;
         /// Set [`KEEP_CAPS`] irreversibly.
         const KEEP_CAPS_LOCKED = 1_u32 << 5;
-        /// Setting this flag disallows raising ambient capabilities via the `prctl`'s
-        /// `PR_CAP_AMBIENT_RAISE` operation.
+        /// Setting this flag disallows raising ambient capabilities via the
+        /// `prctl`'s `PR_CAP_AMBIENT_RAISE` operation.
         const NO_CAP_AMBIENT_RAISE = 1_u32 << 6;
         /// Set [`NO_CAP_AMBIENT_RAISE`] irreversibly.
         const NO_CAP_AMBIENT_RAISE_LOCKED = 1_u32 << 7;
@@ -521,7 +524,7 @@ const PR_SET_NO_NEW_PRIVS: c_int = 38;
 /// [`prctl(PR_SET_NO_NEW_PRIVS,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
 pub fn set_no_new_privs(no_new_privs: bool) -> io::Result<()> {
-    unsafe { prctl_2args(PR_SET_NO_NEW_PRIVS, no_new_privs as usize as *mut _) }.map(|_r| ())
+    unsafe { prctl_2args(PR_SET_NO_NEW_PRIVS, usize::from(no_new_privs) as *mut _) }.map(|_r| ())
 }
 
 //
@@ -569,7 +572,7 @@ const PR_SET_THP_DISABLE: c_int = 41;
 /// [`prctl(PR_SET_THP_DISABLE,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
 pub fn disable_transparent_huge_pages(thp_disable: bool) -> io::Result<()> {
-    unsafe { prctl_2args(PR_SET_THP_DISABLE, thp_disable as usize as *mut _) }.map(|_r| ())
+    unsafe { prctl_2args(PR_SET_THP_DISABLE, usize::from(thp_disable) as *mut _) }.map(|_r| ())
 }
 
 //
@@ -733,6 +736,8 @@ const PR_MTE_TAG_MASK: u32 = 0xffff_u32 << PR_MTE_TAG_SHIFT;
 
 bitflags! {
     /// Zero means addresses that are passed for the purpose of being dereferenced by the kernel must be untagged.
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct TaggedAddressMode: u32 {
         /// Addresses that are passed for the purpose of being dereferenced by the kernel may be tagged.
         const ENABLED = 1_u32 << 0;

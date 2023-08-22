@@ -1,11 +1,9 @@
-// Copyright 2015, Igor Shaula
+// Copyright 2023, Igor Shaula
 // Licensed under the MIT License <LICENSE or
 // http://opensource.org/licenses/MIT>. This file
 // may not be copied, modified, or distributed
 // except according to those terms.
-#[macro_use]
-extern crate serde_derive;
-extern crate winreg;
+use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use winreg::enums::*;
@@ -39,6 +37,8 @@ struct Test {
     t_struct: Rectangle,
     t_map: HashMap<String, u32>,
     t_string: String,
+    #[serde(with = "serde_bytes")]
+    t_bytes: Vec<u8>,
     #[serde(rename = "")] // empty name becomes the (Default) value in the registry
     t_char: char,
     t_i8: i8,
@@ -73,6 +73,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
         t_map: map,
         t_string: "test 123!".to_owned(),
+        t_bytes: vec![0xDE, 0xAD, 0xBE, 0xEF],
         t_char: 'a',
         t_i8: -123,
         t_i16: -2049,

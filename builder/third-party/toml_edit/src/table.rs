@@ -265,7 +265,7 @@ impl Table {
         self.items.iter().filter(|i| !(i.1).value.is_none()).count()
     }
 
-    /// Returns true iff the table is empty.
+    /// Returns true if the table is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -340,7 +340,7 @@ impl Table {
         })
     }
 
-    /// Returns true iff the table contains an item with the given key.
+    /// Returns true if the table contains an item with the given key.
     pub fn contains_key(&self, key: &str) -> bool {
         if let Some(kv) = self.items.get(key) {
             !kv.value.is_none()
@@ -349,7 +349,7 @@ impl Table {
         }
     }
 
-    /// Returns true iff the table contains a table with the given key.
+    /// Returns true if the table contains a table with the given key.
     pub fn contains_table(&self, key: &str) -> bool {
         if let Some(kv) = self.items.get(key) {
             kv.value.is_table()
@@ -358,7 +358,7 @@ impl Table {
         }
     }
 
-    /// Returns true iff the table contains a value with the given key.
+    /// Returns true if the table contains a value with the given key.
     pub fn contains_value(&self, key: &str) -> bool {
         if let Some(kv) = self.items.get(key) {
             kv.value.is_value()
@@ -367,7 +367,7 @@ impl Table {
         }
     }
 
-    /// Returns true iff the table contains an array of tables with the given key.
+    /// Returns true if the table contains an array of tables with the given key.
     pub fn contains_array_of_tables(&self, key: &str) -> bool {
         if let Some(kv) = self.items.get(key) {
             kv.value.is_array_of_tables()
@@ -396,6 +396,20 @@ impl Table {
     /// Removes a key from the map, returning the stored key and value if the key was previously in the map.
     pub fn remove_entry(&mut self, key: &str) -> Option<(Key, Item)> {
         self.items.shift_remove(key).map(|kv| (kv.key, kv.value))
+    }
+
+    /// Retains only the elements specified by the `keep` predicate.
+    ///
+    /// In other words, remove all pairs `(key, item)` for which
+    /// `keep(&key, &mut item)` returns `false`.
+    ///
+    /// The elements are visited in iteration order.
+    pub fn retain<F>(&mut self, mut keep: F)
+    where
+        F: FnMut(&str, &mut Item) -> bool,
+    {
+        self.items
+            .retain(|key, key_value| keep(key, &mut key_value.value));
     }
 }
 
@@ -502,7 +516,7 @@ pub trait TableLike: crate::private::Sealed {
     fn len(&self) -> usize {
         self.iter().filter(|&(_, v)| !v.is_none()).count()
     }
-    /// Returns true iff the table is empty.
+    /// Returns true if the table is empty.
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -520,7 +534,7 @@ pub trait TableLike: crate::private::Sealed {
     fn get_key_value<'a>(&'a self, key: &str) -> Option<(&'a Key, &'a Item)>;
     /// Return mutable references to the key-value pair stored for key, if it is present, else None.
     fn get_key_value_mut<'a>(&'a mut self, key: &str) -> Option<(KeyMut<'a>, &'a mut Item)>;
-    /// Returns true iff the table contains an item with the given key.
+    /// Returns true if the table contains an item with the given key.
     fn contains_key(&self, key: &str) -> bool;
     /// Inserts a key-value pair into the map.
     fn insert(&mut self, key: &str, value: Item) -> Option<Item>;

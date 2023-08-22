@@ -1,9 +1,13 @@
 use std::io;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::thread::panicking;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
 
 use console::Term;
+#[cfg(target_arch = "wasm32")]
+use instant::Instant;
 
 use crate::multi::{MultiProgressAlignment, MultiState};
 use crate::TermLike;
@@ -22,7 +26,7 @@ pub struct ProgressDrawTarget {
 impl ProgressDrawTarget {
     /// Draw to a buffered stdout terminal at a max of 20 times a second.
     ///
-    /// For more information see `ProgressDrawTarget::to_term`.
+    /// For more information see [`ProgressDrawTarget::term`].
     pub fn stdout() -> Self {
         Self::term(Term::buffered_stdout(), 20)
     }
@@ -30,21 +34,21 @@ impl ProgressDrawTarget {
     /// Draw to a buffered stderr terminal at a max of 20 times a second.
     ///
     /// This is the default draw target for progress bars.  For more
-    /// information see `ProgressDrawTarget::to_term`.
+    /// information see [`ProgressDrawTarget::term`].
     pub fn stderr() -> Self {
         Self::term(Term::buffered_stderr(), 20)
     }
 
     /// Draw to a buffered stdout terminal at a max of `refresh_rate` times a second.
     ///
-    /// For more information see `ProgressDrawTarget::to_term`.
+    /// For more information see [`ProgressDrawTarget::term`].
     pub fn stdout_with_hz(refresh_rate: u8) -> Self {
         Self::term(Term::buffered_stdout(), refresh_rate)
     }
 
     /// Draw to a buffered stderr terminal at a max of `refresh_rate` times a second.
     ///
-    /// For more information see `ProgressDrawTarget::to_term`.
+    /// For more information see [`ProgressDrawTarget::term`].
     pub fn stderr_with_hz(refresh_rate: u8) -> Self {
         Self::term(Term::buffered_stderr(), refresh_rate)
     }
@@ -55,14 +59,14 @@ impl ProgressDrawTarget {
         }
     }
 
-    /// Draw to a terminal, optionally with a specific refresh rate.
+    /// Draw to a terminal, with a specific refresh rate.
     ///
     /// Progress bars are by default drawn to terminals however if the
     /// terminal is not user attended the entire progress bar will be
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
     ///
-    /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
+    /// Will panic if refresh_rate is `0`.
     pub fn term(term: Term, refresh_rate: u8) -> Self {
         Self {
             kind: TargetKind::Term {
@@ -80,6 +84,20 @@ impl ProgressDrawTarget {
             kind: TargetKind::TermLike {
                 inner: term_like,
                 last_line_count: 0,
+                rate_limiter: None,
+                draw_state: DrawState::default(),
+            },
+        }
+    }
+
+    /// Draw to a boxed object that implements the [`TermLike`] trait,
+    /// with a specific refresh rate.
+    pub fn term_like_with_hz(term_like: Box<dyn TermLike>, refresh_rate: u8) -> Self {
+        Self {
+            kind: TargetKind::TermLike {
+                inner: term_like,
+                last_line_count: 0,
+                rate_limiter: Option::from(RateLimiter::new(refresh_rate)),
                 draw_state: DrawState::default(),
             },
         }
@@ -159,12 +177,16 @@ impl ProgressDrawTarget {
             TargetKind::TermLike {
                 inner,
                 last_line_count,
+                rate_limiter,
                 draw_state,
-            } => Some(Drawable::TermLike {
-                term_like: &**inner,
-                last_line_count,
-                draw_state,
-            }),
+            } => match force_draw || rate_limiter.as_mut().map_or(true, |r| r.allow(now)) {
+                true => Some(Drawable::TermLike {
+                    term_like: &**inner,
+                    last_line_count,
+                    draw_state,
+                }),
+                false => None, // rate limited
+            },
             // Hidden, finished, or no need to refresh yet
             _ => None,
         }
@@ -217,6 +239,7 @@ enum TargetKind {
     TermLike {
         inner: Box<dyn TermLike>,
         last_line_count: usize,
+        rate_limiter: Option<RateLimiter>,
         draw_state: DrawState,
     },
 }
@@ -404,14 +427,17 @@ impl RateLimiter {
         // convert into capacity now, so we're saving it for later.
         let (new, remainder) = (
             elapsed.as_millis() / self.interval as u128,
-            elapsed.as_nanos() % self.interval as u128 * 1_000_000,
+            elapsed.as_nanos() % (self.interval as u128 * 1_000_000),
         );
 
         // We add `new` to `capacity`, subtract one for returning `true` from here,
         // then make sure it does not exceed a maximum of `MAX_BURST`, then store it.
         self.capacity = Ord::min(MAX_BURST as u128, (self.capacity as u128) + new - 1) as u8;
         // Store `prev` for the next iteration after subtracting the `remainder`.
-        self.prev = now - Duration::from_nanos(remainder as u64);
+        // Just use `unwrap` here because it shouldn't be possible for this to underflow.
+        self.prev = now
+            .checked_sub(Duration::from_nanos(remainder as u64))
+            .unwrap();
         true
     }
 }
@@ -467,23 +493,45 @@ impl DrawState {
             _ => 0,
         };
 
+        let term_height = term.height() as usize;
+        let term_width = term.width() as usize;
         let len = self.lines.len();
+        let mut real_len = 0;
+        let mut last_line_filler = 0;
         for (idx, line) in self.lines.iter().enumerate() {
-            if idx + 1 != len {
-                term.write_line(line)?;
+            let line_width = console::measure_text_width(line);
+            let diff = if line.is_empty() {
+                // Empty line are new line
+                1
             } else {
-                // Don't append a '\n' if this is the last line
-                term.write_str(line)?;
+                // Calculate real length based on terminal width
+                // This take in account linewrap from terminal
+                let terminal_len = (line_width as f64 / term_width as f64).ceil() as usize;
+
+                // If the line is effectively empty (for example when it consists
+                // solely of ANSI color code sequences, count it the same as a
+                // new line. If the line is measured to be len = 0, we will
+                // subtract with overflow later.
+                usize::max(terminal_len, 1)
+            };
+            if real_len + diff > term_height {
+                break;
+            }
+            real_len += diff;
+            if idx != 0 {
+                term.write_line("")?;
+            }
+            term.write_str(line)?;
+            if idx + 1 == len {
                 // Keep the cursor on the right terminal side
                 // So that next user writes/prints will happen on the next line
-                let term_width = term.width() as usize;
-                let line_width = console::measure_text_width(line);
-                term.write_str(&" ".repeat(term_width.saturating_sub(line_width)))?;
+                last_line_filler = term_width.saturating_sub(line_width);
             }
         }
+        term.write_str(&" ".repeat(last_line_filler))?;
 
         term.flush()?;
-        *last_line_count = self.lines.len() - self.orphan_lines_count + shift;
+        *last_line_count = real_len - self.orphan_lines_count + shift;
         Ok(())
     }
 

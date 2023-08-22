@@ -1,6 +1,7 @@
 use crate::builder::{ConfigBuilder, WantsCipherSuites};
 use crate::common_state::{CommonState, Protocol, Side};
 use crate::conn::{ConnectionCommon, ConnectionCore};
+use crate::dns_name::{DnsName, DnsNameRef, InvalidDnsNameError};
 use crate::enums::{CipherSuite, ProtocolVersion, SignatureScheme};
 use crate::error::Error;
 use crate::kx::SupportedKxGroup;
@@ -20,7 +21,6 @@ use crate::KeyLog;
 use super::handy::{ClientSessionMemoryCache, NoClientSessionStorage};
 use super::hs;
 
-use std::error::Error as StdError;
 use std::marker::PhantomData;
 use std::net::IpAddr;
 use std::ops::{Deref, DerefMut};
@@ -217,7 +217,7 @@ impl ClientConfig {
     pub fn builder() -> ConfigBuilder<Self, WantsCipherSuites> {
         ConfigBuilder {
             state: WantsCipherSuites(()),
-            side: PhantomData::default(),
+            side: PhantomData,
         }
     }
 
@@ -334,25 +334,40 @@ impl Default for Resumption {
 /// # let _: ServerName = x;
 /// ```
 #[non_exhaustive]
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub enum ServerName {
     /// The server is identified by a DNS name.  The name
     /// is sent in the TLS Server Name Indication (SNI)
     /// extension.
-    DnsName(verify::DnsName),
+    DnsName(DnsName),
 
     /// The server is identified by an IP address. SNI is not
     /// done.
     IpAddress(IpAddr),
 }
 
+impl fmt::Debug for ServerName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::DnsName(d) => f
+                .debug_tuple("DnsName")
+                .field(&d.as_ref())
+                .finish(),
+            Self::IpAddress(i) => f
+                .debug_tuple("IpAddress")
+                .field(i)
+                .finish(),
+        }
+    }
+}
+
 impl ServerName {
     /// Return the name that should go in the SNI extension.
     /// If [`None`] is returned, the SNI extension is not included
     /// in the handshake.
-    pub(crate) fn for_sni(&self) -> Option<webpki::DnsNameRef> {
+    pub(crate) fn for_sni(&self) -> Option<DnsNameRef> {
         match self {
-            Self::DnsName(dns_name) => Some(dns_name.0.as_ref()),
+            Self::DnsName(dns_name) => Some(dns_name.borrow()),
             Self::IpAddress(_) => None,
         }
     }
@@ -363,28 +378,15 @@ impl ServerName {
 impl TryFrom<&str> for ServerName {
     type Error = InvalidDnsNameError;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match webpki::DnsNameRef::try_from_ascii_str(s) {
-            Ok(dns) => Ok(Self::DnsName(verify::DnsName(dns.into()))),
-            Err(webpki::InvalidDnsNameError) => match s.parse() {
+        match DnsNameRef::try_from(s) {
+            Ok(dns) => Ok(Self::DnsName(dns.to_owned())),
+            Err(InvalidDnsNameError) => match s.parse() {
                 Ok(ip) => Ok(Self::IpAddress(ip)),
                 Err(_) => Err(InvalidDnsNameError),
             },
         }
     }
 }
-
-/// The provided input could not be parsed because
-/// it is not a syntactically-valid DNS Name.
-#[derive(Debug)]
-pub struct InvalidDnsNameError;
-
-impl fmt::Display for InvalidDnsNameError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("invalid dns name")
-    }
-}
-
-impl StdError for InvalidDnsNameError {}
 
 /// Container for unsafe APIs
 #[cfg(feature = "dangerous_configuration")]

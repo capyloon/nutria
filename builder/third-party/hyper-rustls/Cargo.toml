@@ -11,14 +11,15 @@
 
 [package]
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.60"
 name = "hyper-rustls"
-version = "0.24.0"
+version = "0.24.1"
 description = "Rustls+hyper integration for pure rust HTTPS"
-homepage = "https://github.com/ctz/hyper-rustls"
+homepage = "https://github.com/rustls/hyper-rustls"
+documentation = "https://docs.rs/hyper-rustls/"
 readme = "README.md"
-license = "Apache-2.0/ISC/MIT"
-repository = "https://github.com/ctz/hyper-rustls"
+license = "Apache-2.0 OR ISC OR MIT"
+repository = "https://github.com/rustls/hyper-rustls"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -38,7 +39,13 @@ required-features = [
 [[example]]
 name = "server"
 path = "examples/server.rs"
-required-features = ["tokio-runtime"]
+required-features = [
+    "tokio-runtime",
+    "acceptor",
+]
+
+[dependencies.futures-util]
+version = "0.3"
 
 [dependencies.http]
 version = "0.2"
@@ -97,11 +104,16 @@ features = [
 ]
 
 [features]
+acceptor = [
+    "hyper/server",
+    "tokio-runtime",
+]
 default = [
     "native-tokio",
     "http1",
     "tls12",
     "logging",
+    "acceptor",
 ]
 http1 = ["hyper/http1"]
 http2 = ["hyper/http2"]

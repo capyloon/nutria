@@ -1,7 +1,7 @@
-use winnow::branch::alt;
-use winnow::bytes::any;
+use winnow::combinator::alt;
 use winnow::combinator::fail;
 use winnow::combinator::peek;
+use winnow::token::any;
 
 use crate::parser::array::array;
 use crate::parser::datetime::date_time;
@@ -15,10 +15,8 @@ use crate::RawString;
 use crate::Value;
 
 // val = string / boolean / array / inline-table / date-time / float / integer
-pub(crate) fn value(
-    check: RecursionCheck,
-) -> impl FnMut(Input<'_>) -> IResult<Input<'_>, v::Value, ParserError<'_>> {
-    move |input| {
+pub(crate) fn value<'i>(check: RecursionCheck) -> impl Parser<Input<'i>, v::Value, ContextError> {
+    move |input: &mut Input<'i>| {
         dispatch!{peek(any);
             crate::parser::strings::QUOTATION_MARK |
             crate::parser::strings::APOSTROPHE => string.map(|s| {
@@ -44,47 +42,47 @@ pub(crate) fn value(
             b'_' => {
                     integer
                         .map(v::Value::from)
-                .context(Context::Expected(ParserValue::Description("leading digit")))
+                .context(StrContext::Expected(StrContextValue::Description("leading digit")))
             },
             // Report as if they were numbers because its most likely a typo
             b'.' =>  {
                     float
                         .map(v::Value::from)
-                .context(Context::Expected(ParserValue::Description("leading digit")))
+                .context(StrContext::Expected(StrContextValue::Description("leading digit")))
             },
             b't' => {
                 crate::parser::numbers::true_.map(v::Value::from)
-                    .context(Context::Expression("string"))
-                    .context(Context::Expected(ParserValue::CharLiteral('"')))
-                    .context(Context::Expected(ParserValue::CharLiteral('\'')))
+                    .context(StrContext::Label("string"))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('"')))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('\'')))
             },
             b'f' => {
                 crate::parser::numbers::false_.map(v::Value::from)
-                    .context(Context::Expression("string"))
-                    .context(Context::Expected(ParserValue::CharLiteral('"')))
-                    .context(Context::Expected(ParserValue::CharLiteral('\'')))
+                    .context(StrContext::Label("string"))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('"')))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('\'')))
             },
             b'i' => {
                 crate::parser::numbers::inf.map(v::Value::from)
-                    .context(Context::Expression("string"))
-                    .context(Context::Expected(ParserValue::CharLiteral('"')))
-                    .context(Context::Expected(ParserValue::CharLiteral('\'')))
+                    .context(StrContext::Label("string"))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('"')))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('\'')))
             },
             b'n' => {
                 crate::parser::numbers::nan.map(v::Value::from)
-                    .context(Context::Expression("string"))
-                    .context(Context::Expected(ParserValue::CharLiteral('"')))
-                    .context(Context::Expected(ParserValue::CharLiteral('\'')))
+                    .context(StrContext::Label("string"))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('"')))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('\'')))
             },
             _ => {
                 fail
-                    .context(Context::Expression("string"))
-                    .context(Context::Expected(ParserValue::CharLiteral('"')))
-                    .context(Context::Expected(ParserValue::CharLiteral('\'')))
+                    .context(StrContext::Label("string"))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('"')))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('\'')))
             },
     }
         .with_span()
-        .map_res(|(value, span)| apply_raw(value, span))
+        .try_map(|(value, span)| apply_raw(value, span))
         .parse_next(input)
     }
 }

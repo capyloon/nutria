@@ -1,18 +1,18 @@
-extern crate rand;
-extern crate tempfile;
-extern crate winapi;
-extern crate winreg;
-#[cfg(feature = "serialization-serde")]
-#[macro_use]
-extern crate serde_derive;
-use self::rand::Rng;
+// Copyright 2023, Igor Shaula
+// Licensed under the MIT License <LICENSE or
+// http://opensource.org/licenses/MIT>. This file
+// may not be copied, modified, or distributed
+// except according to those terms.
+use rand::Rng;
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use tempfile::tempdir;
-use winapi::shared::winerror;
+use windows_sys::Win32::Foundation;
 use winreg::enums::*;
 use winreg::types::FromRegValue;
 use winreg::{RegKey, RegValue};
+
+mod common;
 
 #[test]
 fn test_raw_handle() {
@@ -34,7 +34,7 @@ fn test_load_appkey() {
         let key_err = RegKey::load_app_key_with_flags(&file_path, KEY_READ, 0).unwrap_err();
         assert_eq!(
             key_err.raw_os_error(),
-            Some(winerror::ERROR_SHARING_VIOLATION as i32)
+            Some(Foundation::ERROR_SHARING_VIOLATION as i32)
         );
     }
     let val2: String = {
@@ -73,19 +73,7 @@ fn test_create_subkey_disposition() {
     assert_eq!(disp, REG_CREATED_NEW_KEY);
     let (_subkey2, disp2) = hkcu.create_subkey(path).unwrap();
     assert_eq!(disp2, REG_OPENED_EXISTING_KEY);
-    hkcu.delete_subkey_all(&path).unwrap();
-}
-
-macro_rules! with_key {
-    ($k:ident, $path:expr => $b:block) => {{
-        let mut path = "Software\\WinRegRsTest".to_owned();
-        path.push_str($path);
-        let ($k, _disp) = RegKey::predef(HKEY_CURRENT_USER)
-            .create_subkey(&path).unwrap();
-        $b
-        RegKey::predef(HKEY_CURRENT_USER)
-        .delete_subkey_all(path).unwrap();
-    }}
+    hkcu.delete_subkey_all(path).unwrap();
 }
 
 #[test]
@@ -282,83 +270,5 @@ fn test_enum_long_values() {
         {
             assert_eq!(val.bytes, vals[&name].bytes);
         }
-    });
-}
-
-#[cfg(feature = "serialization-serde")]
-#[test]
-fn test_serialization() {
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
-    struct Rectangle {
-        x: u32,
-        y: u32,
-        w: u32,
-        h: u32,
-    }
-
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
-    struct Test {
-        t_bool: bool,
-        t_u8: u8,
-        t_u16: u16,
-        t_u32: u32,
-        t_u64: u64,
-        t_usize: usize,
-        t_struct: Rectangle,
-        t_string: String,
-        t_map: HashMap<String, HashMap<String, u32>>,
-        t_i8: i8,
-        t_i16: i16,
-        t_i32: i32,
-        t_i64: i64,
-        t_isize: isize,
-        t_f64: f64,
-        t_f32: f32,
-        t_char: char,
-    }
-
-    let mut k1 = HashMap::new();
-    k1.insert("val1".to_owned(), 32);
-    k1.insert("val2".to_owned(), 64);
-    k1.insert("val3".to_owned(), 128);
-
-    let mut k2 = HashMap::new();
-    k2.insert("val1".to_owned(), 256);
-    k2.insert("val2".to_owned(), 512);
-    k2.insert("val3".to_owned(), 1024);
-
-    let mut map = HashMap::new();
-    map.insert("key1".to_owned(), k1);
-    map.insert("key2".to_owned(), k2);
-
-    let v1 = Test {
-        t_bool: false,
-        t_u8: 127,
-        t_u16: 32768,
-        t_u32: 123_456_789,
-        t_u64: 123_456_789_101_112,
-        t_usize: 1_234_567_891,
-        t_struct: Rectangle {
-            x: 55,
-            y: 77,
-            w: 500,
-            h: 300,
-        },
-        t_map: map,
-        t_string: "Test123 \n$%^&|+-*/\\()".to_owned(),
-        t_i8: -123,
-        t_i16: -2049,
-        t_i32: 20100,
-        t_i64: -12_345_678_910,
-        t_isize: -1_234_567_890,
-        t_f64: -0.01,
-        t_f32: 3.15,
-        t_char: 'a',
-    };
-
-    with_key!(key, "Serialization" => {
-        key.encode(&v1).unwrap();
-        let v2: Test = key.decode().unwrap();
-        assert_eq!(v1, v2);
     });
 }

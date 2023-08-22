@@ -12,7 +12,6 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-use core::convert::TryInto;
 #[cfg(feature = "std")]
 use core::fmt::Write;
 
@@ -25,6 +24,7 @@ const VALID_IP_BY_CONSTRUCTION: &str = "IP address is a valid string by construc
 
 /// Either a IPv4 or IPv6 address, plus its owned string representation
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum IpAddr {
     /// An IPv4 address and its owned string representation
@@ -34,6 +34,7 @@ pub enum IpAddr {
 }
 
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl AsRef<str> for IpAddr {
     fn as_ref(&self) -> &str {
         match self {
@@ -52,6 +53,7 @@ pub enum IpAddrRef<'a> {
 }
 
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<'a> From<IpAddrRef<'a>> for IpAddr {
     fn from(ip_address: IpAddrRef<'a>) -> IpAddr {
         match ip_address {
@@ -68,6 +70,7 @@ impl<'a> From<IpAddrRef<'a>> for IpAddr {
 }
 
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<'a> From<&'a IpAddr> for IpAddrRef<'a> {
     fn from(ip_address: &'a IpAddr) -> IpAddrRef<'a> {
         match ip_address {
@@ -92,8 +95,8 @@ impl core::fmt::Display for AddrParseError {
     }
 }
 
-/// Requires the `std` feature.
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl ::std::error::Error for AddrParseError {}
 
 impl<'a> IpAddrRef<'a> {
@@ -116,9 +119,8 @@ impl<'a> IpAddrRef<'a> {
     }
 
     /// Constructs an `IpAddr` from this `IpAddrRef`
-    ///
-    /// Requires the `alloc` feature.
     #[cfg(feature = "alloc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     pub fn to_owned(&self) -> IpAddr {
         match self {
             IpAddrRef::V4(ip_address, ip_address_octets) => IpAddr::V4(
@@ -153,6 +155,7 @@ fn ipv6_to_uncompressed_string(octets: [u8; 16]) -> String {
 }
 
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl From<std::net::IpAddr> for IpAddr {
     fn from(ip_address: std::net::IpAddr) -> IpAddr {
         match ip_address {
@@ -203,12 +206,12 @@ impl<'a> From<IpAddrRef<'a>> for &'a [u8] {
 pub(super) fn presented_id_matches_reference_id(
     presented_id: untrusted::Input,
     reference_id: untrusted::Input,
-) -> Result<bool, Error> {
+) -> bool {
     match (presented_id.len(), reference_id.len()) {
         (4, 4) => (),
         (16, 16) => (),
         _ => {
-            return Ok(false);
+            return false;
         }
     };
 
@@ -218,11 +221,11 @@ pub(super) fn presented_id_matches_reference_id(
         let presented_ip_address_byte = presented_ip_address.read_byte().unwrap();
         let reference_ip_address_byte = reference_ip_address.read_byte().unwrap();
         if presented_ip_address_byte != reference_ip_address_byte {
-            return Ok(false);
+            return false;
         }
     }
 
-    Ok(true)
+    true
 }
 
 // https://tools.ietf.org/html/rfc5280#section-4.2.1.10 says:
@@ -1138,61 +1141,40 @@ mod tests {
 
     #[test]
     fn test_presented_id_matches_reference_id() {
-        assert_eq!(
-            presented_id_matches_reference_id(
-                untrusted::Input::from(&[]),
-                untrusted::Input::from(&[])
-            ),
-            Ok(false),
-        );
+        assert!(!presented_id_matches_reference_id(
+            untrusted::Input::from(&[]),
+            untrusted::Input::from(&[]),
+        ));
 
-        assert_eq!(
-            presented_id_matches_reference_id(
-                untrusted::Input::from(&[0x01]),
-                untrusted::Input::from(&[])
-            ),
-            Ok(false),
-        );
+        assert!(!presented_id_matches_reference_id(
+            untrusted::Input::from(&[0x01]),
+            untrusted::Input::from(&[])
+        ));
 
-        assert_eq!(
-            presented_id_matches_reference_id(
-                untrusted::Input::from(&[]),
-                untrusted::Input::from(&[0x01])
-            ),
-            Ok(false),
-        );
+        assert!(!presented_id_matches_reference_id(
+            untrusted::Input::from(&[]),
+            untrusted::Input::from(&[0x01])
+        ));
 
-        assert_eq!(
-            presented_id_matches_reference_id(
-                untrusted::Input::from(&[1, 2, 3, 4]),
-                untrusted::Input::from(&[1, 2, 3, 4])
-            ),
-            Ok(true),
-        );
+        assert!(presented_id_matches_reference_id(
+            untrusted::Input::from(&[1, 2, 3, 4]),
+            untrusted::Input::from(&[1, 2, 3, 4])
+        ));
 
-        assert_eq!(
-            presented_id_matches_reference_id(
-                untrusted::Input::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
-                untrusted::Input::from(&[1, 2, 3, 4])
-            ),
-            Ok(false),
-        );
+        assert!(!presented_id_matches_reference_id(
+            untrusted::Input::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
+            untrusted::Input::from(&[1, 2, 3, 4])
+        ));
 
-        assert_eq!(
-            presented_id_matches_reference_id(
-                untrusted::Input::from(&[1, 2, 3, 4]),
-                untrusted::Input::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
-            ),
-            Ok(false),
-        );
+        assert!(!presented_id_matches_reference_id(
+            untrusted::Input::from(&[1, 2, 3, 4]),
+            untrusted::Input::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
+        ));
 
-        assert_eq!(
-            presented_id_matches_reference_id(
-                untrusted::Input::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
-                untrusted::Input::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
-            ),
-            Ok(true),
-        );
+        assert!(presented_id_matches_reference_id(
+            untrusted::Input::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
+            untrusted::Input::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
+        ));
     }
 
     #[test]

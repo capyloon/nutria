@@ -13,13 +13,13 @@
 edition = "2018"
 rust-version = "1.34"
 name = "portable-atomic"
-version = "1.3.2"
+version = "1.4.2"
 exclude = [
     "/.*",
-    "/ci",
     "/tools",
     "/target-specs",
     "/Cross.toml",
+    "/DEVELOPMENT.md",
 ]
 description = """
 Portable atomic types including support for 128-bit atomics, atomic float, etc.
@@ -28,10 +28,10 @@ readme = "README.md"
 keywords = ["atomic"]
 categories = [
     "concurrency",
-    "data-structures",
     "embedded",
     "hardware-support",
     "no-std",
+    "no-std::no-alloc",
 ]
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/taiki-e/portable-atomic"
@@ -41,6 +41,7 @@ features = [
     "float",
     "std",
     "serde",
+    "critical-section",
 ]
 rustdoc-args = [
     "--cfg",
@@ -67,7 +68,7 @@ version = "0.1"
 version = "0.8"
 
 [dev-dependencies.fastrand]
-version = "1"
+version = "2"
 
 [dev-dependencies.paste]
 version = "1"
@@ -83,7 +84,10 @@ version = "1"
 
 [features]
 default = ["fallback"]
+disable-fiq = []
 fallback = []
 float = []
 require-cas = []
+s-mode = []
 std = []
+unsafe-assume-single-core = []

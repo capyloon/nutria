@@ -1,6 +1,9 @@
 use std::convert::TryInto;
 use std::ops::RangeBounds;
 
+use crate::builder::Str;
+use crate::builder::StyledStr;
+use crate::parser::ValueSource;
 use crate::util::AnyValue;
 use crate::util::AnyValueId;
 
@@ -234,8 +237,9 @@ impl ValueParser {
         cmd: &crate::Command,
         arg: Option<&crate::Arg>,
         value: &std::ffi::OsStr,
+        source: ValueSource,
     ) -> Result<AnyValue, crate::Error> {
-        self.any_value_parser().parse_ref(cmd, arg, value)
+        self.any_value_parser().parse_ref_(cmd, arg, value, source)
     }
 
     /// Describes the content of `AnyValue`
@@ -592,12 +596,32 @@ trait AnyValueParser: Send + Sync + 'static {
         value: &std::ffi::OsStr,
     ) -> Result<AnyValue, crate::Error>;
 
+    fn parse_ref_(
+        &self,
+        cmd: &crate::Command,
+        arg: Option<&crate::Arg>,
+        value: &std::ffi::OsStr,
+        _source: ValueSource,
+    ) -> Result<AnyValue, crate::Error> {
+        self.parse_ref(cmd, arg, value)
+    }
+
     fn parse(
         &self,
         cmd: &crate::Command,
         arg: Option<&crate::Arg>,
         value: std::ffi::OsString,
     ) -> Result<AnyValue, crate::Error>;
+
+    fn parse_(
+        &self,
+        cmd: &crate::Command,
+        arg: Option<&crate::Arg>,
+        value: std::ffi::OsString,
+        _source: ValueSource,
+    ) -> Result<AnyValue, crate::Error> {
+        self.parse(cmd, arg, value)
+    }
 
     /// Describes the content of `AnyValue`
     fn type_id(&self) -> AnyValueId;
@@ -624,6 +648,17 @@ where
         Ok(AnyValue::new(value))
     }
 
+    fn parse_ref_(
+        &self,
+        cmd: &crate::Command,
+        arg: Option<&crate::Arg>,
+        value: &std::ffi::OsStr,
+        source: ValueSource,
+    ) -> Result<AnyValue, crate::Error> {
+        let value = ok!(TypedValueParser::parse_ref_(self, cmd, arg, value, source));
+        Ok(AnyValue::new(value))
+    }
+
     fn parse(
         &self,
         cmd: &crate::Command,
@@ -631,6 +666,17 @@ where
         value: std::ffi::OsString,
     ) -> Result<AnyValue, crate::Error> {
         let value = ok!(TypedValueParser::parse(self, cmd, arg, value));
+        Ok(AnyValue::new(value))
+    }
+
+    fn parse_(
+        &self,
+        cmd: &crate::Command,
+        arg: Option<&crate::Arg>,
+        value: std::ffi::OsString,
+        source: ValueSource,
+    ) -> Result<AnyValue, crate::Error> {
+        let value = ok!(TypedValueParser::parse_(self, cmd, arg, value, source));
         Ok(AnyValue::new(value))
     }
 
@@ -717,6 +763,19 @@ pub trait TypedValueParser: Clone + Send + Sync + 'static {
     /// Parse the argument value
     ///
     /// When `arg` is `None`, an external subcommand value is being parsed.
+    fn parse_ref_(
+        &self,
+        cmd: &crate::Command,
+        arg: Option<&crate::Arg>,
+        value: &std::ffi::OsStr,
+        _source: ValueSource,
+    ) -> Result<Self::Value, crate::Error> {
+        self.parse_ref(cmd, arg, value)
+    }
+
+    /// Parse the argument value
+    ///
+    /// When `arg` is `None`, an external subcommand value is being parsed.
     fn parse(
         &self,
         cmd: &crate::Command,
@@ -724,6 +783,19 @@ pub trait TypedValueParser: Clone + Send + Sync + 'static {
         value: std::ffi::OsString,
     ) -> Result<Self::Value, crate::Error> {
         self.parse_ref(cmd, arg, &value)
+    }
+
+    /// Parse the argument value
+    ///
+    /// When `arg` is `None`, an external subcommand value is being parsed.
+    fn parse_(
+        &self,
+        cmd: &crate::Command,
+        arg: Option<&crate::Arg>,
+        value: std::ffi::OsString,
+        _source: ValueSource,
+    ) -> Result<Self::Value, crate::Error> {
+        self.parse(cmd, arg, value)
     }
 
     /// Reflect on enumerated value properties
@@ -2083,6 +2155,122 @@ where
         &self,
     ) -> Option<Box<dyn Iterator<Item = crate::builder::PossibleValue> + '_>> {
         self.parser.possible_values()
+    }
+}
+
+/// When encountered, report [ErrorKind::UnknownArgument][crate::error::ErrorKind::UnknownArgument]
+///
+/// Useful to help users migrate, either from old versions or similar tools.
+///
+/// # Examples
+///
+/// ```rust
+/// # use clap_builder as clap;
+/// # use clap::Command;
+/// # use clap::Arg;
+/// let cmd = Command::new("mycmd")
+///     .args([
+///         Arg::new("current-dir")
+///             .short('C'),
+///         Arg::new("current-dir-unknown")
+///             .long("cwd")
+///             .aliases(["current-dir", "directory", "working-directory", "root"])
+///             .value_parser(clap::builder::UnknownArgumentValueParser::suggest_arg("-C"))
+///             .hide(true),
+///     ]);
+///
+/// // Use a supported version of the argument
+/// let matches = cmd.clone().try_get_matches_from(["mycmd", "-C", ".."]).unwrap();
+/// assert!(matches.contains_id("current-dir"));
+/// assert_eq!(
+///     matches.get_many::<String>("current-dir").unwrap_or_default().map(|v| v.as_str()).collect::<Vec<_>>(),
+///     vec![".."]
+/// );
+///
+/// // Use one of the invalid versions
+/// let err = cmd.try_get_matches_from(["mycmd", "--cwd", ".."]).unwrap_err();
+/// assert_eq!(err.kind(), clap::error::ErrorKind::UnknownArgument);
+/// ```
+#[derive(Clone, Debug)]
+pub struct UnknownArgumentValueParser {
+    arg: Option<Str>,
+    suggestions: Vec<StyledStr>,
+}
+
+impl UnknownArgumentValueParser {
+    /// Suggest an alternative argument
+    pub fn suggest_arg(arg: impl Into<Str>) -> Self {
+        Self {
+            arg: Some(arg.into()),
+            suggestions: Default::default(),
+        }
+    }
+
+    /// Provide a general suggestion
+    pub fn suggest(text: impl Into<StyledStr>) -> Self {
+        Self {
+            arg: Default::default(),
+            suggestions: vec![text.into()],
+        }
+    }
+
+    /// Extend the suggestions
+    pub fn and_suggest(mut self, text: impl Into<StyledStr>) -> Self {
+        self.suggestions.push(text.into());
+        self
+    }
+}
+
+impl TypedValueParser for UnknownArgumentValueParser {
+    type Value = String;
+
+    fn parse_ref(
+        &self,
+        cmd: &crate::Command,
+        arg: Option<&crate::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, crate::Error> {
+        TypedValueParser::parse_ref_(self, cmd, arg, value, ValueSource::CommandLine)
+    }
+
+    fn parse_ref_(
+        &self,
+        cmd: &crate::Command,
+        arg: Option<&crate::Arg>,
+        _value: &std::ffi::OsStr,
+        source: ValueSource,
+    ) -> Result<Self::Value, crate::Error> {
+        match source {
+            ValueSource::DefaultValue => {
+                TypedValueParser::parse_ref_(&StringValueParser::new(), cmd, arg, _value, source)
+            }
+            ValueSource::EnvVariable | ValueSource::CommandLine => {
+                let arg = match arg {
+                    Some(arg) => arg.to_string(),
+                    None => "..".to_owned(),
+                };
+                let err = crate::Error::unknown_argument(
+                    cmd,
+                    arg,
+                    self.arg.as_ref().map(|s| (s.as_str().to_owned(), None)),
+                    false,
+                    crate::output::Usage::new(cmd).create_usage_with_title(&[]),
+                );
+                #[cfg(feature = "error-context")]
+                let err = {
+                    debug_assert_eq!(
+                        err.get(crate::error::ContextKind::Suggested),
+                        None,
+                        "Assuming `Error::unknown_argument` doesn't apply any `Suggested` so we can without caution"
+                    );
+                    err.insert_context_unchecked(
+                        crate::error::ContextKind::Suggested,
+                        crate::error::ContextValue::StyledStrs(self.suggestions.clone()),
+                    )
+                };
+                Err(err)
+            }
+        }
     }
 }
 

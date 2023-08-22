@@ -27,14 +27,12 @@
 
 #![cfg_attr(unix, no_std)]
 
-#[cfg(not(target_os = "unknown"))]
-use io_lifetimes::AsFilelike;
-#[cfg(windows)]
-use io_lifetimes::BorrowedHandle;
+#[cfg(not(any(windows, target_os = "hermit", target_os = "unknown")))]
+use rustix::fd::AsFd;
 #[cfg(target_os = "hermit")]
-use std::os::hermit::io::AsRawFd;
+use std::os::hermit::io::AsFd;
 #[cfg(windows)]
-use std::os::windows::io::AsRawHandle;
+use std::os::windows::io::{AsHandle, AsRawHandle, BorrowedHandle};
 #[cfg(windows)]
 use windows_sys::Win32::Foundation::HANDLE;
 
@@ -67,12 +65,12 @@ pub trait IsTerminal {
 ///     println!("stdout is a terminal")
 /// }
 /// ```
-pub fn is_terminal<T: IsTerminal>(this: &T) -> bool {
+pub fn is_terminal<T: IsTerminal>(this: T) -> bool {
     this.is_terminal()
 }
 
-#[cfg(not(target_os = "unknown"))]
-impl<Stream: AsFilelike> IsTerminal for Stream {
+#[cfg(not(any(windows, target_os = "unknown")))]
+impl<Stream: AsFd> IsTerminal for Stream {
     #[inline]
     fn is_terminal(&self) -> bool {
         #[cfg(any(unix, target_os = "wasi"))]
@@ -82,13 +80,17 @@ impl<Stream: AsFilelike> IsTerminal for Stream {
 
         #[cfg(target_os = "hermit")]
         {
-            hermit_abi::isatty(self.as_filelike().as_raw_fd())
+            use std::os::hermit::io::AsRawFd;
+            hermit_abi::isatty(self.as_fd().as_fd().as_raw_fd())
         }
+    }
+}
 
-        #[cfg(windows)]
-        {
-            handle_is_console(self.as_filelike())
-        }
+#[cfg(windows)]
+impl<Stream: AsHandle> IsTerminal for Stream {
+    #[inline]
+    fn is_terminal(&self) -> bool {
+        handle_is_console(self.as_handle())
     }
 }
 
@@ -313,7 +315,7 @@ mod tests {
     fn stdin() {
         assert_eq!(
             atty::is(atty::Stream::Stdin),
-            rustix::io::stdin().is_terminal()
+            rustix::stdio::stdin().is_terminal()
         )
     }
 
@@ -322,7 +324,7 @@ mod tests {
     fn stdout() {
         assert_eq!(
             atty::is(atty::Stream::Stdout),
-            rustix::io::stdout().is_terminal()
+            rustix::stdio::stdout().is_terminal()
         )
     }
 
@@ -331,7 +333,7 @@ mod tests {
     fn stderr() {
         assert_eq!(
             atty::is(atty::Stream::Stderr),
-            rustix::io::stderr().is_terminal()
+            rustix::stdio::stderr().is_terminal()
         )
     }
 
@@ -341,7 +343,7 @@ mod tests {
         unsafe {
             assert_eq!(
                 libc::isatty(libc::STDIN_FILENO) != 0,
-                rustix::io::stdin().is_terminal()
+                rustix::stdio::stdin().is_terminal()
             )
         }
     }
@@ -352,7 +354,7 @@ mod tests {
         unsafe {
             assert_eq!(
                 libc::isatty(libc::STDOUT_FILENO) != 0,
-                rustix::io::stdout().is_terminal()
+                rustix::stdio::stdout().is_terminal()
             )
         }
     }
@@ -363,7 +365,7 @@ mod tests {
         unsafe {
             assert_eq!(
                 libc::isatty(libc::STDERR_FILENO) != 0,
-                rustix::io::stderr().is_terminal()
+                rustix::stdio::stderr().is_terminal()
             )
         }
     }

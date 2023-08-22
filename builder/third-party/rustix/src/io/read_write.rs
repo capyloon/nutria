@@ -5,13 +5,9 @@ use backend::fd::AsFd;
 
 // Declare `IoSlice` and `IoSliceMut`.
 #[cfg(not(windows))]
-#[cfg(not(feature = "std"))]
-pub use backend::io::io_slice::{IoSlice, IoSliceMut};
-#[cfg(not(windows))]
-#[cfg(feature = "std")]
-pub use std::io::{IoSlice, IoSliceMut};
+pub use crate::maybe_polyfill::io::{IoSlice, IoSliceMut};
 
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(linux_kernel)]
 pub use backend::io::types::ReadWriteFlags;
 
 /// `read(fd, buf)`—Reads from a stream.
@@ -142,6 +138,7 @@ pub fn pwrite<Fd: AsFd>(fd: Fd, buf: &[u8], offset: u64) -> io::Result<usize> {
 /// [OpenBSD]: https://man.openbsd.org/readv.2
 /// [DragonFly BSD]: https://man.dragonflybsd.org/?command=readv&section=2
 /// [illumos]: https://illumos.org/man/2/readv
+#[cfg(not(target_os = "espidf"))]
 #[inline]
 pub fn readv<Fd: AsFd>(fd: Fd, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
     backend::io::syscalls::readv(fd.as_fd(), bufs)
@@ -167,6 +164,7 @@ pub fn readv<Fd: AsFd>(fd: Fd, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize>
 /// [OpenBSD]: https://man.openbsd.org/writev.2
 /// [DragonFly BSD]: https://man.dragonflybsd.org/?command=writev&section=2
 /// [illumos]: https://illumos.org/man/2/writev
+#[cfg(not(target_os = "espidf"))]
 #[inline]
 pub fn writev<Fd: AsFd>(fd: Fd, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
     backend::io::syscalls::writev(fd.as_fd(), bufs)
@@ -189,7 +187,13 @@ pub fn writev<Fd: AsFd>(fd: Fd, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
 /// [OpenBSD]: https://man.openbsd.org/preadv.2
 /// [DragonFly BSD]: https://man.dragonflybsd.org/?command=preadv&section=2
 /// [illumos]: https://illumos.org/man/2/preadv
-#[cfg(not(any(target_os = "haiku", target_os = "redox", target_os = "solaris")))]
+#[cfg(not(any(
+    target_os = "espidf",
+    target_os = "haiku",
+    target_os = "nto",
+    target_os = "redox",
+    target_os = "solaris"
+)))]
 #[inline]
 pub fn preadv<Fd: AsFd>(fd: Fd, bufs: &mut [IoSliceMut<'_>], offset: u64) -> io::Result<usize> {
     backend::io::syscalls::preadv(fd.as_fd(), bufs, offset)
@@ -216,7 +220,13 @@ pub fn preadv<Fd: AsFd>(fd: Fd, bufs: &mut [IoSliceMut<'_>], offset: u64) -> io:
 /// [OpenBSD]: https://man.openbsd.org/pwritev.2
 /// [DragonFly BSD]: https://man.dragonflybsd.org/?command=pwritev&section=2
 /// [illumos]: https://illumos.org/man/2/pwritev
-#[cfg(not(any(target_os = "haiku", target_os = "redox", target_os = "solaris")))]
+#[cfg(not(any(
+    target_os = "espidf",
+    target_os = "haiku",
+    target_os = "nto",
+    target_os = "redox",
+    target_os = "solaris"
+)))]
 #[inline]
 pub fn pwritev<Fd: AsFd>(fd: Fd, bufs: &[IoSlice<'_>], offset: u64) -> io::Result<usize> {
     backend::io::syscalls::pwritev(fd.as_fd(), bufs, offset)
@@ -230,7 +240,7 @@ pub fn pwritev<Fd: AsFd>(fd: Fd, bufs: &[IoSlice<'_>], offset: u64) -> io::Resul
 ///  - [Linux]
 ///
 /// [Linux]: https://man7.org/linux/man-pages/man2/preadv2.2.html
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(linux_kernel)]
 #[inline]
 pub fn preadv2<Fd: AsFd>(
     fd: Fd,
@@ -249,7 +259,7 @@ pub fn preadv2<Fd: AsFd>(
 ///  - [Linux]
 ///
 /// [Linux]: https://man7.org/linux/man-pages/man2/pwritev2.2.html
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(linux_kernel)]
 #[inline]
 pub fn pwritev2<Fd: AsFd>(
     fd: Fd,

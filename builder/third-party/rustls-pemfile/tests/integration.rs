@@ -28,6 +28,13 @@ fn test_certs_with_binary() {
 }
 
 #[test]
+fn test_crls() {
+    let data = include_bytes!("data/crl.pem");
+    let mut reader = BufReader::new(&data[..]);
+    assert_eq!(rustls_pemfile::crls(&mut reader).unwrap().len(), 1);
+}
+
+#[test]
 fn test_pkcs8() {
     let data = include_bytes!("data/zen.pem");
     let mut reader = BufReader::new(&data[..]);
@@ -91,7 +98,7 @@ fn parse_in_order() {
     let mut reader = BufReader::new(&data[..]);
 
     let items = rustls_pemfile::read_all(&mut reader).unwrap();
-    assert_eq!(items.len(), 8);
+    assert_eq!(items.len(), 9);
     assert!(matches!(items[0], rustls_pemfile::Item::X509Certificate(_)));
     assert!(matches!(items[1], rustls_pemfile::Item::X509Certificate(_)));
     assert!(matches!(items[2], rustls_pemfile::Item::X509Certificate(_)));
@@ -100,4 +107,5 @@ fn parse_in_order() {
     assert!(matches!(items[5], rustls_pemfile::Item::PKCS8Key(_)));
     assert!(matches!(items[6], rustls_pemfile::Item::RSAKey(_)));
     assert!(matches!(items[7], rustls_pemfile::Item::PKCS8Key(_)));
+    assert!(matches!(items[8], rustls_pemfile::Item::Crl(_)));
 }

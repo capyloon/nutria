@@ -6,14 +6,16 @@ bitflags::bitflags! {
     /// `PIDFD_*` flags for use with [`pidfd_open`].
     ///
     /// [`pidfd_open`]: crate::process::pidfd_open
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct PidfdFlags: backend::c::c_uint {
         /// `PIDFD_NONBLOCK`.
         const NONBLOCK = backend::c::PIDFD_NONBLOCK;
     }
 }
 
-/// `syscall(SYS_pidfd_open, pid, flags)`—Creates a file descriptor for
-/// a process.
+/// `syscall(SYS_pidfd_open, pid, flags)`—Creates a file descriptor for a
+/// process.
 ///
 /// # References
 ///  - [Linux]

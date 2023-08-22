@@ -141,16 +141,15 @@ impl<S: IntoUrl> IntoProxyScheme for S {
                     }
                     source = err.source();
                 }
-                if !presumed_to_have_scheme {
-                    // the issue could have been caused by a missing scheme, so we try adding http://
-                    let try_this = format!("http://{}", self.as_str());
-                    try_this.into_url().map_err(|_| {
-                        // return the original error
-                        crate::error::builder(e)
-                    })?
-                } else {
+                if presumed_to_have_scheme {
                     return Err(crate::error::builder(e));
                 }
+                // the issue could have been caused by a missing scheme, so we try adding http://
+                let try_this = format!("http://{}", self.as_str());
+                try_this.into_url().map_err(|_| {
+                    // return the original error
+                    crate::error::builder(e)
+                })?
             }
         };
         ProxyScheme::parse(url)
@@ -330,7 +329,7 @@ impl Proxy {
                 .get("http")
                 .and_then(|s| s.maybe_http_auth())
                 .is_some(),
-            _ => false,
+            Intercept::Https(_) => false,
         }
     }
 
@@ -343,7 +342,7 @@ impl Proxy {
             Intercept::Custom(custom) => {
                 custom.call(uri).and_then(|s| s.maybe_http_auth().cloned())
             }
-            _ => None,
+            Intercept::Https(_) => None,
         }
     }
 
@@ -422,7 +421,7 @@ impl NoProxy {
         Self::from_string(&raw)
     }
 
-    /// Returns a new no-proxy configuration based on a no_proxy string (or `None` if no variables
+    /// Returns a new no-proxy configuration based on a `no_proxy` string (or `None` if no variables
     /// are set)
     /// The rules are as follows:
     /// * The environment variable `NO_PROXY` is checked, if it is not set, `no_proxy` is checked
@@ -483,7 +482,7 @@ impl NoProxy {
 
 impl IpMatcher {
     fn contains(&self, addr: IpAddr) -> bool {
-        for ip in self.0.iter() {
+        for ip in &self.0 {
             match ip {
                 Ip::Address(address) => {
                     if &addr == address {
@@ -507,7 +506,7 @@ impl DomainMatcher {
     // * https://github.com/curl/curl/issues/1208
     fn contains(&self, domain: &str) -> bool {
         let domain_len = domain.len();
-        for d in self.0.iter() {
+        for d in &self.0 {
             if d == domain || d.strip_prefix('.') == Some(domain) {
                 return true;
             } else if domain.ends_with(d) {
@@ -743,8 +742,8 @@ impl Custom {
             "{}://{}{}{}",
             uri.scheme(),
             uri.host(),
-            uri.port().map(|_| ":").unwrap_or(""),
-            uri.port().map(|p| p.to_string()).unwrap_or_default()
+            uri.port().map_or("", |_| ":"),
+            uri.port().map_or(String::new(), |p| p.to_string())
         )
         .parse()
         .expect("should be valid Url");
@@ -845,6 +844,13 @@ fn get_from_environment() -> SystemProxyMap {
 
     if !insert_from_env(&mut proxies, "https", "HTTPS_PROXY") {
         insert_from_env(&mut proxies, "https", "https_proxy");
+    }
+
+    if !(insert_from_env(&mut proxies, "http", "ALL_PROXY")
+        && insert_from_env(&mut proxies, "https", "ALL_PROXY"))
+    {
+        insert_from_env(&mut proxies, "http", "all_proxy");
+        insert_from_env(&mut proxies, "https", "all_proxy");
     }
 
     proxies
@@ -1135,6 +1141,7 @@ mod tests {
         // save system setting first.
         let _g1 = env_guard("HTTP_PROXY");
         let _g2 = env_guard("http_proxy");
+        let _g3 = env_guard("ALL_PROXY");
 
         // Mock ENV, get the results, before doing assertions
         // to avoid assert! -> panic! -> Mutex Poisoned.
@@ -1145,6 +1152,9 @@ mod tests {
         // set valid proxy
         env::set_var("http_proxy", "127.0.0.1/");
         let valid_proxies = get_sys_proxies(None);
+        // set valid ALL_PROXY
+        env::set_var("ALL_PROXY", "127.0.0.2/");
+        let all_proxies = get_sys_proxies(None);
 
         // reset user setting when guards drop
         drop(_g1);
@@ -1158,6 +1168,9 @@ mod tests {
         let p = &valid_proxies["http"];
         assert_eq!(p.scheme(), "http");
         assert_eq!(p.host(), "127.0.0.1");
+
+        assert_eq!(all_proxies.len(), 2);
+        assert!(all_proxies.values().all(|p| p.host() == "127.0.0.2"));
     }
 
     #[cfg(target_os = "windows")]

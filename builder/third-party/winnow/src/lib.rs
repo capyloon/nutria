@@ -137,7 +137,7 @@
 #![allow(clippy::unnested_or_patterns)]
 #[cfg_attr(nightly, warn(rustdoc::missing_doc_code_examples))]
 #[cfg(feature = "alloc")]
-#[macro_use]
+#[cfg_attr(test, macro_use)]
 extern crate alloc;
 #[cfg(doctest)]
 extern crate doc_comment;
@@ -201,14 +201,7 @@ pub mod stream;
 
 pub mod ascii;
 pub mod binary;
-pub mod bits;
-pub mod branch;
-pub mod bytes;
-pub mod character;
 pub mod combinator;
-pub mod multi;
-pub mod number;
-pub mod sequence;
 pub mod token;
 pub mod trace;
 
@@ -220,7 +213,7 @@ pub mod _tutorial;
 /// Core concepts available for glob import
 ///
 /// Including
-/// - [`FinishIResult`]
+/// - [`StreamIsPartial`][crate::stream::StreamIsPartial]
 /// - [`Parser`]
 ///
 /// ## Example
@@ -228,7 +221,7 @@ pub mod _tutorial;
 /// ```rust
 /// use winnow::prelude::*;
 ///
-/// fn parse_data(input: &str) -> IResult<&str, u64> {
+/// fn parse_data(input: &mut &str) -> PResult<u64> {
 ///     // ...
 /// #   winnow::ascii::dec_uint(input)
 /// }
@@ -240,15 +233,13 @@ pub mod _tutorial;
 /// ```
 pub mod prelude {
     pub use crate::stream::StreamIsPartial as _;
-    #[allow(deprecated)]
-    pub use crate::FinishIResult as _;
     pub use crate::IResult;
+    pub use crate::PResult;
     pub use crate::Parser;
 }
 
-#[allow(deprecated)]
-pub use error::FinishIResult;
 pub use error::IResult;
+pub use error::PResult;
 pub use parser::*;
 pub use stream::BStr;
 pub use stream::Bytes;

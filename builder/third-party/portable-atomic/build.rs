@@ -15,6 +15,13 @@ fn main() {
     println!("cargo:rerun-if-changed=no_atomic.rs");
     println!("cargo:rerun-if-changed=version.rs");
 
+    #[cfg(feature = "unsafe-assume-single-core")]
+    println!("cargo:rustc-cfg=portable_atomic_unsafe_assume_single_core");
+    #[cfg(feature = "s-mode")]
+    println!("cargo:rustc-cfg=portable_atomic_s_mode");
+    #[cfg(feature = "disable-fiq")]
+    println!("cargo:rustc-cfg=portable_atomic_disable_fiq");
+
     let target = &*env::var("TARGET").expect("TARGET not set");
     let target_arch = &*env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH not set");
     let target_os = &*env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS not set");
@@ -154,7 +161,7 @@ fn main() {
         // https://github.com/rust-lang/rust/pull/93868 merged in Rust 1.60 (nightly-2022-02-13).
         // https://github.com/rust-lang/rust/pull/111331 merged in Rust 1.71 (nightly-2023-05-09).
         if !no_asm
-            && (target_arch == "powerpc64" && version.probe(60, 2022, 2, 13)
+            && (target_arch == "powerpc64" && version.probe(60, 2022, 2, 12)
                 || target_arch == "s390x" && version.probe(71, 2023, 5, 8))
             && is_allowed_feature("asm_experimental_arch")
         {
@@ -162,6 +169,8 @@ fn main() {
         }
     }
 
+    let is_apple =
+        target_os == "macos" || target_os == "ios" || target_os == "tvos" || target_os == "watchos";
     match target_arch {
         "x86_64" => {
             // cmpxchg16b_target_feature stabilized in Rust 1.69 (nightly-2023-03-01): https://github.com/rust-lang/rust/pull/106774
@@ -177,8 +186,12 @@ fn main() {
                 }
             }
 
-            // x86_64 macos always support CMPXCHG16B: https://github.com/rust-lang/rust/blob/1.69.0/compiler/rustc_target/src/spec/x86_64_apple_darwin.rs#L8
-            let has_cmpxchg16b = target_os == "macos";
+            // x86_64 Apple targets always support CMPXCHG16B:
+            // https://github.com/rust-lang/rust/blob/1.70.0/compiler/rustc_target/src/spec/x86_64_apple_darwin.rs#L8
+            // https://github.com/rust-lang/rust/blob/1.70.0/compiler/rustc_target/src/spec/apple_base.rs#L69-L70
+            // Script to get targets that support cmpxchg16b by default:
+            // $ (for target in $(rustc --print target-list); do [[ "${target}" == "x86_64"* ]] && rustc --print cfg --target "${target}" | grep -q cmpxchg16b && echo "${target}"; done)
+            let has_cmpxchg16b = is_apple;
             // LLVM recognizes this also as cx16 target feature: https://godbolt.org/z/6dszGeYsf
             // It is unlikely that rustc will support that name, so we ignore it.
             // cmpxchg16b_target_feature stabilized in Rust 1.69.
@@ -199,18 +212,18 @@ fn main() {
                 }
             }
 
-            // aarch64 macos always support FEAT_LSE and FEAT_LSE2 because it is armv8.5-a:
+            // aarch64 macOS always support FEAT_LSE and FEAT_LSE2 because it is armv8.5-a:
             // https://github.com/llvm/llvm-project/blob/llvmorg-16.0.0/llvm/include/llvm/TargetParser/AArch64TargetParser.h#L458
             let is_macos = target_os == "macos";
             // aarch64_target_feature stabilized in Rust 1.61.
             target_feature_if("lse", is_macos, &version, Some(61), true);
-            // As of rustc 1.69, target_feature "lse2" is not available on rustc side:
-            // https://github.com/rust-lang/rust/blob/1.69.0/compiler/rustc_codegen_ssa/src/target_features.rs#L58
+            // As of rustc 1.70, target_feature "lse2" is not available on rustc side:
+            // https://github.com/rust-lang/rust/blob/1.70.0/compiler/rustc_codegen_ssa/src/target_features.rs#L58
             target_feature_if("lse2", is_macos, &version, None, false);
 
             // As of Apple M1/M1 Pro, on Apple hardware, CAS loop-based RMW is much slower than LL/SC
             // loop-based RMW: https://github.com/taiki-e/portable-atomic/pull/89
-            if is_macos || target_os == "ios" || target_os == "tvos" || target_os == "watchos" {
+            if is_apple {
                 println!("cargo:rustc-cfg=portable_atomic_ll_sc_rmw");
             }
         }
@@ -231,7 +244,7 @@ fn main() {
                 "v6m" | "v7em" | "v7m" | "v8m" => is_mclass = true,
                 "v7r" | "v8r" => {} // rclass
                 // arm-linux-androideabi is v5te
-                // https://github.com/rust-lang/rust/blob/1.69.0/compiler/rustc_target/src/spec/arm_linux_androideabi.rs#L11-L12
+                // https://github.com/rust-lang/rust/blob/1.70.0/compiler/rustc_target/src/spec/arm_linux_androideabi.rs#L11-L12
                 _ if target == "arm-linux-androideabi" => subarch = "v5te",
                 // v6 targets other than v6m don't have *class target feature.
                 "" | "v6" | "v6k" => subarch = "v6",
@@ -273,10 +286,44 @@ fn main() {
                     has_pwr8_features = cpu == "ppc64le" || cpu == "future";
                 }
             }
-            // Note: As of rustc 1.69, target_feature "quadword-atomics" is not available on rustc side:
-            // https://github.com/rust-lang/rust/blob/1.69.0/compiler/rustc_codegen_ssa/src/target_features.rs#L226
+            // Note: As of rustc 1.70, target_feature "quadword-atomics" is not available on rustc side:
+            // https://github.com/rust-lang/rust/blob/1.70.0/compiler/rustc_codegen_ssa/src/target_features.rs#L226
             // lqarx and stqcx.
             target_feature_if("quadword-atomics", has_pwr8_features, &version, None, false);
+        }
+        "s390x" => {
+            // https://github.com/llvm/llvm-project/blob/llvmorg-16.0.0/llvm/lib/Target/SystemZ/SystemZFeatures.td#L37
+            let mut has_arch9_features = false; // z196+
+            let mut has_arch13_features = false; // z15+
+            if let Some(cpu) = target_cpu() {
+                // https://github.com/llvm/llvm-project/blob/llvmorg-16.0.0/llvm/lib/Target/SystemZ/SystemZProcessors.td
+                match &*cpu {
+                    "arch9" | "z196" | "arch10" | "zEC12" | "arch11" | "z13" | "arch12" | "z14" => {
+                        has_arch9_features = true;
+                    }
+                    "arch13" | "z15" | "arch14" | "z16" => {
+                        has_arch9_features = true;
+                        has_arch13_features = true;
+                    }
+                    _ => {}
+                }
+            }
+            // Note: As of rustc 1.70, target_feature "fast-serialization"/"load-store-on-cond"/"distinct-ops"/"miscellaneous-extensions-3" is not available on rustc side:
+            // https://github.com/rust-lang/rust/blob/1.70.0/compiler/rustc_codegen_ssa/src/target_features.rs
+            // bcr 14,0
+            target_feature_if("fast-serialization", has_arch9_features, &version, None, false);
+            // {l,st}oc{,g}{,r}
+            target_feature_if("load-store-on-cond", has_arch9_features, &version, None, false);
+            // {al,sl,n,o,x}{,g}rk
+            target_feature_if("distinct-ops", has_arch9_features, &version, None, false);
+            // nand (nnr{,g}k), select (sel{,g}r), etc.
+            target_feature_if(
+                "miscellaneous-extensions-3",
+                has_arch13_features,
+                &version,
+                None,
+                false,
+            );
         }
         _ => {}
     }

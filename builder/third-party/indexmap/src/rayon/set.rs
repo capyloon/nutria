@@ -2,26 +2,39 @@
 //!
 //! You will rarely need to interact with this module directly unless you need to name one of the
 //! iterator types.
-//!
-//! Requires crate feature `"rayon"`.
 
 use super::collect;
 use rayon::iter::plumbing::{Consumer, ProducerCallback, UnindexedConsumer};
 use rayon::prelude::*;
 
 use crate::vec::Vec;
+use alloc::boxed::Box;
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{BuildHasher, Hash};
 use core::ops::RangeBounds;
 
+use crate::set::Slice;
 use crate::Entries;
 use crate::IndexSet;
 
 type Bucket<T> = crate::Bucket<T, ()>;
 
-/// Requires crate feature `"rayon"`.
 impl<T, S> IntoParallelIterator for IndexSet<T, S>
+where
+    T: Send,
+{
+    type Item = T;
+    type Iter = IntoParIter<T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        IntoParIter {
+            entries: self.into_entries(),
+        }
+    }
+}
+
+impl<T> IntoParallelIterator for Box<Slice<T>>
 where
     T: Send,
 {
@@ -63,7 +76,6 @@ impl<T: Send> IndexedParallelIterator for IntoParIter<T> {
     indexed_parallel_iterator_methods!(Bucket::key);
 }
 
-/// Requires crate feature `"rayon"`.
 impl<'a, T, S> IntoParallelIterator for &'a IndexSet<T, S>
 where
     T: Sync,
@@ -74,6 +86,20 @@ where
     fn into_par_iter(self) -> Self::Iter {
         ParIter {
             entries: self.as_entries(),
+        }
+    }
+}
+
+impl<'a, T> IntoParallelIterator for &'a Slice<T>
+where
+    T: Sync,
+{
+    type Item = &'a T;
+    type Iter = ParIter<'a, T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        ParIter {
+            entries: &self.entries,
         }
     }
 }
@@ -112,7 +138,6 @@ impl<T: Sync> IndexedParallelIterator for ParIter<'_, T> {
     indexed_parallel_iterator_methods!(Bucket::key_ref);
 }
 
-/// Requires crate feature `"rayon"`.
 impl<'a, T, S> ParallelDrainRange<usize> for &'a mut IndexSet<T, S>
 where
     T: Send,
@@ -540,9 +565,19 @@ where
         entries.par_sort_unstable_by(move |a, b| cmp(&a.key, &b.key));
         IntoParIter { entries }
     }
+
+    /// Sort the set’s values in place and in parallel, using a key extraction function.
+    pub fn par_sort_by_cached_key<K, F>(&mut self, sort_key: F)
+    where
+        K: Ord + Send,
+        F: Fn(&T) -> K + Sync,
+    {
+        self.with_entries(move |entries| {
+            entries.par_sort_by_cached_key(move |a| sort_key(&a.key));
+        });
+    }
 }
 
-/// Requires crate feature `"rayon"`.
 impl<T, S> FromParallelIterator<T> for IndexSet<T, S>
 where
     T: Eq + Hash + Send,
@@ -562,7 +597,6 @@ where
     }
 }
 
-/// Requires crate feature `"rayon"`.
 impl<T, S> ParallelExtend<T> for IndexSet<T, S>
 where
     T: Eq + Hash + Send,
@@ -578,7 +612,6 @@ where
     }
 }
 
-/// Requires crate feature `"rayon"`.
 impl<'a, T: 'a, S> ParallelExtend<&'a T> for IndexSet<T, S>
 where
     T: Copy + Eq + Hash + Send + Sync,

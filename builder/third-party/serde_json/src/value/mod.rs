@@ -182,11 +182,11 @@ impl Debug for Value {
             Value::Number(number) => Debug::fmt(number, formatter),
             Value::String(string) => write!(formatter, "String({:?})", string),
             Value::Array(vec) => {
-                formatter.write_str("Array ")?;
+                tri!(formatter.write_str("Array "));
                 Debug::fmt(vec, formatter)
             }
             Value::Object(map) => {
-                formatter.write_str("Object ")?;
+                tri!(formatter.write_str("Object "));
                 Debug::fmt(map, formatter)
             }
         }
@@ -889,7 +889,6 @@ mod ser;
 /// ```
 /// use serde::Serialize;
 /// use serde_json::json;
-///
 /// use std::error::Error;
 ///
 /// #[derive(Serialize)]
@@ -898,7 +897,7 @@ mod ser;
 ///     location: String,
 /// }
 ///
-/// fn compare_json_values() -> Result<(), Box<Error>> {
+/// fn compare_json_values() -> Result<(), Box<dyn Error>> {
 ///     let u = User {
 ///         fingerprint: "0xF9BA143B95FF6D82".to_owned(),
 ///         location: "Menlo Park, CA".to_owned(),

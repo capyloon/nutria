@@ -87,17 +87,13 @@ pub fn start<I: Stream>(
     };
     let call_column = format!("{:depth$}> {name}{count}", "");
 
-    let eof_offset = input.eof_offset();
-    let offset = input.offset_at(input_width).unwrap_or(eof_offset);
-    let (_, slice) = input.next_slice(offset);
-
     // The debug version of `slice` might be wider, either due to rendering one byte as two nibbles or
     // escaping in strings.
-    let mut debug_slice = format!("{:#?}", slice);
+    let mut debug_slice = format!("{:#?}", input.raw());
     let (debug_slice, eof) = if let Some(debug_offset) = debug_slice
         .char_indices()
         .enumerate()
-        .find_map(|(pos, (offset, _))| (input_width <= pos).then(|| offset))
+        .find_map(|(pos, (offset, _))| (input_width <= pos).then_some(offset))
     {
         debug_slice.truncate(debug_offset);
         let eof = "";
@@ -111,7 +107,7 @@ pub fn start<I: Stream>(
         (debug_slice, eof)
     };
 
-    let writer = anstyle_stream::stderr();
+    let writer = anstream::stderr();
     let mut writer = writer.lock();
     let _ = writeln!(
         writer,
@@ -129,7 +125,7 @@ pub fn end(
     depth: usize,
     name: &dyn crate::lib::std::fmt::Display,
     count: usize,
-    consumed: Option<usize>,
+    consumed: usize,
     severity: Severity,
 ) {
     let gutter_style = anstyle::Style::new().bold();
@@ -146,7 +142,7 @@ pub fn end(
     let (status_style, status) = match severity {
         Severity::Success => {
             let style = anstyle::Style::new().fg_color(Some(anstyle::AnsiColor::Green.into()));
-            let status = format!("+{}", consumed.unwrap_or_default());
+            let status = format!("+{}", consumed);
             (style, status)
         }
         Severity::Backtrack => (
@@ -163,7 +159,7 @@ pub fn end(
         ),
     };
 
-    let writer = anstyle_stream::stderr();
+    let writer = anstream::stderr();
     let mut writer = writer.lock();
     let _ = writeln!(
         writer,
@@ -201,7 +197,7 @@ pub fn result(depth: usize, name: &dyn crate::lib::std::fmt::Display, severity: 
         ),
     };
 
-    let writer = anstyle_stream::stderr();
+    let writer = anstream::stderr();
     let mut writer = writer.lock();
     let _ = writeln!(
         writer,

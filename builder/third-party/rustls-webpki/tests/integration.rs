@@ -12,8 +12,7 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-use core::convert::TryFrom;
-extern crate webpki;
+use webpki::KeyUsage;
 
 static ALL_SIGALGS: &[&webpki::SignatureAlgorithm] = &[
     &webpki::ECDSA_P256_SHA256,
@@ -40,15 +39,21 @@ pub fn netflix() {
     let inter = include_bytes!("netflix/inter.der");
     let ca = include_bytes!("netflix/ca.der");
 
-    let anchors = vec![webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
-    let anchors = webpki::TlsServerTrustAnchors(&anchors);
+    let anchors = [webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
 
     let time = webpki::Time::from_seconds_since_unix_epoch(1_492_441_716); // 2017-04-17T15:08:36Z
 
     let cert = webpki::EndEntityCert::try_from(ee).unwrap();
     assert_eq!(
         Ok(()),
-        cert.verify_is_valid_tls_server_cert(ALL_SIGALGS, &anchors, &[inter], time)
+        cert.verify_for_usage(
+            ALL_SIGALGS,
+            &anchors,
+            &[inter],
+            time,
+            KeyUsage::server_auth(),
+            &[]
+        )
     );
 }
 
@@ -60,15 +65,21 @@ pub fn cloudflare_dns() {
     let inter = include_bytes!("cloudflare_dns/inter.der");
     let ca = include_bytes!("cloudflare_dns/ca.der");
 
-    let anchors = vec![webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
-    let anchors = webpki::TlsServerTrustAnchors(&anchors);
+    let anchors = [webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
 
     let time = webpki::Time::from_seconds_since_unix_epoch(1_663_495_771);
 
     let cert = webpki::EndEntityCert::try_from(ee).unwrap();
     assert_eq!(
         Ok(()),
-        cert.verify_is_valid_tls_server_cert(ALL_SIGALGS, &anchors, &[inter], time)
+        cert.verify_for_usage(
+            ALL_SIGALGS,
+            &anchors,
+            &[inter],
+            time,
+            KeyUsage::server_auth(),
+            &[]
+        )
     );
 
     let check_name = |name: &str| {
@@ -108,15 +119,21 @@ pub fn wpt() {
     let ee: &[u8] = include_bytes!("wpt/ee.der");
     let ca = include_bytes!("wpt/ca.der");
 
-    let anchors = vec![webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
-    let anchors = webpki::TlsServerTrustAnchors(&anchors);
+    let anchors = [webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
 
     let time = webpki::Time::from_seconds_since_unix_epoch(1_619_256_684); // 2021-04-24T09:31:24Z
 
     let cert = webpki::EndEntityCert::try_from(ee).unwrap();
     assert_eq!(
         Ok(()),
-        cert.verify_is_valid_tls_server_cert(ALL_SIGALGS, &anchors, &[], time)
+        cert.verify_for_usage(
+            ALL_SIGALGS,
+            &anchors,
+            &[],
+            time,
+            KeyUsage::server_auth(),
+            &[]
+        )
     );
 }
 
@@ -125,15 +142,21 @@ pub fn ed25519() {
     let ee: &[u8] = include_bytes!("ed25519/ee.der");
     let ca = include_bytes!("ed25519/ca.der");
 
-    let anchors = vec![webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
-    let anchors = webpki::TlsServerTrustAnchors(&anchors);
+    let anchors = [webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
 
     let time = webpki::Time::from_seconds_since_unix_epoch(1_547_363_522); // 2019-01-13T07:12:02Z
 
     let cert = webpki::EndEntityCert::try_from(ee).unwrap();
     assert_eq!(
         Ok(()),
-        cert.verify_is_valid_tls_server_cert(ALL_SIGALGS, &anchors, &[], time)
+        cert.verify_for_usage(
+            ALL_SIGALGS,
+            &anchors,
+            &[],
+            time,
+            KeyUsage::server_auth(),
+            &[]
+        )
     );
 }
 
@@ -145,16 +168,31 @@ fn critical_extensions() {
 
     let time = webpki::Time::from_seconds_since_unix_epoch(1_670_779_098);
     let anchors = [webpki::TrustAnchor::try_from_cert_der(root).unwrap()];
-    let anchors = webpki::TlsServerTrustAnchors(&anchors);
 
     let ee = include_bytes!("critical_extensions/ee-cert-noncrit-unknown-ext.der");
-    let res = webpki::EndEntityCert::try_from(&ee[..])
-        .and_then(|cert| cert.verify_is_valid_tls_server_cert(ALL_SIGALGS, &anchors, &[ca], time));
+    let res = webpki::EndEntityCert::try_from(&ee[..]).and_then(|cert| {
+        cert.verify_for_usage(
+            ALL_SIGALGS,
+            &anchors,
+            &[ca],
+            time,
+            KeyUsage::server_auth(),
+            &[],
+        )
+    });
     assert_eq!(res, Ok(()), "accept non-critical unknown extension");
 
     let ee = include_bytes!("critical_extensions/ee-cert-crit-unknown-ext.der");
-    let res = webpki::EndEntityCert::try_from(&ee[..])
-        .and_then(|cert| cert.verify_is_valid_tls_server_cert(ALL_SIGALGS, &anchors, &[ca], time));
+    let res = webpki::EndEntityCert::try_from(&ee[..]).and_then(|cert| {
+        cert.verify_for_usage(
+            ALL_SIGALGS,
+            &anchors,
+            &[ca],
+            time,
+            KeyUsage::server_auth(),
+            &[],
+        )
+    });
     assert_eq!(
         res,
         Err(webpki::Error::UnsupportedCriticalExtension),
@@ -181,15 +219,21 @@ fn read_ee_with_neg_serial() {
     let ca: &[u8] = include_bytes!("misc/serial_neg_ca.der");
     let ee: &[u8] = include_bytes!("misc/serial_neg_ee.der");
 
-    let anchors = vec![webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
-    let anchors = webpki::TlsServerTrustAnchors(&anchors);
+    let anchors = [webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
 
     let time = webpki::Time::from_seconds_since_unix_epoch(1_667_401_500); // 2022-11-02T15:05:00Z
 
     let cert = webpki::EndEntityCert::try_from(ee).unwrap();
     assert_eq!(
         Ok(()),
-        cert.verify_is_valid_tls_server_cert(ALL_SIGALGS, &anchors, &[], time)
+        cert.verify_for_usage(
+            ALL_SIGALGS,
+            &anchors,
+            &[],
+            time,
+            KeyUsage::server_auth(),
+            &[]
+        )
     );
 }
 
@@ -204,5 +248,122 @@ fn read_ee_with_large_pos_serial() {
 #[cfg(feature = "std")]
 #[test]
 fn time_constructor() {
-    let _ = webpki::Time::try_from(std::time::SystemTime::now()).unwrap();
+    let _ =
+        <webpki::Time as TryFrom<std::time::SystemTime>>::try_from(std::time::SystemTime::now())
+            .unwrap();
+}
+
+#[cfg(feature = "alloc")]
+#[test]
+pub fn list_netflix_names() {
+    let ee = include_bytes!("netflix/ee.der");
+
+    expect_cert_dns_names(
+        ee,
+        &[
+            "account.netflix.com",
+            "ca.netflix.com",
+            "netflix.ca",
+            "netflix.com",
+            "signup.netflix.com",
+            "www.netflix.ca",
+            "www1.netflix.com",
+            "www2.netflix.com",
+            "www3.netflix.com",
+            "develop-stage.netflix.com",
+            "release-stage.netflix.com",
+            "www.netflix.com",
+        ],
+    );
+}
+
+#[cfg(feature = "alloc")]
+#[test]
+pub fn invalid_subject_alt_names() {
+    // same as netflix ee certificate, but with the last name in the list
+    // changed to 'www.netflix:com'
+    let data = include_bytes!("misc/invalid_subject_alternative_name.der");
+
+    expect_cert_dns_names(
+        data,
+        &[
+            "account.netflix.com",
+            "ca.netflix.com",
+            "netflix.ca",
+            "netflix.com",
+            "signup.netflix.com",
+            "www.netflix.ca",
+            "www1.netflix.com",
+            "www2.netflix.com",
+            "www3.netflix.com",
+            "develop-stage.netflix.com",
+            "release-stage.netflix.com",
+            // NOT 'www.netflix:com'
+        ],
+    );
+}
+
+#[cfg(feature = "alloc")]
+#[test]
+pub fn wildcard_subject_alternative_names() {
+    // same as netflix ee certificate, but with the last name in the list
+    // changed to 'ww*.netflix:com'
+    let data = include_bytes!("misc/dns_names_and_wildcards.der");
+
+    expect_cert_dns_names(
+        data,
+        &[
+            "account.netflix.com",
+            "*.netflix.com",
+            "netflix.ca",
+            "netflix.com",
+            "signup.netflix.com",
+            "www.netflix.ca",
+            "www1.netflix.com",
+            "www2.netflix.com",
+            "www3.netflix.com",
+            "develop-stage.netflix.com",
+            "release-stage.netflix.com",
+            "www.netflix.com",
+        ],
+    );
+}
+
+#[cfg(feature = "alloc")]
+fn expect_cert_dns_names(data: &[u8], expected_names: &[&str]) {
+    use std::collections::HashSet;
+
+    let cert = webpki::EndEntityCert::try_from(data)
+        .expect("should parse end entity certificate correctly");
+
+    let expected_names: HashSet<_> = expected_names.iter().cloned().collect();
+
+    let mut actual_names = cert
+        .dns_names()
+        .expect("should get all DNS names correctly for end entity cert")
+        .collect::<Vec<_>>();
+
+    // Ensure that converting the list to a set doesn't throw away
+    // any duplicates that aren't supposed to be there
+    assert_eq!(actual_names.len(), expected_names.len());
+
+    let actual_names: std::collections::HashSet<&str> =
+        actual_names.drain(..).map(|name| name.into()).collect();
+
+    assert_eq!(actual_names, expected_names);
+}
+
+#[cfg(feature = "alloc")]
+#[test]
+pub fn no_subject_alt_names() {
+    let data = include_bytes!("misc/no_subject_alternative_name.der");
+
+    let cert = webpki::EndEntityCert::try_from(&data[..])
+        .expect("should parse end entity certificate correctly");
+
+    let names = cert
+        .dns_names()
+        .expect("we should get a result even without subjectAltNames");
+
+    assert!(names.collect::<Vec<_>>().is_empty());
 }

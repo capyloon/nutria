@@ -1,8 +1,5 @@
 #![allow(clippy::type_complexity)]
 
-#[macro_use]
-pub(crate) mod macros;
-
 pub(crate) mod array;
 pub(crate) mod datetime;
 pub(crate) mod document;
@@ -76,50 +73,18 @@ pub(crate) fn parse_value(raw: &str) -> Result<crate::Value, TomlError> {
 }
 
 pub(crate) mod prelude {
-    pub(crate) use super::errors::Context;
-    pub(crate) use super::errors::ParserError;
-    pub(crate) use super::errors::ParserValue;
-    pub(crate) use winnow::IResult;
-    pub(crate) use winnow::Parser as _;
+    pub(crate) use winnow::combinator::dispatch;
+    pub(crate) use winnow::error::ContextError;
+    pub(crate) use winnow::error::FromExternalError;
+    pub(crate) use winnow::error::StrContext;
+    pub(crate) use winnow::error::StrContextValue;
+    pub(crate) use winnow::PResult;
+    pub(crate) use winnow::Parser;
 
     pub(crate) type Input<'b> = winnow::Located<&'b winnow::BStr>;
 
     pub(crate) fn new_input(s: &str) -> Input<'_> {
         winnow::Located::new(winnow::BStr::new(s))
-    }
-
-    pub(crate) fn ok_error<I, O, E>(
-        res: IResult<I, O, E>,
-    ) -> Result<Option<(I, O)>, winnow::error::ErrMode<E>> {
-        match res {
-            Ok(ok) => Ok(Some(ok)),
-            Err(winnow::error::ErrMode::Backtrack(_)) => Ok(None),
-            Err(err) => Err(err),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn trace<I: std::fmt::Debug, O: std::fmt::Debug, E: std::fmt::Debug>(
-        context: impl std::fmt::Display,
-        mut parser: impl winnow::Parser<I, O, E>,
-    ) -> impl FnMut(I) -> IResult<I, O, E> {
-        static DEPTH: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-        move |input: I| {
-            let depth = DEPTH.fetch_add(1, std::sync::atomic::Ordering::SeqCst) * 2;
-            eprintln!("{:depth$}--> {} {:?}", "", context, input);
-            match parser.parse_next(input) {
-                Ok((i, o)) => {
-                    DEPTH.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
-                    eprintln!("{:depth$}<-- {} {:?}", "", context, i);
-                    Ok((i, o))
-                }
-                Err(err) => {
-                    DEPTH.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
-                    eprintln!("{:depth$}<-- {} {:?}", "", context, err);
-                    Err(err)
-                }
-            }
-        }
     }
 
     #[cfg(not(feature = "unbounded"))]
@@ -140,18 +105,16 @@ pub(crate) mod prelude {
 
         pub(crate) fn recursing(
             mut self,
-            input: Input<'_>,
-        ) -> Result<Self, winnow::error::ErrMode<ParserError<'_>>> {
+            input: &mut Input<'_>,
+        ) -> Result<Self, winnow::error::ErrMode<ContextError>> {
             self.current += 1;
             if self.current < 128 {
                 Ok(self)
             } else {
-                Err(winnow::error::ErrMode::Backtrack(
-                    winnow::error::FromExternalError::from_external_error(
-                        input,
-                        winnow::error::ErrorKind::Eof,
-                        super::errors::CustomError::RecursionLimitExceeded,
-                    ),
+                Err(winnow::error::ErrMode::from_external_error(
+                    input,
+                    winnow::error::ErrorKind::Eof,
+                    super::errors::CustomError::RecursionLimitExceeded,
                 ))
             }
         }
@@ -169,8 +132,8 @@ pub(crate) mod prelude {
 
         pub(crate) fn recursing(
             self,
-            _input: Input<'_>,
-        ) -> Result<Self, winnow::error::ErrMode<ParserError<'_>>> {
+            _input: &mut Input<'_>,
+        ) -> Result<Self, winnow::error::ErrMode<ContextError>> {
             Ok(self)
         }
     }

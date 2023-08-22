@@ -6,35 +6,37 @@
 #![allow(unsafe_code)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use super::super::c;
-use super::super::conv::{
-    by_mut, by_ref, c_int, c_uint, negative_pid, pass_usize, ret, ret_c_int, ret_c_uint,
-    ret_infallible, ret_usize, ret_usize_infallible, size_of, slice, slice_just_addr,
-    slice_just_addr_mut, slice_mut, zero,
+use super::types::RawCpuSet;
+use crate::backend::c;
+#[cfg(feature = "fs")]
+use crate::backend::conv::slice_mut;
+use crate::backend::conv::{
+    by_mut, by_ref, c_int, c_uint, negative_pid, pass_usize, raw_fd, ret, ret_c_int,
+    ret_c_int_infallible, ret_c_uint, ret_infallible, ret_owned_fd, ret_usize, size_of,
+    slice_just_addr, slice_just_addr_mut, zero,
 };
-use super::types::{RawCpuSet, RawUname};
-use crate::backend::conv::ret_owned_fd;
-use crate::fd::{AsRawFd, BorrowedFd, OwnedFd};
+use crate::fd::{AsRawFd, BorrowedFd, OwnedFd, RawFd};
+#[cfg(feature = "fs")]
 use crate::ffi::CStr;
 use crate::io;
+use crate::pid::RawPid;
 use crate::process::{
-    Cpuid, Gid, MembarrierCommand, MembarrierQuery, Pid, PidfdFlags, RawNonZeroPid, RawPid,
-    Resource, Rlimit, Signal, Sysinfo, Uid, WaitId, WaitOptions, WaitStatus, WaitidOptions,
-    WaitidStatus,
+    Cpuid, Gid, MembarrierCommand, MembarrierQuery, Pid, PidfdFlags, PidfdGetfdFlags, Resource,
+    Rlimit, Uid, WaitId, WaitOptions, WaitStatus, WaitidOptions, WaitidStatus,
 };
+use crate::signal::Signal;
 use crate::utils::as_mut_ptr;
-use core::convert::TryInto;
 use core::mem::MaybeUninit;
-use core::num::NonZeroU32;
 use core::ptr::{null, null_mut};
 use linux_raw_sys::general::{
-    __kernel_gid_t, __kernel_pid_t, __kernel_uid_t, membarrier_cmd, membarrier_cmd_flag, rlimit,
-    rlimit64, PRIO_PGRP, PRIO_PROCESS, PRIO_USER, RLIM64_INFINITY, RLIM_INFINITY,
+    membarrier_cmd, membarrier_cmd_flag, rlimit, rlimit64, PRIO_PGRP, PRIO_PROCESS, PRIO_USER,
+    RLIM64_INFINITY, RLIM_INFINITY,
 };
-#[cfg(not(target_os = "wasi"))]
+use linux_raw_sys::ioctl::TIOCSCTTY;
 #[cfg(feature = "fs")]
-use {super::super::conv::ret_c_uint_infallible, crate::fs::Mode};
+use {crate::backend::conv::ret_c_uint_infallible, crate::fs::Mode};
 
+#[cfg(feature = "fs")]
 #[inline]
 pub(crate) fn chdir(filename: &CStr) -> io::Result<()> {
     unsafe { ret(syscall_readonly!(__NR_chdir, filename)) }
@@ -45,13 +47,15 @@ pub(crate) fn fchdir(fd: BorrowedFd<'_>) -> io::Result<()> {
     unsafe { ret(syscall_readonly!(__NR_fchdir, fd)) }
 }
 
+#[cfg(feature = "fs")]
 #[inline]
 pub(crate) fn chroot(filename: &CStr) -> io::Result<()> {
     unsafe { ret(syscall_readonly!(__NR_chroot, filename)) }
 }
 
+#[cfg(feature = "fs")]
 #[inline]
-pub(crate) fn getcwd(buf: &mut [u8]) -> io::Result<usize> {
+pub(crate) fn getcwd(buf: &mut [MaybeUninit<u8>]) -> io::Result<usize> {
     let (buf_addr_mut, buf_len) = slice_mut(buf);
     unsafe { ret_usize(syscall!(__NR_getcwd, buf_addr_mut, buf_len)) }
 }
@@ -64,15 +68,7 @@ pub(crate) fn membarrier_query() -> MembarrierQuery {
             c_int(membarrier_cmd::MEMBARRIER_CMD_QUERY as _),
             c_uint(0)
         )) {
-            Ok(query) => {
-                // SAFETY: The safety of `from_bits_unchecked` is discussed
-                // [here]. Our "source of truth" is Linux, and here, the
-                // `query` value is coming from Linux, so we know it only
-                // contains "source of truth" valid bits.
-                //
-                // [here]: https://github.com/bitflags/bitflags/pull/207#issuecomment-671668662
-                MembarrierQuery::from_bits_unchecked(query)
-            }
+            Ok(query) => MembarrierQuery::from_bits_retain(query),
             Err(_) => MembarrierQuery::empty(),
         }
     }
@@ -96,30 +92,19 @@ pub(crate) fn membarrier_cpu(cmd: MembarrierCommand, cpu: Cpuid) -> io::Result<(
 }
 
 #[inline]
-pub(crate) fn getpid() -> Pid {
-    unsafe {
-        let pid: i32 = ret_usize_infallible(syscall_readonly!(__NR_getpid)) as __kernel_pid_t;
-        debug_assert!(pid > 0);
-        Pid::from_raw_nonzero(RawNonZeroPid::new_unchecked(pid as u32))
-    }
-}
-
-#[inline]
 pub(crate) fn getppid() -> Option<Pid> {
     unsafe {
-        let ppid: i32 = ret_usize_infallible(syscall_readonly!(__NR_getppid)) as __kernel_pid_t;
-        Pid::from_raw(ppid as u32)
+        let ppid = ret_c_int_infallible(syscall_readonly!(__NR_getppid));
+        Pid::from_raw(ppid)
     }
 }
 
 #[inline]
 pub(crate) fn getpgid(pid: Option<Pid>) -> io::Result<Pid> {
     unsafe {
-        let pgid: i32 =
-            ret_usize(syscall_readonly!(__NR_getpgid, c_uint(Pid::as_raw(pid))))? as __kernel_pid_t;
-        Ok(Pid::from_raw_nonzero(NonZeroU32::new_unchecked(
-            pgid as u32,
-        )))
+        let pgid = ret_c_int(syscall_readonly!(__NR_getpgid, c_int(Pid::as_raw(pid))))?;
+        debug_assert!(pgid > 0);
+        Ok(Pid::from_raw_unchecked(pgid))
     }
 }
 
@@ -128,8 +113,8 @@ pub(crate) fn setpgid(pid: Option<Pid>, pgid: Option<Pid>) -> io::Result<()> {
     unsafe {
         ret(syscall_readonly!(
             __NR_setpgid,
-            c_uint(Pid::as_raw(pid)),
-            c_uint(Pid::as_raw(pgid))
+            c_int(Pid::as_raw(pid)),
+            c_int(Pid::as_raw(pgid))
         ))
     }
 }
@@ -139,77 +124,17 @@ pub(crate) fn getpgrp() -> Pid {
     // Use the `getpgrp` syscall if available.
     #[cfg(not(any(target_arch = "aarch64", target_arch = "riscv64")))]
     unsafe {
-        let pgid: i32 = ret_usize_infallible(syscall_readonly!(__NR_getpgrp)) as __kernel_pid_t;
+        let pgid = ret_c_int_infallible(syscall_readonly!(__NR_getpgrp));
         debug_assert!(pgid > 0);
-        Pid::from_raw_nonzero(RawNonZeroPid::new_unchecked(pgid as u32))
+        Pid::from_raw_unchecked(pgid)
     }
 
     // Otherwise use `getpgrp` and pass it zero.
     #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
     unsafe {
-        let pgid: i32 =
-            ret_usize_infallible(syscall_readonly!(__NR_getpgid, c_uint(0))) as __kernel_pid_t;
+        let pgid = ret_c_int_infallible(syscall_readonly!(__NR_getpgid, c_uint(0)));
         debug_assert!(pgid > 0);
-        Pid::from_raw_nonzero(RawNonZeroPid::new_unchecked(pgid as u32))
-    }
-}
-
-#[inline]
-pub(crate) fn getgid() -> Gid {
-    #[cfg(any(target_arch = "x86", target_arch = "sparc", target_arch = "arm"))]
-    unsafe {
-        let gid: i32 =
-            (ret_usize_infallible(syscall_readonly!(__NR_getgid32)) as __kernel_gid_t).into();
-        Gid::from_raw(gid as u32)
-    }
-    #[cfg(not(any(target_arch = "x86", target_arch = "sparc", target_arch = "arm")))]
-    unsafe {
-        let gid = ret_usize_infallible(syscall_readonly!(__NR_getgid)) as __kernel_gid_t;
-        Gid::from_raw(gid as u32)
-    }
-}
-
-#[inline]
-pub(crate) fn getegid() -> Gid {
-    #[cfg(any(target_arch = "x86", target_arch = "sparc", target_arch = "arm"))]
-    unsafe {
-        let gid: i32 =
-            (ret_usize_infallible(syscall_readonly!(__NR_getegid32)) as __kernel_gid_t).into();
-        Gid::from_raw(gid as u32)
-    }
-    #[cfg(not(any(target_arch = "x86", target_arch = "sparc", target_arch = "arm")))]
-    unsafe {
-        let gid = ret_usize_infallible(syscall_readonly!(__NR_getegid)) as __kernel_gid_t;
-        Gid::from_raw(gid as u32)
-    }
-}
-
-#[inline]
-pub(crate) fn getuid() -> Uid {
-    #[cfg(any(target_arch = "x86", target_arch = "sparc", target_arch = "arm"))]
-    unsafe {
-        let uid = (ret_usize_infallible(syscall_readonly!(__NR_getuid32)) as __kernel_uid_t).into();
-        Uid::from_raw(uid)
-    }
-    #[cfg(not(any(target_arch = "x86", target_arch = "sparc", target_arch = "arm")))]
-    unsafe {
-        let uid = ret_usize_infallible(syscall_readonly!(__NR_getuid)) as __kernel_uid_t;
-        Uid::from_raw(uid as u32)
-    }
-}
-
-#[inline]
-pub(crate) fn geteuid() -> Uid {
-    #[cfg(any(target_arch = "x86", target_arch = "sparc", target_arch = "arm"))]
-    unsafe {
-        let uid: i32 =
-            (ret_usize_infallible(syscall_readonly!(__NR_geteuid32)) as __kernel_uid_t).into();
-        Uid::from_raw(uid as u32)
-    }
-    #[cfg(not(any(target_arch = "x86", target_arch = "sparc", target_arch = "arm")))]
-    unsafe {
-        let uid = ret_usize_infallible(syscall_readonly!(__NR_geteuid)) as __kernel_uid_t;
-        Uid::from_raw(uid as u32)
+        Pid::from_raw_unchecked(pgid)
     }
 }
 
@@ -221,7 +146,7 @@ pub(crate) fn sched_getaffinity(pid: Option<Pid>, cpuset: &mut RawCpuSet) -> io:
         // set bit mask.
         let size = ret_usize(syscall!(
             __NR_sched_getaffinity,
-            c_uint(Pid::as_raw(pid)),
+            c_int(Pid::as_raw(pid)),
             size_of::<RawCpuSet, _>(),
             by_mut(&mut cpuset.bits)
         ))?;
@@ -238,7 +163,7 @@ pub(crate) fn sched_setaffinity(pid: Option<Pid>, cpuset: &RawCpuSet) -> io::Res
     unsafe {
         ret(syscall_readonly!(
             __NR_sched_setaffinity,
-            c_uint(Pid::as_raw(pid)),
+            c_int(Pid::as_raw(pid)),
             size_of::<RawCpuSet, _>(),
             slice_just_addr(&cpuset.bits)
         ))
@@ -254,35 +179,20 @@ pub(crate) fn sched_yield() {
     }
 }
 
-#[inline]
-pub(crate) fn uname() -> RawUname {
-    let mut uname = MaybeUninit::<RawUname>::uninit();
-    unsafe {
-        ret_infallible(syscall!(__NR_uname, &mut uname));
-        uname.assume_init()
-    }
-}
-
 #[cfg(feature = "fs")]
 #[inline]
 pub(crate) fn umask(mode: Mode) -> Mode {
-    unsafe {
-        // TODO: Use `from_bits_retain` when we switch to bitflags 2.0.
-        Mode::from_bits_truncate(ret_c_uint_infallible(syscall_readonly!(__NR_umask, mode)))
-    }
+    unsafe { Mode::from_bits_retain(ret_c_uint_infallible(syscall_readonly!(__NR_umask, mode))) }
 }
 
 #[inline]
 pub(crate) fn nice(inc: i32) -> io::Result<i32> {
-    let priority = if inc > -40 && inc < 40 {
+    let priority = (if inc > -40 && inc < 40 {
         inc + getpriority_process(None)?
     } else {
         inc
-    }
-    // TODO: With Rust 1.50, use `.clamp` instead of `.min` and `.max`.
-    //.clamp(-20, 19);
-    .min(19)
-    .max(-20);
+    })
+    .clamp(-20, 19);
     setpriority_process(None, priority)?;
     Ok(priority)
 }
@@ -306,7 +216,7 @@ pub(crate) fn getpriority_pgrp(pgid: Option<Pid>) -> io::Result<i32> {
             - ret_c_int(syscall_readonly!(
                 __NR_getpriority,
                 c_uint(PRIO_PGRP),
-                c_uint(Pid::as_raw(pgid))
+                c_int(Pid::as_raw(pgid))
             ))?)
     }
 }
@@ -318,7 +228,7 @@ pub(crate) fn getpriority_process(pid: Option<Pid>) -> io::Result<i32> {
             - ret_c_int(syscall_readonly!(
                 __NR_getpriority,
                 c_uint(PRIO_PROCESS),
-                c_uint(Pid::as_raw(pid))
+                c_int(Pid::as_raw(pid))
             ))?)
     }
 }
@@ -341,7 +251,7 @@ pub(crate) fn setpriority_pgrp(pgid: Option<Pid>, priority: i32) -> io::Result<(
         ret(syscall_readonly!(
             __NR_setpriority,
             c_uint(PRIO_PGRP),
-            c_uint(Pid::as_raw(pgid)),
+            c_int(Pid::as_raw(pgid)),
             c_int(priority)
         ))
     }
@@ -353,7 +263,7 @@ pub(crate) fn setpriority_process(pid: Option<Pid>, priority: i32) -> io::Result
         ret(syscall_readonly!(
             __NR_setpriority,
             c_uint(PRIO_PROCESS),
-            c_uint(Pid::as_raw(pid)),
+            c_int(Pid::as_raw(pid)),
             c_int(priority)
         ))
     }
@@ -441,7 +351,7 @@ pub(crate) fn prlimit(pid: Option<Pid>, limit: Resource, new: Rlimit) -> io::Res
     unsafe {
         match ret(syscall!(
             __NR_prlimit64,
-            c_uint(Pid::as_raw(pid)),
+            c_int(Pid::as_raw(pid)),
             limit,
             by_ref(&lim),
             &mut result
@@ -532,19 +442,14 @@ pub(crate) fn _waitpid(
 ) -> io::Result<Option<(Pid, WaitStatus)>> {
     unsafe {
         let mut status = MaybeUninit::<u32>::uninit();
-        let pid = ret_c_uint(syscall!(
+        let pid = ret_c_int(syscall!(
             __NR_wait4,
             c_int(pid as _),
             &mut status,
             c_int(waitopts.bits() as _),
             zero()
         ))?;
-        Ok(RawNonZeroPid::new(pid).map(|non_zero| {
-            (
-                Pid::from_raw_nonzero(non_zero),
-                WaitStatus::new(status.assume_init()),
-            )
-        }))
+        Ok(Pid::from_raw(pid).map(|pid| (pid, WaitStatus::new(status.assume_init()))))
     }
 }
 
@@ -586,7 +491,7 @@ fn _waitid_pid(pid: Pid, options: WaitidOptions) -> io::Result<Option<WaitidStat
         ret(syscall!(
             __NR_waitid,
             c_uint(c::P_PID),
-            c_uint(Pid::as_raw(Some(pid))),
+            c_int(Pid::as_raw(Some(pid))),
             by_mut(&mut status),
             c_int(options.bits() as _),
             zero()
@@ -632,31 +537,19 @@ unsafe fn cvt_waitid_status(status: MaybeUninit<c::siginfo_t>) -> Option<WaitidS
     }
 }
 
-#[cfg(feature = "runtime")]
-#[inline]
-pub(crate) fn exit_group(code: c::c_int) -> ! {
-    unsafe { syscall_noreturn!(__NR_exit_group, c_int(code)) }
-}
-
 #[inline]
 pub(crate) fn getsid(pid: Option<Pid>) -> io::Result<Pid> {
     unsafe {
-        let pid = ret_usize(syscall_readonly!(__NR_getsid, c_uint(Pid::as_raw(pid))))?;
-        debug_assert!(pid > 0);
-        Ok(Pid::from_raw_nonzero(RawNonZeroPid::new_unchecked(
-            pid as u32,
-        )))
+        let pid = ret_c_int(syscall_readonly!(__NR_getsid, c_int(Pid::as_raw(pid))))?;
+        Ok(Pid::from_raw_unchecked(pid))
     }
 }
 
 #[inline]
 pub(crate) fn setsid() -> io::Result<Pid> {
     unsafe {
-        let pid = ret_usize(syscall_readonly!(__NR_setsid))?;
-        debug_assert!(pid > 0);
-        Ok(Pid::from_raw_nonzero(RawNonZeroPid::new_unchecked(
-            pid as u32,
-        )))
+        let pid = ret_c_int(syscall_readonly!(__NR_setsid))?;
+        Ok(Pid::from_raw_unchecked(pid))
     }
 }
 
@@ -697,25 +590,24 @@ pub(crate) fn test_kill_current_process_group() -> io::Result<()> {
 }
 
 #[inline]
-pub(crate) unsafe fn prctl(
-    option: c::c_int,
-    arg2: *mut c::c_void,
-    arg3: *mut c::c_void,
-    arg4: *mut c::c_void,
-    arg5: *mut c::c_void,
-) -> io::Result<c::c_int> {
-    ret_c_int(syscall!(__NR_prctl, c_int(option), arg2, arg3, arg4, arg5))
+pub(crate) fn pidfd_getfd(
+    pidfd: BorrowedFd<'_>,
+    targetfd: RawFd,
+    flags: PidfdGetfdFlags,
+) -> io::Result<OwnedFd> {
+    unsafe {
+        ret_owned_fd(syscall_readonly!(
+            __NR_pidfd_getfd,
+            pidfd,
+            raw_fd(targetfd),
+            c_int(flags.bits() as _)
+        ))
+    }
 }
 
 #[inline]
 pub(crate) fn pidfd_open(pid: Pid, flags: PidfdFlags) -> io::Result<OwnedFd> {
-    unsafe {
-        ret_owned_fd(syscall_readonly!(
-            __NR_pidfd_open,
-            pid,
-            c_int(flags.bits() as _)
-        ))
-    }
+    unsafe { ret_owned_fd(syscall_readonly!(__NR_pidfd_open, pid, flags)) }
 }
 
 #[inline]
@@ -732,16 +624,13 @@ pub(crate) fn getgroups(buf: &mut [Gid]) -> io::Result<usize> {
 }
 
 #[inline]
-pub(crate) fn sysinfo() -> Sysinfo {
-    let mut info = MaybeUninit::<Sysinfo>::uninit();
+pub(crate) fn ioctl_tiocsctty(fd: BorrowedFd<'_>) -> io::Result<()> {
     unsafe {
-        ret_infallible(syscall!(__NR_sysinfo, &mut info));
-        info.assume_init()
+        ret(syscall_readonly!(
+            __NR_ioctl,
+            fd,
+            c_uint(TIOCSCTTY),
+            by_ref(&0_u32)
+        ))
     }
-}
-
-#[inline]
-pub(crate) fn sethostname(name: &[u8]) -> io::Result<()> {
-    let (ptr, len) = slice(name);
-    unsafe { ret(syscall_readonly!(__NR_sethostname, ptr, len)) }
 }

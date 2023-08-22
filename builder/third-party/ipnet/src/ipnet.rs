@@ -1,11 +1,18 @@
-use std::cmp::{min, max};
-use std::cmp::Ordering::{Less, Equal};
-use std::convert::From;
+use alloc::vec::Vec;
+use core::cmp::{min, max};
+use core::cmp::Ordering::{Less, Equal};
+use core::convert::From;
+use core::fmt;
+use core::iter::FusedIterator;
+use core::option::Option::{Some, None};
+#[cfg(not(feature = "std"))]
+use core::error::Error;
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt;
-use std::iter::FusedIterator;
+#[cfg(not(feature = "std"))]
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+#[cfg(feature = "std")]
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::option::Option::{Some, None};
 
 use crate::ipext::{IpAdd, IpSub, IpStep, IpAddrRange, Ipv4AddrRange, Ipv6AddrRange};
 use crate::mask::{ip_mask_to_prefix, ipv4_mask_to_prefix, ipv6_mask_to_prefix};
@@ -64,7 +71,11 @@ pub enum IpNet {
 /// # Examples
 ///
 /// ```
-/// use std::net::Ipv4Addr;
+/// # #![cfg_attr(not(feature = "std"), feature(ip_in_core))]
+/// # #[cfg(feature = "std")]
+/// # use std::net::Ipv6Addr;
+/// # #[cfg(not(feature = "std"))]
+/// # use core::net::Ipv6Addr;
 /// use ipnet::Ipv4Net;
 ///
 /// let net: Ipv4Net = "10.1.1.0/24".parse().unwrap();
@@ -882,7 +893,7 @@ impl Ipv4Net {
         let mut res: Vec<Ipv4Net> = Vec::new();
         
         for (start, mut end) in intervals {
-            if end != std::u32::MAX {
+            if end != core::u32::MAX {
                 end = end.saturating_sub(1)
             }
             let iter = Ipv4Subnets::new(start.into(), end.into(), 0);
@@ -1227,7 +1238,7 @@ impl Ipv6Net {
         let mut res: Vec<Ipv6Net> = Vec::new();
 
         for (start, mut end) in intervals {
-            if end != std::u128::MAX {
+            if end != core::u128::MAX {
                 end = end.saturating_sub(1)
             }
             let iter = Ipv6Subnets::new(start.into(), end.into(), 0);
@@ -1507,7 +1518,7 @@ impl Iterator for IpSubnets {
 
 fn next_ipv4_subnet(start: Ipv4Addr, end: Ipv4Addr, min_prefix_len: u8) -> Ipv4Net {
     let range = end.saturating_sub(start).saturating_add(1);
-    if range == std::u32::MAX && min_prefix_len == 0 {
+    if range == core::u32::MAX && min_prefix_len == 0 {
         Ipv4Net::new(start, min_prefix_len).unwrap()
     }
     else {
@@ -1521,7 +1532,7 @@ fn next_ipv4_subnet(start: Ipv4Addr, end: Ipv4Addr, min_prefix_len: u8) -> Ipv4N
 
 fn next_ipv6_subnet(start: Ipv6Addr, end: Ipv6Addr, min_prefix_len: u8) -> Ipv6Net {
     let range = end.saturating_sub(start).saturating_add(1);
-    if range == std::u128::MAX && min_prefix_len == 0 {
+    if range == core::u128::MAX && min_prefix_len == 0 {
         Ipv6Net::new(start, min_prefix_len).unwrap()
     }
     else {

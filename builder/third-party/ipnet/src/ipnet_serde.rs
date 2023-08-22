@@ -1,5 +1,8 @@
 use crate::{IpNet, Ipv4Net, Ipv6Net};
-use std::fmt;
+use core::fmt;
+#[cfg(not(feature = "std"))]
+use core::net::{Ipv4Addr, Ipv6Addr};
+#[cfg(feature = "std")]
 use std::net::{Ipv4Addr, Ipv6Addr};
 use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
 use serde::ser::SerializeTuple;

@@ -4,6 +4,7 @@ use crate::fs::{
     fcntl_getfl, fstat, fstatfs, fstatvfs, openat, FileType, Mode, OFlags, Stat, StatFs, StatVfs,
 };
 use crate::io;
+#[cfg(feature = "process")]
 use crate::process::fchdir;
 use crate::utils::as_ptr;
 use alloc::borrow::ToOwned;
@@ -100,7 +101,7 @@ impl Dir {
             .iter()
             .position(|x| *x == b'\0')
             .unwrap();
-        let name = CStr::from_bytes_with_nul(&self.buf[name_start..][..name_len + 1]).unwrap();
+        let name = CStr::from_bytes_with_nul(&self.buf[name_start..][..=name_len]).unwrap();
         let name = name.to_owned();
         assert!(name.as_bytes().len() <= self.buf.len() - name_start);
 
@@ -174,6 +175,8 @@ impl Dir {
     }
 
     /// `fchdir(self)`
+    #[cfg(feature = "process")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "process")))]
     #[inline]
     pub fn chdir(&self) -> io::Result<()> {
         fchdir(&self.fd)

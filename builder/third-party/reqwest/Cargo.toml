@@ -11,9 +11,9 @@
 
 [package]
 edition = "2018"
-rust-version = "1.57.0"
+rust-version = "1.63.0"
 name = "reqwest"
-version = "0.11.18"
+version = "0.11.19"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 autotests = true
 description = "higher level HTTP client library"
@@ -181,7 +181,7 @@ default-tls = [
 ]
 deflate = [
     "async-compression",
-    "async-compression/zlib",
+    "async-compression/deflate",
     "tokio-util",
 ]
 gzip = [
@@ -190,7 +190,7 @@ gzip = [
     "tokio-util",
 ]
 http3 = [
-    "rustls-tls",
+    "rustls-tls-manual-roots",
     "h3",
     "h3-quinn",
     "quinn",
@@ -262,7 +262,7 @@ optional = true
 version = "0.4.0"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]
-version = "0.14.18"
+version = "0.14.21"
 features = [
     "tcp",
     "http1",
@@ -309,12 +309,13 @@ version = "0.10"
 features = [
     "tls-rustls",
     "ring",
+    "runtime-tokio",
 ]
 optional = true
 default-features = false
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.rustls]
-version = "0.21.0"
+version = "0.21.6"
 features = ["dangerous_configuration"]
 optional = true
 
@@ -360,7 +361,7 @@ version = "0.22"
 optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.webpki-roots]
-version = "0.22"
+version = "0.25"
 optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dev-dependencies.brotli_crate]
@@ -414,7 +415,7 @@ version = "0.2.68"
 version = "0.4.18"
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-streams]
-version = "0.2"
+version = "0.3"
 optional = true
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.web-sys]
@@ -445,4 +446,4 @@ features = ["serde-serialize"]
 version = "0.3"
 
 [target."cfg(windows)".dependencies.winreg]
-version = "0.10"
+version = "0.50.0"

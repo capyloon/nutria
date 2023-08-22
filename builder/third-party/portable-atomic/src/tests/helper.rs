@@ -11,7 +11,7 @@ macro_rules! __test_atomic_common {
         }
         #[test]
         fn alignment() {
-            // https://github.com/rust-lang/rust/blob/1.69.0/library/core/tests/atomic.rs#L250
+            // https://github.com/rust-lang/rust/blob/1.70.0/library/core/tests/atomic.rs#L250
             assert_eq!(core::mem::align_of::<$atomic_type>(), core::mem::size_of::<$atomic_type>());
             assert_eq!(core::mem::size_of::<$atomic_type>(), core::mem::size_of::<$value_type>());
         }
@@ -1424,6 +1424,37 @@ macro_rules! __test_atomic_int_pub {
                 assert_eq!(a.load(Ordering::SeqCst), 9);
             }
         }
+        ::quickcheck::quickcheck! {
+            fn quickcheck_fetch_update(x: $int_type, y: $int_type) -> bool {
+                let z = loop {
+                    let z = fastrand::$int_type(..);
+                    if z != y {
+                        break z;
+                    }
+                };
+                for &(success, failure) in &test_helper::COMPARE_EXCHANGE_ORDERINGS {
+                    let a = <$atomic_type>::new(x);
+                    assert_eq!(
+                        a.fetch_update(success, failure, |_| Some(y))
+                        .unwrap(),
+                        x
+                    );
+                    assert_eq!(
+                        a.fetch_update(success, failure, |_| Some(z))
+                        .unwrap(),
+                        y
+                    );
+                    assert_eq!(a.load(Ordering::Relaxed), z);
+                    assert_eq!(
+                        a.fetch_update(success, failure, |z| if z == y { Some(z) } else { None })
+                        .unwrap_err(),
+                        z
+                    );
+                    assert_eq!(a.load(Ordering::Relaxed), z);
+                }
+                true
+            }
+        }
     };
 }
 macro_rules! __test_atomic_float_pub {
@@ -1546,7 +1577,7 @@ macro_rules! __test_atomic_ptr_pub {
             assert_eq!(std::format!("{:?}", a), std::format!("{:?}", a.load(Ordering::SeqCst)));
             assert_eq!(std::format!("{:p}", a), std::format!("{:p}", a.load(Ordering::SeqCst)));
         }
-        // https://github.com/rust-lang/rust/blob/1.69.0/library/core/tests/atomic.rs#L130-L213
+        // https://github.com/rust-lang/rust/blob/1.70.0/library/core/tests/atomic.rs#L130-L213
         #[test]
         fn ptr_add_null() {
             let atom = AtomicPtr::<i64>::new(core::ptr::null_mut());

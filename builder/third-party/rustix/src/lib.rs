@@ -19,7 +19,6 @@
 //! ```
 //! # #[cfg(feature = "net")]
 //! # fn read(sock: std::net::TcpStream, buf: &mut [u8]) -> std::io::Result<()> {
-//! # use std::convert::TryInto;
 //! # #[cfg(unix)]
 //! # use std::os::unix::io::AsRawFd;
 //! # #[cfg(target_os = "wasi")]
@@ -59,6 +58,8 @@
 //!  - Constants use `enum`s and [`bitflags`] types.
 //!  - Multiplexed functions (eg. `fcntl`, `ioctl`, etc.) are de-multiplexed.
 //!  - Variadic functions (eg. `openat`, etc.) are presented as non-variadic.
+//!  - Functions that return strings automatically allocate sufficient memory
+//!    and retry the syscall as needed to determine the needed length.
 //!  - Functions and types which need `l` prefixes or `64` suffixes to enable
 //!    large-file support (LFS) are used automatically. File sizes and offsets
 //!    are always presented as `u64` and `i64`.
@@ -71,7 +72,8 @@
 //!    running under seccomp.
 //!
 //! Things they don't do include:
-//!  - Detecting whether functions are supported at runtime.
+//!  - Detecting whether functions are supported at runtime, except in specific
+//!    cases where new interfaces need to be detected to support y2038 and LFS.
 //!  - Hiding significant differences between platforms.
 //!  - Restricting ambient authorities.
 //!  - Imposing sandboxing features such as filesystem path or network address
@@ -98,44 +100,54 @@
 #![cfg_attr(rustc_attrs, feature(rustc_attrs))]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![cfg_attr(all(wasi_ext, target_os = "wasi", feature = "std"), feature(wasi_ext))]
-#![cfg_attr(
-    all(linux_raw, naked_functions, target_arch = "x86"),
-    feature(naked_functions)
-)]
-#![cfg_attr(io_lifetimes_use_std, feature(io_safety))]
 #![cfg_attr(core_ffi_c, feature(core_ffi_c))]
 #![cfg_attr(core_c_str, feature(core_c_str))]
-#![cfg_attr(alloc_c_string, feature(alloc_ffi))]
 #![cfg_attr(alloc_c_string, feature(alloc_c_string))]
+#![cfg_attr(alloc_ffi, feature(alloc_ffi))]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(feature = "rustc-dep-of-std", feature(core_intrinsics))]
 #![cfg_attr(feature = "rustc-dep-of-std", feature(ip))]
 #![cfg_attr(
-    all(not(feature = "rustc-dep-of-std"), core_intrinsics),
+    any(feature = "rustc-dep-of-std", core_intrinsics),
     feature(core_intrinsics)
 )]
 #![cfg_attr(asm_experimental_arch, feature(asm_experimental_arch))]
 #![cfg_attr(not(feature = "all-apis"), allow(dead_code))]
-// Clamp depends on Rust 1.50 which is newer than our MSRV.
-#![allow(clippy::manual_clamp)]
 // It is common in linux and libc APIs for types to vary between platforms.
 #![allow(clippy::unnecessary_cast)]
 // It is common in linux and libc APIs for types to vary between platforms.
 #![allow(clippy::useless_conversion)]
-// Redox and WASI have enough differences that it isn't worth
-// precisely conditionallizing all the `use`s for them.
+// Redox and WASI have enough differences that it isn't worth precisely
+// conditionalizing all the `use`s for them.
 #![cfg_attr(any(target_os = "redox", target_os = "wasi"), allow(unused_imports))]
 
 #[cfg(not(feature = "rustc-dep-of-std"))]
 extern crate alloc;
+
+// Use `static_assertions` macros if we have them, or a polyfill otherwise.
+#[cfg(all(test, static_assertions))]
+#[macro_use]
+#[allow(unused_imports)]
+extern crate static_assertions;
+#[cfg(all(test, not(static_assertions)))]
+#[macro_use]
+#[allow(unused_imports)]
+mod static_assertions;
 
 // Internal utilities.
 #[cfg(not(windows))]
 #[macro_use]
 pub(crate) mod cstr;
 #[macro_use]
-pub(crate) mod const_assert;
 pub(crate) mod utils;
+// Polyfill for `std` in `no_std` builds.
+#[cfg_attr(feature = "std", path = "maybe_polyfill/std/mod.rs")]
+#[cfg_attr(not(feature = "std"), path = "maybe_polyfill/no_std/mod.rs")]
+pub(crate) mod maybe_polyfill;
+#[cfg(test)]
+#[macro_use]
+pub(crate) mod check_types;
+#[macro_use]
+pub(crate) mod bitcast;
 
 // linux_raw: Weak symbols are used by the use-libc-auxv feature for
 // glibc 2.15 support.
@@ -144,7 +156,7 @@ pub(crate) mod utils;
 // versions of libc and not others.
 #[cfg(any(
     all(linux_raw, feature = "use-libc-auxv"),
-    all(libc, not(any(windows, target_os = "wasi")))
+    all(libc, not(any(windows, target_os = "espidf", target_os = "wasi")))
 ))]
 #[macro_use]
 mod weak;
@@ -161,47 +173,111 @@ mod backend;
 /// versions of these types and traits.
 pub mod fd {
     use super::backend;
+
+    // Re-export `AsSocket` etc. too, as users can't implement `AsFd` etc. on
+    // Windows due to them having blanket impls on Windows, so users must
+    // implement `AsSocket` etc.
     #[cfg(windows)]
-    pub use backend::fd::AsSocket;
+    pub use backend::fd::{AsRawSocket, AsSocket, FromRawSocket, IntoRawSocket};
+
     pub use backend::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 }
 
 // The public API modules.
+#[cfg(feature = "event")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "event")))]
+pub mod event;
 #[cfg(not(windows))]
 pub mod ffi;
 #[cfg(not(windows))]
-#[cfg(feature = "fs")]
+#[cfg(any(
+    feature = "fs",
+    all(
+        linux_raw,
+        not(feature = "use-libc-auxv"),
+        not(target_vendor = "mustang"),
+        any(
+            feature = "param",
+            feature = "runtime",
+            feature = "time",
+            target_arch = "x86",
+        )
+    )
+))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "fs")))]
 pub mod fs;
 pub mod io;
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(linux_kernel)]
 #[cfg(feature = "io_uring")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "io_uring")))]
 pub mod io_uring;
-#[cfg(not(any(windows, target_os = "wasi")))]
+#[cfg(not(any(windows, target_os = "espidf", target_os = "wasi")))]
 #[cfg(feature = "mm")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "mm")))]
 pub mod mm;
+#[cfg(linux_kernel)]
+#[cfg(feature = "mount")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "mount")))]
+pub mod mount;
 #[cfg(not(any(target_os = "redox", target_os = "wasi")))]
 #[cfg(feature = "net")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "net")))]
 pub mod net;
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "espidf")))]
 #[cfg(feature = "param")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "param")))]
 pub mod param;
 #[cfg(not(windows))]
-#[cfg(any(feature = "fs", feature = "net"))]
-#[cfg_attr(doc_cfg, doc(cfg(any(feature = "fs", feature = "net"))))]
+#[cfg(any(
+    feature = "fs",
+    feature = "mount",
+    feature = "net",
+    all(
+        linux_raw,
+        not(feature = "use-libc-auxv"),
+        not(target_vendor = "mustang"),
+        any(
+            feature = "param",
+            feature = "runtime",
+            feature = "time",
+            target_arch = "x86",
+        )
+    )
+))]
+#[cfg_attr(
+    doc_cfg,
+    doc(cfg(any(feature = "fs", feature = "mount", feature = "net")))
+)]
 pub mod path;
+#[cfg(feature = "pipe")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "pipe")))]
+#[cfg(not(any(windows, target_os = "wasi")))]
+pub mod pipe;
 #[cfg(not(windows))]
 #[cfg(feature = "process")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "process")))]
 pub mod process;
+#[cfg(feature = "procfs")]
+#[cfg(linux_kernel)]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "procfs")))]
+pub mod procfs;
+#[cfg(not(windows))]
+#[cfg(not(target_os = "wasi"))]
+#[cfg(feature = "pty")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "pty")))]
+pub mod pty;
 #[cfg(not(windows))]
 #[cfg(feature = "rand")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "rand")))]
 pub mod rand;
+#[cfg(not(windows))]
+#[cfg(feature = "stdio")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "stdio")))]
+pub mod stdio;
+#[cfg(feature = "system")]
+#[cfg(not(any(windows, target_os = "wasi")))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "system")))]
+pub mod system;
 #[cfg(not(windows))]
 #[cfg(feature = "termios")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "termios")))]
@@ -210,7 +286,7 @@ pub mod termios;
 #[cfg(feature = "thread")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "thread")))]
 pub mod thread;
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "espidf")))]
 #[cfg(feature = "time")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "time")))]
 pub mod time;
@@ -218,23 +294,71 @@ pub mod time;
 // "runtime" is also a public API module, but it's only for libc-like users.
 #[cfg(not(windows))]
 #[cfg(feature = "runtime")]
+#[cfg(linux_raw)]
 #[doc(hidden)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "runtime")))]
 pub mod runtime;
 
-// We have some internal interdependencies in the API features, so for now,
-// for API features that aren't enabled, declare them as `pub(crate)` so
-// that they're not public, but still available for internal use.
+// Temporarily provide some mount functions for use in the fs module for
+// backwards compatibility.
+#[cfg(linux_kernel)]
+#[cfg(all(feature = "fs", not(feature = "mount")))]
+pub(crate) mod mount;
 
-#[cfg(not(windows))]
-#[cfg(all(
-    not(feature = "param"),
-    any(feature = "runtime", feature = "time", target_arch = "x86"),
+// Private modules used by multiple public modules.
+#[cfg(not(any(windows, target_os = "espidf")))]
+#[cfg(any(feature = "thread", feature = "time", target_arch = "x86"))]
+mod clockid;
+#[cfg(not(any(windows, target_os = "wasi")))]
+#[cfg(any(
+    feature = "procfs",
+    feature = "process",
+    feature = "runtime",
+    feature = "termios",
+    feature = "thread",
+    all(bsd, feature = "event")
 ))]
-pub(crate) mod param;
+mod pid;
+#[cfg(any(feature = "process", feature = "thread"))]
+#[cfg(linux_kernel)]
+mod prctl;
+#[cfg(not(any(windows, target_os = "espidf", target_os = "wasi")))]
+#[cfg(any(feature = "process", feature = "runtime", all(bsd, feature = "event")))]
+mod signal;
 #[cfg(not(windows))]
-#[cfg(not(any(feature = "fs", feature = "net")))]
-pub(crate) mod path;
-#[cfg(not(windows))]
-#[cfg(not(feature = "process"))]
-pub(crate) mod process;
+#[cfg(any(
+    feature = "fs",
+    feature = "runtime",
+    feature = "thread",
+    feature = "time",
+    all(
+        linux_raw,
+        not(feature = "use-libc-auxv"),
+        not(target_vendor = "mustang"),
+        any(
+            feature = "param",
+            feature = "runtime",
+            feature = "time",
+            target_arch = "x86",
+        )
+    )
+))]
+mod timespec;
+#[cfg(not(any(windows, target_os = "wasi")))]
+#[cfg(any(
+    feature = "fs",
+    feature = "process",
+    feature = "thread",
+    all(
+        linux_raw,
+        not(feature = "use-libc-auxv"),
+        not(target_vendor = "mustang"),
+        any(
+            feature = "param",
+            feature = "runtime",
+            feature = "time",
+            target_arch = "x86",
+        )
+    )
+))]
+mod ugid;

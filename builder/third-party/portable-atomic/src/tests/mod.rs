@@ -108,7 +108,12 @@ fn test_is_lock_free() {
             assert!(!AtomicU64::is_lock_free());
         }
     }
-    if cfg!(any(
+    if cfg!(portable_atomic_no_asm) && cfg!(not(portable_atomic_unstable_asm)) {
+        assert!(!AtomicI128::is_always_lock_free());
+        assert!(!AtomicI128::is_lock_free());
+        assert!(!AtomicU128::is_always_lock_free());
+        assert!(!AtomicU128::is_lock_free());
+    } else if cfg!(any(
         target_arch = "aarch64",
         all(
             target_arch = "powerpc64",
@@ -137,14 +142,12 @@ fn test_is_lock_free() {
             assert!(!AtomicU128::is_lock_free());
         }
         #[cfg(target_arch = "x86_64")]
-        // Miri doesn't support inline assembly used in is_x86_feature_detected
-        #[cfg(not(miri))]
         {
             let has_cmpxchg16b = cfg!(all(
                 feature = "fallback",
                 not(portable_atomic_no_cmpxchg16b_target_feature),
                 not(portable_atomic_no_outline_atomics),
-                not(target_env = "sgx"),
+                not(any(target_env = "sgx", miri)),
                 not(portable_atomic_test_outline_atomics_detect_false),
             )) && std::is_x86_feature_detected!("cmpxchg16b");
             assert_eq!(AtomicI128::is_lock_free(), has_cmpxchg16b);
@@ -275,7 +278,7 @@ LLVM version: 16.0.0",
     assert_eq!(v.commit_date().month, 0);
     assert_eq!(v.commit_date().day, 0);
 
-    // rustc 1.64 (debian: apt-get install cargo)
+    // rustc 1.64 (debian 11: apt-get install cargo)
     let v = Version::parse(
         "rustc 1.48.0
 binary: rustc

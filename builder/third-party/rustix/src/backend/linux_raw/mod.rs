@@ -17,6 +17,12 @@
 #[macro_use]
 mod arch;
 mod conv;
+#[cfg(any(
+    feature = "param",
+    feature = "runtime",
+    feature = "time",
+    target_arch = "x86"
+))]
 mod elf;
 mod reg;
 #[cfg(any(feature = "time", target_arch = "x86"))]
@@ -24,13 +30,31 @@ mod vdso;
 #[cfg(any(feature = "time", target_arch = "x86"))]
 mod vdso_wrappers;
 
-#[cfg(feature = "fs")]
+#[cfg(feature = "event")]
+pub(crate) mod event;
+#[cfg(any(
+    feature = "fs",
+    all(
+        not(feature = "use-libc-auxv"),
+        not(target_vendor = "mustang"),
+        any(
+            feature = "param",
+            feature = "runtime",
+            feature = "time",
+            target_arch = "x86",
+        )
+    )
+))]
 pub(crate) mod fs;
 pub(crate) mod io;
 #[cfg(feature = "io_uring")]
 pub(crate) mod io_uring;
 #[cfg(feature = "mm")]
 pub(crate) mod mm;
+#[cfg(feature = "mount")]
+pub(crate) mod mount;
+#[cfg(all(feature = "fs", not(feature = "mount")))]
+pub(crate) mod mount; // for deprecated mount functions in "fs"
 #[cfg(feature = "net")]
 pub(crate) mod net;
 #[cfg(any(
@@ -40,28 +64,57 @@ pub(crate) mod net;
     target_arch = "x86",
 ))]
 pub(crate) mod param;
+#[cfg(feature = "pipe")]
+pub(crate) mod pipe;
+#[cfg(feature = "process")]
 pub(crate) mod process;
+#[cfg(feature = "pty")]
+pub(crate) mod pty;
 #[cfg(feature = "rand")]
 pub(crate) mod rand;
 #[cfg(feature = "runtime")]
 pub(crate) mod runtime;
+#[cfg(feature = "system")]
+pub(crate) mod system;
 #[cfg(feature = "termios")]
 pub(crate) mod termios;
 #[cfg(feature = "thread")]
 pub(crate) mod thread;
+#[cfg(feature = "time")]
 pub(crate) mod time;
 
-#[cfg(feature = "std")]
 pub(crate) mod fd {
-    pub use io_lifetimes::*;
-    #[allow(unused_imports)]
-    pub(crate) use std::os::unix::io::RawFd as LibcFd;
-    pub use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
+    pub use crate::maybe_polyfill::os::fd::{
+        AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd,
+    };
 }
-
-#[cfg(not(feature = "std"))]
-pub(crate) use crate::io::fd;
 
 // The linux_raw backend doesn't use actual libc, so we define selected
 // libc-like definitions in a module called `c`.
 pub(crate) mod c;
+
+// Private modules used by multiple public modules.
+#[cfg(any(feature = "procfs", feature = "process", feature = "runtime"))]
+pub(crate) mod pid;
+#[cfg(any(feature = "process", feature = "thread"))]
+pub(crate) mod prctl;
+#[cfg(any(
+    feature = "fs",
+    feature = "process",
+    feature = "thread",
+    all(
+        not(feature = "use-libc-auxv"),
+        not(target_vendor = "mustang"),
+        any(
+            feature = "param",
+            feature = "runtime",
+            feature = "time",
+            target_arch = "x86",
+        )
+    )
+))]
+pub(crate) mod ugid;
+
+/// The maximum number of buffers that can be passed into a vectored I/O system
+/// call on the current platform.
+const MAX_IOV: usize = linux_raw_sys::general::UIO_MAXIOV as usize;

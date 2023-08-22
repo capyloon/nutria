@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "hermit-abi"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Stefan Lankes"]
 description = "Hermit system calls definitions."
 readme = "README.md"
@@ -23,7 +23,6 @@ keywords = [
 categories = ["os"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/hermitcore/rusty-hermit"
-resolver = "1"
 
 [dependencies.alloc]
 version = "1.0.0"

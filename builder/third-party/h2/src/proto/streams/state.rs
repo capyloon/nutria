@@ -64,8 +64,9 @@ enum Inner {
     Closed(Cause),
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 enum Peer {
+    #[default]
     AwaitingHeaders,
     Streaming,
 }
@@ -361,10 +362,10 @@ impl State {
     }
 
     pub fn is_remote_reset(&self) -> bool {
-        match self.inner {
-            Closed(Cause::Error(Error::Reset(_, _, Initiator::Remote))) => true,
-            _ => false,
-        }
+        matches!(
+            self.inner,
+            Closed(Cause::Error(Error::Reset(_, _, Initiator::Remote)))
+        )
     }
 
     /// Returns true if the stream is already reset.
@@ -464,11 +465,5 @@ impl State {
 impl Default for State {
     fn default() -> State {
         State { inner: Inner::Idle }
-    }
-}
-
-impl Default for Peer {
-    fn default() -> Self {
-        AwaitingHeaders
     }
 }

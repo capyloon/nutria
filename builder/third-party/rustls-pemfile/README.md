@@ -9,6 +9,9 @@ poor and doing so doesn't address a meaningful threat model.
 [![Documentation](https://docs.rs/rustls-pemfile/badge.svg)](https://docs.rs/rustls-pemfile/)
 
 # Release history
+- 1.0.3 (2023-06-28)
+  * Add certificate revocation list (CRL) format support.
+  * Add `crls` helper function.
 - 1.0.2 (2023-01-10)
   * Add `ec_private_keys()` helper function.
   * Update base64 to the latest version.

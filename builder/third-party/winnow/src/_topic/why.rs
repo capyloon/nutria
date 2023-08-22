@@ -16,7 +16,7 @@
 //! - Fewer dependencies to audit
 //!
 //! However, this comes at the cost of doing it all yourself, including
-//! - Optimizing for each of the above characteristics you are about
+//! - Optimizing for each of the above characteristics you care about
 //! - Ensuring the safety of any `unsafe` code (buffer overflows being a common bug with parsers)
 //! - Being aware of, familiar with, and correctly implement the relevant algorithms.
 //!   matklad, who has written two rust compile frontends, commented
@@ -52,7 +52,7 @@
 //!
 //! This works well for:
 //! - Prototyping for what will be a hand-written parser
-//! - When you to minimize the work to evolve your format
+//! - When you want to minimize the work to evolve your format
 //! - When you don't have contributors focused solely on parsing and your grammar is large enough
 //!   to be unwieldy to hand write.
 //!

@@ -10,18 +10,26 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 name = "httpdate"
-version = "1.0.2"
+version = "1.0.3"
 authors = ["Pyfisch <pyfisch@posteo.org>"]
 description = "HTTP date parsing and formatting"
 readme = "README.md"
-keywords = ["http", "date", "time", "simple", "timestamp"]
-license = "MIT/Apache-2.0"
+keywords = [
+    "http",
+    "date",
+    "time",
+    "simple",
+    "timestamp",
+]
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/pyfisch/httpdate"
 
 [[bench]]
 name = "benchmarks"
 harness = false
+
 [dev-dependencies.criterion]
-version = "0.3.5"
+version = "0.5"

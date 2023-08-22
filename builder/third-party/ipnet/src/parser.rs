@@ -4,10 +4,16 @@
 //! is private. It is copied and extended here with methods for parsing
 //! IP network addresses.
 
+use alloc::{str::FromStr, boxed::Box};
+use core::fmt;
+#[cfg(not(feature = "std"))]
+use core::error::Error;
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt;
+#[cfg(not(feature = "std"))]
+use core::net::{Ipv4Addr, Ipv6Addr};
+#[cfg(feature = "std")]
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::str::FromStr;
 
 use crate::ipnet::{IpNet, Ipv4Net, Ipv6Net};
 

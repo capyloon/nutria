@@ -4,9 +4,12 @@
 //! the `Ipv4Addr` and `Ipv6Addr` types with methods to perform these
 //! operations.
 
-use std::cmp::Ordering::{Less, Equal};
-use std::iter::{FusedIterator, DoubleEndedIterator};
-use std::mem;
+use core::cmp::Ordering::{Less, Equal};
+use core::iter::{FusedIterator, DoubleEndedIterator};
+use core::mem;
+#[cfg(not(feature = "std"))]
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+#[cfg(feature = "std")]
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 /// Provides a `saturating_add()` method for `Ipv4Addr` and `Ipv6Addr`.
@@ -18,6 +21,10 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 /// # Examples
 ///
 /// ```
+/// # #![cfg_attr(not(feature = "std"), feature(ip_in_core))]
+/// # #[cfg(not(feature = "std"))]
+/// # use core::net::{Ipv4Addr, Ipv6Addr};
+/// # #[cfg(feature = "std")]
 /// use std::net::{Ipv4Addr, Ipv6Addr};
 /// use ipnet::IpAdd;
 ///
@@ -58,6 +65,10 @@ pub trait IpAdd<RHS = Self> {
 /// # Examples
 ///
 /// ```
+/// # #![cfg_attr(not(feature = "std"), feature(ip_in_core))]
+/// # #[cfg(not(feature = "std"))]
+/// # use core::net::{Ipv4Addr, Ipv6Addr};
+/// # #[cfg(feature = "std")]
 /// use std::net::{Ipv4Addr, Ipv6Addr};
 /// use ipnet::IpSub;
 ///
@@ -89,6 +100,10 @@ pub trait IpSub<RHS = Self> {
 /// # Examples
 ///
 /// ```
+/// # #![cfg_attr(not(feature = "std"), feature(ip_in_core))]
+/// # #[cfg(not(feature = "std"))]
+/// # use core::net::{Ipv4Addr, Ipv6Addr};
+/// # #[cfg(feature = "std")]
 /// use std::net::{Ipv4Addr, Ipv6Addr};
 /// use ipnet::IpBitAnd;
 ///
@@ -116,6 +131,10 @@ pub trait IpBitAnd<RHS = Self> {
 /// # Examples
 ///
 /// ```
+/// # #![cfg_attr(not(feature = "std"), feature(ip_in_core))]
+/// # #[cfg(not(feature = "std"))]
+/// # use core::net::{Ipv4Addr, Ipv6Addr};
+/// # #[cfg(feature = "std")]
 /// use std::net::{Ipv4Addr, Ipv6Addr};
 /// use ipnet::IpBitOr;
 ///
@@ -290,6 +309,10 @@ pub enum IpAddrRange {
 /// # Examples
 ///
 /// ```
+/// # #![cfg_attr(not(feature = "std"), feature(ip_in_core))]
+/// # #[cfg(not(feature = "std"))]
+/// # use core::net::Ipv4Addr;
+/// # #[cfg(feature = "std")]
 /// use std::net::Ipv4Addr;
 /// use ipnet::Ipv4AddrRange;
 ///
@@ -315,7 +338,11 @@ pub struct Ipv4AddrRange {
 ///
 /// # Examples
 ///
-/// ```
+/// ``` 
+/// # #![cfg_attr(not(feature = "std"), feature(ip_in_core))]
+/// # #[cfg(not(feature = "std"))]
+/// # use core::net::Ipv6Addr;
+/// # #[cfg(feature = "std")]
 /// use std::net::Ipv6Addr;
 /// use ipnet::Ipv6AddrRange;
 ///
@@ -481,12 +508,12 @@ impl Iterator for Ipv4AddrRange {
                 // so need to explicitly check for overflow.
                 // 'usize::MAX as u32' is okay here - if usize is 64 bits,
                 // value truncates to u32::MAX
-                if count <= std::usize::MAX as u32 {
+                if count <= core::usize::MAX as u32 {
                     count as usize + 1
                 // count overflows usize
                 } else {
                     // emulate standard overflow/panic behavior
-                    std::usize::MAX + 2 + count as usize
+                    core::usize::MAX + 2 + count as usize
                 }
             },
             Some(Equal) => 1,
@@ -531,8 +558,8 @@ impl Iterator for Ipv4AddrRange {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let count = self.count_u64();
-        if count > std::usize::MAX as u64 {
-            (std::usize::MAX, None)
+        if count > core::usize::MAX as u64 {
+            (core::usize::MAX, None)
         } else {
             let count = count as usize;
             (count, Some(count))
@@ -561,12 +588,12 @@ impl Iterator for Ipv6AddrRange {
     fn count(self) -> usize {
         let count = self.count_u128();
         // count fits in usize
-        if count <= std::usize::MAX as u128 {
+        if count <= core::usize::MAX as u128 {
             count as usize
         // count does not fit in usize
         } else {
             // emulate standard overflow/panic behavior
-            std::usize::MAX + 1 + count as usize
+            core::usize::MAX + 1 + count as usize
         }
     }
 
@@ -616,14 +643,14 @@ impl Iterator for Ipv6AddrRange {
     fn size_hint(&self) -> (usize, Option<usize>) {
         if self.can_count_u128() {
             let count = self.count_u128();
-            if count > std::usize::MAX as u128 {
-                (std::usize::MAX, None)
+            if count > core::usize::MAX as u128 {
+                (core::usize::MAX, None)
             } else {
                 let count = count as usize;
                 (count, Some(count))
             }
         } else {
-            (std::usize::MAX, None)
+            (core::usize::MAX, None)
         }
     }
 }
@@ -722,8 +749,12 @@ impl FusedIterator for Ipv6AddrRange {}
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec::Vec;
+    use core::str::FromStr;
+    #[cfg(not(feature = "std"))]
+    use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    #[cfg(feature = "std")]
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-    use std::str::FromStr;
     use super::*;
 
     #[test]
@@ -876,7 +907,7 @@ mod tests {
             Ipv6Addr::from_str("::").unwrap(),
             Ipv6Addr::from_str("8000::").unwrap(),
         );
-        assert_eq!(i.size_hint(), (std::usize::MAX, None));
+        assert_eq!(i.size_hint(), (core::usize::MAX, None));
 
         // Min, Max, Last
         let i = Ipv4AddrRange::new(

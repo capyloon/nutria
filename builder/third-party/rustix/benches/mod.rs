@@ -18,7 +18,10 @@
     target_os = "wasi",
 ))]
 fn main() {
-    unimplemented!("Add --cfg=criterion to RUSTFLAGS and enable the \"fs\", \"time\", and \"process\" cargo features.")
+    unimplemented!(
+        "Add --cfg=criterion to RUSTFLAGS and enable the \"fs\", \"time\", and \"process\" cargo \
+         features."
+    )
 }
 
 #[cfg(not(any(
@@ -47,11 +50,11 @@ mod suite {
     use criterion::Criterion;
 
     pub(super) fn simple_statat(c: &mut Criterion) {
-        use rustix::fs::{cwd, statat, AtFlags};
+        use rustix::fs::{statat, AtFlags, CWD};
 
         c.bench_function("simple statat", |b| {
             b.iter(|| {
-                statat(cwd(), "/", AtFlags::empty()).unwrap();
+                statat(CWD, "/", AtFlags::empty()).unwrap();
             })
         });
     }
@@ -95,11 +98,11 @@ mod suite {
     }
 
     pub(super) fn simple_statat_cstr(c: &mut Criterion) {
-        use rustix::fs::{cwd, statat, AtFlags};
+        use rustix::fs::{statat, AtFlags, CWD};
 
         c.bench_function("simple statat cstr", |b| {
             b.iter(|| {
-                statat(cwd(), rustix::cstr!("/"), AtFlags::empty()).unwrap();
+                statat(CWD, rustix::cstr!("/"), AtFlags::empty()).unwrap();
             })
         });
     }

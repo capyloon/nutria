@@ -23,13 +23,6 @@
 pub struct Time(u64);
 
 impl Time {
-    /// Deprecated. Use `TryFrom::try_from`.
-    #[cfg(feature = "std")]
-    // Soft deprecation. #[deprecated(note = "Use TryFrom::try_from")]
-    pub fn try_from(time: std::time::SystemTime) -> Result<Self, ring::error::Unspecified> {
-        core::convert::TryFrom::try_from(time)
-    }
-
     /// Create a `webpki::Time` from a unix timestamp.
     ///
     /// It is usually better to use the less error-prone
@@ -43,9 +36,9 @@ impl Time {
 }
 
 #[cfg(feature = "std")]
-impl core::convert::TryFrom<std::time::SystemTime> for Time {
-    // TODO: In the next release, make this `std::time::SystemTimeError`.
-    type Error = ring::error::Unspecified;
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+impl TryFrom<std::time::SystemTime> for Time {
+    type Error = std::time::SystemTimeError;
 
     /// Create a `webpki::Time` from a `std::time::SystemTime`.
     ///
@@ -58,9 +51,9 @@ impl core::convert::TryFrom<std::time::SystemTime> for Time {
     /// # extern crate webpki;
     /// #
     /// #![cfg(feature = "std")]
-    /// use std::{convert::TryFrom, time::SystemTime};
+    /// use std::time::SystemTime;
     ///
-    /// # fn foo() -> Result<(), ring::error::Unspecified> {
+    /// # fn foo() -> Result<(), std::time::SystemTimeError> {
     /// let time = webpki::Time::try_from(SystemTime::now())?;
     /// # Ok(())
     /// # }
@@ -69,6 +62,5 @@ impl core::convert::TryFrom<std::time::SystemTime> for Time {
         value
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| Self::from_seconds_since_unix_epoch(d.as_secs()))
-            .map_err(|_| ring::error::Unspecified)
     }
 }

@@ -13,16 +13,25 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 use crate::{
-    cert::{self, Cert, EndEntityOrCa},
-    der, signed_data, subject_name, time, Error, SignatureAlgorithm, TrustAnchor,
+    cert::{Cert, EndEntityOrCa},
+    der, signed_data, subject_name, time, CertRevocationList, Error, SignatureAlgorithm,
+    TrustAnchor,
 };
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn build_chain(
-    required_eku_if_present: KeyPurposeId,
-    supported_sig_algs: &[&SignatureAlgorithm],
-    trust_anchors: &[TrustAnchor],
-    intermediate_certs: &[&[u8]],
+pub(crate) struct ChainOptions<'a> {
+    pub(crate) eku: KeyUsage,
+    pub(crate) supported_sig_algs: &'a [&'a SignatureAlgorithm],
+    pub(crate) trust_anchors: &'a [TrustAnchor<'a>],
+    pub(crate) intermediate_certs: &'a [&'a [u8]],
+    pub(crate) crls: &'a [&'a dyn CertRevocationList],
+}
+
+pub(crate) fn build_chain(opts: &ChainOptions, cert: &Cert, time: time::Time) -> Result<(), Error> {
+    build_chain_inner(opts, cert, time, 0, &mut 0_usize)
+}
+
+fn build_chain_inner(
+    opts: &ChainOptions,
     cert: &Cert,
     time: time::Time,
     sub_ca_count: usize,
@@ -30,13 +39,7 @@ pub(crate) fn build_chain(
 ) -> Result<(), Error> {
     let used_as_ca = used_as_ca(&cert.ee_or_ca);
 
-    check_issuer_independent_properties(
-        cert,
-        time,
-        used_as_ca,
-        sub_ca_count,
-        required_eku_if_present,
-    )?;
+    check_issuer_independent_properties(cert, time, used_as_ca, sub_ca_count, opts.eku.inner)?;
 
     // TODO: HPKP checks.
 
@@ -45,6 +48,7 @@ pub(crate) fn build_chain(
             const MAX_SUB_CA_COUNT: usize = 6;
 
             if sub_ca_count >= MAX_SUB_CA_COUNT {
+                // TODO(XXX): Candidate for a more specific error - Error::PathTooDeep?
                 return Err(Error::UnknownIssuer);
             }
         }
@@ -56,46 +60,54 @@ pub(crate) fn build_chain(
     // for the purpose of name constraints checking, only end-entity server certificates
     // could plausibly have a DNS name as a subject commonName that could contribute to
     // path validity
-    let subject_common_name_contents =
-        if required_eku_if_present == EKU_SERVER_AUTH && used_as_ca == UsedAsCa::No {
-            subject_name::SubjectCommonNameContents::DnsName
-        } else {
-            subject_name::SubjectCommonNameContents::Ignore
-        };
-
-    // TODO: revocation.
-
-    let result = loop_while_non_fatal_error(trust_anchors, |trust_anchor: &TrustAnchor| {
-        let trust_anchor_subject = untrusted::Input::from(trust_anchor.subject);
-        if cert.issuer != trust_anchor_subject {
-            return Err(Error::UnknownIssuer);
-        }
-
-        let name_constraints = trust_anchor.name_constraints.map(untrusted::Input::from);
-
-        untrusted::read_all_optional(name_constraints, Error::BadDer, |value| {
-            subject_name::check_name_constraints(value, cert, subject_common_name_contents)
-        })?;
-
-        let trust_anchor_spki = untrusted::Input::from(trust_anchor.spki);
-
-        // TODO: check_distrust(trust_anchor_subject, trust_anchor_spki)?;
-
-        check_signatures(supported_sig_algs, cert, trust_anchor_spki, signatures)?;
-
-        Ok(())
-    });
-
-    // If the error is not fatal, then keep going.
-    match result {
-        Ok(()) => return Ok(()),
-        err @ Err(Error::MaximumSignatureChecksExceeded) => return err,
-        _ => {}
+    let subject_common_name_contents = if opts
+        .eku
+        .inner
+        .key_purpose_id_equals(EKU_SERVER_AUTH.oid_value)
+        && used_as_ca == UsedAsCa::No
+    {
+        subject_name::SubjectCommonNameContents::DnsName
+    } else {
+        subject_name::SubjectCommonNameContents::Ignore
     };
 
-    loop_while_non_fatal_error(intermediate_certs, |cert_der| {
+    let result = loop_while_non_fatal_error(
+        Error::UnknownIssuer,
+        opts.trust_anchors,
+        |trust_anchor: &TrustAnchor| {
+            let trust_anchor_subject = untrusted::Input::from(trust_anchor.subject);
+            if cert.issuer != trust_anchor_subject {
+                return Err(Error::UnknownIssuer);
+            }
+
+            let name_constraints = trust_anchor.name_constraints.map(untrusted::Input::from);
+
+            untrusted::read_all_optional(name_constraints, Error::BadDer, |value| {
+                subject_name::check_name_constraints(value, cert, subject_common_name_contents)
+            })?;
+
+            // TODO: check_distrust(trust_anchor_subject, trust_anchor_spki)?;
+
+            check_signatures(
+                opts.supported_sig_algs,
+                cert,
+                trust_anchor,
+                opts.crls,
+                signatures,
+            )?;
+
+            Ok(())
+        },
+    );
+
+    let err = match result {
+        Ok(()) => return Ok(()),
+        Err(err) => err,
+    };
+
+    loop_while_non_fatal_error(err, opts.intermediate_certs, |cert_der| {
         let potential_issuer =
-            cert::parse_cert(untrusted::Input::from(cert_der), EndEntityOrCa::Ca(cert))?;
+            Cert::from_der(untrusted::Input::from(cert_der), EndEntityOrCa::Ca(cert))?;
 
         if potential_issuer.subject != cert.issuer {
             return Err(Error::UnknownIssuer);
@@ -128,40 +140,44 @@ pub(crate) fn build_chain(
             UsedAsCa::Yes => sub_ca_count + 1,
         };
 
-        build_chain(
-            required_eku_if_present,
-            supported_sig_algs,
-            trust_anchors,
-            intermediate_certs,
-            &potential_issuer,
-            time,
-            next_sub_ca_count,
-            signatures,
-        )
+        build_chain_inner(opts, &potential_issuer, time, next_sub_ca_count, signatures)
     })
 }
 
 fn check_signatures(
     supported_sig_algs: &[&SignatureAlgorithm],
     cert_chain: &Cert,
-    trust_anchor_key: untrusted::Input,
+    trust_anchor: &TrustAnchor,
+    crls: &[&dyn CertRevocationList],
     signatures: &mut usize,
 ) -> Result<(), Error> {
-    let mut spki_value = trust_anchor_key;
+    let mut spki_value = untrusted::Input::from(trust_anchor.spki);
+    let mut issuer_subject = untrusted::Input::from(trust_anchor.subject);
+    let mut issuer_key_usage = None; // TODO(XXX): Consider whether to track TrustAnchor KU.
     let mut cert = cert_chain;
     loop {
         *signatures += 1;
         if *signatures > 100 {
             return Err(Error::MaximumSignatureChecksExceeded);
         }
-
         signed_data::verify_signed_data(supported_sig_algs, spki_value, &cert.signed_data)?;
 
-        // TODO: check revocation
+        if !crls.is_empty() {
+            check_crls(
+                supported_sig_algs,
+                cert,
+                issuer_subject,
+                spki_value,
+                issuer_key_usage,
+                crls,
+            )?;
+        }
 
         match &cert.ee_or_ca {
             EndEntityOrCa::Ca(child_cert) => {
                 spki_value = cert.spki.value();
+                issuer_subject = cert.subject;
+                issuer_key_usage = cert.key_usage;
                 cert = child_cert;
             }
             EndEntityOrCa::EndEntity => {
@@ -173,29 +189,91 @@ fn check_signatures(
     Ok(())
 }
 
+// Zero-sized marker type representing positive assertion that revocation status was checked
+// for a certificate and the result was that the certificate is not revoked.
+struct CertNotRevoked(());
+
+impl CertNotRevoked {
+    // Construct a CertNotRevoked marker.
+    fn assertion() -> Self {
+        Self(())
+    }
+}
+
+fn check_crls(
+    supported_sig_algs: &[&SignatureAlgorithm],
+    cert: &Cert,
+    issuer_subject: untrusted::Input,
+    issuer_spki: untrusted::Input,
+    issuer_ku: Option<untrusted::Input>,
+    crls: &[&dyn CertRevocationList],
+) -> Result<Option<CertNotRevoked>, Error> {
+    assert_eq!(cert.issuer, issuer_subject);
+
+    let crl = match crls
+        .iter()
+        .find(|candidate_crl| candidate_crl.issuer() == cert.issuer())
+    {
+        Some(crl) => crl,
+        None => return Ok(None),
+    };
+
+    // Verify the CRL signature with the issuer SPKI.
+    // TODO(XXX): consider whether we can refactor so this happens once up-front, instead
+    //            of per-lookup.
+    //            https://github.com/rustls/webpki/issues/81
+    crl.verify_signature(supported_sig_algs, issuer_spki.as_slice_less_safe())
+        .map_err(crl_signature_err)?;
+
+    // Verify that if the issuer has a KeyUsage bitstring it asserts cRLSign.
+    KeyUsageMode::CrlSign.check(issuer_ku)?;
+
+    // Try to find the cert serial in the verified CRL contents.
+    let cert_serial = cert.serial.as_slice_less_safe();
+    match crl.find_serial(cert_serial)? {
+        None => Ok(Some(CertNotRevoked::assertion())),
+        Some(_) => Err(Error::CertRevoked),
+    }
+}
+
+// When verifying CRL signed data we want to disambiguate the context of possible errors by mapping
+// them to CRL specific variants that a consumer can use to tell the issue was with the CRL's
+// signature, not a certificate.
+fn crl_signature_err(err: Error) -> Error {
+    match err {
+        Error::UnsupportedSignatureAlgorithm => Error::UnsupportedCrlSignatureAlgorithm,
+        Error::UnsupportedSignatureAlgorithmForPublicKey => {
+            Error::UnsupportedCrlSignatureAlgorithmForPublicKey
+        }
+        Error::InvalidSignatureForPublicKey => Error::InvalidCrlSignatureForPublicKey,
+        _ => err,
+    }
+}
+
 fn check_issuer_independent_properties(
     cert: &Cert,
     time: time::Time,
     used_as_ca: UsedAsCa,
     sub_ca_count: usize,
-    required_eku_if_present: KeyPurposeId,
+    eku: ExtendedKeyUsage,
 ) -> Result<(), Error> {
     // TODO: check_distrust(trust_anchor_subject, trust_anchor_spki)?;
     // TODO: Check signature algorithm like mozilla::pkix.
     // TODO: Check SPKI like mozilla::pkix.
     // TODO: check for active distrust like mozilla::pkix.
 
-    // See the comment in `remember_extension` for why we don't check the
-    // KeyUsage extension.
+    // For cert validation, we ignore the KeyUsage extension. For CA
+    // certificates, BasicConstraints.cA makes KeyUsage redundant. Firefox
+    // and other common browsers do not check KeyUsage for end-entities,
+    // though it would be kind of nice to ensure that a KeyUsage without
+    // the keyEncipherment bit could not be used for RSA key exchange.
 
     cert.validity
         .read_all(Error::BadDer, |value| check_validity(value, time))?;
     untrusted::read_all_optional(cert.basic_constraints, Error::BadDer, |value| {
         check_basic_constraints(value, used_as_ca, sub_ca_count)
     })?;
-    untrusted::read_all_optional(cert.eku, Error::BadDer, |value| {
-        check_eku(value, required_eku_if_present)
-    })?;
+    untrusted::read_all_optional(cert.eku, Error::BadDer, |value| eku.check(value))?;
 
     Ok(())
 }
@@ -271,9 +349,105 @@ fn check_basic_constraints(
     }
 }
 
+/// The expected key usage of a certificate.
+///
+/// This type represents the expected key usage of an end entity certificate. Although for most
+/// kinds of certificates the extended key usage extension is optional (and so certificates
+/// not carrying a particular value in the EKU extension are acceptable). If the extension
+/// is present, the certificate MUST only be used for one of the purposes indicated.
+///
+/// <https://www.rfc-editor.org/rfc/rfc5280#section-4.2.1.12>
+#[derive(Clone, Copy)]
+pub struct KeyUsage {
+    inner: ExtendedKeyUsage,
+}
+
+impl KeyUsage {
+    /// Construct a new [`KeyUsage`] as appropriate for server certificate authentication.
+    ///
+    /// As specified in <https://www.rfc-editor.org/rfc/rfc5280#section-4.2.1.12>, this does not require the certificate to specify the eKU extension.
+    pub const fn server_auth() -> Self {
+        Self {
+            inner: ExtendedKeyUsage::RequiredIfPresent(EKU_SERVER_AUTH),
+        }
+    }
+
+    /// Construct a new [`KeyUsage`] as appropriate for client certificate authentication.
+    ///
+    /// As specified in <>, this does not require the certificate to specify the eKU extension.
+    pub const fn client_auth() -> Self {
+        Self {
+            inner: ExtendedKeyUsage::RequiredIfPresent(EKU_CLIENT_AUTH),
+        }
+    }
+
+    /// Construct a new [`KeyUsage`] requiring a certificate to support the specified OID.
+    pub const fn required(oid: &'static [u8]) -> Self {
+        Self {
+            inner: ExtendedKeyUsage::Required(KeyPurposeId::new(oid)),
+        }
+    }
+}
+
+/// Extended Key Usage (EKU) of a certificate.
+#[derive(Clone, Copy)]
+enum ExtendedKeyUsage {
+    /// The certificate must contain the specified [`KeyPurposeId`] as EKU.
+    Required(KeyPurposeId),
+
+    /// If the certificate has EKUs, then the specified [`KeyPurposeId`] must be included.
+    RequiredIfPresent(KeyPurposeId),
+}
+
+impl ExtendedKeyUsage {
+    // https://tools.ietf.org/html/rfc5280#section-4.2.1.12
+    fn check(&self, input: Option<&mut untrusted::Reader>) -> Result<(), Error> {
+        let input = match (input, self) {
+            (Some(input), _) => input,
+            (None, Self::RequiredIfPresent(_)) => return Ok(()),
+            (None, Self::Required(_)) => return Err(Error::RequiredEkuNotFound),
+        };
+
+        loop {
+            let value = der::expect_tag_and_get_value(input, der::Tag::OID)?;
+            if self.key_purpose_id_equals(value) {
+                input.skip_to_end();
+                break;
+            }
+
+            if input.at_end() {
+                return Err(Error::RequiredEkuNotFound);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn key_purpose_id_equals(&self, value: untrusted::Input<'_>) -> bool {
+        match self {
+            ExtendedKeyUsage::Required(eku) => *eku,
+            ExtendedKeyUsage::RequiredIfPresent(eku) => *eku,
+        }
+        .oid_value
+            == value
+    }
+}
+
+/// An OID value indicating an Extended Key Usage (EKU) key purpose.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) struct KeyPurposeId {
+struct KeyPurposeId {
     oid_value: untrusted::Input<'static>,
+}
+
+impl KeyPurposeId {
+    /// Construct a new [`KeyPurposeId`].
+    ///
+    /// `oid` is the OBJECT IDENTIFIER in bytes.
+    const fn new(oid: &'static [u8]) -> Self {
+        Self {
+            oid_value: untrusted::Input::from(oid),
+        }
+    }
 }
 
 // id-pkix            OBJECT IDENTIFIER ::= { 1 3 6 1 5 5 7 }
@@ -281,91 +455,64 @@ pub(crate) struct KeyPurposeId {
 
 // id-kp-serverAuth   OBJECT IDENTIFIER ::= { id-kp 1 }
 #[allow(clippy::identity_op)] // TODO: Make this clearer
-pub(crate) static EKU_SERVER_AUTH: KeyPurposeId = KeyPurposeId {
-    oid_value: untrusted::Input::from(&[(40 * 1) + 3, 6, 1, 5, 5, 7, 3, 1]),
-};
+const EKU_SERVER_AUTH: KeyPurposeId = KeyPurposeId::new(&[(40 * 1) + 3, 6, 1, 5, 5, 7, 3, 1]);
 
 // id-kp-clientAuth   OBJECT IDENTIFIER ::= { id-kp 2 }
 #[allow(clippy::identity_op)] // TODO: Make this clearer
-pub(crate) static EKU_CLIENT_AUTH: KeyPurposeId = KeyPurposeId {
-    oid_value: untrusted::Input::from(&[(40 * 1) + 3, 6, 1, 5, 5, 7, 3, 2]),
-};
+const EKU_CLIENT_AUTH: KeyPurposeId = KeyPurposeId::new(&[(40 * 1) + 3, 6, 1, 5, 5, 7, 3, 2]);
 
-// id-kp-OCSPSigning  OBJECT IDENTIFIER ::= { id-kp 9 }
-#[allow(clippy::identity_op)] // TODO: Make this clearer
-pub(crate) static EKU_OCSP_SIGNING: KeyPurposeId = KeyPurposeId {
-    oid_value: untrusted::Input::from(&[(40 * 1) + 3, 6, 1, 5, 5, 7, 3, 9]),
-};
+// https://www.rfc-editor.org/rfc/rfc5280#section-4.2.1.3
+#[repr(u8)]
+#[derive(Clone, Copy)]
+enum KeyUsageMode {
+    // DigitalSignature = 0,
+    // ContentCommitment = 1,
+    // KeyEncipherment = 2,
+    // DataEncipherment = 3,
+    // KeyAgreement = 4,
+    // CertSign = 5,
+    CrlSign = 6,
+    // EncipherOnly = 7,
+    // DecipherOnly = 8,
+}
 
-// https://tools.ietf.org/html/rfc5280#section-4.2.1.12
-//
-// Notable Differences from RFC 5280:
-//
-// * We follow the convention established by Microsoft's implementation and
-//   mozilla::pkix of treating the EKU extension in a CA certificate as a
-//   restriction on the allowable EKUs for certificates issued by that CA. RFC
-//   5280 doesn't prescribe any meaning to the EKU extension when a certificate
-//   is being used as a CA certificate.
-//
-// * We do not recognize anyExtendedKeyUsage. NSS and mozilla::pkix do not
-//   recognize it either.
-//
-// * We treat id-Netscape-stepUp as being equivalent to id-kp-serverAuth in CA
-//   certificates (only). Comodo has issued certificates that require this
-//   behavior that don't expire until June 2020. See https://bugzilla.mozilla.org/show_bug.cgi?id=982292.
-fn check_eku(
-    input: Option<&mut untrusted::Reader>,
-    required_eku_if_present: KeyPurposeId,
-) -> Result<(), Error> {
-    match input {
-        Some(input) => {
-            loop {
-                let value = der::expect_tag_and_get_value(input, der::Tag::OID)?;
-                if value == required_eku_if_present.oid_value {
-                    input.skip_to_end();
-                    break;
-                }
-                if input.at_end() {
-                    return Err(Error::RequiredEkuNotFound);
-                }
-            }
-            Ok(())
-        }
-        None => {
-            // http://tools.ietf.org/html/rfc6960#section-4.2.2.2:
-            // "OCSP signing delegation SHALL be designated by the inclusion of
-            // id-kp-OCSPSigning in an extended key usage certificate extension
-            // included in the OCSP response signer's certificate."
-            //
-            // A missing EKU extension generally means "any EKU", but it is
-            // important that id-kp-OCSPSigning is explicit so that a normal
-            // end-entity certificate isn't able to sign trusted OCSP responses
-            // for itself or for other certificates issued by its issuing CA.
-            if required_eku_if_present.oid_value == EKU_OCSP_SIGNING.oid_value {
-                return Err(Error::RequiredEkuNotFound);
-            }
+impl KeyUsageMode {
+    // https://www.rfc-editor.org/rfc/rfc5280#section-4.2.1.3
+    fn check(self, input: Option<untrusted::Input>) -> Result<(), Error> {
+        let bit_string = match input {
+            Some(input) => input,
+            // While RFC 5280 requires KeyUsage be present, historically the absence of a KeyUsage
+            // has been treated as "Any Usage". We follow that convention here and assume the absence
+            // of KeyUsage implies the required_ku_bit_if_present we're checking for.
+            None => return Ok(()),
+        };
 
-            Ok(())
+        let flags = der::bit_string_flags(&mut untrusted::Reader::new(bit_string))?;
+        #[allow(clippy::as_conversions)] // u8 always fits in usize.
+        match flags.bit_set(self as usize) {
+            true => Ok(()),
+            false => Err(Error::IssuerNotCrlSigner),
         }
     }
 }
 
 fn loop_while_non_fatal_error<V>(
+    default_error: Error,
     values: V,
     mut f: impl FnMut(V::Item) -> Result<(), Error>,
 ) -> Result<(), Error>
 where
     V: IntoIterator,
 {
+    let mut error = default_error;
     for v in values {
-        // If the error is not fatal, then keep going.
         match f(v) {
             Ok(()) => return Ok(()),
             err @ Err(Error::MaximumSignatureChecksExceeded) => return err,
-            _ => {}
+            Err(new_error) => error = error.most_specific(new_error),
         }
     }
-    Err(Error::UnknownIssuer)
+    Err(error)
 }
 
 #[cfg(test)]
@@ -373,11 +520,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn eku_key_purpose_id() {
+        assert!(ExtendedKeyUsage::RequiredIfPresent(EKU_SERVER_AUTH)
+            .key_purpose_id_equals(EKU_SERVER_AUTH.oid_value))
+    }
+
+    #[test]
     #[cfg(feature = "alloc")]
     fn test_too_many_signatures() {
-        use std::convert::TryFrom;
-
-        use crate::{EndEntityCert, Time, ECDSA_P256_SHA256};
+        use crate::ECDSA_P256_SHA256;
+        use crate::{EndEntityCert, Time};
 
         let alg = &rcgen::PKCS_ECDSA_P256_SHA256;
 
@@ -421,14 +573,15 @@ mod tests {
         let intermediate_certs: &[&[u8]] = intermediates_der.as_ref();
 
         let result = build_chain(
-            EKU_SERVER_AUTH,
-            &[&ECDSA_P256_SHA256],
-            anchors,
-            intermediate_certs,
+            &ChainOptions {
+                eku: KeyUsage::server_auth(),
+                supported_sig_algs: &[&ECDSA_P256_SHA256],
+                trust_anchors: anchors,
+                intermediate_certs,
+                crls: &[],
+            },
             cert.inner(),
             time,
-            0,
-            &mut 0_usize,
         );
 
         assert!(matches!(result, Err(Error::MaximumSignatureChecksExceeded)));

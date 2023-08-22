@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.60.0"
 name = "aho-corasick"
-version = "1.0.1"
+version = "1.0.4"
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 exclude = ["/aho-corasick-debug"]
 autotests = false
@@ -36,13 +36,14 @@ all-features = true
 rustdoc-args = [
     "--cfg",
     "docsrs",
+    "--generate-link-to-definition",
 ]
 
 [profile.bench]
-debug = true
+debug = 2
 
 [profile.release]
-debug = true
+debug = 2
 
 [lib]
 name = "aho_corasick"

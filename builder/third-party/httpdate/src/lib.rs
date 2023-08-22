@@ -14,7 +14,7 @@
 //!
 //! In addition it exposes the `HttpDate` type that can be used to parse
 //! and format timestamps. Convert a sytem time to `HttpDate` and vice versa.
-//! The `HttpType` (8 bytes) is smaller than `SystemTime` (16 bytes) and
+//! The `HttpDate` (8 bytes) is smaller than `SystemTime` (16 bytes) and
 //! using the display impl avoids a temporary allocation.
 #![forbid(unsafe_code)]
 

@@ -3,53 +3,62 @@
 //! So far, we've highlighted how to incrementally parse, but how do we bring this all together
 //! into our application?
 //!
-//! The type we've been working with looks like:
+//! Parsers we've been working with look like:
 //! ```rust
-//! # use winnow::error::VerboseError;
+//! # use winnow::error::ContextError;
 //! # use winnow::error::ErrMode;
-//! type IResult<'i, O> = Result<
-//!     (&'i str, O),
-//!     ErrMode<
-//!         VerboseError<&'i str>
-//!     >
+//! # use winnow::Parser;
+//! #
+//! pub fn parser<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//!     // ...
+//! #     Ok("")
+//! }
+//!
+//! type PResult<O> = Result<
+//!     O,
+//!     ErrMode<ContextError>
 //! >;
 //! ```
-//! 1. We have to decide what to do about the `remainder` of the input.  
-//! 2. The error type is not compatible with the rest of the Rust ecosystem
+//! 1. We have to decide what to do about the "remainder" of the `input`.
+//! 2. The [`ErrMode<ContextError>`] is not compatible with the rest of the Rust ecosystem.
+//!     Normally, Rust applications want errors that are `std::error::Error + Send + Sync + 'static`
+//!     meaning:
+//!     - They implement the [`std::error::Error`] trait
+//!     - They can be sent across threads
+//!     - They are safe to be referenced across threads
+//!     - They do not borrow
 //!
-//! Normally, Rust applications want errors that are `std::error::Error + Send + Sync + 'static`
-//! meaning:
-//! - They implement the [`std::error::Error`] trait
-//! - They can be sent across threads
-//! - They are safe to be referenced across threads
-//! - They do not borrow
-//!
-//! winnow provides some helpers for this:
+//! winnow provides [`Parser::parse`] to help with this:
+//! - Ensures we hit [`eof`]
+//! - Removes the [`ErrMode`] wrapper
+//! - Wraps the error in [`ParseError`]
+//!   - Provides access to the original [`input`][ParseError::input] with the
+//!     [`offset`][ParseError::offset] of where it failed
+//!   - Provides a default renderer (via [`std::fmt::Display`])
 //! ```rust
-//! # use winnow::IResult;
+//! # use winnow::prelude::*;
 //! # use winnow::token::take_while;
 //! # use winnow::combinator::dispatch;
 //! # use winnow::token::take;
 //! # use winnow::combinator::fail;
 //! use winnow::Parser;
-//! use winnow::error::Error;
 //!
 //! #[derive(Debug, PartialEq, Eq)]
 //! pub struct Hex(usize);
 //!
 //! impl std::str::FromStr for Hex {
-//!     type Err = Error<String>;
+//!     type Err = String;
 //!
 //!     fn from_str(input: &str) -> Result<Self, Self::Err> {
 //!         parse_digits
 //!             .map(Hex)
 //!             .parse(input)
-//!             .map_err(|e| e.into_owned())
+//!             .map_err(|e| e.to_string())
 //!     }
 //! }
 //!
 //! // ...
-//! # fn parse_digits(input: &str) -> IResult<&str, usize> {
+//! # fn parse_digits<'s>(input: &mut &'s str) -> PResult<usize> {
 //! #     dispatch!(take(2usize);
 //! #         "0b" => parse_bin_digits.try_map(|s| usize::from_str_radix(s, 2)),
 //! #         "0o" => parse_oct_digits.try_map(|s| usize::from_str_radix(s, 8)),
@@ -59,25 +68,25 @@
 //! #     ).parse_next(input)
 //! # }
 //! #
-//! # fn parse_bin_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_bin_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
-//! # fn parse_oct_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_oct_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='7'),
 //! #     )).parse_next(input)
 //! # }
 //! #
-//! # fn parse_dec_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_dec_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #     )).parse_next(input)
 //! # }
 //! #
-//! # fn parse_hex_digits(input: &str) -> IResult<&str, &str> {
+//! # fn parse_hex_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //! #     take_while(1.., (
 //! #         ('0'..='9'),
 //! #         ('A'..='F'),
@@ -95,17 +104,15 @@
 //!     assert!(input.parse::<Hex>().is_err());
 //! }
 //! ```
-//! - Ensures we hit [`eof`]
-//! - Removes the [`ErrMode`] wrapper
-//!
-//! [`Error::into_owned`]:
-//! - Converts the `&str` in `Error` to `String` which enables support for [`std::error::Error`]
 
 #![allow(unused_imports)]
 use super::chapter_1;
 use crate::combinator::eof;
 use crate::error::ErrMode;
-use crate::error::Error;
-use crate::IResult;
+use crate::error::InputError;
+use crate::error::ParseError;
+use crate::PResult;
+use crate::Parser;
 
 pub use super::chapter_6 as previous;
+pub use crate::_tutorial as table_of_content;

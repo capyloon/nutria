@@ -1,8 +1,5 @@
-use crate::cert::{lenient_certificate_serial_number, Cert};
-use crate::{
-    cert::{parse_cert, EndEntityOrCa},
-    der, Error,
-};
+use crate::cert::{lenient_certificate_serial_number, Cert, EndEntityOrCa};
+use crate::{der, Error};
 
 /// A trust anchor (a.k.a. root CA).
 ///
@@ -27,10 +24,24 @@ pub struct TrustAnchor<'a> {
 }
 
 /// Trust anchors which may be used for authenticating servers.
+#[deprecated(
+    since = "0.101.2",
+    note = "The per-usage trust anchor representations and verification functions are deprecated in \
+        favor of the general-purpose `TrustAnchor` type and `EndEntity::verify_for_usage` function. \
+        The new `verify_for_usage` function expresses trust anchor and end entity purpose with the \
+        key usage argument."
+)]
 #[derive(Debug)]
 pub struct TlsServerTrustAnchors<'a>(pub &'a [TrustAnchor<'a>]);
 
 /// Trust anchors which may be used for authenticating clients.
+#[deprecated(
+    since = "0.101.2",
+    note = "The per-usage trust anchor representations and verification functions are deprecated in \
+        favor of the general-purpose `TrustAnchor` type and `EndEntity::verify_for_usage` function. \
+        The new `verify_for_usage` function expresses trust anchor and end entity purpose with the \
+        key usage argument."
+)]
 #[derive(Debug)]
 pub struct TlsClientTrustAnchors<'a>(pub &'a [TrustAnchor<'a>]);
 
@@ -51,11 +62,44 @@ impl<'a> TrustAnchor<'a> {
         // certificate using a special parser for v1 certificates. Notably, that
         // parser doesn't allow extensions, so there's no need to worry about
         // embedded name constraints in a v1 certificate.
-        match parse_cert(cert_der, EndEntityOrCa::EndEntity) {
+        match Cert::from_der(cert_der, EndEntityOrCa::EndEntity) {
             Ok(cert) => Ok(Self::from(cert)),
-            Err(Error::UnsupportedCertVersion) => parse_cert_v1(cert_der).or(Err(Error::BadDer)),
+            Err(Error::UnsupportedCertVersion) => {
+                Self::from_v1_der(cert_der).or(Err(Error::BadDer))
+            }
             Err(err) => Err(err),
         }
+    }
+
+    /// Parses a v1 certificate directly into a TrustAnchor.
+    fn from_v1_der(cert_der: untrusted::Input<'a>) -> Result<Self, Error> {
+        // X.509 Certificate: https://tools.ietf.org/html/rfc5280#section-4.1.
+        cert_der.read_all(Error::BadDer, |cert_der| {
+            der::nested(cert_der, der::Tag::Sequence, Error::BadDer, |cert_der| {
+                let anchor = der::nested(cert_der, der::Tag::Sequence, Error::BadDer, |tbs| {
+                    // The version number field does not appear in v1 certificates.
+                    lenient_certificate_serial_number(tbs)?;
+
+                    skip(tbs, der::Tag::Sequence)?; // signature.
+                    skip(tbs, der::Tag::Sequence)?; // issuer.
+                    skip(tbs, der::Tag::Sequence)?; // validity.
+                    let subject = der::expect_tag_and_get_value(tbs, der::Tag::Sequence)?;
+                    let spki = der::expect_tag_and_get_value(tbs, der::Tag::Sequence)?;
+
+                    Ok(TrustAnchor {
+                        subject: subject.as_slice_less_safe(),
+                        spki: spki.as_slice_less_safe(),
+                        name_constraints: None,
+                    })
+                });
+
+                // read and discard signatureAlgorithm + signature
+                skip(cert_der, der::Tag::Sequence)?;
+                skip(cert_der, der::Tag::BitString)?;
+
+                anchor
+            })
+        })
     }
 }
 
@@ -67,37 +111,6 @@ impl<'a> From<Cert<'a>> for TrustAnchor<'a> {
             name_constraints: cert.name_constraints.map(|nc| nc.as_slice_less_safe()),
         }
     }
-}
-
-/// Parses a v1 certificate directly into a TrustAnchor.
-fn parse_cert_v1(cert_der: untrusted::Input) -> Result<TrustAnchor, Error> {
-    // X.509 Certificate: https://tools.ietf.org/html/rfc5280#section-4.1.
-    cert_der.read_all(Error::BadDer, |cert_der| {
-        der::nested(cert_der, der::Tag::Sequence, Error::BadDer, |cert_der| {
-            let anchor = der::nested(cert_der, der::Tag::Sequence, Error::BadDer, |tbs| {
-                // The version number field does not appear in v1 certificates.
-                lenient_certificate_serial_number(tbs)?;
-
-                skip(tbs, der::Tag::Sequence)?; // signature.
-                skip(tbs, der::Tag::Sequence)?; // issuer.
-                skip(tbs, der::Tag::Sequence)?; // validity.
-                let subject = der::expect_tag_and_get_value(tbs, der::Tag::Sequence)?;
-                let spki = der::expect_tag_and_get_value(tbs, der::Tag::Sequence)?;
-
-                Ok(TrustAnchor {
-                    subject: subject.as_slice_less_safe(),
-                    spki: spki.as_slice_less_safe(),
-                    name_constraints: None,
-                })
-            });
-
-            // read and discard signatureAlgorithm + signature
-            skip(cert_der, der::Tag::Sequence)?;
-            skip(cert_der, der::Tag::BitString)?;
-
-            anchor
-        })
-    })
 }
 
 fn skip(input: &mut untrusted::Reader, tag: der::Tag) -> Result<(), Error> {

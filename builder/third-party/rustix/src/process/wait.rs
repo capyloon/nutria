@@ -10,34 +10,38 @@ use crate::backend::process::wait::SiginfoExt;
 
 bitflags! {
     /// Options for modifying the behavior of wait/waitpid
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct WaitOptions: u32 {
         /// Return immediately if no child has exited.
-        const NOHANG = backend::process::wait::WNOHANG as _;
+        const NOHANG = bitcast!(backend::process::wait::WNOHANG);
         /// Return if a child has stopped (but not traced via [`ptrace`])
         ///
         /// [`ptrace`]: https://man7.org/linux/man-pages/man2/ptrace.2.html
-        const UNTRACED = backend::process::wait::WUNTRACED as _;
+        const UNTRACED = bitcast!(backend::process::wait::WUNTRACED);
         /// Return if a stopped child has been resumed by delivery of
         /// [`Signal::Cont`].
-        const CONTINUED = backend::process::wait::WCONTINUED as _;
+        const CONTINUED = bitcast!(backend::process::wait::WCONTINUED);
     }
 }
 
-#[cfg(not(any(target_os = "wasi", target_os = "redox", target_os = "openbsd")))]
+#[cfg(not(any(target_os = "openbsd", target_os = "redox", target_os = "wasi")))]
 bitflags! {
     /// Options for modifying the behavior of waitid
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct WaitidOptions: u32 {
         /// Return immediately if no child has exited.
-        const NOHANG = backend::process::wait::WNOHANG as _;
+        const NOHANG = bitcast!(backend::process::wait::WNOHANG);
         /// Return if a stopped child has been resumed by delivery of
         /// [`Signal::Cont`]
-        const CONTINUED = backend::process::wait::WCONTINUED as _;
+        const CONTINUED = bitcast!(backend::process::wait::WCONTINUED);
         /// Wait for processed that have exited.
-        const EXITED = backend::process::wait::WEXITED as _;
+        const EXITED = bitcast!(backend::process::wait::WEXITED);
         /// Keep processed in a waitable state.
-        const NOWAIT = backend::process::wait::WNOWAIT as _;
+        const NOWAIT = bitcast!(backend::process::wait::WNOWAIT);
         /// Wait for processes that have been stopped.
-        const STOPPED = backend::process::wait::WSTOPPED as _;
+        const STOPPED = bitcast!(backend::process::wait::WSTOPPED);
     }
 }
 
@@ -120,10 +124,10 @@ impl WaitStatus {
 /// The status of a process after calling [`waitid`].
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-#[cfg(not(any(target_os = "wasi", target_os = "redox", target_os = "openbsd")))]
+#[cfg(not(any(target_os = "openbsd", target_os = "redox", target_os = "wasi")))]
 pub struct WaitidStatus(pub(crate) backend::c::siginfo_t);
 
-#[cfg(not(any(target_os = "wasi", target_os = "redox", target_os = "openbsd")))]
+#[cfg(not(any(target_os = "openbsd", target_os = "redox", target_os = "wasi")))]
 impl WaitidStatus {
     /// Returns whether the process is currently stopped.
     #[inline]
@@ -239,7 +243,7 @@ impl WaitidStatus {
 }
 
 /// The identifier to wait on in a call to [`waitid`].
-#[cfg(not(any(target_os = "wasi", target_os = "redox", target_os = "openbsd")))]
+#[cfg(not(any(target_os = "openbsd", target_os = "redox", target_os = "wasi")))]
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum WaitId<'a> {
@@ -313,7 +317,7 @@ pub fn wait(waitopts: WaitOptions) -> io::Result<Option<(Pid, WaitStatus)>> {
 
 /// `waitid(_, _, _, opts)`—Wait for the specified child process to change
 /// state.
-#[cfg(not(any(target_os = "wasi", target_os = "redox", target_os = "openbsd")))]
+#[cfg(not(any(target_os = "openbsd", target_os = "redox", target_os = "wasi")))]
 #[inline]
 pub fn waitid<'a>(
     id: impl Into<WaitId<'a>>,

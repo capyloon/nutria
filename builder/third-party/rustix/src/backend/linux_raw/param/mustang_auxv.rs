@@ -5,8 +5,8 @@
 //! This uses raw pointers to locate and read the kernel-provided auxv array.
 #![allow(unsafe_code)]
 
-use super::super::c;
-use super::super::elf::*;
+use crate::backend::c;
+use crate::backend::elf::*;
 #[cfg(feature = "param")]
 use crate::ffi::CStr;
 use core::ffi::c_void;
@@ -65,8 +65,8 @@ pub(in super::super) fn exe_phdrs_slice() -> &'static [Elf_Phdr] {
     unsafe { slice::from_raw_parts(phdr.cast(), phnum) }
 }
 
-/// `AT_SYSINFO_EHDR` isn't present on all platforms in all configurations,
-/// so if we don't see it, this function returns a null pointer.
+/// `AT_SYSINFO_EHDR` isn't present on all platforms in all configurations, so
+/// if we don't see it, this function returns a null pointer.
 #[inline]
 pub(in super::super) fn sysinfo_ehdr() -> *const Elf_Ehdr {
     // SAFETY: This is initialized during program startup.

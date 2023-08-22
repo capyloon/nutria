@@ -2,10 +2,13 @@ use std::fmt::{Debug, Formatter};
 use std::io;
 use std::sync::{Arc, RwLock};
 use std::thread::panicking;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
 use crate::draw_target::{DrawState, DrawStateWrapper, LineAdjust, ProgressDrawTarget};
 use crate::progress_bar::ProgressBar;
+#[cfg(target_arch = "wasm32")]
+use instant::Instant;
 
 /// Manages multiple progress bars from different threads
 #[derive(Debug, Clone)]
@@ -61,6 +64,9 @@ impl MultiProgress {
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
+    ///
+    /// Adding a progress bar that is already a member of the `MultiProgress`
+    /// will have no effect.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::End, pb)
     }
@@ -73,6 +79,9 @@ impl MultiProgress {
     ///
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
+    ///
+    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// will have no effect.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::Index(index), pb)
     }
@@ -86,6 +95,9 @@ impl MultiProgress {
     ///
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the start of the list.
+    ///
+    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// will have no effect.
     pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::IndexFromBack(index), pb)
     }
@@ -95,6 +107,9 @@ impl MultiProgress {
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
+    ///
+    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// will have no effect.
     pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::Before(before.index().unwrap()), pb)
     }
@@ -104,6 +119,9 @@ impl MultiProgress {
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
+    ///
+    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// will have no effect.
     pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::After(after.index().unwrap()), pb)
     }
@@ -131,8 +149,9 @@ impl MultiProgress {
 
     fn internalize(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
-
         let idx = state.insert(location);
+        drop(state);
+
         pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
         pb
     }
@@ -240,6 +259,14 @@ impl MultiState {
         if panicking() {
             return Ok(());
         }
+        let width = self.width() as f64;
+        // Calculate real length based on terminal width
+        // This take in account linewrap from terminal
+        fn real_len(lines: &[String], width: f64) -> usize {
+            lines.iter().fold(0, |sum, val| {
+                sum + (console::measure_text_width(val) as f64 / width).ceil() as usize
+            })
+        }
 
         // Assumption: if extra_lines is not None, then it has at least one line
         debug_assert_eq!(
@@ -260,9 +287,8 @@ impl MultiState {
             let line_count = member
                 .draw_state
                 .as_ref()
-                .map(|d| d.lines.len())
+                .map(|d| real_len(&d.lines, width))
                 .unwrap_or_default();
-
             // Track the total number of zombie lines on the screen.
             self.zombie_lines_count += line_count;
 
@@ -281,7 +307,7 @@ impl MultiState {
             self.zombie_lines_count = 0;
         }
 
-        let orphan_lines_count = self.orphan_lines.len();
+        let orphan_lines_count = real_len(&self.orphan_lines, width);
         force_draw |= orphan_lines_count > 0;
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
             Some(drawable) => drawable,
@@ -290,10 +316,11 @@ impl MultiState {
 
         let mut draw_state = drawable.state();
         draw_state.orphan_lines_count = orphan_lines_count;
+        draw_state.alignment = self.alignment;
 
         if let Some(extra_lines) = &extra_lines {
             draw_state.lines.extend_from_slice(extra_lines.as_slice());
-            draw_state.orphan_lines_count += extra_lines.len();
+            draw_state.orphan_lines_count += real_len(extra_lines, width);
         }
 
         // Add lines from `ProgressBar::println` call.
@@ -337,9 +364,10 @@ impl MultiState {
 
     pub(crate) fn draw_state(&mut self, idx: usize) -> DrawStateWrapper<'_> {
         let member = self.members.get_mut(idx).unwrap();
+        // alignment is handled by the `MultiProgress`'s underlying draw target, so there is no
+        // point in propagating it here.
         let state = member.draw_state.get_or_insert(DrawState {
             move_cursor: self.move_cursor,
-            alignment: self.alignment,
             ..Default::default()
         });
 
@@ -649,5 +677,12 @@ mod tests {
         assert_eq!(state.ordering, vec![1]);
         assert_eq!(p0.index(), None);
         assert_eq!(p1.index().unwrap(), 1);
+    }
+
+    #[test]
+    fn mp_no_crash_double_add() {
+        let mp = MultiProgress::new();
+        let pb = mp.add(ProgressBar::new(10));
+        mp.add(pb);
     }
 }

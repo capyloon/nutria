@@ -10,9 +10,9 @@ fn test_offset_u8() {
     let b = &a[2..];
     let c = &a[..4];
     let d = &a[3..5];
-    assert_eq!(a.offset_to(b), 2);
-    assert_eq!(a.offset_to(c), 0);
-    assert_eq!(a.offset_to(d), 3);
+    assert_eq!(b.offset_from(&a), 2);
+    assert_eq!(c.offset_from(&a), 0);
+    assert_eq!(d.offset_from(&a), 3);
 }
 
 #[test]
@@ -21,9 +21,9 @@ fn test_offset_str() {
     let b = &a[7..];
     let c = &a[..5];
     let d = &a[5..9];
-    assert_eq!(a.offset_to(b), 7);
-    assert_eq!(a.offset_to(c), 0);
-    assert_eq!(a.offset_to(d), 5);
+    assert_eq!(b.offset_from(&a), 7);
+    assert_eq!(c.offset_from(&a), 0);
+    assert_eq!(d.offset_from(&a), 5);
 }
 
 #[test]
@@ -37,7 +37,7 @@ fn test_bit_stream_empty() {
     let actual = i.eof_offset();
     assert_eq!(actual, 0);
 
-    let actual = i.next_token();
+    let actual = i.peek_token();
     assert_eq!(actual, None);
 
     let actual = i.offset_for(|b| b);
@@ -46,7 +46,7 @@ fn test_bit_stream_empty() {
     let actual = i.offset_at(1);
     assert_eq!(actual, Err(Needed::new(1)));
 
-    let (actual_input, actual_slice) = i.next_slice(0);
+    let (actual_input, actual_slice) = i.peek_slice(0);
     assert_eq!(actual_input, (&b""[..], 0));
     assert_eq!(actual_slice, (&b""[..], 0, 0));
 }
@@ -56,7 +56,7 @@ fn test_bit_stream_empty() {
 fn test_bit_offset_empty() {
     let i = (&b""[..], 0);
 
-    let actual = i.offset_to(&i);
+    let actual = i.offset_from(&i);
     assert_eq!(actual, 0);
 }
 
@@ -80,18 +80,18 @@ fn bit_stream_inner(byte_len: usize, start: usize) {
 
     let mut curr_i = i;
     let mut curr_offset = 0;
-    while let Some((next_i, _token)) = curr_i.next_token() {
-        let to_offset = i.offset_to(&curr_i);
+    while let Some((next_i, _token)) = curr_i.peek_token() {
+        let to_offset = curr_i.offset_from(&i);
         assert_eq!(curr_offset, to_offset);
 
-        let (slice_i, _) = i.next_slice(curr_offset);
+        let (slice_i, _) = i.peek_slice(curr_offset);
         assert_eq!(curr_i, slice_i);
 
         let at_offset = i.offset_at(curr_offset).unwrap();
         assert_eq!(curr_offset, at_offset);
 
         let eof_offset = curr_i.eof_offset();
-        let (next_eof_i, eof_slice) = curr_i.next_slice(eof_offset);
+        let (next_eof_i, eof_slice) = curr_i.peek_slice(eof_offset);
         assert_eq!(next_eof_i, (&b""[..], 0));
         let eof_slice_i = (eof_slice.0, eof_slice.1);
         assert_eq!(eof_slice_i, curr_i);

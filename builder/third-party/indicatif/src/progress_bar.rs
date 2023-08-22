@@ -2,9 +2,13 @@
 use portable_atomic::{AtomicBool, Ordering};
 use std::borrow::Cow;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
 use std::{fmt, io, thread};
 
+#[cfg(target_arch = "wasm32")]
+use instant::Instant;
 #[cfg(test)]
 use once_cell::sync::Lazy;
 
@@ -76,6 +80,9 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given prefix
+    ///
+    /// For the prefix to be visible, the `{prefix}` placeholder must be present in the template
+    /// (see [`ProgressStyle`]).
     pub fn with_prefix(self, prefix: impl Into<Cow<'static, str>>) -> Self {
         let mut state = self.state();
         state.state.prefix = TabExpandedString::new(prefix.into(), state.tab_width);
@@ -84,6 +91,9 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given message
+    ///
+    /// For the message to be visible, the `{msg}` placeholder must be present in the template (see
+    /// [`ProgressStyle`]).
     pub fn with_message(self, message: impl Into<Cow<'static, str>>) -> Self {
         let mut state = self.state();
         state.state.message = TabExpandedString::new(message.into(), state.tab_width);
@@ -99,7 +109,7 @@ impl ProgressBar {
 
     /// A convenience builder-like function for a progress bar with a given elapsed time
     pub fn with_elapsed(self, elapsed: Duration) -> Self {
-        self.state().state.started = Instant::now() - elapsed;
+        self.state().state.started = Instant::now().checked_sub(elapsed).unwrap();
         self
     }
 
@@ -297,7 +307,7 @@ impl ProgressBar {
         self.state().reset(Instant::now(), Reset::Eta);
     }
 
-    /// Resets elapsed time
+    /// Resets elapsed time and the ETA calculation
     pub fn reset_elapsed(&self) {
         self.state().reset(Instant::now(), Reset::Elapsed);
     }
@@ -380,6 +390,8 @@ impl ProgressBar {
     /// Hide the progress bar temporarily, execute `f`, then redraw the progress bar
     ///
     /// Useful for external code that writes to the standard output.
+    ///
+    /// If the progress bar was added to a MultiProgress, it will suspend the entire MultiProgress
     ///
     /// **Note:** The internal lock is held while `f` is executed. Other threads trying to print
     /// anything on the progress bar will be blocked until `f` finishes.
@@ -498,6 +510,28 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
+        }
+    }
+
+    /// Wraps a [`futures::Stream`](https://docs.rs/futures/0.3/futures/stream/trait.StreamExt.html) with the progress bar
+    ///
+    /// ```
+    /// # use indicatif::ProgressBar;
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    /// let pb = ProgressBar::new(10);
+    /// let mut stream = pb.wrap_stream(stream::iter('a'..='z'));
+    ///
+    /// assert_eq!(stream.next().await, Some('a'));
+    /// assert_eq!(stream.count().await, 25);
+    /// # }); // block_on
+    /// ```
+    #[cfg(feature = "futures")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "futures")))]
+    pub fn wrap_stream<S: futures_core::Stream>(&self, stream: S) -> ProgressBarIter<S> {
+        ProgressBarIter {
+            progress: self.clone(),
+            it: stream,
         }
     }
 

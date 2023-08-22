@@ -11,13 +11,16 @@
 
 use core::num::NonZeroUsize;
 
-use crate::error::{ErrMode, ErrorKind, Needed, ParseError};
+use crate::error::Needed;
 use crate::lib::std::iter::{Cloned, Enumerate};
 use crate::lib::std::slice::Iter;
 use crate::lib::std::str::from_utf8;
 use crate::lib::std::str::CharIndices;
 use crate::lib::std::str::FromStr;
-use crate::IResult;
+
+#[allow(unused_imports)]
+#[cfg(feature = "unstable-doc")]
+use crate::error::ErrMode;
 
 #[cfg(feature = "alloc")]
 use crate::lib::std::collections::BTreeMap;
@@ -103,7 +106,7 @@ where
     }
 
     fn location(&self) -> usize {
-        self.initial.offset_to(&self.input)
+        self.input.offset_from(&self.initial)
     }
 }
 
@@ -156,9 +159,9 @@ impl<I: crate::lib::std::fmt::Display> crate::lib::std::fmt::Display for Located
 ///
 /// type Stream<'is> = Stateful<&'is str, State<'is>>;
 ///
-/// fn word(i: Stream<'_>) -> IResult<Stream<'_>, &str> {
+/// fn word<'s>(i: &mut Stream<'s>) -> PResult<&'s str> {
 ///   i.state.count();
-///   alpha1(i)
+///   alpha1.parse_next(i)
 /// }
 ///
 /// let data = "Hello";
@@ -218,48 +221,48 @@ impl<I: crate::lib::std::fmt::Display, S> crate::lib::std::fmt::Display for Stat
 /// Here is how it works in practice:
 ///
 /// ```rust
-/// # use winnow::{IResult, error::ErrMode, error::Needed, error::{Error, ErrorKind}, token, ascii, stream::Partial};
+/// # use winnow::{PResult, error::ErrMode, error::Needed, error::{InputError, ErrorKind}, token, ascii, stream::Partial};
 /// # use winnow::prelude::*;
 ///
-/// fn take_partial(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
+/// fn take_partial<'s>(i: &mut Partial<&'s [u8]>) -> PResult<&'s [u8], InputError<Partial<&'s [u8]>>> {
 ///   token::take(4u8).parse_next(i)
 /// }
 ///
-/// fn take_complete(i: &[u8]) -> IResult<&[u8], &[u8]> {
+/// fn take_complete<'s>(i: &mut &'s [u8]) -> PResult<&'s [u8], InputError<&'s [u8]>> {
 ///   token::take(4u8).parse_next(i)
 /// }
 ///
 /// // both parsers will take 4 bytes as expected
-/// assert_eq!(take_partial(Partial::new(&b"abcde"[..])), Ok((Partial::new(&b"e"[..]), &b"abcd"[..])));
-/// assert_eq!(take_complete(&b"abcde"[..]), Ok((&b"e"[..], &b"abcd"[..])));
+/// assert_eq!(take_partial.parse_peek(Partial::new(&b"abcde"[..])), Ok((Partial::new(&b"e"[..]), &b"abcd"[..])));
+/// assert_eq!(take_complete.parse_peek(&b"abcde"[..]), Ok((&b"e"[..], &b"abcd"[..])));
 ///
 /// // if the input is smaller than 4 bytes, the partial parser
 /// // will return `Incomplete` to indicate that we need more data
-/// assert_eq!(take_partial(Partial::new(&b"abc"[..])), Err(ErrMode::Incomplete(Needed::new(1))));
+/// assert_eq!(take_partial.parse_peek(Partial::new(&b"abc"[..])), Err(ErrMode::Incomplete(Needed::new(1))));
 ///
 /// // but the complete parser will return an error
-/// assert_eq!(take_complete(&b"abc"[..]), Err(ErrMode::Backtrack(Error::new(&b"abc"[..], ErrorKind::Slice))));
+/// assert_eq!(take_complete.parse_peek(&b"abc"[..]), Err(ErrMode::Backtrack(InputError::new(&b"abc"[..], ErrorKind::Slice))));
 ///
 /// // the alpha0 function recognizes 0 or more alphabetic characters
-/// fn alpha0_partial(i: Partial<&str>) -> IResult<Partial<&str>, &str> {
-///   ascii::alpha0(i)
+/// fn alpha0_partial<'s>(i: &mut Partial<&'s str>) -> PResult<&'s str, InputError<Partial<&'s str>>> {
+///   ascii::alpha0.parse_next(i)
 /// }
 ///
-/// fn alpha0_complete(i: &str) -> IResult<&str, &str> {
-///   ascii::alpha0(i)
+/// fn alpha0_complete<'s>(i: &mut &'s str) -> PResult<&'s str, InputError<&'s str>> {
+///   ascii::alpha0.parse_next(i)
 /// }
 ///
 /// // if there's a clear limit to the recognized characters, both parsers work the same way
-/// assert_eq!(alpha0_partial(Partial::new("abcd;")), Ok((Partial::new(";"), "abcd")));
-/// assert_eq!(alpha0_complete("abcd;"), Ok((";", "abcd")));
+/// assert_eq!(alpha0_partial.parse_peek(Partial::new("abcd;")), Ok((Partial::new(";"), "abcd")));
+/// assert_eq!(alpha0_complete.parse_peek("abcd;"), Ok((";", "abcd")));
 ///
 /// // but when there's no limit, the partial version returns `Incomplete`, because it cannot
 /// // know if more input data should be recognized. The whole input could be "abcd;", or
 /// // "abcde;"
-/// assert_eq!(alpha0_partial(Partial::new("abcd")), Err(ErrMode::Incomplete(Needed::new(1))));
+/// assert_eq!(alpha0_partial.parse_peek(Partial::new("abcd")), Err(ErrMode::Incomplete(Needed::new(1))));
 ///
 /// // while the complete version knows that all of the data is there
-/// assert_eq!(alpha0_complete("abcd"), Ok(("", "abcd")));
+/// assert_eq!(alpha0_complete.parse_peek("abcd"), Ok(("", "abcd")));
 /// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Partial<I> {
@@ -402,7 +405,7 @@ where
 }
 
 /// Core definition for parser input state
-pub trait Stream: Offset + Clone + crate::lib::std::fmt::Debug {
+pub trait Stream: Offset<<Self as Stream>::Checkpoint> + crate::lib::std::fmt::Debug {
     /// The smallest unit being parsed
     ///
     /// Example: `u8` for `&[u8]` or `char` for `&str`
@@ -415,13 +418,26 @@ pub trait Stream: Offset + Clone + crate::lib::std::fmt::Debug {
     /// Iterate with the offset from the current location
     type IterOffsets: Iterator<Item = (usize, Self::Token)>;
 
+    /// A parse location within the stream
+    type Checkpoint: Offset + Clone + crate::lib::std::fmt::Debug;
+
     /// Iterate with the offset from the current location
     fn iter_offsets(&self) -> Self::IterOffsets;
     /// Returns the offaet to the end of the input
     fn eof_offset(&self) -> usize;
 
     /// Split off the next token from the input
-    fn next_token(&self) -> Option<(Self, Self::Token)>;
+    fn next_token(&mut self) -> Option<Self::Token>;
+    /// Split off the next token from the input
+    #[inline(always)]
+    fn peek_token(&self) -> Option<(Self, Self::Token)>
+    where
+        Self: Clone,
+    {
+        let mut peek = self.clone();
+        let token = peek.next_token()?;
+        Some((peek, token))
+    }
 
     /// Finds the offset of the next matching token
     fn offset_for<P>(&self, predicate: P) -> Option<usize>
@@ -448,7 +464,45 @@ pub trait Stream: Offset + Clone + crate::lib::std::fmt::Debug {
     /// * Indexes must uphold invariants of the stream, like for `str` they must lie on UTF-8
     ///   sequence boundaries.
     ///
-    fn next_slice(&self, offset: usize) -> (Self, Self::Slice);
+    fn next_slice(&mut self, offset: usize) -> Self::Slice;
+    /// Split off a slice of tokens from the input
+    #[inline(always)]
+    fn peek_slice(&self, offset: usize) -> (Self, Self::Slice)
+    where
+        Self: Clone,
+    {
+        let mut peek = self.clone();
+        let slice = peek.next_slice(offset);
+        (peek, slice)
+    }
+
+    /// Advance to the end of the stream
+    #[inline(always)]
+    fn finish(&mut self) -> Self::Slice {
+        self.next_slice(self.eof_offset())
+    }
+    /// Advance to the end of the stream
+    #[inline(always)]
+    fn peek_finish(&self) -> (Self, Self::Slice)
+    where
+        Self: Clone,
+    {
+        let mut peek = self.clone();
+        let slice = peek.finish();
+        (peek, slice)
+    }
+
+    /// Save the current parse location within the stream
+    fn checkpoint(&self) -> Self::Checkpoint;
+    /// Revert the stream to a prior [`Self::Checkpoint`]
+    ///
+    /// # Panic
+    ///
+    /// May panic if an invalid [`Self::Checkpoint`] is provided
+    fn reset(&mut self, checkpoint: Self::Checkpoint);
+
+    /// Return the inner-most stream
+    fn raw(&self) -> &dyn crate::lib::std::fmt::Debug;
 }
 
 impl<'i, T> Stream for &'i [T]
@@ -460,6 +514,8 @@ where
 
     type IterOffsets = Enumerate<Cloned<Iter<'i, T>>>;
 
+    type Checkpoint = Checkpoint<Self>;
+
     #[inline(always)]
     fn iter_offsets(&self) -> Self::IterOffsets {
         self.iter().cloned().enumerate()
@@ -470,9 +526,10 @@ where
     }
 
     #[inline(always)]
-    fn next_token(&self) -> Option<(Self, Self::Token)> {
-        self.split_first()
-            .map(|(token, next)| (next, token.clone()))
+    fn next_token(&mut self) -> Option<Self::Token> {
+        let (token, next) = self.split_first()?;
+        *self = next;
+        Some(token.clone())
     }
 
     #[inline(always)]
@@ -491,9 +548,24 @@ where
         }
     }
     #[inline(always)]
-    fn next_slice(&self, offset: usize) -> (Self, Self::Slice) {
+    fn next_slice(&mut self, offset: usize) -> Self::Slice {
         let (slice, next) = self.split_at(offset);
-        (next, slice)
+        *self = next;
+        slice
+    }
+
+    #[inline(always)]
+    fn checkpoint(&self) -> Self::Checkpoint {
+        Checkpoint(*self)
+    }
+    #[inline(always)]
+    fn reset(&mut self, checkpoint: Self::Checkpoint) {
+        *self = checkpoint.0;
+    }
+
+    #[inline(always)]
+    fn raw(&self) -> &dyn crate::lib::std::fmt::Debug {
+        self
     }
 }
 
@@ -502,6 +574,8 @@ impl<'i> Stream for &'i str {
     type Slice = &'i str;
 
     type IterOffsets = CharIndices<'i>;
+
+    type Checkpoint = Checkpoint<Self>;
 
     #[inline(always)]
     fn iter_offsets(&self) -> Self::IterOffsets {
@@ -513,10 +587,11 @@ impl<'i> Stream for &'i str {
     }
 
     #[inline(always)]
-    fn next_token(&self) -> Option<(Self, Self::Token)> {
+    fn next_token(&mut self) -> Option<Self::Token> {
         let c = self.chars().next()?;
         let offset = c.len();
-        Some((&self[offset..], c))
+        *self = &self[offset..];
+        Some(c)
     }
 
     #[inline(always)]
@@ -548,9 +623,24 @@ impl<'i> Stream for &'i str {
         }
     }
     #[inline(always)]
-    fn next_slice(&self, offset: usize) -> (Self, Self::Slice) {
+    fn next_slice(&mut self, offset: usize) -> Self::Slice {
         let (slice, next) = self.split_at(offset);
-        (next, slice)
+        *self = next;
+        slice
+    }
+
+    #[inline(always)]
+    fn checkpoint(&self) -> Self::Checkpoint {
+        Checkpoint(*self)
+    }
+    #[inline(always)]
+    fn reset(&mut self, checkpoint: Self::Checkpoint) {
+        *self = checkpoint.0;
+    }
+
+    #[inline(always)]
+    fn raw(&self) -> &dyn crate::lib::std::fmt::Debug {
+        self
     }
 }
 
@@ -560,6 +650,8 @@ impl<'i> Stream for &'i Bytes {
 
     type IterOffsets = Enumerate<Cloned<Iter<'i, u8>>>;
 
+    type Checkpoint = Checkpoint<Self>;
+
     #[inline(always)]
     fn iter_offsets(&self) -> Self::IterOffsets {
         self.iter().cloned().enumerate()
@@ -570,11 +662,13 @@ impl<'i> Stream for &'i Bytes {
     }
 
     #[inline(always)]
-    fn next_token(&self) -> Option<(Self, Self::Token)> {
+    fn next_token(&mut self) -> Option<Self::Token> {
         if self.is_empty() {
             None
         } else {
-            Some((Bytes::from_bytes(&self[1..]), self[0]))
+            let token = self[0];
+            *self = &self[1..];
+            Some(token)
         }
     }
 
@@ -594,9 +688,24 @@ impl<'i> Stream for &'i Bytes {
         }
     }
     #[inline(always)]
-    fn next_slice(&self, offset: usize) -> (Self, Self::Slice) {
-        let (next, slice) = (&self.0).next_slice(offset);
-        (Bytes::from_bytes(next), slice)
+    fn next_slice(&mut self, offset: usize) -> Self::Slice {
+        let (slice, next) = self.0.split_at(offset);
+        *self = Bytes::from_bytes(next);
+        slice
+    }
+
+    #[inline(always)]
+    fn checkpoint(&self) -> Self::Checkpoint {
+        Checkpoint(*self)
+    }
+    #[inline(always)]
+    fn reset(&mut self, checkpoint: Self::Checkpoint) {
+        *self = checkpoint.0;
+    }
+
+    #[inline(always)]
+    fn raw(&self) -> &dyn crate::lib::std::fmt::Debug {
+        self
     }
 }
 
@@ -606,6 +715,8 @@ impl<'i> Stream for &'i BStr {
 
     type IterOffsets = Enumerate<Cloned<Iter<'i, u8>>>;
 
+    type Checkpoint = Checkpoint<Self>;
+
     #[inline(always)]
     fn iter_offsets(&self) -> Self::IterOffsets {
         self.iter().cloned().enumerate()
@@ -616,11 +727,13 @@ impl<'i> Stream for &'i BStr {
     }
 
     #[inline(always)]
-    fn next_token(&self) -> Option<(Self, Self::Token)> {
+    fn next_token(&mut self) -> Option<Self::Token> {
         if self.is_empty() {
             None
         } else {
-            Some((BStr::from_bytes(&self[1..]), self[0]))
+            let token = self[0];
+            *self = &self[1..];
+            Some(token)
         }
     }
 
@@ -640,20 +753,37 @@ impl<'i> Stream for &'i BStr {
         }
     }
     #[inline(always)]
-    fn next_slice(&self, offset: usize) -> (Self, Self::Slice) {
-        let (next, slice) = (&self.0).next_slice(offset);
-        (BStr::from_bytes(next), slice)
+    fn next_slice(&mut self, offset: usize) -> Self::Slice {
+        let (slice, next) = self.0.split_at(offset);
+        *self = BStr::from_bytes(next);
+        slice
+    }
+
+    #[inline(always)]
+    fn checkpoint(&self) -> Self::Checkpoint {
+        Checkpoint(*self)
+    }
+    #[inline(always)]
+    fn reset(&mut self, checkpoint: Self::Checkpoint) {
+        *self = checkpoint.0;
+    }
+
+    #[inline(always)]
+    fn raw(&self) -> &dyn crate::lib::std::fmt::Debug {
+        self
     }
 }
 
 impl<I> Stream for (I, usize)
 where
-    I: Stream<Token = u8>,
+    I: Stream<Token = u8> + Clone,
 {
     type Token = bool;
     type Slice = (I::Slice, usize, usize);
 
     type IterOffsets = BitOffsets<I>;
+
+    type Checkpoint = Checkpoint<(I::Checkpoint, usize)>;
 
     #[inline(always)]
     fn iter_offsets(&self) -> Self::IterOffsets {
@@ -673,7 +803,7 @@ where
     }
 
     #[inline(always)]
-    fn next_token(&self) -> Option<(Self, Self::Token)> {
+    fn next_token(&mut self) -> Option<Self::Token> {
         next_bit(self)
     }
 
@@ -683,7 +813,7 @@ where
         P: Fn(Self::Token) -> bool,
     {
         self.iter_offsets()
-            .find_map(|(o, b)| predicate(b).then(|| o))
+            .find_map(|(o, b)| predicate(b).then_some(o))
     }
     #[inline(always)]
     fn offset_at(&self, tokens: usize) -> Result<usize, Needed> {
@@ -697,11 +827,28 @@ where
         }
     }
     #[inline(always)]
-    fn next_slice(&self, offset: usize) -> (Self, Self::Slice) {
+    fn next_slice(&mut self, offset: usize) -> Self::Slice {
         let byte_offset = (offset + self.1) / 8;
         let end_offset = (offset + self.1) % 8;
-        let (i, s) = self.0.next_slice(byte_offset);
-        ((i, end_offset), (s, self.1, end_offset))
+        let s = self.0.next_slice(byte_offset);
+        let start_offset = self.1;
+        self.1 = end_offset;
+        (s, start_offset, end_offset)
+    }
+
+    #[inline(always)]
+    fn checkpoint(&self) -> Self::Checkpoint {
+        Checkpoint((self.0.checkpoint(), self.1))
+    }
+    #[inline(always)]
+    fn reset(&mut self, checkpoint: Self::Checkpoint) {
+        self.0.reset(checkpoint.0 .0);
+        self.1 = checkpoint.0 .1;
+    }
+
+    #[inline(always)]
+    fn raw(&self) -> &dyn crate::lib::std::fmt::Debug {
+        &self.0
     }
 }
 
@@ -713,37 +860,40 @@ pub struct BitOffsets<I> {
 
 impl<I> Iterator for BitOffsets<I>
 where
-    I: Stream<Token = u8>,
+    I: Stream<Token = u8> + Clone,
 {
     type Item = (usize, bool);
     fn next(&mut self) -> Option<Self::Item> {
-        let (next, b) = next_bit(&self.i)?;
+        let b = next_bit(&mut self.i)?;
         let o = self.o;
 
-        self.i = next;
         self.o += 1;
 
         Some((o, b))
     }
 }
 
-fn next_bit<I>(i: &(I, usize)) -> Option<((I, usize), bool)>
+fn next_bit<I>(i: &mut (I, usize)) -> Option<bool>
 where
-    I: Stream<Token = u8>,
+    I: Stream<Token = u8> + Clone,
 {
     if i.eof_offset() == 0 {
         return None;
     }
+    let offset = i.1;
 
-    let i = i.clone();
-    let (next_i, byte) = i.0.next_token()?;
-    let bit = (byte >> i.1) & 0x1 == 0x1;
+    let mut next_i = i.0.clone();
+    let byte = next_i.next_token()?;
+    let bit = (byte >> offset) & 0x1 == 0x1;
 
-    let next_offset = i.1 + 1;
+    let next_offset = offset + 1;
     if next_offset == 8 {
-        Some(((next_i, 0), bit))
+        i.0 = next_i;
+        i.1 = 0;
+        Some(bit)
     } else {
-        Some(((i.0, next_offset), bit))
+        i.1 = next_offset;
+        Some(bit)
     }
 }
 
@@ -753,6 +903,8 @@ impl<I: Stream> Stream for Located<I> {
 
     type IterOffsets = <I as Stream>::IterOffsets;
 
+    type Checkpoint = Checkpoint<I::Checkpoint>;
+
     #[inline(always)]
     fn iter_offsets(&self) -> Self::IterOffsets {
         self.input.iter_offsets()
@@ -763,15 +915,8 @@ impl<I: Stream> Stream for Located<I> {
     }
 
     #[inline(always)]
-    fn next_token(&self) -> Option<(Self, Self::Token)> {
-        let (next, token) = self.input.next_token()?;
-        Some((
-            Self {
-                initial: self.initial.clone(),
-                input: next,
-            },
-            token,
-        ))
+    fn next_token(&mut self) -> Option<Self::Token> {
+        self.input.next_token()
     }
 
     #[inline(always)]
@@ -786,15 +931,22 @@ impl<I: Stream> Stream for Located<I> {
         self.input.offset_at(tokens)
     }
     #[inline(always)]
-    fn next_slice(&self, offset: usize) -> (Self, Self::Slice) {
-        let (next, slice) = self.input.next_slice(offset);
-        (
-            Self {
-                initial: self.initial.clone(),
-                input: next,
-            },
-            slice,
-        )
+    fn next_slice(&mut self, offset: usize) -> Self::Slice {
+        self.input.next_slice(offset)
+    }
+
+    #[inline(always)]
+    fn checkpoint(&self) -> Self::Checkpoint {
+        Checkpoint(self.input.checkpoint())
+    }
+    #[inline(always)]
+    fn reset(&mut self, checkpoint: Self::Checkpoint) {
+        self.input.reset(checkpoint.0);
+    }
+
+    #[inline(always)]
+    fn raw(&self) -> &dyn crate::lib::std::fmt::Debug {
+        &self.input
     }
 }
 
@@ -804,6 +956,8 @@ impl<I: Stream, S: Clone + crate::lib::std::fmt::Debug> Stream for Stateful<I, S
 
     type IterOffsets = <I as Stream>::IterOffsets;
 
+    type Checkpoint = Checkpoint<I::Checkpoint>;
+
     #[inline(always)]
     fn iter_offsets(&self) -> Self::IterOffsets {
         self.input.iter_offsets()
@@ -814,15 +968,8 @@ impl<I: Stream, S: Clone + crate::lib::std::fmt::Debug> Stream for Stateful<I, S
     }
 
     #[inline(always)]
-    fn next_token(&self) -> Option<(Self, Self::Token)> {
-        let (next, token) = self.input.next_token()?;
-        Some((
-            Self {
-                input: next,
-                state: self.state.clone(),
-            },
-            token,
-        ))
+    fn next_token(&mut self) -> Option<Self::Token> {
+        self.input.next_token()
     }
 
     #[inline(always)]
@@ -837,15 +984,22 @@ impl<I: Stream, S: Clone + crate::lib::std::fmt::Debug> Stream for Stateful<I, S
         self.input.offset_at(tokens)
     }
     #[inline(always)]
-    fn next_slice(&self, offset: usize) -> (Self, Self::Slice) {
-        let (next, slice) = self.input.next_slice(offset);
-        (
-            Self {
-                input: next,
-                state: self.state.clone(),
-            },
-            slice,
-        )
+    fn next_slice(&mut self, offset: usize) -> Self::Slice {
+        self.input.next_slice(offset)
+    }
+
+    #[inline(always)]
+    fn checkpoint(&self) -> Self::Checkpoint {
+        Checkpoint(self.input.checkpoint())
+    }
+    #[inline(always)]
+    fn reset(&mut self, checkpoint: Self::Checkpoint) {
+        self.input.reset(checkpoint.0);
+    }
+
+    #[inline(always)]
+    fn raw(&self) -> &dyn crate::lib::std::fmt::Debug {
+        &self.input
     }
 }
 
@@ -855,6 +1009,8 @@ impl<I: Stream> Stream for Partial<I> {
 
     type IterOffsets = <I as Stream>::IterOffsets;
 
+    type Checkpoint = Checkpoint<I::Checkpoint>;
+
     #[inline(always)]
     fn iter_offsets(&self) -> Self::IterOffsets {
         self.input.iter_offsets()
@@ -865,15 +1021,8 @@ impl<I: Stream> Stream for Partial<I> {
     }
 
     #[inline(always)]
-    fn next_token(&self) -> Option<(Self, Self::Token)> {
-        let (next, token) = self.input.next_token()?;
-        Some((
-            Partial {
-                input: next,
-                partial: self.partial,
-            },
-            token,
-        ))
+    fn next_token(&mut self) -> Option<Self::Token> {
+        self.input.next_token()
     }
 
     #[inline(always)]
@@ -888,15 +1037,22 @@ impl<I: Stream> Stream for Partial<I> {
         self.input.offset_at(tokens)
     }
     #[inline(always)]
-    fn next_slice(&self, offset: usize) -> (Self, Self::Slice) {
-        let (next, slice) = self.input.next_slice(offset);
-        (
-            Partial {
-                input: next,
-                partial: self.partial,
-            },
-            slice,
-        )
+    fn next_slice(&mut self, offset: usize) -> Self::Slice {
+        self.input.next_slice(offset)
+    }
+
+    #[inline(always)]
+    fn checkpoint(&self) -> Self::Checkpoint {
+        Checkpoint(self.input.checkpoint())
+    }
+    #[inline(always)]
+    fn reset(&mut self, checkpoint: Self::Checkpoint) {
+        self.input.reset(checkpoint.0);
+    }
+
+    #[inline(always)]
+    fn raw(&self) -> &dyn crate::lib::std::fmt::Debug {
+        &self.input
     }
 }
 
@@ -1119,24 +1275,16 @@ where
 }
 
 /// Useful functions to calculate the offset between slices and show a hexdump of a slice
-pub trait Offset {
-    /// Offset between the first byte of self and the first byte of the argument
-    fn offset_to(&self, second: &Self) -> usize;
+pub trait Offset<Start = Self> {
+    /// Offset between the first byte of `start` and the first byte of `self`
+    fn offset_from(&self, start: &Start) -> usize;
 }
 
 impl<'a, T> Offset for &'a [T] {
-    #[inline(always)]
-    fn offset_to(&self, second: &Self) -> usize {
-        (*self).offset_to(*second)
-    }
-}
-
-/// Convenience implementation to accept `&[T]` instead of `&&[T]` as above
-impl<T> Offset for [T] {
     #[inline]
-    fn offset_to(&self, second: &Self) -> usize {
-        let fst = self.as_ptr();
-        let snd = second.as_ptr();
+    fn offset_from(&self, start: &Self) -> usize {
+        let fst = (*start).as_ptr();
+        let snd = (*self).as_ptr();
 
         debug_assert!(
             fst <= snd,
@@ -1146,46 +1294,55 @@ impl<T> Offset for [T] {
     }
 }
 
+impl<'a, T> Offset<<&'a [T] as Stream>::Checkpoint> for &'a [T]
+where
+    T: Clone + crate::lib::std::fmt::Debug,
+{
+    #[inline(always)]
+    fn offset_from(&self, other: &<&'a [T] as Stream>::Checkpoint) -> usize {
+        self.checkpoint().offset_from(other)
+    }
+}
+
 impl<'a> Offset for &'a str {
     #[inline(always)]
-    fn offset_to(&self, second: &Self) -> usize {
-        self.as_bytes().offset_to(second.as_bytes())
+    fn offset_from(&self, start: &Self) -> usize {
+        self.as_bytes().offset_from(&start.as_bytes())
     }
 }
 
-/// Convenience implementation to accept `&str` instead of `&&str` as above
-impl Offset for str {
+impl<'a> Offset<<&'a str as Stream>::Checkpoint> for &'a str {
     #[inline(always)]
-    fn offset_to(&self, second: &Self) -> usize {
-        self.as_bytes().offset_to(second.as_bytes())
-    }
-}
-
-impl Offset for Bytes {
-    #[inline(always)]
-    fn offset_to(&self, second: &Self) -> usize {
-        self.as_bytes().offset_to(second.as_bytes())
+    fn offset_from(&self, other: &<&'a str as Stream>::Checkpoint) -> usize {
+        self.checkpoint().offset_from(other)
     }
 }
 
 impl<'a> Offset for &'a Bytes {
     #[inline(always)]
-    fn offset_to(&self, second: &Self) -> usize {
-        self.as_bytes().offset_to(second.as_bytes())
+    fn offset_from(&self, start: &Self) -> usize {
+        self.as_bytes().offset_from(&start.as_bytes())
     }
 }
 
-impl Offset for BStr {
+impl<'a> Offset<<&'a Bytes as Stream>::Checkpoint> for &'a Bytes {
     #[inline(always)]
-    fn offset_to(&self, second: &Self) -> usize {
-        self.as_bytes().offset_to(second.as_bytes())
+    fn offset_from(&self, other: &<&'a Bytes as Stream>::Checkpoint) -> usize {
+        self.checkpoint().offset_from(other)
     }
 }
 
 impl<'a> Offset for &'a BStr {
     #[inline(always)]
-    fn offset_to(&self, second: &Self) -> usize {
-        self.as_bytes().offset_to(second.as_bytes())
+    fn offset_from(&self, start: &Self) -> usize {
+        self.as_bytes().offset_from(&start.as_bytes())
+    }
+}
+
+impl<'a> Offset<<&'a BStr as Stream>::Checkpoint> for &'a BStr {
+    #[inline(always)]
+    fn offset_from(&self, other: &<&'a BStr as Stream>::Checkpoint) -> usize {
+        self.checkpoint().offset_from(other)
     }
 }
 
@@ -1194,38 +1351,90 @@ where
     I: Offset,
 {
     #[inline(always)]
-    fn offset_to(&self, other: &Self) -> usize {
-        self.0.offset_to(&other.0) * 8 + other.1 - self.1
+    fn offset_from(&self, start: &Self) -> usize {
+        self.0.offset_from(&start.0) * 8 + self.1 - start.1
+    }
+}
+
+impl<I> Offset<<(I, usize) as Stream>::Checkpoint> for (I, usize)
+where
+    I: Stream<Token = u8> + Clone,
+{
+    #[inline(always)]
+    fn offset_from(&self, other: &<(I, usize) as Stream>::Checkpoint) -> usize {
+        self.checkpoint().offset_from(other)
     }
 }
 
 impl<I> Offset for Located<I>
 where
-    I: Offset,
+    I: Stream,
 {
     #[inline(always)]
-    fn offset_to(&self, other: &Self) -> usize {
-        self.input.offset_to(&other.input)
+    fn offset_from(&self, other: &Self) -> usize {
+        self.offset_from(&other.checkpoint())
+    }
+}
+
+impl<I> Offset<<Located<I> as Stream>::Checkpoint> for Located<I>
+where
+    I: Stream,
+{
+    #[inline(always)]
+    fn offset_from(&self, other: &<Located<I> as Stream>::Checkpoint) -> usize {
+        self.checkpoint().offset_from(other)
     }
 }
 
 impl<I, S> Offset for Stateful<I, S>
 where
-    I: Offset,
+    I: Stream,
+    S: Clone + crate::lib::std::fmt::Debug,
 {
     #[inline(always)]
-    fn offset_to(&self, other: &Self) -> usize {
-        self.input.offset_to(&other.input)
+    fn offset_from(&self, start: &Self) -> usize {
+        self.offset_from(&start.checkpoint())
+    }
+}
+
+impl<I, S> Offset<<Stateful<I, S> as Stream>::Checkpoint> for Stateful<I, S>
+where
+    I: Stream,
+    S: Clone + crate::lib::std::fmt::Debug,
+{
+    #[inline(always)]
+    fn offset_from(&self, other: &<Stateful<I, S> as Stream>::Checkpoint) -> usize {
+        self.checkpoint().offset_from(other)
     }
 }
 
 impl<I> Offset for Partial<I>
 where
+    I: Stream,
+{
+    #[inline(always)]
+    fn offset_from(&self, start: &Self) -> usize {
+        self.offset_from(&start.checkpoint())
+    }
+}
+
+impl<I> Offset<<Partial<I> as Stream>::Checkpoint> for Partial<I>
+where
+    I: Stream,
+{
+    #[inline(always)]
+    fn offset_from(&self, other: &<Partial<I> as Stream>::Checkpoint) -> usize {
+        self.checkpoint().offset_from(other)
+    }
+}
+
+impl<I> Offset for Checkpoint<I>
+where
     I: Offset,
 {
     #[inline(always)]
-    fn offset_to(&self, second: &Self) -> usize {
-        self.input.offset_to(&second.input)
+    fn offset_from(&self, start: &Self) -> usize {
+        self.0.offset_from(&start.0)
     }
 }
 
@@ -1744,6 +1953,10 @@ where
     }
 }
 
+/// Ensure checkpoint details are kept privazte
+#[derive(Copy, Clone, Debug)]
+pub struct Checkpoint<T>(T);
+
 /// A range bounded inclusively for counting parses performed
 #[derive(PartialEq, Eq)]
 pub struct Range {
@@ -1762,10 +1975,12 @@ impl Range {
 }
 
 impl crate::lib::std::ops::RangeBounds<usize> for Range {
+    #[inline(always)]
     fn start_bound(&self) -> crate::lib::std::ops::Bound<&usize> {
         crate::lib::std::ops::Bound::Included(&self.start_inclusive)
     }
 
+    #[inline(always)]
     fn end_bound(&self) -> crate::lib::std::ops::Bound<&usize> {
         if let Some(end_inclusive) = &self.end_inclusive {
             crate::lib::std::ops::Bound::Included(end_inclusive)
@@ -2118,6 +2333,7 @@ impl AsChar for u8 {
     fn is_space(self) -> bool {
         self == b' ' || self == b'\t'
     }
+    #[inline]
     fn is_newline(self) -> bool {
         self == b'\n'
     }
@@ -2155,6 +2371,7 @@ impl<'a> AsChar for &'a u8 {
     fn is_space(self) -> bool {
         *self == b' ' || *self == b'\t'
     }
+    #[inline]
     fn is_newline(self) -> bool {
         *self == b'\n'
     }
@@ -2193,6 +2410,7 @@ impl AsChar for char {
     fn is_space(self) -> bool {
         self == ' ' || self == '\t'
     }
+    #[inline]
     fn is_newline(self) -> bool {
         self == '\n'
     }
@@ -2231,6 +2449,7 @@ impl<'a> AsChar for &'a char {
     fn is_space(self) -> bool {
         *self == ' ' || *self == '\t'
     }
+    #[inline]
     fn is_newline(self) -> bool {
         *self == '\n'
     }
@@ -2251,15 +2470,15 @@ impl<'a> AsChar for &'a char {
 /// For example, you could implement `hex_digit0` as:
 /// ```
 /// # use winnow::prelude::*;
-/// # use winnow::{error::ErrMode, error::ErrorKind, error::Error};
+/// # use winnow::{error::ErrMode, error::ErrorKind, error::InputError};
 /// # use winnow::token::take_while;
-/// fn hex_digit1(input: &str) -> IResult<&str, &str> {
+/// fn hex_digit1<'s>(input: &mut &'s str) -> PResult<&'s str, InputError<&'s str>> {
 ///     take_while(1.., ('a'..='f', 'A'..='F', '0'..='9')).parse_next(input)
 /// }
 ///
-/// assert_eq!(hex_digit1("21cZ"), Ok(("Z", "21c")));
-/// assert_eq!(hex_digit1("H2"), Err(ErrMode::Backtrack(Error::new("H2", ErrorKind::Slice))));
-/// assert_eq!(hex_digit1(""), Err(ErrMode::Backtrack(Error::new("", ErrorKind::Slice))));
+/// assert_eq!(hex_digit1.parse_peek("21cZ"), Ok(("Z", "21c")));
+/// assert_eq!(hex_digit1.parse_peek("H2"), Err(ErrMode::Backtrack(InputError::new("H2", ErrorKind::Slice))));
+/// assert_eq!(hex_digit1.parse_peek(""), Err(ErrMode::Backtrack(InputError::new("", ErrorKind::Slice))));
 /// ```
 pub trait ContainsToken<T> {
     /// Returns true if self contains the token
@@ -2409,14 +2628,6 @@ impl<const LEN: usize, C: AsChar> ContainsToken<C> for [char; LEN] {
     }
 }
 
-impl<C: AsChar> ContainsToken<C> for &'_ str {
-    #[inline(always)]
-    fn contains_token(&self, token: C) -> bool {
-        let token = token.as_char();
-        self.chars().any(|i| i == token)
-    }
-}
-
 impl<T> ContainsToken<T> for () {
     #[inline(always)]
     fn contains_token(&self, _token: T) -> bool {
@@ -2458,88 +2669,6 @@ impl_contains_token_for_tuples!(
     F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21
 );
 
-/// Looks for the first element of the input type for which the condition returns true,
-/// and returns the input up to this position.
-///
-/// *Partial version*: If no element is found matching the condition, this will return `Incomplete`
-pub(crate) fn split_at_offset_partial<P, I: Stream, E: ParseError<I>>(
-    input: &I,
-    predicate: P,
-) -> IResult<I, <I as Stream>::Slice, E>
-where
-    P: Fn(I::Token) -> bool,
-{
-    let offset = input
-        .offset_for(predicate)
-        .ok_or_else(|| ErrMode::Incomplete(Needed::new(1)))?;
-    Ok(input.next_slice(offset))
-}
-
-/// Looks for the first element of the input type for which the condition returns true
-/// and returns the input up to this position.
-///
-/// Fails if the produced slice is empty.
-///
-/// *Partial version*: If no element is found matching the condition, this will return `Incomplete`
-pub(crate) fn split_at_offset1_partial<P, I: Stream, E: ParseError<I>>(
-    input: &I,
-    predicate: P,
-    e: ErrorKind,
-) -> IResult<I, <I as Stream>::Slice, E>
-where
-    P: Fn(I::Token) -> bool,
-{
-    let offset = input
-        .offset_for(predicate)
-        .ok_or_else(|| ErrMode::Incomplete(Needed::new(1)))?;
-    if offset == 0 {
-        Err(ErrMode::from_error_kind(input.clone(), e))
-    } else {
-        Ok(input.next_slice(offset))
-    }
-}
-
-/// Looks for the first element of the input type for which the condition returns true,
-/// and returns the input up to this position.
-///
-/// *Complete version*: If no element is found matching the condition, this will return the whole input
-pub(crate) fn split_at_offset_complete<P, I: Stream, E: ParseError<I>>(
-    input: &I,
-    predicate: P,
-) -> IResult<I, <I as Stream>::Slice, E>
-where
-    P: Fn(I::Token) -> bool,
-{
-    let offset = input
-        .offset_for(predicate)
-        .unwrap_or_else(|| input.eof_offset());
-    Ok(input.next_slice(offset))
-}
-
-/// Looks for the first element of the input type for which the condition returns true
-/// and returns the input up to this position.
-///
-/// Fails if the produced slice is empty.
-///
-/// *Complete version*: If no element is found matching the condition, this will return the whole input
-pub(crate) fn split_at_offset1_complete<P, I: Stream, E: ParseError<I>>(
-    input: &I,
-    predicate: P,
-    e: ErrorKind,
-) -> IResult<I, <I as Stream>::Slice, E>
-where
-    P: Fn(I::Token) -> bool,
-{
-    let offset = input
-        .offset_for(predicate)
-        .unwrap_or_else(|| input.eof_offset());
-    if offset == 0 {
-        Err(ErrMode::from_error_kind(input.clone(), e))
-    } else {
-        Ok(input.next_slice(offset))
-    }
-}
-
 #[cfg(feature = "simd")]
 #[inline(always)]
 fn memchr(token: u8, slice: &[u8]) -> Option<usize> {
@@ -2555,7 +2684,35 @@ fn memchr(token: u8, slice: &[u8]) -> Option<usize> {
 #[cfg(feature = "simd")]
 #[inline(always)]
 fn memmem(slice: &[u8], tag: &[u8]) -> Option<usize> {
-    memchr::memmem::find(slice, tag)
+    if tag.len() > slice.len() {
+        return None;
+    }
+
+    let (&substr_first, substr_rest) = match tag.split_first() {
+        Some(split) => split,
+        // an empty substring is found at position 0
+        // This matches the behavior of str.find("").
+        None => return Some(0),
+    };
+
+    if substr_rest.is_empty() {
+        return memchr::memchr(substr_first, slice);
+    }
+
+    let mut offset = 0;
+    let haystack = &slice[..slice.len() - substr_rest.len()];
+
+    while let Some(position) = memchr::memchr(substr_first, &haystack[offset..]) {
+        offset += position;
+        let next_offset = offset + 1;
+        if &slice[next_offset..][..substr_rest.len()] == substr_rest {
+            return Some(offset);
+        }
+
+        offset = next_offset;
+    }
+
+    None
 }
 
 #[cfg(not(feature = "simd"))]

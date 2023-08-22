@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "mio"
-version = "0.8.6"
+version = "0.8.8"
 authors = [
     "Carl Lerche <me@carllerche.com>",
     "Thomas de Zeeuw <thomasdezeeuw@gmail.com>",
@@ -88,16 +88,17 @@ required-features = [
 
 [dependencies.log]
 version = "0.4.8"
+optional = true
 
 [dev-dependencies.env_logger]
-version = "0.8.4"
+version = "0.9.3"
 default-features = false
 
 [dev-dependencies.rand]
 version = "0.8"
 
 [features]
-default = []
+default = ["log"]
 net = []
 os-ext = [
     "os-poll",
@@ -116,7 +117,7 @@ version = "0.11.0"
 version = "0.2.121"
 
 [target."cfg(windows)".dependencies.windows-sys]
-version = "0.45"
+version = "0.48"
 features = [
     "Win32_Foundation",
     "Win32_Networking_WinSock",

@@ -2,25 +2,39 @@
 //!
 //! You will rarely need to interact with this module directly unless you need to name one of the
 //! iterator types.
-//!
-//! Requires crate feature `"rayon"`
 
 use super::collect;
 use rayon::iter::plumbing::{Consumer, ProducerCallback, UnindexedConsumer};
 use rayon::prelude::*;
 
 use crate::vec::Vec;
+use alloc::boxed::Box;
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{BuildHasher, Hash};
 use core::ops::RangeBounds;
 
+use crate::map::Slice;
 use crate::Bucket;
 use crate::Entries;
 use crate::IndexMap;
 
-/// Requires crate feature `"rayon"`.
 impl<K, V, S> IntoParallelIterator for IndexMap<K, V, S>
+where
+    K: Send,
+    V: Send,
+{
+    type Item = (K, V);
+    type Iter = IntoParIter<K, V>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        IntoParIter {
+            entries: self.into_entries(),
+        }
+    }
+}
+
+impl<K, V> IntoParallelIterator for Box<Slice<K, V>>
 where
     K: Send,
     V: Send,
@@ -63,7 +77,6 @@ impl<K: Send, V: Send> IndexedParallelIterator for IntoParIter<K, V> {
     indexed_parallel_iterator_methods!(Bucket::key_value);
 }
 
-/// Requires crate feature `"rayon"`.
 impl<'a, K, V, S> IntoParallelIterator for &'a IndexMap<K, V, S>
 where
     K: Sync,
@@ -75,6 +88,21 @@ where
     fn into_par_iter(self) -> Self::Iter {
         ParIter {
             entries: self.as_entries(),
+        }
+    }
+}
+
+impl<'a, K, V> IntoParallelIterator for &'a Slice<K, V>
+where
+    K: Sync,
+    V: Sync,
+{
+    type Item = (&'a K, &'a V);
+    type Iter = ParIter<'a, K, V>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        ParIter {
+            entries: &self.entries,
         }
     }
 }
@@ -113,7 +141,6 @@ impl<K: Sync, V: Sync> IndexedParallelIterator for ParIter<'_, K, V> {
     indexed_parallel_iterator_methods!(Bucket::refs);
 }
 
-/// Requires crate feature `"rayon"`.
 impl<'a, K, V, S> IntoParallelIterator for &'a mut IndexMap<K, V, S>
 where
     K: Sync + Send,
@@ -125,6 +152,21 @@ where
     fn into_par_iter(self) -> Self::Iter {
         ParIterMut {
             entries: self.as_entries_mut(),
+        }
+    }
+}
+
+impl<'a, K, V> IntoParallelIterator for &'a mut Slice<K, V>
+where
+    K: Sync + Send,
+    V: Send,
+{
+    type Item = (&'a K, &'a mut V);
+    type Iter = ParIterMut<'a, K, V>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        ParIterMut {
+            entries: &mut self.entries,
         }
     }
 }
@@ -157,7 +199,6 @@ impl<K: Sync + Send, V: Send> IndexedParallelIterator for ParIterMut<'_, K, V> {
     indexed_parallel_iterator_methods!(Bucket::ref_mut);
 }
 
-/// Requires crate feature `"rayon"`.
 impl<'a, K, V, S> ParallelDrainRange<usize> for &'a mut IndexMap<K, V, S>
 where
     K: Send,
@@ -221,6 +262,37 @@ where
     pub fn par_values(&self) -> ParValues<'_, K, V> {
         ParValues {
             entries: self.as_entries(),
+        }
+    }
+}
+
+/// Parallel iterator methods and other parallel methods.
+///
+/// The following methods **require crate feature `"rayon"`**.
+///
+/// See also the `IntoParallelIterator` implementations.
+impl<K, V> Slice<K, V>
+where
+    K: Sync,
+    V: Sync,
+{
+    /// Return a parallel iterator over the keys of the map slice.
+    ///
+    /// While parallel iterators can process items in any order, their relative order
+    /// in the slice is still preserved for operations like `reduce` and `collect`.
+    pub fn par_keys(&self) -> ParKeys<'_, K, V> {
+        ParKeys {
+            entries: &self.entries,
+        }
+    }
+
+    /// Return a parallel iterator over the values of the map slice.
+    ///
+    /// While parallel iterators can process items in any order, their relative order
+    /// in the slice is still preserved for operations like `reduce` and `collect`.
+    pub fn par_values(&self) -> ParValues<'_, K, V> {
+        ParValues {
+            entries: &self.entries,
         }
     }
 }
@@ -314,7 +386,6 @@ impl<K: Sync, V: Sync> IndexedParallelIterator for ParValues<'_, K, V> {
     indexed_parallel_iterator_methods!(Bucket::value_ref);
 }
 
-/// Requires crate feature `"rayon"`.
 impl<K, V, S> IndexMap<K, V, S>
 where
     K: Send,
@@ -327,6 +398,22 @@ where
     pub fn par_values_mut(&mut self) -> ParValuesMut<'_, K, V> {
         ParValuesMut {
             entries: self.as_entries_mut(),
+        }
+    }
+}
+
+impl<K, V> Slice<K, V>
+where
+    K: Send,
+    V: Send,
+{
+    /// Return a parallel iterator over mutable references to the the values of the map slice.
+    ///
+    /// While parallel iterators can process items in any order, their relative order
+    /// in the slice is still preserved for operations like `reduce` and `collect`.
+    pub fn par_values_mut(&mut self) -> ParValuesMut<'_, K, V> {
+        ParValuesMut {
+            entries: &mut self.entries,
         }
     }
 }
@@ -406,6 +493,18 @@ where
         entries.par_sort_unstable_by(move |a, b| cmp(&a.key, &a.value, &b.key, &b.value));
         IntoParIter { entries }
     }
+
+    /// Sort the map’s key-value pairs in place and in parallel, using a sort-key extraction
+    /// function.
+    pub fn par_sort_by_cached_key<T, F>(&mut self, sort_key: F)
+    where
+        T: Ord + Send,
+        F: Fn(&K, &V) -> T + Sync,
+    {
+        self.with_entries(move |entries| {
+            entries.par_sort_by_cached_key(move |a| sort_key(&a.key, &a.value));
+        });
+    }
 }
 
 /// A parallel mutable iterator over the values of a `IndexMap`.
@@ -436,7 +535,6 @@ impl<K: Send, V: Send> IndexedParallelIterator for ParValuesMut<'_, K, V> {
     indexed_parallel_iterator_methods!(Bucket::value_mut);
 }
 
-/// Requires crate feature `"rayon"`.
 impl<K, V, S> FromParallelIterator<(K, V)> for IndexMap<K, V, S>
 where
     K: Eq + Hash + Send,
@@ -457,7 +555,6 @@ where
     }
 }
 
-/// Requires crate feature `"rayon"`.
 impl<K, V, S> ParallelExtend<(K, V)> for IndexMap<K, V, S>
 where
     K: Eq + Hash + Send,
@@ -474,7 +571,6 @@ where
     }
 }
 
-/// Requires crate feature `"rayon"`.
 impl<'a, K: 'a, V: 'a, S> ParallelExtend<(&'a K, &'a V)> for IndexMap<K, V, S>
 where
     K: Copy + Eq + Hash + Send + Sync,

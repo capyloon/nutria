@@ -3,9 +3,10 @@
 use std::time::Duration;
 
 use indicatif::{
-    InMemoryTerm, MultiProgress, ProgressBar, ProgressDrawTarget, ProgressFinish, ProgressStyle,
-    TermLike,
+    InMemoryTerm, MultiProgress, MultiProgressAlignment, ProgressBar, ProgressDrawTarget,
+    ProgressFinish, ProgressStyle, TermLike,
 };
+use pretty_assertions::assert_eq;
 
 #[test]
 fn basic_progress_bar() {
@@ -395,7 +396,7 @@ fn ticker_drop() {
         let new_spinner = mp.add(
             ProgressBar::new_spinner()
                 .with_finish(ProgressFinish::AndLeave)
-                .with_message(format!("doing stuff {}", i)),
+                .with_message(format!("doing stuff {i}")),
         );
         new_spinner.enable_steady_tick(Duration::from_millis(100));
         spinner.replace(new_spinner);
@@ -891,5 +892,873 @@ fn multi_progress_multiline_msg() {
         in_mem.contents(),
         r#"  test1 done!
   test2 done!"#
+    );
+}
+
+#[test]
+fn multi_progress_bottom_alignment() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+    mp.set_alignment(MultiProgressAlignment::Bottom);
+
+    let pb1 = mp.add(ProgressBar::new_spinner().with_message("test1"));
+    let pb2 = mp.add(ProgressBar::new_spinner().with_message("test2"));
+
+    pb1.tick();
+    pb2.tick();
+    pb1.finish_and_clear();
+
+    assert_eq!(in_mem.contents(), "\n⠁ test2");
+
+    pb2.finish_and_clear();
+    // `InMemoryTerm::contents` normally gets rid of trailing newlines, so write some text to ensure
+    // the newlines are seen.
+    in_mem.write_line("anchor").unwrap();
+    assert_eq!(in_mem.contents(), "\n\nanchor");
+}
+
+#[test]
+fn progress_bar_terminal_wrap() {
+    use std::cmp::min;
+    let in_mem = InMemoryTerm::new(10, 20);
+
+    let mut downloaded = 0;
+    let total_size = 231231231;
+
+    let pb = ProgressBar::with_draw_target(
+        None,
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+    pb.set_style(ProgressStyle::default_bar()
+        .template("{msg:>12.cyan.bold} {spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes}").unwrap()
+        .progress_chars("#>-"));
+
+    pb.set_message("Downloading");
+    assert_eq!(
+        in_mem.contents(),
+        r#" Downloading ⠁ [00:0
+0:00] [-------------
+--------------------
+-------] 0 B/0 B"#
+    );
+
+    let new = min(downloaded + 223211, total_size);
+    downloaded = new;
+    pb.set_position(new);
+    assert_eq!(
+        in_mem.contents(),
+        r#" Downloading ⠁ [00:0
+0:00] [-------------
+--------------------
+-------] 217.98 KiB/
+217.98 KiB"#
+    );
+
+    let new = min(downloaded + 223211, total_size);
+    pb.set_position(new);
+    assert_eq!(
+        in_mem.contents(),
+        r#" Downloading ⠉ [00:0
+0:00] [-------------
+--------------------
+-------] 435.96 KiB/
+435.96 KiB"#
+    );
+
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{msg:>12.green.bold} downloading {total_bytes:.green} in {elapsed:.green}")
+            .unwrap(),
+    );
+    pb.finish_with_message("Finished");
+    assert_eq!(
+        in_mem.contents(),
+        r#"    Finished downloa
+ding 435.96 KiB in 0
+s"#
+    );
+
+    println!("{:?}", in_mem.contents())
+}
+
+#[test]
+fn spinner_terminal_cleared_log_line_with_ansi_codes() {
+    let in_mem = InMemoryTerm::new(10, 100);
+
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+    pb.set_style(ProgressStyle::default_spinner());
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb.finish_and_clear();
+    // Visually empty, but consists of an ANSII code
+    pb.println("\u{1b}[1m");
+
+    pb.println("text\u{1b}[0m");
+    assert_eq!(in_mem.contents(), "\ntext");
+}
+
+#[test]
+fn multi_progress_println_terminal_wrap() {
+    let in_mem = InMemoryTerm::new(10, 48);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let pb1 = mp.add(ProgressBar::new(10));
+    let pb2 = mp.add(ProgressBar::new(5));
+    let pb3 = mp.add(ProgressBar::new(100));
+
+    assert_eq!(in_mem.contents(), "");
+
+    pb1.inc(2);
+    mp.println("message printed that is longer than terminal width :)")
+        .unwrap();
+    assert_eq!(
+        in_mem.contents(),
+        r#"message printed that is longer than terminal wid
+th :)
+████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 2/10"#
+    );
+
+    mp.println("another great message!").unwrap();
+    assert_eq!(
+        in_mem.contents(),
+        r#"message printed that is longer than terminal wid
+th :)
+another great message!
+████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 2/10"#
+    );
+
+    pb2.inc(1);
+    pb3.tick();
+    mp.println("one last message but this one is also longer than terminal width")
+        .unwrap();
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"message printed that is longer than terminal wid
+th :)
+another great message!
+one last message but this one is also longer tha
+n terminal width
+████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 2/10
+████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 1/5
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/100"#
+            .trim()
+    );
+
+    drop(pb1);
+    drop(pb2);
+    drop(pb3);
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"message printed that is longer than terminal wid
+th :)
+another great message!
+one last message but this one is also longer tha
+n terminal width"#
+            .trim()
+    );
+}
+
+#[test]
+fn basic_progress_bar_newline() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb.println("\nhello");
+    pb.tick();
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+hello
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
+    );
+
+    pb.inc(1);
+    pb.println("");
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+hello
+
+███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 1/10"#
+    );
+
+    pb.finish();
+    assert_eq!(
+        in_mem.contents(),
+        "
+hello
+
+██████████████████████████████████████████████████████████████████████████ 10/10"
+    );
+}
+
+#[test]
+fn multi_progress_many_bars() {
+    let in_mem = InMemoryTerm::new(4, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
+    let mut spinners = vec![];
+    for i in 0..7 {
+        let spinner = ProgressBar::new_spinner().with_message(i.to_string());
+        mp.add(spinner.clone());
+        spinners.push(spinner);
+    }
+
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb1.tick();
+    assert_eq!(
+        in_mem.contents(),
+        r#"░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
+    );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+Flush
+"#
+    );
+
+    for spinner in &spinners {
+        spinner.tick()
+    }
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10
+⠁ 0
+⠁ 1
+⠁ 2"#
+            .trim_start()
+    );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Clear
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("                                                                             ")
+Flush
+Up(1)
+Clear
+Down(1)
+Clear
+Up(1)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("                                                                             ")
+Flush
+Up(2)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(2)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("                                                                             ")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+"#
+    );
+
+    drop(pb1);
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+██████████████████████████████████████████████████████████████████████████ 10/10
+⠁ 0
+⠁ 1
+⠁ 2"#
+            .trim_start()
+    );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("██████████████████████████████████████████████████████████████████████████ 10/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+"#
+    );
+
+    drop(spinners);
+
+    assert_eq!(in_mem.contents(), r#""#);
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(2)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(2)
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+NewLine
+Str("⠁ 3")
+Str("")
+NewLine
+Str("⠁ 4")
+Str("")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("⠁ 2")
+Str("")
+NewLine
+Str("⠁ 3")
+Str("")
+NewLine
+Str("⠁ 4")
+Str("")
+NewLine
+Str("⠁ 5")
+Str("")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("⠁ 3")
+Str("")
+NewLine
+Str("⠁ 4")
+Str("")
+NewLine
+Str("⠁ 5")
+Str("")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("⠁ 4")
+Str("")
+NewLine
+Str("⠁ 5")
+Str("")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(2)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(2)
+Str("⠁ 5")
+Str("")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(1)
+Clear
+Down(1)
+Clear
+Up(1)
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Clear
+Str("")
+Flush
+"#
+    );
+}
+
+#[test]
+fn multi_progress_many_spinners() {
+    let in_mem = InMemoryTerm::new(4, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
+    let mut spinners = vec![];
+    for i in 0..7 {
+        let spinner = ProgressBar::new_spinner().with_message(i.to_string());
+        mp.add(spinner.clone());
+        spinners.push(spinner);
+    }
+
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb1.tick();
+    assert_eq!(
+        in_mem.contents(),
+        r#"░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
+    );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+Flush
+"#
+    );
+
+    for spinner in &spinners {
+        spinner.tick()
+    }
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10
+⠁ 0
+⠁ 1
+⠁ 2"#
+            .trim_start()
+    );
+
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Clear
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("                                                                             ")
+Flush
+Up(1)
+Clear
+Down(1)
+Clear
+Up(1)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("                                                                             ")
+Flush
+Up(2)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(2)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("                                                                             ")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+"#
+    );
+
+    spinners.remove(3);
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10
+⠁ 0
+⠁ 1
+⠁ 2"#
+            .trim_start()
+    );
+
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+"#
+    );
+
+    spinners.remove(4);
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10
+⠁ 0
+⠁ 1
+⠁ 2"#
+            .trim_start()
+    );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 0")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+Flush
+"#
+    );
+
+    drop(spinners);
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
+    );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 1")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+NewLine
+Str("⠁ 4")
+Str("")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 2")
+Str("")
+NewLine
+Str("⠁ 4")
+Str("")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 4")
+Str("")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(2)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(2)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(1)
+Clear
+Down(1)
+Clear
+Up(1)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+Flush
+"#
     );
 }

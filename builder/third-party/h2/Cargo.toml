@@ -11,9 +11,9 @@
 
 [package]
 edition = "2018"
-rust-version = "1.56"
+rust-version = "1.63"
 name = "h2"
-version = "0.3.19"
+version = "0.3.21"
 authors = [
     "Carl Lerche <me@carllerche.com>",
     "Sean McArthur <sean@seanmonstar.com>",

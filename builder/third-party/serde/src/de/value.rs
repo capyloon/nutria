@@ -1,10 +1,10 @@
 //! Building blocks for deserializing basic values using the `IntoDeserializer`
 //! trait.
 //!
-//! ```edition2018
+//! ```edition2021
+//! use serde::de::{value, Deserialize, IntoDeserializer};
+//! use serde_derive::Deserialize;
 //! use std::str::FromStr;
-//! use serde::Deserialize;
-//! use serde::de::{value, IntoDeserializer};
 //!
 //! #[derive(Deserialize)]
 //! enum Setting {
@@ -21,12 +21,11 @@
 //! }
 //! ```
 
-use lib::*;
+use crate::lib::*;
 
 use self::private::{First, Second};
-use __private::size_hint;
-use de::{self, Deserializer, Expected, IntoDeserializer, SeqAccess, Visitor};
-use ser;
+use crate::de::{self, size_hint, Deserializer, Expected, IntoDeserializer, SeqAccess, Visitor};
+use crate::ser;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -251,7 +250,7 @@ macro_rules! primitive_deserializer {
             #[allow(missing_docs)]
             pub fn new(value: $ty) -> Self {
                 $name {
-                    value: value,
+                    value,
                     marker: PhantomData,
                 }
             }
@@ -330,7 +329,7 @@ impl<E> U32Deserializer<E> {
     #[allow(missing_docs)]
     pub fn new(value: u32) -> Self {
         U32Deserializer {
-            value: value,
+            value,
             marker: PhantomData,
         }
     }
@@ -419,7 +418,7 @@ impl<'a, E> StrDeserializer<'a, E> {
     #[allow(missing_docs)]
     pub fn new(value: &'a str) -> Self {
         StrDeserializer {
-            value: value,
+            value,
             marker: PhantomData,
         }
     }
@@ -498,7 +497,7 @@ impl<'de, E> BorrowedStrDeserializer<'de, E> {
     /// Create a new borrowed deserializer from the given string.
     pub fn new(value: &'de str) -> BorrowedStrDeserializer<'de, E> {
         BorrowedStrDeserializer {
-            value: value,
+            value,
             marker: PhantomData,
         }
     }
@@ -598,7 +597,7 @@ impl<E> StringDeserializer<E> {
     #[allow(missing_docs)]
     pub fn new(value: String) -> Self {
         StringDeserializer {
-            value: value,
+            value,
             marker: PhantomData,
         }
     }
@@ -701,7 +700,7 @@ impl<'a, E> CowStrDeserializer<'a, E> {
     #[allow(missing_docs)]
     pub fn new(value: Cow<'a, str>) -> Self {
         CowStrDeserializer {
-            value: value,
+            value,
             marker: PhantomData,
         }
     }
@@ -783,7 +782,7 @@ impl<'a, E> BytesDeserializer<'a, E> {
     /// Create a new deserializer from the given bytes.
     pub fn new(value: &'a [u8]) -> Self {
         BytesDeserializer {
-            value: value,
+            value,
             marker: PhantomData,
         }
     }
@@ -842,7 +841,7 @@ impl<'de, E> BorrowedBytesDeserializer<'de, E> {
     /// Create a new borrowed deserializer from the given borrowed bytes.
     pub fn new(value: &'de [u8]) -> Self {
         BorrowedBytesDeserializer {
-            value: value,
+            value,
             marker: PhantomData,
         }
     }
@@ -937,8 +936,8 @@ where
     where
         V: de::Visitor<'de>,
     {
-        let v = try!(visitor.visit_seq(&mut self));
-        try!(self.end());
+        let v = tri!(visitor.visit_seq(&mut self));
+        tri!(self.end());
         Ok(v)
     }
 
@@ -1053,7 +1052,7 @@ pub struct SeqAccessDeserializer<A> {
 impl<A> SeqAccessDeserializer<A> {
     /// Construct a new `SeqAccessDeserializer<A>`.
     pub fn new(seq: A) -> Self {
-        SeqAccessDeserializer { seq: seq }
+        SeqAccessDeserializer { seq }
     }
 }
 
@@ -1162,8 +1161,8 @@ where
     where
         V: de::Visitor<'de>,
     {
-        let value = try!(visitor.visit_map(&mut self));
-        try!(self.end());
+        let value = tri!(visitor.visit_map(&mut self));
+        tri!(self.end());
         Ok(value)
     }
 
@@ -1171,8 +1170,8 @@ where
     where
         V: de::Visitor<'de>,
     {
-        let value = try!(visitor.visit_seq(&mut self));
-        try!(self.end());
+        let value = tri!(visitor.visit_seq(&mut self));
+        tri!(self.end());
         Ok(value)
     }
 
@@ -1236,8 +1235,8 @@ where
     {
         match self.next_pair() {
             Some((key, value)) => {
-                let key = try!(kseed.deserialize(key.into_deserializer()));
-                let value = try!(vseed.deserialize(value.into_deserializer()));
+                let key = tri!(kseed.deserialize(key.into_deserializer()));
+                let value = tri!(vseed.deserialize(value.into_deserializer()));
                 Ok(Some((key, value)))
             }
             None => Ok(None),
@@ -1341,7 +1340,7 @@ where
         V: de::Visitor<'de>,
     {
         let mut pair_visitor = PairVisitor(Some(self.0), Some(self.1), PhantomData);
-        let pair = try!(visitor.visit_seq(&mut pair_visitor));
+        let pair = tri!(visitor.visit_seq(&mut pair_visitor));
         if pair_visitor.1.is_none() {
             Ok(pair)
         } else {
@@ -1454,7 +1453,7 @@ pub struct MapAccessDeserializer<A> {
 impl<A> MapAccessDeserializer<A> {
     /// Construct a new `MapAccessDeserializer<A>`.
     pub fn new(map: A) -> Self {
-        MapAccessDeserializer { map: map }
+        MapAccessDeserializer { map }
     }
 }
 
@@ -1501,7 +1500,7 @@ where
     where
         T: de::DeserializeSeed<'de>,
     {
-        match try!(self.map.next_key_seed(seed)) {
+        match tri!(self.map.next_key_seed(seed)) {
             Some(key) => Ok((key, private::map_as_enum(self.map))),
             None => Err(de::Error::invalid_type(de::Unexpected::Map, &"enum")),
         }
@@ -1519,7 +1518,7 @@ pub struct EnumAccessDeserializer<A> {
 impl<A> EnumAccessDeserializer<A> {
     /// Construct a new `EnumAccessDeserializer<A>`.
     pub fn new(access: A) -> Self {
-        EnumAccessDeserializer { access: access }
+        EnumAccessDeserializer { access }
     }
 }
 
@@ -1546,9 +1545,11 @@ where
 ////////////////////////////////////////////////////////////////////////////////
 
 mod private {
-    use lib::*;
+    use crate::lib::*;
 
-    use de::{self, DeserializeSeed, Deserializer, MapAccess, Unexpected, VariantAccess, Visitor};
+    use crate::de::{
+        self, DeserializeSeed, Deserializer, MapAccess, Unexpected, VariantAccess, Visitor,
+    };
 
     pub struct UnitOnly<E> {
         marker: PhantomData<E>,
@@ -1613,7 +1614,7 @@ mod private {
     }
 
     pub fn map_as_enum<A>(map: A) -> MapAsEnum<A> {
-        MapAsEnum { map: map }
+        MapAsEnum { map }
     }
 
     impl<'de, A> VariantAccess<'de> for MapAsEnum<A>
@@ -1637,10 +1638,7 @@ mod private {
         where
             V: Visitor<'de>,
         {
-            self.map.next_value_seed(SeedTupleVariant {
-                len: len,
-                visitor: visitor,
-            })
+            self.map.next_value_seed(SeedTupleVariant { len, visitor })
         }
 
         fn struct_variant<V>(
@@ -1651,8 +1649,7 @@ mod private {
         where
             V: Visitor<'de>,
         {
-            self.map
-                .next_value_seed(SeedStructVariant { visitor: visitor })
+            self.map.next_value_seed(SeedStructVariant { visitor })
         }
     }
 

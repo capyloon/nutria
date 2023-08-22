@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::mem;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
 use console::{measure_text_width, Style};
+#[cfg(target_arch = "wasm32")]
+use instant::Instant;
 #[cfg(feature = "unicode-segmentation")]
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -268,11 +271,11 @@ impl ProgressStyle {
                             }
                             "msg" => buf.push_str(state.message.expanded()),
                             "prefix" => buf.push_str(state.prefix.expanded()),
-                            "pos" => buf.write_fmt(format_args!("{}", pos)).unwrap(),
+                            "pos" => buf.write_fmt(format_args!("{pos}")).unwrap(),
                             "human_pos" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap();
                             }
-                            "len" => buf.write_fmt(format_args!("{}", len)).unwrap(),
+                            "len" => buf.write_fmt(format_args!("{len}")).unwrap(),
                             "human_len" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
                             }
@@ -341,7 +344,7 @@ impl ProgressStyle {
                                 Some(s) => cur
                                     .write_fmt(format_args!("{}", s.apply_to(padded)))
                                     .unwrap(),
-                                None => cur.write_fmt(format_args!("{}", padded)).unwrap(),
+                                None => cur.write_fmt(format_args!("{padded}")).unwrap(),
                             }
                         }
                         None => match style {

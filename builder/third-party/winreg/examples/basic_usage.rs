@@ -1,9 +1,8 @@
-// Copyright 2015, Igor Shaula
+// Copyright 2023, Igor Shaula
 // Licensed under the MIT License <LICENSE or
 // http://opensource.org/licenses/MIT>. This file
 // may not be copied, modified, or distributed
 // except according to those terms.
-extern crate winreg;
 use std::io;
 use std::path::Path;
 use winreg::enums::*;
@@ -20,7 +19,7 @@ fn main() -> io::Result<()> {
     println!("info = {:?}", info);
     let mt = info.get_last_write_time_system();
     println!(
-        "last_write_time as winapi::um::minwinbase::SYSTEMTIME = {}-{:02}-{:02} {:02}:{:02}:{:02}",
+        "last_write_time as windows_sys::Win32::Foundation::SYSTEMTIME = {}-{:02}-{:02} {:02}:{:02}:{:02}",
         mt.wYear, mt.wMonth, mt.wDay, mt.wHour, mt.wMinute, mt.wSecond
     );
     println!(

@@ -23,6 +23,11 @@ mod debug_asserts;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "unstable-styles")]
+pub mod styling;
+#[cfg(not(feature = "unstable-styles"))]
+pub(crate) mod styling;
+
 pub use self::str::Str;
 pub use action::ArgAction;
 pub use arg::Arg;
@@ -36,7 +41,7 @@ pub use resettable::IntoResettable;
 pub use resettable::Resettable;
 pub use styled_str::StyledStr;
 #[cfg(feature = "unstable-styles")]
-pub use styled_str::Styles;
+pub use styling::Styles;
 pub use value_hint::ValueHint;
 pub use value_parser::_AutoValueParser;
 pub use value_parser::via_prelude;
@@ -52,7 +57,9 @@ pub use value_parser::PossibleValuesParser;
 pub use value_parser::RangedI64ValueParser;
 pub use value_parser::RangedU64ValueParser;
 pub use value_parser::StringValueParser;
+pub use value_parser::TryMapValueParser;
 pub use value_parser::TypedValueParser;
+pub use value_parser::UnknownArgumentValueParser;
 pub use value_parser::ValueParser;
 pub use value_parser::ValueParserFactory;
 pub use value_parser::_AnonymousValueParser;
@@ -63,4 +70,4 @@ pub(crate) use action::CountType;
 pub(crate) use arg_settings::{ArgFlags, ArgSettings};
 pub(crate) use command::AppTag;
 #[cfg(not(feature = "unstable-styles"))]
-pub(crate) use styled_str::Styles;
+pub(crate) use styling::Styles;

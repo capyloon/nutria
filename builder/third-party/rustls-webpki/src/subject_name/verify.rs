@@ -21,24 +21,29 @@ use crate::{
     cert::{Cert, EndEntityOrCa},
     der, Error,
 };
+#[cfg(feature = "alloc")]
+use {
+    alloc::vec::Vec,
+    dns_name::{GeneralDnsNameRef, WildcardDnsNameRef},
+};
 
 pub(crate) fn verify_cert_dns_name(
     cert: &crate::EndEntityCert,
     dns_name: DnsNameRef,
 ) -> Result<(), Error> {
     let cert = cert.inner();
-    let dns_name = untrusted::Input::from(dns_name.as_ref());
+    let dns_name = untrusted::Input::from(dns_name.as_ref().as_bytes());
     iterate_names(
         Some(cert.subject),
         cert.subject_alt_name,
         SubjectCommonNameContents::Ignore,
         Err(Error::CertNotValidForName),
-        &|name| {
+        &mut |name| {
             if let GeneralName::DnsName(presented_id) = name {
                 match dns_name::presented_id_matches_reference_id(presented_id, dns_name) {
-                    Some(true) => return NameIteration::Stop(Ok(())),
-                    Some(false) => (),
-                    None => return NameIteration::Stop(Err(Error::BadDer)),
+                    Ok(true) => return NameIteration::Stop(Ok(())),
+                    Ok(false) | Err(Error::MalformedDnsIdentifier) => (),
+                    Err(e) => return NameIteration::Stop(Err(e)),
                 }
             }
             NameIteration::KeepGoing
@@ -67,14 +72,11 @@ pub(crate) fn verify_cert_subject_name(
         cert.inner().subject_alt_name,
         SubjectCommonNameContents::Ignore,
         Err(Error::CertNotValidForName),
-        &|name| {
+        &mut |name| {
             if let GeneralName::IpAddress(presented_id) = name {
                 match ip_address::presented_id_matches_reference_id(presented_id, ip_address) {
-                    Ok(true) => return NameIteration::Stop(Ok(())),
-                    Ok(false) => (),
-                    Err(_) => {
-                        return NameIteration::Stop(Err(Error::BadDer));
-                    }
+                    true => return NameIteration::Stop(Ok(())),
+                    false => (),
                 }
             }
             NameIteration::KeepGoing
@@ -115,7 +117,7 @@ pub(crate) fn check_name_constraints(
             child.subject_alt_name,
             subject_common_name_contents,
             Ok(()),
-            &|name| {
+            &mut |name| {
                 check_presented_id_conforms_to_constraints(
                     name,
                     permitted_subtrees,
@@ -191,7 +193,7 @@ fn check_presented_id_conforms_to_constraints_in_subtree(
             input: &mut untrusted::Reader<'b>,
         ) -> Result<GeneralName<'b>, Error> {
             let general_subtree = der::expect_tag_and_get_value(input, der::Tag::Sequence)?;
-            general_subtree.read_all(Error::BadDer, general_name)
+            general_subtree.read_all(Error::BadDer, GeneralName::from_der)
         }
 
         let base = match general_subtree(&mut constraints) {
@@ -203,7 +205,7 @@ fn check_presented_id_conforms_to_constraints_in_subtree(
 
         let matches = match (name, base) {
             (GeneralName::DnsName(name), GeneralName::DnsName(base)) => {
-                dns_name::presented_id_matches_constraint(name, base).ok_or(Error::BadDer)
+                dns_name::presented_id_matches_constraint(name, base)
             }
 
             (GeneralName::DirectoryName(name), GeneralName::DirectoryName(base)) => Ok(
@@ -302,12 +304,12 @@ pub(crate) enum SubjectCommonNameContents {
     Ignore,
 }
 
-fn iterate_names(
-    subject: Option<untrusted::Input>,
-    subject_alt_name: Option<untrusted::Input>,
+fn iterate_names<'names>(
+    subject: Option<untrusted::Input<'names>>,
+    subject_alt_name: Option<untrusted::Input<'names>>,
     subject_common_name_contents: SubjectCommonNameContents,
     result_if_never_stopped_early: Result<(), Error>,
-    f: &dyn Fn(GeneralName) -> NameIteration,
+    f: &mut impl FnMut(GeneralName<'names>) -> NameIteration,
 ) -> Result<(), Error> {
     if let Some(subject_alt_name) = subject_alt_name {
         let mut subject_alt_name = untrusted::Reader::new(subject_alt_name);
@@ -318,7 +320,7 @@ fn iterate_names(
         // attempting to parse the first entry allows us to return a better
         // error code.
         while !subject_alt_name.at_end() {
-            let name = general_name(&mut subject_alt_name)?;
+            let name = GeneralName::from_der(&mut subject_alt_name)?;
             match f(name) {
                 NameIteration::Stop(result) => {
                     return result;
@@ -351,6 +353,39 @@ fn iterate_names(
     }
 }
 
+#[cfg(feature = "alloc")]
+pub(crate) fn list_cert_dns_names<'names>(
+    cert: &'names crate::EndEntityCert<'names>,
+) -> Result<impl Iterator<Item = GeneralDnsNameRef<'names>>, Error> {
+    let cert = &cert.inner();
+    let mut names = Vec::new();
+
+    iterate_names(
+        Some(cert.subject),
+        cert.subject_alt_name,
+        SubjectCommonNameContents::DnsName,
+        Ok(()),
+        &mut |name| {
+            if let GeneralName::DnsName(presented_id) = name {
+                let dns_name = DnsNameRef::try_from_ascii(presented_id.as_slice_less_safe())
+                    .map(GeneralDnsNameRef::DnsName)
+                    .or_else(|_| {
+                        WildcardDnsNameRef::try_from_ascii(presented_id.as_slice_less_safe())
+                            .map(GeneralDnsNameRef::Wildcard)
+                    });
+
+                // if the name could be converted to a DNS name, add it; otherwise,
+                // keep going.
+                if let Ok(name) = dns_name {
+                    names.push(name)
+                }
+            }
+            NameIteration::KeepGoing
+        },
+    )
+    .map(|_| names.into_iter())
+}
+
 // It is *not* valid to derive `Eq`, `PartialEq, etc. for this type. In
 // particular, for the types of `GeneralName`s that we don't understand, we
 // don't even store the value. Also, the meaning of a `GeneralName` in a name
@@ -368,35 +403,38 @@ enum GeneralName<'a> {
     Unsupported(u8),
 }
 
-fn general_name<'a>(input: &mut untrusted::Reader<'a>) -> Result<GeneralName<'a>, Error> {
-    use ring::io::der::{CONSTRUCTED, CONTEXT_SPECIFIC};
-    #[allow(clippy::identity_op)]
-    const OTHER_NAME_TAG: u8 = CONTEXT_SPECIFIC | CONSTRUCTED | 0;
-    const RFC822_NAME_TAG: u8 = CONTEXT_SPECIFIC | 1;
-    const DNS_NAME_TAG: u8 = CONTEXT_SPECIFIC | 2;
-    const X400_ADDRESS_TAG: u8 = CONTEXT_SPECIFIC | CONSTRUCTED | 3;
-    const DIRECTORY_NAME_TAG: u8 = CONTEXT_SPECIFIC | CONSTRUCTED | 4;
-    const EDI_PARTY_NAME_TAG: u8 = CONTEXT_SPECIFIC | CONSTRUCTED | 5;
-    const UNIFORM_RESOURCE_IDENTIFIER_TAG: u8 = CONTEXT_SPECIFIC | 6;
-    const IP_ADDRESS_TAG: u8 = CONTEXT_SPECIFIC | 7;
-    const REGISTERED_ID_TAG: u8 = CONTEXT_SPECIFIC | 8;
+impl<'a> GeneralName<'a> {
+    fn from_der(input: &mut untrusted::Reader<'a>) -> Result<Self, Error> {
+        use ring::io::der::{CONSTRUCTED, CONTEXT_SPECIFIC};
+        #[allow(clippy::identity_op)]
+        const OTHER_NAME_TAG: u8 = CONTEXT_SPECIFIC | CONSTRUCTED | 0;
+        const RFC822_NAME_TAG: u8 = CONTEXT_SPECIFIC | 1;
+        const DNS_NAME_TAG: u8 = CONTEXT_SPECIFIC | 2;
+        const X400_ADDRESS_TAG: u8 = CONTEXT_SPECIFIC | CONSTRUCTED | 3;
+        const DIRECTORY_NAME_TAG: u8 = CONTEXT_SPECIFIC | CONSTRUCTED | 4;
+        const EDI_PARTY_NAME_TAG: u8 = CONTEXT_SPECIFIC | CONSTRUCTED | 5;
+        const UNIFORM_RESOURCE_IDENTIFIER_TAG: u8 = CONTEXT_SPECIFIC | 6;
+        const IP_ADDRESS_TAG: u8 = CONTEXT_SPECIFIC | 7;
+        const REGISTERED_ID_TAG: u8 = CONTEXT_SPECIFIC | 8;
 
-    let (tag, value) = der::read_tag_and_get_value(input)?;
-    let name = match tag {
-        DNS_NAME_TAG => GeneralName::DnsName(value),
-        DIRECTORY_NAME_TAG => GeneralName::DirectoryName(value),
-        IP_ADDRESS_TAG => GeneralName::IpAddress(value),
+        let (tag, value) = der::read_tag_and_get_value(input)?;
+        Ok(match tag {
+            DNS_NAME_TAG => GeneralName::DnsName(value),
+            DIRECTORY_NAME_TAG => GeneralName::DirectoryName(value),
+            IP_ADDRESS_TAG => GeneralName::IpAddress(value),
 
-        OTHER_NAME_TAG
-        | RFC822_NAME_TAG
-        | X400_ADDRESS_TAG
-        | EDI_PARTY_NAME_TAG
-        | UNIFORM_RESOURCE_IDENTIFIER_TAG
-        | REGISTERED_ID_TAG => GeneralName::Unsupported(tag & !(CONTEXT_SPECIFIC | CONSTRUCTED)),
+            OTHER_NAME_TAG
+            | RFC822_NAME_TAG
+            | X400_ADDRESS_TAG
+            | EDI_PARTY_NAME_TAG
+            | UNIFORM_RESOURCE_IDENTIFIER_TAG
+            | REGISTERED_ID_TAG => {
+                GeneralName::Unsupported(tag & !(CONTEXT_SPECIFIC | CONSTRUCTED))
+            }
 
-        _ => return Err(Error::BadDer),
-    };
-    Ok(name)
+            _ => return Err(Error::BadDer),
+        })
+    }
 }
 
 static COMMON_NAME: untrusted::Input = untrusted::Input::from(&[85, 4, 3]);

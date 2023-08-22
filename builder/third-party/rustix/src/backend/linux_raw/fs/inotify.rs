@@ -1,6 +1,6 @@
 //! inotify support for working with inotifies
 
-use super::super::c;
+use crate::backend::c;
 use crate::backend::fs::syscalls;
 use crate::fd::{BorrowedFd, OwnedFd};
 use crate::io;
@@ -10,6 +10,8 @@ bitflags! {
     /// `IN_*` for use with [`inotify_init`].
     ///
     /// [`inotify_init`]: crate::fs::inotify::inotify_init
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct CreateFlags: c::c_uint {
         /// `IN_CLOEXEC`
         const CLOEXEC = linux_raw_sys::general::IN_CLOEXEC;
@@ -22,7 +24,8 @@ bitflags! {
     /// `IN*` for use with [`inotify_add_watch`].
     ///
     /// [`inotify_add_watch`]: crate::fs::inotify::inotify_add_watch
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct WatchFlags: c::c_uint {
         /// `IN_ACCESS`
         const ACCESS = linux_raw_sys::general::IN_ACCESS;
@@ -76,6 +79,7 @@ bitflags! {
 /// Use the [`CreateFlags::CLOEXEC`] flag to prevent the resulting file
 /// descriptor from being implicitly passed across `exec` boundaries.
 #[doc(alias = "inotify_init1")]
+#[inline]
 pub fn inotify_init(flags: CreateFlags) -> io::Result<OwnedFd> {
     syscalls::inotify_init1(flags)
 }
@@ -89,6 +93,7 @@ pub fn inotify_init(flags: CreateFlags) -> io::Result<OwnedFd> {
 /// different paths to this method may result in it returning
 /// the same watch descriptor. An application should keep track of this
 /// externally to avoid logic errors.
+#[inline]
 pub fn inotify_add_watch<P: crate::path::Arg>(
     inot: BorrowedFd<'_>,
     path: P,
@@ -100,9 +105,10 @@ pub fn inotify_add_watch<P: crate::path::Arg>(
 
 /// `inotify_rm_watch(self, wd)`—Removes a watch from this inotify
 ///
-/// The watch descriptor provided should have previously been returned
-/// by [`inotify_add_watch`] and not previously have been removed.
+/// The watch descriptor provided should have previously been returned by
+/// [`inotify_add_watch`] and not previously have been removed.
 #[doc(alias = "inotify_rm_watch")]
+#[inline]
 pub fn inotify_remove_watch(inot: BorrowedFd<'_>, wd: i32) -> io::Result<()> {
     syscalls::inotify_rm_watch(inot, wd)
 }

@@ -10,6 +10,36 @@ Note: In this file, do not use the hard wrap in the middle of a sentence for com
 
 ## [Unreleased]
 
+## [1.4.2] - 2023-07-27
+
+- Optimize `AtomicBool` on RISC-V/LoongArch64. This is the same as [rust-lang/rust#114034](https://github.com/rust-lang/rust/pull/114034), but is available for all rustc versions.
+
+## [1.4.1] - 2023-07-15
+
+- Improve compatibility with the future version of Miri.
+
+## [1.4.0] - 2023-07-11
+
+- Allow using embedded-related cfgs as Cargo features. ([#94](https://github.com/taiki-e/portable-atomic/pull/94), thanks @Dirbaio)
+
+  Originally, we were providing these as cfgs instead of features, but based on a strong request from the embedded ecosystem, we have agreed to provide them as features as well. See [#94](https://github.com/taiki-e/portable-atomic/pull/94) for more.
+
+  cfgs are kept and can be used as aliases for features.
+
+- Acknowledge all x86_64 Apple targets support 128-bit atomics.
+
+  Our code already recognizes this via `cfg(target_feature)`, so this only affects docs and users using pre-1.69 stable rustc.
+
+  See also [rust-lang/rust#112150](https://github.com/rust-lang/rust/pull/112150).
+
+- Optimize 128-bit atomics on aarch64/s390x.
+
+## [1.3.3] - 2023-05-31
+
+- Fix build error on aarch64 ILP32 ABI targets (tier 3).
+
+- Optimize 128-bit atomics on s390x.
+
 ## [1.3.2] - 2023-05-09
 
 - Fix bug in powerpc64/s390x 128-bit atomic RMWs on old nightly.
@@ -40,11 +70,11 @@ Note: In this file, do not use the hard wrap in the middle of a sentence for com
 - Fix compile error on `bpf{eb,el}-unknown-none` (tier 3) and `mipsel-sony-psx` (tier 3) when `critical-section` feature is disabled.
 
 - Various optimizations
-  - Optimize x86_64 128-bit outline-atomics. This improves performance by up to 15% in concurrent RMW/store. ([40c4cd4](https://github.com/taiki-e/portable-atomic/commit/40c4cd4f682f1cb153f18d4d6a88795bafaf5667))
+  - Optimize x86_64 128-bit outline-atomics. This improves performance by up to 15% in concurrent RMW/store for cases where the `cmpxchg16b` target feature is not available at compile-time. ([40c4cd4](https://github.com/taiki-e/portable-atomic/commit/40c4cd4f682f1cb153f18d4d6a88795bafaf5667))
   - Optimize x86_64 128-bit load that uses cmpxchg16b. ([40c4cd4](https://github.com/taiki-e/portable-atomic/commit/40c4cd4f682f1cb153f18d4d6a88795bafaf5667))
   - Optimize aarch64 128-bit load that uses FEAT_LSE. ([40c4cd4](https://github.com/taiki-e/portable-atomic/commit/40c4cd4f682f1cb153f18d4d6a88795bafaf5667))
   - Optimize pre-ARMv6 Linux/Android atomics. ([efacc89](https://github.com/taiki-e/portable-atomic/commit/efacc89c210d7a34ef5e879821112189da5d1901))
-  - Support outline-atomics for powerpc64 128-bit atomics. This is currently disabled by default, and can be enabled by `--cfg portable_atomic_outline_atomics`. ([90](https://github.com/taiki-e/portable-atomic/pull/90))
+  - Support outline-atomics for powerpc64 128-bit atomics. This is currently disabled by default, and can be enabled by `--cfg portable_atomic_outline_atomics`. ([#90](https://github.com/taiki-e/portable-atomic/pull/90))
   - Optimize aarch64 outline-atomics on linux-musl. On linux-musl, outline-atomics is enabled by default only when dynamic linking is enabled. When static linking is enabled, this can be enabled by `--cfg portable_atomic_outline_atomics`. See the [`atomic128` module's readme](https://github.com/taiki-e/portable-atomic/blob/HEAD/src/imp/atomic128/README.md#run-time-feature-detection) for more. ([8418235](https://github.com/taiki-e/portable-atomic/commit/84182354e4a149074e28bda4683d538e5fb617ce), [31d0862](https://github.com/taiki-e/portable-atomic/commit/31d08623d4e21af207ff2343f5553b9b5a030452))
 
 ## [1.2.0] - 2023-03-25
@@ -324,7 +354,11 @@ The latest version of portable-atomic is 1.x. This release makes portable-atomic
 
 Initial release
 
-[Unreleased]: https://github.com/taiki-e/portable-atomic/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/taiki-e/portable-atomic/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/taiki-e/portable-atomic/compare/v1.4.1...v1.4.2
+[1.4.1]: https://github.com/taiki-e/portable-atomic/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/taiki-e/portable-atomic/compare/v1.3.3...v1.4.0
+[1.3.3]: https://github.com/taiki-e/portable-atomic/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/taiki-e/portable-atomic/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/taiki-e/portable-atomic/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/taiki-e/portable-atomic/compare/v1.2.0...v1.3.0

@@ -23,7 +23,7 @@ effective literal optimizations:
 to lead to substring search that is only a little faster than a regex search,
 and thus the overhead of using literal optimizations in the first place might
 make things slower overall.
-* The literals in your [`Seq`] shoudn't be too short. In general, longer is
+* The literals in your [`Seq`] shouldn't be too short. In general, longer is
 better. A sequence corresponding to single bytes that occur frequently in the
 haystack, for example, is probably a bad literal optimization because it's
 likely to produce many false positive candidates. Longer literals are less
@@ -51,7 +51,7 @@ the "trickier" parts are how to combine literal sequences, and that is all
 implemented on [`Seq`].
 */
 
-use core::{cmp, mem};
+use core::{cmp, mem, num::NonZeroUsize};
 
 use alloc::{vec, vec::Vec};
 
@@ -477,7 +477,7 @@ impl Extractor {
                 }
                 seq
             }
-            hir::Repetition { min, max: Some(max), .. } if min < max => {
+            hir::Repetition { min, .. } => {
                 assert!(min > 0); // handled above
                 let limit =
                     u32::try_from(self.limit_repeat).unwrap_or(u32::MAX);
@@ -490,10 +490,6 @@ impl Extractor {
                 }
                 seq.make_inexact();
                 seq
-            }
-            hir::Repetition { .. } => {
-                subseq.make_inexact();
-                subseq
             }
         }
     }
@@ -692,7 +688,7 @@ impl Default for ExtractKind {
 /// from making assumptions about what literals are required in order to match
 /// a particular [`Hir`] expression. Generally speaking, when a set is in this
 /// state, literal optimizations are inhibited. A good example of a regex that
-/// will cause this sort of set to apppear is `[A-Za-z]`. The character class
+/// will cause this sort of set to appear is `[A-Za-z]`. The character class
 /// is just too big (and also too narrow) to be usefully expanded into 52
 /// different literals. (Note that the decision for when a seq should become
 /// infinite is determined by the caller. A seq itself has no hard-coded
@@ -1571,7 +1567,7 @@ impl Seq {
     /// unioning `self` with `other`. If either set is infinite, then this
     /// returns `None`.
     #[inline]
-    fn max_union_len(&self, other: &Seq) -> Option<usize> {
+    pub fn max_union_len(&self, other: &Seq) -> Option<usize> {
         let len1 = self.len()?;
         let len2 = other.len()?;
         Some(len1.saturating_add(len2))
@@ -1581,7 +1577,7 @@ impl Seq {
     /// cross product of `self` with `other`. If either set is infinite, then
     /// this returns `None`.
     #[inline]
-    fn max_cross_len(&self, other: &Seq) -> Option<usize> {
+    pub fn max_cross_len(&self, other: &Seq) -> Option<usize> {
         let len1 = self.len()?;
         let len2 = other.len()?;
         Some(len1.saturating_mul(len2))
@@ -1841,6 +1837,14 @@ impl Seq {
             None => return,
             Some(len) => len,
         };
+        // Just give up now if our sequence contains an empty string.
+        if self.min_literal_len().map_or(false, |len| len == 0) {
+            // We squash the sequence so that nobody else gets any bright
+            // ideas to try and use it. An empty string implies a match at
+            // every position. A prefilter cannot help you here.
+            self.make_infinite();
+            return;
+        }
         // Make sure we start with the smallest sequence possible. We use a
         // special version of preference minimization that retains exactness.
         // This is legal because optimization is only expected to occur once
@@ -1910,34 +1914,41 @@ impl Seq {
                 // longest common prefix to be subject to the poison check.
             }
         }
-        // Everything below this check is more-or-less about trying to
-        // heuristically reduce the false positive rate of a prefilter. But
-        // if our sequence is completely exact, then it's possible the regex
-        // engine can be skipped entirely. In this case, the false positive
-        // rate is zero because every literal match corresponds to a regex
-        // match.
+        // If we have an exact sequence, we *probably* just want to keep it
+        // as-is. But there are some cases where we don't. So we save a copy of
+        // the exact sequence now, and then try to do some more optimizations
+        // below. If those don't work out, we go back to this exact sequence.
         //
-        // This is OK even if the sequence contains a poison literal. Remember,
-        // a literal is only poisononous because of what we assume about its
-        // impact on the false positive rate. However, we do still check for
-        // an empty string. Empty strings are weird and it's best to let the
-        // regex engine handle those.
+        // The specific motivation for this is that we sometimes wind up with
+        // an exact sequence with a hefty number of literals. Say, 100. If we
+        // stuck with that, it would be too big for Teddy and would result in
+        // using Aho-Corasick. Which is fine... but the lazy DFA is plenty
+        // suitable in such cases. The real issue is that we will wind up not
+        // using a fast prefilter at all. So in cases like this, even though
+        // we have an exact sequence, it would be better to try and shrink the
+        // sequence (which we do below) and use it as a prefilter that can
+        // produce false positive matches.
         //
-        // We do currently do this check after the longest common prefix (or
-        // suffix) check, under the theory that single-substring search is so
-        // fast that we want that even if we'd end up turning an exact sequence
-        // into an inexact one. But this might be wrong...
-        if self.is_exact()
-            && self.min_literal_len().map_or(false, |len| len > 0)
-        {
-            return;
-        }
+        // But if the shrinking below results in a sequence that "sucks," then
+        // we don't want to use that because we already have an exact sequence
+        // in hand.
+        let exact: Option<Seq> =
+            if self.is_exact() { Some(self.clone()) } else { None };
         // Now we attempt to shorten the sequence. The idea here is that we
         // don't want to look for too many literals, but we want to shorten
         // our sequence enough to improve our odds of using better algorithms
         // downstream (such as Teddy).
+        //
+        // The pair of numbers in this list corresponds to the maximal prefix
+        // (in bytes) to keep for all literals and the length of the sequence
+        // at which to do it.
+        //
+        // So for example, the pair (3, 500) would mean, "if we have more than
+        // 500 literals in our sequence, then truncate all of our literals
+        // such that they are at most 3 bytes in length and the minimize the
+        // sequence."
         const ATTEMPTS: [(usize, usize); 5] =
-            [(5, 64), (4, 64), (3, 64), (2, 64), (1, 10)];
+            [(5, 10), (4, 10), (3, 64), (2, 64), (1, 10)];
         for (keep, limit) in ATTEMPTS {
             let len = match self.len() {
                 None => break,
@@ -1951,7 +1962,11 @@ impl Seq {
             } else {
                 self.keep_last_bytes(keep);
             }
-            self.minimize_by_preference();
+            if prefix {
+                if let Some(ref mut lits) = self.literals {
+                    PreferenceTrie::minimize(lits, true);
+                }
+            }
         }
         // Check for a poison literal. A poison literal is one that is short
         // and is believed to have a very high match count. These poisons
@@ -1968,6 +1983,30 @@ impl Seq {
                 self.make_infinite();
             }
         }
+        // OK, if we had an exact sequence before attempting more optimizations
+        // above and our post-optimized sequence sucks for some reason or
+        // another, then we go back to the exact sequence.
+        if let Some(exact) = exact {
+            // If optimizing resulted in dropping our literals, then certainly
+            // backup and use the exact sequence that we had.
+            if !self.is_finite() {
+                *self = exact;
+                return;
+            }
+            // If our optimized sequence contains a short literal, then it's
+            // *probably* not so great. So throw it away and revert to the
+            // exact sequence.
+            if self.min_literal_len().map_or(true, |len| len <= 2) {
+                *self = exact;
+                return;
+            }
+            // Finally, if our optimized sequence is "big" (i.e., can't use
+            // Teddy), then also don't use it and rely on the exact sequence.
+            if self.len().map_or(true, |len| len > 64) {
+                *self = exact;
+                return;
+            }
+        }
     }
 }
 
@@ -1977,7 +2016,7 @@ impl core::fmt::Debug for Seq {
         if let Some(lits) = self.literals() {
             f.debug_list().entries(lits.iter()).finish()
         } else {
-            write!(f, "[∅]")
+            write!(f, "[∞]")
         }
     }
 }
@@ -2160,12 +2199,19 @@ impl core::fmt::Debug for Literal {
 /// never seen this show up on a profile. Because of the heuristic limits
 /// imposed on literal extractions, the size of the inputs here is usually
 /// very small.)
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct PreferenceTrie {
     /// The states in this trie. The index of a state in this vector is its ID.
     states: Vec<State>,
+    /// This vec indicates which states are match states. It always has
+    /// the same length as `states` and is indexed by the same state ID.
+    /// A state with identifier `sid` is a match state if and only if
+    /// `matches[sid].is_some()`. The option contains the index of the literal
+    /// corresponding to the match. The index is offset by 1 so that it fits in
+    /// a NonZeroUsize.
+    matches: Vec<Option<NonZeroUsize>>,
     /// The index to allocate to the next literal added to this trie. Starts at
-    /// 0 and increments by 1 for every literal successfully added to the trie.
+    /// 1 and increments by 1 for every literal successfully added to the trie.
     next_literal_index: usize,
 }
 
@@ -2176,9 +2222,6 @@ struct State {
     /// are sorted by byte. There is at most one such transition for any
     /// particular byte.
     trans: Vec<(u8, usize)>,
-    /// Whether this is a matching state or not. If it is, then it contains the
-    /// index to the matching literal.
-    literal_index: Option<usize>,
 }
 
 impl PreferenceTrie {
@@ -2195,14 +2238,18 @@ impl PreferenceTrie {
         use core::cell::RefCell;
 
         // MSRV(1.61): Use retain_mut here to avoid interior mutability.
-        let trie = RefCell::new(PreferenceTrie::default());
+        let trie = RefCell::new(PreferenceTrie {
+            states: vec![],
+            matches: vec![],
+            next_literal_index: 1,
+        });
         let mut make_inexact = vec![];
         literals.retain(|lit| {
             match trie.borrow_mut().insert(lit.as_bytes()) {
                 Ok(_) => true,
                 Err(i) => {
                     if !keep_exact {
-                        make_inexact.push(i);
+                        make_inexact.push(i.checked_sub(1).unwrap());
                     }
                     false
                 }
@@ -2225,15 +2272,15 @@ impl PreferenceTrie {
     /// search.
     fn insert(&mut self, bytes: &[u8]) -> Result<usize, usize> {
         let mut prev = self.root();
-        if let Some(idx) = self.states[prev].literal_index {
-            return Err(idx);
+        if let Some(idx) = self.matches[prev] {
+            return Err(idx.get());
         }
         for &b in bytes.iter() {
             match self.states[prev].trans.binary_search_by_key(&b, |t| t.0) {
                 Ok(i) => {
                     prev = self.states[prev].trans[i].1;
-                    if let Some(idx) = self.states[prev].literal_index {
-                        return Err(idx);
+                    if let Some(idx) = self.matches[prev] {
+                        return Err(idx.get());
                     }
                 }
                 Err(i) => {
@@ -2245,7 +2292,7 @@ impl PreferenceTrie {
         }
         let idx = self.next_literal_index;
         self.next_literal_index += 1;
-        self.states[prev].literal_index = Some(idx);
+        self.matches[prev] = NonZeroUsize::new(idx);
         Ok(idx)
     }
 
@@ -2262,6 +2309,7 @@ impl PreferenceTrie {
     fn create_state(&mut self) -> usize {
         let id = self.states.len();
         self.states.push(State::default());
+        self.matches.push(None);
         id
     }
 }
@@ -2603,6 +2651,12 @@ mod tests {
             ]),
             e(r"(ab|cd)(ef|gh)(ij|kl)")
         );
+
+        assert_eq!(inexact([E("abab")], [E("abab")]), e(r"(ab){2}"));
+
+        assert_eq!(inexact([I("abab")], [I("abab")]), e(r"(ab){2,3}"));
+
+        assert_eq!(inexact([I("abab")], [I("abab")]), e(r"(ab){2,}"));
     }
 
     #[test]
@@ -2815,13 +2869,13 @@ mod tests {
     // repeats.
     #[test]
     fn crazy_repeats() {
-        assert_eq!(inexact([I("")], [I("")]), e(r"(?:){4294967295}"));
+        assert_eq!(inexact([E("")], [E("")]), e(r"(?:){4294967295}"));
         assert_eq!(
-            inexact([I("")], [I("")]),
+            inexact([E("")], [E("")]),
             e(r"(?:){64}{64}{64}{64}{64}{64}")
         );
-        assert_eq!(inexact([I("")], [I("")]), e(r"x{0}{4294967295}"));
-        assert_eq!(inexact([I("")], [I("")]), e(r"(?:|){4294967295}"));
+        assert_eq!(inexact([E("")], [E("")]), e(r"x{0}{4294967295}"));
+        assert_eq!(inexact([E("")], [E("")]), e(r"(?:|){4294967295}"));
 
         assert_eq!(
             inexact([E("")], [E("")]),

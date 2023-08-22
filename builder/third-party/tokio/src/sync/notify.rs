@@ -443,8 +443,7 @@ impl Notify {
     ///
     /// static NOTIFY: Notify = Notify::const_new();
     /// ```
-    #[cfg(all(feature = "parking_lot", not(all(loom, test))))]
-    #[cfg_attr(docsrs, doc(cfg(feature = "parking_lot")))]
+    #[cfg(not(all(loom, test)))]
     pub const fn const_new() -> Notify {
         Notify {
             state: AtomicUsize::new(0),
@@ -885,7 +884,7 @@ impl Notified<'_> {
 
         let (notify, state, notify_waiters_calls, waiter) = self.project();
 
-        loop {
+        'outer_loop: loop {
             match *state {
                 Init => {
                     let curr = notify.state.load(SeqCst);
@@ -901,7 +900,7 @@ impl Notified<'_> {
                     if res.is_ok() {
                         // Acquired the notification
                         *state = Done;
-                        return Poll::Ready(());
+                        continue 'outer_loop;
                     }
 
                     // Clone the waker before locking, a waker clone can be
@@ -919,7 +918,7 @@ impl Notified<'_> {
                     // was created, then we are done
                     if get_num_notify_waiters_calls(curr) != *notify_waiters_calls {
                         *state = Done;
-                        return Poll::Ready(());
+                        continue 'outer_loop;
                     }
 
                     // Transition the state to WAITING.
@@ -955,7 +954,7 @@ impl Notified<'_> {
                                     Ok(_) => {
                                         // Acquired the notification
                                         *state = Done;
-                                        return Poll::Ready(());
+                                        continue 'outer_loop;
                                     }
                                     Err(actual) => {
                                         assert_eq!(get_state(actual), EMPTY);
@@ -990,6 +989,12 @@ impl Notified<'_> {
                     return Poll::Pending;
                 }
                 Waiting => {
+                    #[cfg(tokio_taskdump)]
+                    if let Some(waker) = waker {
+                        let mut ctx = Context::from_waker(waker);
+                        ready!(crate::trace::trace_leaf(&mut ctx));
+                    }
+
                     if waiter.notification.load(Acquire).is_some() {
                         // Safety: waiter is already unlinked and will not be shared again,
                         // so we have an exclusive access to `waker`.
@@ -1078,6 +1083,11 @@ impl Notified<'_> {
                     drop(old_waker);
                 }
                 Done => {
+                    #[cfg(tokio_taskdump)]
+                    if let Some(waker) = waker {
+                        let mut ctx = Context::from_waker(waker);
+                        ready!(crate::trace::trace_leaf(&mut ctx));
+                    }
                     return Poll::Ready(());
                 }
             }

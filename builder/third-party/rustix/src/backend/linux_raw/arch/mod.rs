@@ -1,28 +1,20 @@
 //! Architecture-specific syscall code.
 //!
-//! `rustix` has inline assembly sequences using `asm!`, but that requires
-//! Rust 1.59, so it also has out-of-line ("outline") assembly sequences in .s
-//! files. And 32-bit x86 is special (see comments below).
-//!
 //! This module also has a `choose` submodule which chooses a scheme and is
 //! what most of the `rustix` syscalls use.
 //!
 //! # Safety
 //!
 //! This contains the inline `asm` statements performing the syscall
-//! instructions and FFI declarations declaring the out-of-line ("outline")
-//! syscall instructions.
+//! instructions.
 
 #![allow(unsafe_code)]
 #![cfg_attr(not(feature = "all-apis"), allow(unused_imports))]
 // We'll use as many arguments as syscalls need.
 #![allow(clippy::too_many_arguments)]
 
-// When inline asm is available, use it. Otherwise, use out-of-line asm. These
-// functions always use the machine's syscall instruction, even when it isn't
-// the fastest option available.
-#[cfg_attr(asm, path = "inline/mod.rs")]
-#[cfg_attr(not(asm), path = "outline/mod.rs")]
+// These functions always use the machine's syscall instruction, even when it
+// isn't the fastest option available.
 pub(in crate::backend) mod asm;
 
 // On most architectures, the architecture syscall instruction is fast, so use
@@ -31,7 +23,9 @@ pub(in crate::backend) mod asm;
     target_arch = "arm",
     target_arch = "aarch64",
     target_arch = "mips",
+    target_arch = "mips32r6",
     target_arch = "mips64",
+    target_arch = "mips64r6",
     target_arch = "powerpc64",
     target_arch = "riscv64",
     target_arch = "x86_64",
@@ -121,6 +115,85 @@ macro_rules! syscall {
 
     ($nr:ident, $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr, $a6:expr) => {
         $crate::backend::arch::choose::syscall7(
+            $crate::backend::reg::nr(linux_raw_sys::general::$nr),
+            $a0.into(),
+            $a1.into(),
+            $a2.into(),
+            $a3.into(),
+            $a4.into(),
+            $a5.into(),
+            $a6.into(),
+        )
+    };
+}
+
+// Macro to invoke a syscall that always uses direct assembly, rather than the
+// vDSO. Useful when still finding the vDSO.
+#[allow(unused_macros)]
+macro_rules! syscall_always_asm {
+    ($nr:ident) => {
+        $crate::backend::arch::asm::syscall0($crate::backend::reg::nr(linux_raw_sys::general::$nr))
+    };
+
+    ($nr:ident, $a0:expr) => {
+        $crate::backend::arch::asm::syscall1(
+            $crate::backend::reg::nr(linux_raw_sys::general::$nr),
+            $a0.into(),
+        )
+    };
+
+    ($nr:ident, $a0:expr, $a1:expr) => {
+        $crate::backend::arch::asm::syscall2(
+            $crate::backend::reg::nr(linux_raw_sys::general::$nr),
+            $a0.into(),
+            $a1.into(),
+        )
+    };
+
+    ($nr:ident, $a0:expr, $a1:expr, $a2:expr) => {
+        $crate::backend::arch::asm::syscall3(
+            $crate::backend::reg::nr(linux_raw_sys::general::$nr),
+            $a0.into(),
+            $a1.into(),
+            $a2.into(),
+        )
+    };
+
+    ($nr:ident, $a0:expr, $a1:expr, $a2:expr, $a3:expr) => {
+        $crate::backend::arch::asm::syscall4(
+            $crate::backend::reg::nr(linux_raw_sys::general::$nr),
+            $a0.into(),
+            $a1.into(),
+            $a2.into(),
+            $a3.into(),
+        )
+    };
+
+    ($nr:ident, $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr) => {
+        $crate::backend::arch::asm::syscall5(
+            $crate::backend::reg::nr(linux_raw_sys::general::$nr),
+            $a0.into(),
+            $a1.into(),
+            $a2.into(),
+            $a3.into(),
+            $a4.into(),
+        )
+    };
+
+    ($nr:ident, $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr) => {
+        $crate::backend::arch::asm::syscall6(
+            $crate::backend::reg::nr(linux_raw_sys::general::$nr),
+            $a0.into(),
+            $a1.into(),
+            $a2.into(),
+            $a3.into(),
+            $a4.into(),
+            $a5.into(),
+        )
+    };
+
+    ($nr:ident, $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr, $a6:expr) => {
+        $crate::backend::arch::asm::syscall7(
             $crate::backend::reg::nr(linux_raw_sys::general::$nr),
             $a0.into(),
             $a1.into(),

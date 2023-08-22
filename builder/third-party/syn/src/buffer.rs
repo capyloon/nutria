@@ -5,11 +5,6 @@
 // Syn, and caution should be used when editing it. The public-facing interface
 // is 100% safe but the implementation is fragile internally.
 
-#[cfg(all(
-    not(all(target_arch = "wasm32", any(target_os = "unknown", target_os = "wasi"))),
-    feature = "proc-macro"
-))]
-use crate::proc_macro as pm;
 use crate::Lifetime;
 use proc_macro2::extra::DelimSpan;
 use proc_macro2::{Delimiter, Group, Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
@@ -60,12 +55,9 @@ impl TokenBuffer {
 
     /// Creates a `TokenBuffer` containing all the tokens from the input
     /// `proc_macro::TokenStream`.
-    #[cfg(all(
-        not(all(target_arch = "wasm32", any(target_os = "unknown", target_os = "wasi"))),
-        feature = "proc-macro"
-    ))]
+    #[cfg(feature = "proc-macro")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "proc-macro")))]
-    pub fn new(stream: pm::TokenStream) -> Self {
+    pub fn new(stream: proc_macro::TokenStream) -> Self {
         Self::new2(stream.into())
     }
 

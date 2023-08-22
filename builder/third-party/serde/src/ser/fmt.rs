@@ -1,5 +1,5 @@
-use lib::*;
-use ser::{Error, Impossible, Serialize, Serializer};
+use crate::lib::*;
+use crate::ser::{Error, Impossible, Serialize, Serializer};
 
 impl Error for fmt::Error {
     fn custom<T: Display>(_msg: T) -> Self {
@@ -17,8 +17,9 @@ macro_rules! fmt_primitives {
     };
 }
 
-/// ```edition2018
-/// use serde::Serialize;
+/// ```edition2021
+/// use serde::ser::Serialize;
+/// use serde_derive::Serialize;
 /// use std::fmt::{self, Display};
 ///
 /// #[derive(Serialize)]

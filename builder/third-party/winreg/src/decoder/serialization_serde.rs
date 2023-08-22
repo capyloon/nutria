@@ -1,15 +1,12 @@
-// Copyright 2017, Igor Shaula
+// Copyright 2023, Igor Shaula
 // Licensed under the MIT License <LICENSE or
 // http://opensource.org/licenses/MIT>. This file
 // may not be copied, modified, or distributed
 // except according to those terms.
-use super::super::FromRegValue;
-use super::{
-    DecodeResult, Decoder, DecoderEnumerationState, DecoderError, DecoderReadingState, DECODER_SAM,
-};
+use super::{DecodeResult, Decoder, DecoderCursor, DecoderError, DECODER_SAM};
+use crate::types::FromRegValue;
 use serde::de::*;
 use std::fmt;
-use std::mem;
 
 impl Error for DecoderError {
     fn custom<T: fmt::Display>(msg: T) -> Self {
@@ -23,24 +20,26 @@ impl<'de, 'a> Deserializer<'de> for &'a mut Decoder {
     where
         V: Visitor<'de>,
     {
-        use self::DecoderEnumerationState::*;
-        match self.enumeration_state {
-            EnumeratingKeys(..) => no_impl!("deserialize_any for keys"),
-            EnumeratingValues(..) => {
-                let s = self.f_name.as_ref().ok_or(DecoderError::NoFieldName)?;
-                let v = self.key.get_raw_value(s)?;
-                use RegType::*;
+        use super::DecoderCursor::*;
+        let cursor = self.cursor.clone();
+        match cursor {
+            Start => self.deserialize_map(visitor),
+            KeyName(..) | FieldName(..) => self.deserialize_string(visitor),
+            FieldVal(index, name) => {
+                use crate::enums::RegType::*;
+                let v = self.key.get_raw_value(name)?;
+                self.cursor = Field(index + 1);
                 match v.vtype {
                     REG_SZ | REG_EXPAND_SZ | REG_MULTI_SZ => {
                         visitor.visit_string(String::from_reg_value(&v)?)
                     }
                     REG_DWORD => visitor.visit_u32(u32::from_reg_value(&v)?),
                     REG_QWORD => visitor.visit_u64(u64::from_reg_value(&v)?),
-                    _ => Err(DecoderError::DecodeNotImplemented(
-                        "value type deserialization not implemented".to_owned(),
-                    )),
+                    REG_BINARY => visitor.visit_byte_buf(v.bytes),
+                    _ => no_impl!("value type deserialization not implemented"),
                 }
             }
+            _ => no_impl!("deserialize_any"),
         }
     }
 
@@ -48,7 +47,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut Decoder {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_bool(read_value!(self).map(|v: u32| v > 0)?)
+        visitor.visit_bool(self.read_value().map(|v: u32| v > 0)?)
     }
 
     fn deserialize_u8<V>(self, visitor: V) -> DecodeResult<V::Value>
@@ -69,14 +68,14 @@ impl<'de, 'a> Deserializer<'de> for &'a mut Decoder {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u32(read_value!(self)?)
+        visitor.visit_u32(self.read_value()?)
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> DecodeResult<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u64(read_value!(self)?)
+        visitor.visit_u64(self.read_value()?)
     }
 
     fn deserialize_i8<V>(self, visitor: V) -> DecodeResult<V::Value>
@@ -139,13 +138,19 @@ impl<'de, 'a> Deserializer<'de> for &'a mut Decoder {
     where
         V: Visitor<'de>,
     {
-        use self::DecoderReadingState::*;
-        match self.reading_state {
-            WaitingForKey => {
-                let s = self.f_name.as_ref().ok_or(DecoderError::NoFieldName)?;
-                visitor.visit_string(s.clone())
+        use super::DecoderCursor::*;
+        let cursor = self.cursor.clone();
+        match cursor {
+            KeyName(index, name) => {
+                self.cursor = DecoderCursor::KeyVal(index, name.clone());
+                visitor.visit_string(name)
             }
-            WaitingForValue => visitor.visit_string(read_value!(self)?),
+            FieldName(index, name) => {
+                self.cursor = DecoderCursor::FieldVal(index, name.clone());
+                visitor.visit_string(name)
+            }
+            FieldVal(..) => visitor.visit_string(self.read_value()?),
+            _ => Err(DecoderError::NoFieldName),
         }
     }
 
@@ -156,11 +161,11 @@ impl<'de, 'a> Deserializer<'de> for &'a mut Decoder {
         no_impl!("deserialize_bytes")
     }
 
-    fn deserialize_byte_buf<V>(self, _visitor: V) -> DecodeResult<V::Value>
+    fn deserialize_byte_buf<V>(self, visitor: V) -> DecodeResult<V::Value>
     where
         V: Visitor<'de>,
     {
-        no_impl!("deserialize_byte_buf")
+        visitor.visit_byte_buf(self.read_bytes()?)
     }
 
     fn deserialize_option<V>(self, visitor: V) -> DecodeResult<V::Value>
@@ -168,8 +173,13 @@ impl<'de, 'a> Deserializer<'de> for &'a mut Decoder {
         V: Visitor<'de>,
     {
         let v = {
-            let s = self.f_name.as_ref().ok_or(DecoderError::NoFieldName)?;
-            self.key.get_raw_value(s)
+            use super::DecoderCursor::*;
+            match self.cursor {
+                FieldVal(_, ref name) => {
+                    self.key.get_raw_value(name).map_err(DecoderError::IoError)
+                }
+                _ => Err(DecoderError::DeserializerError("Nothing found".to_owned())),
+            }
         };
         match v {
             Ok(..) => visitor.visit_some(&mut *self),
@@ -274,37 +284,39 @@ impl<'de, 'a> Deserializer<'de> for &'a mut Decoder {
     }
 }
 
-impl<'de, 'a> MapAccess<'de> for Decoder {
+impl<'de> MapAccess<'de> for Decoder {
     type Error = DecoderError;
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
     where
         K: DeserializeSeed<'de>,
     {
-        self.reading_state = DecoderReadingState::WaitingForKey;
-        use self::DecoderEnumerationState::*;
-        match self.enumeration_state {
-            EnumeratingKeys(index) => match self.key.enum_key(index) {
+        use super::DecoderCursor::*;
+        match self.cursor {
+            Start => {
+                self.cursor = Key(0);
+                self.next_key_seed(seed)
+            }
+            Key(index) => match self.key.enum_key(index) {
                 Some(res) => {
-                    self.f_name = Some(res?);
-                    self.enumeration_state = EnumeratingKeys(index + 1);
+                    self.cursor = KeyName(index, res?);
                     seed.deserialize(&mut *self).map(Some)
                 }
                 None => {
-                    self.enumeration_state = EnumeratingValues(0);
+                    self.cursor = Field(0);
                     self.next_key_seed(seed)
                 }
             },
-            EnumeratingValues(index) => {
+            Field(index) => {
                 let next_value = self.key.enum_value(index);
                 match next_value {
                     Some(res) => {
-                        self.f_name = Some(res?.0);
-                        self.enumeration_state = EnumeratingValues(index + 1);
+                        self.cursor = FieldName(index, res?.0);
                         seed.deserialize(&mut *self).map(Some)
                     }
                     None => Ok(None),
                 }
             }
+            _ => no_impl!("Wrong cursor state (key)"),
         }
     }
 
@@ -312,20 +324,18 @@ impl<'de, 'a> MapAccess<'de> for Decoder {
     where
         V: DeserializeSeed<'de>,
     {
-        self.reading_state = DecoderReadingState::WaitingForValue;
-        use self::DecoderEnumerationState::*;
-        match self.enumeration_state {
-            EnumeratingKeys(..) => {
-                let f_name = self.f_name.as_ref().ok_or(DecoderError::NoFieldName)?;
-                match self.key.open_subkey_with_flags(f_name, DECODER_SAM) {
-                    Ok(subkey) => {
-                        let mut nested = Decoder::new(subkey);
-                        seed.deserialize(&mut nested)
-                    }
-                    Err(err) => Err(DecoderError::IoError(err)),
+        use super::DecoderCursor::*;
+        match self.cursor {
+            KeyVal(index, ref name) => match self.key.open_subkey_with_flags(name, DECODER_SAM) {
+                Ok(subkey) => {
+                    let mut nested = Decoder::new(subkey);
+                    self.cursor = Key(index + 1);
+                    seed.deserialize(&mut nested)
                 }
-            }
-            EnumeratingValues(..) => seed.deserialize(&mut *self),
+                Err(err) => Err(DecoderError::IoError(err)),
+            },
+            FieldVal(..) => seed.deserialize(&mut *self),
+            _ => no_impl!("Wrong cursor state (field)"),
         }
     }
 }

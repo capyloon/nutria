@@ -228,7 +228,17 @@ impl LitStr {
         let mut tokens = TokenStream::from_str(&self.value())?;
         tokens = respan_token_stream(tokens, self.span());
 
-        parser.parse2(tokens)
+        let result = parser.parse2(tokens)?;
+
+        let suffix = self.suffix();
+        if !suffix.is_empty() {
+            return Err(Error::new(
+                self.span(),
+                format!("unexpected suffix `{}` on string literal", suffix),
+            ));
+        }
+
+        Ok(result)
     }
 
     pub fn span(&self) -> Span {
@@ -1166,7 +1176,7 @@ mod value {
                         b'x' => {
                             let (byte, rest) = backslash_x(s);
                             s = rest;
-                            assert!(byte <= 0x80, "Invalid \\x byte in string literal");
+                            assert!(byte <= 0x7F, "Invalid \\x byte in string literal");
                             char::from_u32(u32::from(byte)).unwrap()
                         }
                         b'u' => {
@@ -1273,8 +1283,7 @@ mod value {
                         b'"' => b'"',
                         b'\r' | b'\n' => loop {
                             let byte = byte(v, 0);
-                            let ch = char::from_u32(u32::from(byte)).unwrap();
-                            if ch.is_whitespace() {
+                            if matches!(byte, b' ' | b'\t' | b'\n' | b'\r') {
                                 v = &v[1..];
                             } else {
                                 continue 'outer;

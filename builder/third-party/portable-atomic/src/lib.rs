@@ -6,9 +6,9 @@ Portable atomic types including support for 128-bit atomics, atomic float, etc.
 - Provide `AtomicI128` and `AtomicU128`.
 - Provide `AtomicF32` and `AtomicF64`. ([optional, requires the `float` feature](#optional-features-float))
 - Provide atomic load/store for targets where atomic is not available at all in the standard library. (RISC-V without A-extension, MSP430, AVR)
-- Provide atomic CAS for targets where atomic CAS is not available in the standard library. (thumbv6m, pre-v6 ARM, RISC-V without A-extension, MSP430, AVR, Xtensa, etc.) (always enabled for MSP430 and AVR, [optional](#optional-cfg) otherwise)
-- Provide stable equivalents of the standard library's atomic types' unstable APIs, such as [`AtomicPtr::fetch_*`](https://github.com/rust-lang/rust/issues/99108), [`AtomicBool::fetch_not`](https://github.com/rust-lang/rust/issues/98485), [`Atomic*::as_ptr`](https://github.com/rust-lang/rust/issues/66893).
-- Make features that require newer compilers, such as [fetch_max](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html#method.fetch_max), [fetch_min](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html#method.fetch_min), [fetch_update](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicPtr.html#method.fetch_update), and [stronger CAS failure ordering](https://github.com/rust-lang/rust/pull/98383) available on Rust 1.34+.
+- Provide atomic CAS for targets where atomic CAS is not available in the standard library. (thumbv6m, pre-v6 ARM, RISC-V without A-extension, MSP430, AVR, Xtensa, etc.) (always enabled for MSP430 and AVR, [optional](#optional-features-critical-section) otherwise)
+- Provide stable equivalents of the standard library's atomic types' unstable APIs, such as [`AtomicPtr::fetch_*`](https://github.com/rust-lang/rust/issues/99108), [`AtomicBool::fetch_not`](https://github.com/rust-lang/rust/issues/98485).
+- Make features that require newer compilers, such as [`fetch_{max,min}`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html#method.fetch_max), [`fetch_update`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html#method.fetch_update), [`as_ptr`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html#method.as_ptr), and [stronger CAS failure ordering](https://github.com/rust-lang/rust/pull/98383) available on Rust 1.34+.
 - Provide workaround for bugs in the standard library's atomic-related APIs, such as [rust-lang/rust#100650], `fence`/`compiler_fence` on MSP430 that cause LLVM error, etc.
 
 <!-- TODO:
@@ -44,13 +44,13 @@ portable-atomic = { version = "1.3", default-features = false, features = ["requ
 
 ## 128-bit atomics support
 
-Native 128-bit atomic operations are available on x86_64 (Rust 1.59+), aarch64 (Rust 1.59+), powerpc64 (le or pwr8+, nightly only), and s390x (nightly only), otherwise the fallback implementation is used.
+Native 128-bit atomic operations are available on x86_64 (Rust 1.59+), aarch64 (Rust 1.59+), powerpc64 (nightly only), and s390x (nightly only), otherwise the fallback implementation is used.
 
-On x86_64, even if `cmpxchg16b` is not available at compile-time (note: `cmpxchg16b` target feature is enabled by default only on macOS), run-time detection checks whether `cmpxchg16b` is available. If `cmpxchg16b` is not available at either compile-time or run-time detection, the fallback implementation is used. See also [`portable_atomic_no_outline_atomics`](#optional-cfg-no-outline-atomics) cfg.
+On x86_64, even if `cmpxchg16b` is not available at compile-time (note: `cmpxchg16b` target feature is enabled by default only on Apple targets), run-time detection checks whether `cmpxchg16b` is available. If `cmpxchg16b` is not available at either compile-time or run-time detection, the fallback implementation is used. See also [`portable_atomic_no_outline_atomics`](#optional-cfg-no-outline-atomics) cfg.
 
 They are usually implemented using inline assembly, and when using Miri or ThreadSanitizer that do not support inline assembly, core intrinsics are used instead of inline assembly if possible.
 
-See also the [`atomic128` module's readme](https://github.com/taiki-e/portable-atomic/blob/HEAD/src/imp/atomic128/README.md).
+See the [`atomic128` module's readme](https://github.com/taiki-e/portable-atomic/blob/HEAD/src/imp/atomic128/README.md) for details.
 
 ## Optional features
 
@@ -81,21 +81,21 @@ See also the [`atomic128` module's readme](https://github.com/taiki-e/portable-a
   it is not natively available. When enabling it, you should provide a suitable critical section implementation
   for the current target, see the [critical-section] documentation for details on how to do so.
 
-  `critical-section` support is useful to get atomic CAS when `--cfg portable_atomic_unsafe_assume_single_core` can't be used,
+  `critical-section` support is useful to get atomic CAS when the [`unsafe-assume-single-core` feature](#optional-features-unsafe-assume-single-core) can't be used,
   such as multi-core targets, unprivileged code running under some RTOS, or environments where disabling interrupts
   needs extra care due to e.g. real-time requirements.
 
   Note that with the `critical-section` feature, critical sections are taken for all atomic operations, while with
-  `--cfg portable_atomic_unsafe_assume_single_core` some operations don't require disabling interrupts (loads and stores, but
+  [`unsafe-assume-single-core` feature](#optional-features-unsafe-assume-single-core) some operations don't require disabling interrupts (loads and stores, but
   additionally on MSP430 `add`, `sub`, `and`, `or`, `xor`, `not`). Therefore, for better performance, if
   all the `critical-section` implementation for your target does is disable interrupts, prefer using
-  `--cfg portable_atomic_unsafe_assume_single_core` instead.
+  `unsafe-assume-single-core` feature instead.
 
   Note:
   - The MSRV when this feature is enabled depends on the MSRV of [critical-section].
   - It is usually *not* recommended to always enable this feature in dependencies of the library.
 
-    Enabling this feature will prevent the end user from having the chance to take advantage of other (potentially) efficient implementations ([Implementations provided by `--cfg portable_atomic_unsafe_assume_single_core`, default implementations on MSP430 and AVR](#optional-cfg), implementation proposed in [#60], etc. Other systems may also be supported in the future).
+    Enabling this feature will prevent the end user from having the chance to take advantage of other (potentially) efficient implementations ([Implementations provided by `unsafe-assume-single-core` feature, default implementations on MSP430 and AVR](#optional-features-unsafe-assume-single-core), implementation proposed in [#60], etc. Other systems may also be supported in the future).
 
     The recommended approach for libraries is to leave it up to the end user whether or not to enable this feature. (However, it may make sense to enable this feature by default for libraries specific to a platform where other implementations are known not to work.)
 
@@ -108,6 +108,33 @@ See also the [`atomic128` module's readme](https://github.com/taiki-e/portable-a
     crate-uses-portable-atomic-as-feature = { version = "...", features = ["portable-atomic"] }
     ```
 
+- <a name="optional-features-unsafe-assume-single-core"></a>**`unsafe-assume-single-core`**<br>
+  Assume that the target is single-core.
+  When this feature is enabled, this crate provides atomic CAS for targets where atomic CAS is not available in the standard library by disabling interrupts.
+
+  This feature is `unsafe`, and note the following safety requirements:
+  - Enabling this feature for multi-core systems is always **unsound**.
+  - This uses privileged instructions to disable interrupts, so it usually doesn't work on unprivileged mode.
+    Enabling this feature in an environment where privileged instructions are not available, or if the instructions used are not sufficient to disable interrupts in the system, it is also usually considered **unsound**, although the details are system-dependent.
+
+    The following are known cases:
+    - On pre-v6 ARM, this disables only IRQs by default. For many systems (e.g., GBA) this is enough. If the system need to disable both IRQs and FIQs, you need to enable the `disable-fiq` feature together.
+    - On RISC-V without A-extension, this generates code for machine-mode (M-mode) by default. If you enable the `s-mode` together, this generates code for supervisor-mode (S-mode). In particular, `qemu-system-riscv*` uses [OpenSBI](https://github.com/riscv-software-src/opensbi) as the default firmware.
+
+    See also [the `interrupt` module's readme](https://github.com/taiki-e/portable-atomic/blob/HEAD/src/imp/interrupt/README.md).
+
+  Consider using the [`critical-section` feature](#optional-features-critical-section) for systems that cannot use this feature.
+
+  It is **very strongly discouraged** to enable this feature in libraries that depend on `portable-atomic`. The recommended approach for libraries is to leave it up to the end user whether or not to enable this feature. (However, it may make sense to enable this feature by default for libraries specific to a platform where it is guaranteed to always be sound, for example in a hardware abstraction layer targeting a single-core chip.)
+
+  ARMv6-M (thumbv6m), pre-v6 ARM (e.g., thumbv4t, thumbv5te), RISC-V without A-extension, and Xtensa are currently supported.
+
+  Since all MSP430 and AVR are single-core, we always provide atomic CAS for them without this feature.
+
+  Enabling this feature for targets that have atomic CAS will result in a compile error.
+
+  Feel free to submit an issue if your target is not supported yet.
+
 ## Optional cfg
 
 One of the ways to enable cfg is to set [rustflags in the cargo config](https://doc.rust-lang.org/cargo/reference/config.html#targettriplerustflags):
@@ -115,41 +142,19 @@ One of the ways to enable cfg is to set [rustflags in the cargo config](https://
 ```toml
 # .cargo/config.toml
 [target.<target>]
-rustflags = ["--cfg", "portable_atomic_unsafe_assume_single_core"]
+rustflags = ["--cfg", "portable_atomic_no_outline_atomics"]
 ```
 
 Or set environment variable:
 
 ```sh
-RUSTFLAGS="--cfg portable_atomic_unsafe_assume_single_core" cargo ...
+RUSTFLAGS="--cfg portable_atomic_no_outline_atomics" cargo ...
 ```
 
 - <a name="optional-cfg-unsafe-assume-single-core"></a>**`--cfg portable_atomic_unsafe_assume_single_core`**<br>
-  Assume that the target is single-core.
-  When this cfg is enabled, this crate provides atomic CAS for targets where atomic CAS is not available in the standard library by disabling interrupts.
+  Since 1.4.0, this cfg is an alias of [`unsafe-assume-single-core` feature](#optional-features-unsafe-assume-single-core).
 
-  This cfg is `unsafe`, and note the following safety requirements:
-  - Enabling this cfg for multi-core systems is always **unsound**.
-  - This uses privileged instructions to disable interrupts, so it usually doesn't work on unprivileged mode.
-    Enabling this cfg in an environment where privileged instructions are not available, or if the instructions used are not sufficient to disable interrupts in the system, it is also usually considered **unsound**, although the details are system-dependent.
-
-    The following are known cases:
-    - On pre-v6 ARM, this disables only IRQs by default. For many systems (e.g., GBA) this is enough. If the system need to disable both IRQs and FIQs, you need to pass the `--cfg portable_atomic_disable_fiq` together.
-    - On RISC-V without A-extension, this generates code for machine-mode (M-mode) by default. If you pass the `--cfg portable_atomic_s_mode` together, this generates code for supervisor-mode (S-mode). In particular, `qemu-system-riscv*` uses [OpenSBI](https://github.com/riscv-software-src/opensbi) as the default firmware.
-
-    See also [the `interrupt` module's readme](https://github.com/taiki-e/portable-atomic/blob/HEAD/src/imp/interrupt/README.md).
-
-  Consider using the [`critical-section` feature](#optional-features-critical-section) for systems that cannot use this cfg.
-
-  This is intentionally not an optional feature. (If this is an optional feature, dependencies can implicitly enable the feature, resulting in the use of unsound code without the end-user being aware of it.)
-
-  ARMv6-M (thumbv6m), pre-v6 ARM (e.g., thumbv4t, thumbv5te), RISC-V without A-extension, and Xtensa are currently supported.
-
-  Since all MSP430 and AVR are single-core, we always provide atomic CAS for them without this cfg.
-
-  Enabling this cfg for targets that have atomic CAS will result in a compile error.
-
-  Feel free to submit an issue if your target is not supported yet.
+  Originally, we were providing these as cfgs instead of features, but based on a strong request from the embedded ecosystem, we have agreed to provide them as features as well. See [#94](https://github.com/taiki-e/portable-atomic/pull/94) for more.
 
 - <a name="optional-cfg-no-outline-atomics"></a>**`--cfg portable_atomic_no_outline_atomics`**<br>
   Disable dynamic dispatching by run-time CPU feature detection.
@@ -270,7 +275,7 @@ RUSTFLAGS="--cfg portable_atomic_unsafe_assume_single_core" cargo ...
         target_arch = "x86_64",
         portable_atomic_unstable_cmpxchg16b_target_feature,
         not(portable_atomic_no_outline_atomics),
-        not(target_env = "sgx"),
+        not(any(target_env = "sgx", miri)),
         feature = "fallback",
     ),
     feature(cmpxchg16b_target_feature)
@@ -442,8 +447,8 @@ compile_error!(
 )]
 compile_error!(
     "dependents require atomic CAS but not available on this target by default;\n\
-    consider using portable_atomic_unsafe_assume_single_core cfg or critical-section feature.\n\
-    see <https://docs.rs/portable-atomic/latest/portable_atomic/#optional-cfg> for more."
+    consider enabling one of the `unsafe-assume-single-core` or `critical-section` Cargo features.\n\
+    see <https://docs.rs/portable-atomic/latest/portable_atomic/#optional-features> for more."
 );
 
 #[cfg(any(test, feature = "std"))]
@@ -518,6 +523,22 @@ use core::{fmt, ptr};
 use crate::utils::strict;
 
 cfg_has_atomic_8! {
+cfg_has_atomic_cas! {
+// See https://github.com/rust-lang/rust/pull/114034 for details.
+// https://github.com/rust-lang/rust/blob/9339f446a5302cd5041d3f3b5e59761f36699167/library/core/src/sync/atomic.rs#L134
+// https://godbolt.org/z/EvPTfPh44
+#[cfg(portable_atomic_no_cfg_target_has_atomic)]
+const EMULATE_ATOMIC_BOOL: bool = cfg!(all(
+    not(portable_atomic_no_atomic_cas),
+    any(target_arch = "riscv32", target_arch = "riscv64", target_arch = "loongarch64"),
+));
+#[cfg(not(portable_atomic_no_cfg_target_has_atomic))]
+const EMULATE_ATOMIC_BOOL: bool = cfg!(all(
+    target_has_atomic = "8",
+    any(target_arch = "riscv32", target_arch = "riscv64", target_arch = "loongarch64"),
+));
+} // cfg_has_atomic_cas!
+
 /// A boolean type which can be safely shared between threads.
 ///
 /// This type has the same in-memory representation as a [`bool`].
@@ -527,11 +548,9 @@ cfg_has_atomic_8! {
 /// [`AtomicBool`](core::sync::atomic::AtomicBool). If the platform supports it
 /// but the compiler does not, atomic operations are implemented using inline
 /// assembly.
-// We can use #[repr(transparent)] here, but #[repr(C, align(N))]
-// will show clearer docs.
 #[repr(C, align(1))]
 pub struct AtomicBool {
-    inner: imp::AtomicBool,
+    v: core::cell::UnsafeCell<u8>,
 }
 
 impl Default for AtomicBool {
@@ -549,6 +568,11 @@ impl From<bool> for AtomicBool {
         Self::new(b)
     }
 }
+
+// Send is implicitly implemented.
+// SAFETY: any data races are prevented by disabling interrupts or
+// atomic intrinsics (see module-level comments).
+unsafe impl Sync for AtomicBool {}
 
 // UnwindSafe is implicitly implemented.
 #[cfg(not(portable_atomic_no_core_unwind_safe))]
@@ -573,7 +597,7 @@ impl AtomicBool {
     #[must_use]
     pub const fn new(v: bool) -> Self {
         static_assert_layout!(AtomicBool, bool);
-        Self { inner: imp::AtomicBool::new(v) }
+        Self { v: core::cell::UnsafeCell::new(v as u8) }
     }
 
     /// Returns `true` if operations on values of this type are lock-free.
@@ -592,7 +616,7 @@ impl AtomicBool {
     #[inline]
     #[must_use]
     pub fn is_lock_free() -> bool {
-        imp::AtomicBool::is_lock_free()
+        imp::AtomicU8::is_lock_free()
     }
 
     /// Returns `true` if operations on values of this type are lock-free.
@@ -614,7 +638,7 @@ impl AtomicBool {
     #[inline]
     #[must_use]
     pub const fn is_always_lock_free() -> bool {
-        imp::AtomicBool::is_always_lock_free()
+        imp::AtomicU8::is_always_lock_free()
     }
 
     /// Returns a mutable reference to the underlying [`bool`].
@@ -634,7 +658,8 @@ impl AtomicBool {
     /// ```
     #[inline]
     pub fn get_mut(&mut self) -> &mut bool {
-        self.inner.get_mut()
+        // SAFETY: the mutable reference guarantees unique ownership.
+        unsafe { &mut *(self.v.get() as *mut bool) }
     }
 
     // TODO: Add from_mut/get_mut_slice/from_mut_slice/from_ptr once it is stable on std atomic types.
@@ -656,7 +681,7 @@ impl AtomicBool {
     /// ```
     #[inline]
     pub fn into_inner(self) -> bool {
-        self.inner.into_inner()
+        self.v.into_inner() != 0
     }
 
     /// Loads a value from the bool.
@@ -683,7 +708,7 @@ impl AtomicBool {
         track_caller
     )]
     pub fn load(&self, order: Ordering) -> bool {
-        self.inner.load(order)
+        self.as_atomic_u8().load(order) != 0
     }
 
     /// Stores a value into the bool.
@@ -711,7 +736,7 @@ impl AtomicBool {
         track_caller
     )]
     pub fn store(&self, val: bool, order: Ordering) {
-        self.inner.store(val, order);
+        self.as_atomic_u8().store(val as u8, order);
     }
 
     cfg_has_atomic_cas! {
@@ -735,7 +760,11 @@ impl AtomicBool {
     #[inline]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
     pub fn swap(&self, val: bool, order: Ordering) -> bool {
-        self.inner.swap(val, order)
+        if EMULATE_ATOMIC_BOOL {
+            if val { self.fetch_or(true, order) } else { self.fetch_and(false, order) }
+        } else {
+            self.as_atomic_u8().swap(val as u8, order) != 0
+        }
     }
 
     /// Stores a value into the [`bool`] if the current value is the same as the `current` value.
@@ -787,7 +816,24 @@ impl AtomicBool {
         success: Ordering,
         failure: Ordering,
     ) -> Result<bool, bool> {
-        self.inner.compare_exchange(current, new, success, failure)
+        if EMULATE_ATOMIC_BOOL {
+            crate::utils::assert_compare_exchange_ordering(success, failure);
+            let order = crate::utils::upgrade_success_ordering(success, failure);
+            let old = if current == new {
+                // This is a no-op, but we still need to perform the operation
+                // for memory ordering reasons.
+                self.fetch_or(false, order)
+            } else {
+                // This sets the value to the new one and returns the old one.
+                self.swap(new, order)
+            };
+            if old == current { Ok(old) } else { Err(old) }
+        } else {
+            match self.as_atomic_u8().compare_exchange(current as u8, new as u8, success, failure) {
+                Ok(x) => Ok(x != 0),
+                Err(x) => Err(x != 0),
+            }
+        }
     }
 
     /// Stores a value into the [`bool`] if the current value is the same as the `current` value.
@@ -838,7 +884,15 @@ impl AtomicBool {
         success: Ordering,
         failure: Ordering,
     ) -> Result<bool, bool> {
-        self.inner.compare_exchange_weak(current, new, success, failure)
+        if EMULATE_ATOMIC_BOOL {
+            return self.compare_exchange(current, new, success, failure);
+        }
+
+        match self.as_atomic_u8().compare_exchange_weak(current as u8, new as u8, success, failure)
+        {
+            Ok(x) => Ok(x != 0),
+            Err(x) => Err(x != 0),
+        }
     }
 
     /// Logical "and" with a boolean value.
@@ -873,7 +927,7 @@ impl AtomicBool {
     #[inline]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
     pub fn fetch_and(&self, val: bool, order: Ordering) -> bool {
-        self.inner.fetch_and(val, order)
+        self.as_atomic_u8().fetch_and(val as u8, order) != 0
     }
 
     /// Logical "and" with a boolean value.
@@ -917,7 +971,7 @@ impl AtomicBool {
     #[inline]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
     pub fn and(&self, val: bool, order: Ordering) {
-        self.inner.and(val, order);
+        self.as_atomic_u8().and(val as u8, order);
     }
 
     /// Logical "nand" with a boolean value.
@@ -953,7 +1007,7 @@ impl AtomicBool {
     #[inline]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
     pub fn fetch_nand(&self, val: bool, order: Ordering) -> bool {
-        // https://github.com/rust-lang/rust/blob/1.69.0/library/core/src/sync/atomic.rs#L811-L825
+        // https://github.com/rust-lang/rust/blob/1.70.0/library/core/src/sync/atomic.rs#L811-L825
         if val {
             // !(x & true) == !x
             // We must invert the bool.
@@ -997,7 +1051,7 @@ impl AtomicBool {
     #[inline]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
     pub fn fetch_or(&self, val: bool, order: Ordering) -> bool {
-        self.inner.fetch_or(val, order)
+        self.as_atomic_u8().fetch_or(val as u8, order) != 0
     }
 
     /// Logical "or" with a boolean value.
@@ -1041,7 +1095,7 @@ impl AtomicBool {
     #[inline]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
     pub fn or(&self, val: bool, order: Ordering) {
-        self.inner.or(val, order);
+        self.as_atomic_u8().or(val as u8, order);
     }
 
     /// Logical "xor" with a boolean value.
@@ -1076,7 +1130,7 @@ impl AtomicBool {
     #[inline]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
     pub fn fetch_xor(&self, val: bool, order: Ordering) -> bool {
-        self.inner.fetch_xor(val, order)
+        self.as_atomic_u8().fetch_xor(val as u8, order) != 0
     }
 
     /// Logical "xor" with a boolean value.
@@ -1120,7 +1174,7 @@ impl AtomicBool {
     #[inline]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
     pub fn xor(&self, val: bool, order: Ordering) {
-        self.inner.xor(val, order);
+        self.as_atomic_u8().xor(val as u8, order);
     }
 
     /// Logical "not" with a boolean value.
@@ -1264,6 +1318,8 @@ impl AtomicBool {
     } // cfg_has_atomic_cas!
 
     const_fn! {
+        // This function is actually `const fn`-compatible on Rust 1.32+,
+        // but makes `const fn` only on Rust 1.58+ to match other atomic types.
         const_if: #[cfg(not(portable_atomic_no_const_raw_ptr_deref))];
         /// Returns a mutable pointer to the underlying [`bool`].
         ///
@@ -1281,8 +1337,15 @@ impl AtomicBool {
         /// This is `const fn` on Rust 1.58+.
         #[inline]
         pub const fn as_ptr(&self) -> *mut bool {
-            self.inner.as_ptr()
+            self.v.get() as *mut bool
         }
+    }
+
+    #[inline]
+    fn as_atomic_u8(&self) -> &imp::AtomicU8 {
+        // SAFETY: AtomicBool and imp::AtomicU8 have the same layout,
+        // and both access data in the same way.
+        unsafe { &*(self as *const Self as *const imp::AtomicU8) }
     }
 }
 } // cfg_has_atomic_8!
@@ -1325,7 +1388,7 @@ impl<T> From<*mut T> for AtomicPtr<T> {
 impl<T> fmt::Debug for AtomicPtr<T> {
     #[allow(clippy::missing_inline_in_public_items)] // fmt is not hot path
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // std atomic types use Relaxed in Debug::fmt: https://github.com/rust-lang/rust/blob/1.69.0/library/core/src/sync/atomic.rs#L2023
+        // std atomic types use Relaxed in Debug::fmt: https://github.com/rust-lang/rust/blob/1.70.0/library/core/src/sync/atomic.rs#L2024
         fmt::Debug::fmt(&self.load(Ordering::Relaxed), f)
     }
 }
@@ -1333,7 +1396,7 @@ impl<T> fmt::Debug for AtomicPtr<T> {
 impl<T> fmt::Pointer for AtomicPtr<T> {
     #[allow(clippy::missing_inline_in_public_items)] // fmt is not hot path
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // std atomic types use Relaxed in Debug::fmt: https://github.com/rust-lang/rust/blob/1.69.0/library/core/src/sync/atomic.rs#L2023
+        // std atomic types use Relaxed in Debug::fmt: https://github.com/rust-lang/rust/blob/1.70.0/library/core/src/sync/atomic.rs#L2024
         fmt::Pointer::fmt(&self.load(Ordering::Relaxed), f)
     }
 }
@@ -2206,7 +2269,7 @@ impl<T> AtomicPtr<T> {
         );
         // SAFETY: AtomicPtr and AtomicUsize have the same layout,
         // and both access data in the same way.
-        unsafe { &*(self as *const AtomicPtr<T> as *const AtomicUsize) }
+        unsafe { &*(self as *const Self as *const AtomicUsize) }
     }
     } // cfg_has_atomic_cas!
 

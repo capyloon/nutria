@@ -13,15 +13,15 @@ use winnow::ascii::multispace1;
 use winnow::combinator::alt;
 use winnow::combinator::fold_repeat;
 use winnow::combinator::{delimited, preceded};
-use winnow::error::{FromExternalError, ParseError};
+use winnow::error::{FromExternalError, ParserError};
 use winnow::prelude::*;
 use winnow::token::{take_till1, take_while};
 
 /// Parse a string. Use a loop of `parse_fragment` and push all of the fragments
 /// into an output string.
-pub fn parse_string<'a, E>(input: &'a str) -> IResult<&'a str, String, E>
+pub fn parse_string<'a, E>(input: &mut &'a str) -> PResult<String, E>
 where
-    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+    E: ParserError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
     // fold_repeat is the equivalent of iterator::fold. It runs a parser in a loop,
     // and for each output value, calls a folding function on each output value.
@@ -62,9 +62,9 @@ enum StringFragment<'a> {
 
 /// Combine `parse_literal`, `parse_escaped_whitespace`, and `parse_escaped_char`
 /// into a `StringFragment`.
-fn parse_fragment<'a, E>(input: &'a str) -> IResult<&'a str, StringFragment<'a>, E>
+fn parse_fragment<'a, E>(input: &mut &'a str) -> PResult<StringFragment<'a>, E>
 where
-    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+    E: ParserError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
     alt((
         // The `map` combinator runs a parser, then applies a function to the output
@@ -77,10 +77,10 @@ where
 }
 
 /// Parse a non-empty block of text that doesn't include \ or "
-fn parse_literal<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+fn parse_literal<'a, E: ParserError<&'a str>>(input: &mut &'a str) -> PResult<&'a str, E> {
     // `take_till1` parses a string of 0 or more characters that aren't one of the
     // given characters.
-    let not_quote_slash = take_till1("\"\\");
+    let not_quote_slash = take_till1(['"', '\\']);
 
     // `verify` runs a parser, then runs a verification function on the output of
     // the parser. The verification function accepts the output only if it
@@ -96,9 +96,9 @@ fn parse_literal<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str,
 // then combine them into larger parsers.
 
 /// Parse an escaped character: \n, \t, \r, \u{00AC}, etc.
-fn parse_escaped_char<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
+fn parse_escaped_char<'a, E>(input: &mut &'a str) -> PResult<char, E>
 where
-    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+    E: ParserError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
     preceded(
         '\\',
@@ -126,9 +126,9 @@ where
 /// Parse a unicode sequence, of the form u{XXXX}, where XXXX is 1 to 6
 /// hexadecimal numerals. We will combine this later with `parse_escaped_char`
 /// to parse sequences like \u{00AC}.
-fn parse_unicode<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
+fn parse_unicode<'a, E>(input: &mut &'a str) -> PResult<char, E>
 where
-    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+    E: ParserError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
     // `take_while` parses between `m` and `n` bytes (inclusive) that match
     // a predicate. `parse_hex` here parses between 1 and 6 hexadecimal numerals.
@@ -158,8 +158,8 @@ where
 
 /// Parse a backslash, followed by any amount of whitespace. This is used later
 /// to discard any escaped whitespace.
-fn parse_escaped_whitespace<'a, E: ParseError<&'a str>>(
-    input: &'a str,
-) -> IResult<&'a str, &'a str, E> {
+fn parse_escaped_whitespace<'a, E: ParserError<&'a str>>(
+    input: &mut &'a str,
+) -> PResult<&'a str, E> {
     preceded('\\', multispace1).parse_next(input)
 }

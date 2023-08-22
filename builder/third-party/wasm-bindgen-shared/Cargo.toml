@@ -11,8 +11,9 @@
 
 [package]
 edition = "2018"
+rust-version = "1.56"
 name = "wasm-bindgen-shared"
-version = "0.2.86"
+version = "0.2.87"
 authors = ["The wasm-bindgen Developers"]
 links = "wasm_bindgen"
 description = """

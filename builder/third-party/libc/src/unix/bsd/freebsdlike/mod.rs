@@ -1339,7 +1339,7 @@ pub const CMGROUP_MAX: usize = 16;
 
 pub const EUI64_LEN: usize = 8;
 
-// https://github.com/freebsd/freebsd/blob/master/sys/net/bpf.h
+// https://github.com/freebsd/freebsd/blob/HEAD/sys/net/bpf.h
 pub const BPF_ALIGNMENT: usize = SIZEOF_LONG;
 
 // Values for rtprio struct (prio field) and syscall (function argument)
@@ -1571,6 +1571,7 @@ extern "C" {
         mode: ::mode_t,
         dev: dev_t,
     ) -> ::c_int;
+    pub fn malloc_usable_size(ptr: *const ::c_void) -> ::size_t;
     pub fn mincore(addr: *const ::c_void, len: ::size_t, vec: *mut ::c_char) -> ::c_int;
     pub fn newlocale(mask: ::c_int, locale: *const ::c_char, base: ::locale_t) -> ::locale_t;
     pub fn nl_langinfo_l(item: ::nl_item, locale: ::locale_t) -> *mut ::c_char;

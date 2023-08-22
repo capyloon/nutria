@@ -1,16 +1,15 @@
-// Copyright 2017, Igor Shaula
+// Copyright 2023, Igor Shaula
 // Licensed under the MIT License <LICENSE or
 // http://opensource.org/licenses/MIT>. This file
 // may not be copied, modified, or distributed
 // except according to those terms.
 use self::EncoderState::*;
-use super::enums::*;
-use super::transaction::Transaction;
-use super::RegKey;
+use crate::enums::*;
+use crate::reg_key::RegKey;
+use crate::transaction::Transaction;
 use std::error::Error;
 use std::fmt;
 use std::io;
-use winapi::shared::minwindef::DWORD;
 
 macro_rules! emit_value {
     ($s:ident, $v:ident) => {
@@ -71,7 +70,7 @@ pub struct Encoder {
     state: EncoderState,
 }
 
-const ENCODER_SAM: DWORD = KEY_CREATE_SUB_KEY | KEY_SET_VALUE;
+const ENCODER_SAM: u32 = KEY_CREATE_SUB_KEY | KEY_SET_VALUE;
 
 impl Encoder {
     pub fn from_key(key: &RegKey) -> EncodeResult<Encoder> {

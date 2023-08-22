@@ -7,7 +7,7 @@ pub enum Color {
 }
 
 impl Color {
-    /// Create a [`Style`][crate::Style] with this as the foregroun
+    /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
     pub fn on(self, background: impl Into<Color>) -> crate::Style {
         crate::Style::new()
@@ -15,7 +15,7 @@ impl Color {
             .bg_color(Some(background.into()))
     }
 
-    /// Create a [`Style`][crate::Style] with this as the foregroun
+    /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
     pub fn on_default(self) -> crate::Style {
         crate::Style::new().fg_color(Some(self))
@@ -175,7 +175,7 @@ pub enum AnsiColor {
 }
 
 impl AnsiColor {
-    /// Create a [`Style`][crate::Style] with this as the foregroun
+    /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
     pub fn on(self, background: impl Into<Color>) -> crate::Style {
         crate::Style::new()
@@ -183,7 +183,7 @@ impl AnsiColor {
             .bg_color(Some(background.into()))
     }
 
-    /// Create a [`Style`][crate::Style] with this as the foregroun
+    /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
     pub fn on_default(self) -> crate::Style {
         crate::Style::new().fg_color(Some(self.into()))
@@ -330,7 +330,7 @@ impl AnsiColor {
 pub struct Ansi256Color(pub u8);
 
 impl Ansi256Color {
-    /// Create a [`Style`][crate::Style] with this as the foregroun
+    /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
     pub fn on(self, background: impl Into<Color>) -> crate::Style {
         crate::Style::new()
@@ -338,7 +338,7 @@ impl Ansi256Color {
             .bg_color(Some(background.into()))
     }
 
-    /// Create a [`Style`][crate::Style] with this as the foregroun
+    /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
     pub fn on_default(self) -> crate::Style {
         crate::Style::new().fg_color(Some(self.into()))
@@ -450,7 +450,7 @@ impl From<AnsiColor> for Ansi256Color {
 pub struct RgbColor(pub u8, pub u8, pub u8);
 
 impl RgbColor {
-    /// Create a [`Style`][crate::Style] with this as the foregroun
+    /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
     pub fn on(self, background: impl Into<Color>) -> crate::Style {
         crate::Style::new()
@@ -458,7 +458,7 @@ impl RgbColor {
             .bg_color(Some(background.into()))
     }
 
-    /// Create a [`Style`][crate::Style] with this as the foregroun
+    /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
     pub fn on_default(self) -> crate::Style {
         crate::Style::new().fg_color(Some(self.into()))

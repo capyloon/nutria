@@ -56,10 +56,14 @@
 //!
 //! ### Platform support
 //!
-//! Rustls uses [`ring`](https://crates.io/crates/ring) for implementing the
-//! cryptography in TLS. As a result, rustls only runs on platforms
-//! [supported by `ring`](https://github.com/briansmith/ring#online-automated-testing).
-//! At the time of writing this means x86, x86-64, armv7, and aarch64.
+//! While Rustls itself is platform independent it uses
+//! [`ring`](https://crates.io/crates/ring) for implementing the cryptography in
+//! TLS. As a result, rustls only runs on platforms
+//! supported by `ring`. At the time of writing this means x86, x86-64, armv7, and
+//! aarch64. For more information see [the supported `ring` CI
+//! targets](https://github.com/briansmith/ring/blob/9cc0d45f4d8521f467bb3a621e74b1535e118188/.github/workflows/ci.yml#L151-L167).
+//!
+//! Rustls requires Rust 1.60 or later.
 //!
 //! ## Design Overview
 //! ### Rustls does not take care of network IO
@@ -101,9 +105,8 @@
 //!
 //! ```rust,no_run
 //! let mut root_store = rustls::RootCertStore::empty();
-//! root_store.add_server_trust_anchors(
+//! root_store.add_trust_anchors(
 //!     webpki_roots::TLS_SERVER_ROOTS
-//!         .0
 //!         .iter()
 //!         .map(|ta| {
 //!             rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
@@ -134,9 +137,8 @@
 //! # use webpki;
 //! # use std::sync::Arc;
 //! # let mut root_store = rustls::RootCertStore::empty();
-//! # root_store.add_server_trust_anchors(
+//! # root_store.add_trust_anchors(
 //! #  webpki_roots::TLS_SERVER_ROOTS
-//! #      .0
 //! #      .iter()
 //! #      .map(|ta| {
 //! #          rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
@@ -259,7 +261,7 @@
 
 // Require docs for public APIs, deny unsafe code, etc.
 #![forbid(unsafe_code, unused_must_use)]
-#![cfg_attr(not(read_buf), forbid(unstable_features))]
+#![cfg_attr(not(any(read_buf, bench)), forbid(unstable_features))]
 #![deny(
     clippy::clone_on_ref_ptr,
     clippy::use_self,
@@ -299,6 +301,12 @@
 // is used to avoid needing `rustversion` to be compiled twice during
 // cross-compiling.
 #![cfg_attr(read_buf, feature(read_buf))]
+#![cfg_attr(bench, feature(test))]
+
+// Import `test` sysroot crate for `Bencher` definitions.
+#[cfg(bench)]
+#[allow(unused_extern_crates)]
+extern crate test;
 
 // log for logging (optional).
 #[cfg(feature = "logging")]
@@ -318,6 +326,7 @@ mod anchors;
 mod cipher;
 mod common_state;
 mod conn;
+mod dns_name;
 mod error;
 mod hash_hs;
 mod limited_cache;
@@ -373,7 +382,10 @@ pub use crate::enums::{
     AlertDescription, CipherSuite, ContentType, HandshakeType, ProtocolVersion, SignatureAlgorithm,
     SignatureScheme,
 };
-pub use crate::error::{CertificateError, Error, InvalidMessage, PeerIncompatible, PeerMisbehaved};
+pub use crate::error::{
+    CertRevocationListError, CertificateError, Error, InvalidMessage, PeerIncompatible,
+    PeerMisbehaved,
+};
 pub use crate::key::{Certificate, PrivateKey};
 pub use crate::key_log::{KeyLog, NoKeyLog};
 pub use crate::key_log_file::KeyLogFile;
@@ -405,16 +417,17 @@ pub mod client {
     mod tls12;
     mod tls13;
 
+    pub use crate::dns_name::InvalidDnsNameError;
     pub use builder::{WantsClientCert, WantsTransparencyPolicyOrClientCert};
     pub use client_conn::{
         ClientConfig, ClientConnection, ClientConnectionData, ClientSessionStore,
-        InvalidDnsNameError, ResolvesClientCert, Resumption, ServerName, Tls12Resumption,
-        WriteEarlyData,
+        ResolvesClientCert, Resumption, ServerName, Tls12Resumption, WriteEarlyData,
     };
     pub use handy::ClientSessionMemoryCache;
 
     #[cfg(feature = "dangerous_configuration")]
     pub use crate::verify::{
+        verify_server_cert_signed_by_trust_anchor, verify_server_name,
         CertificateTransparencyPolicy, HandshakeSignatureValid, ServerCertVerified,
         ServerCertVerifier, WebPkiVerifier,
     };
@@ -440,6 +453,7 @@ pub mod server {
 
     pub use crate::verify::{
         AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth,
+        UnparsedCertRevocationList,
     };
     pub use builder::WantsServerCert;
     pub use handy::ResolvesServerCertUsingSni;
@@ -451,7 +465,11 @@ pub mod server {
     pub use server_conn::{ClientHello, ProducesTickets, ResolvesServerCert};
 
     #[cfg(feature = "dangerous_configuration")]
-    pub use crate::verify::{ClientCertVerified, ClientCertVerifier, DnsName};
+    pub use crate::dns_name::DnsName;
+    #[cfg(feature = "dangerous_configuration")]
+    pub use crate::key::ParsedCertificate;
+    #[cfg(feature = "dangerous_configuration")]
+    pub use crate::verify::{ClientCertVerified, ClientCertVerifier};
 }
 
 pub use server::{ServerConfig, ServerConnection};

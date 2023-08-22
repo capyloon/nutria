@@ -1,5 +1,13 @@
 # [Unreleased]
 
+# [0.3.2] - 2023-07-30
+
+- Fix build on Hermit
+  [#73](https://github.com/lambda-fairy/rust-errno/pull/73)
+
+- Add support for QNX Neutrino
+  [#72](https://github.com/lambda-fairy/rust-errno/pull/72)
+
 # [0.3.1] - 2023-04-08
 
 - Correct link name on redox
@@ -33,7 +41,8 @@
 - Optionally support no_std
   [#31](https://github.com/lambda-fairy/rust-errno/pull/31)
 
-[Unreleased]: https://github.com/lambda-fairy/rust-errno/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/lambda-fairy/rust-errno/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/lambda-fairy/rust-errno/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/lambda-fairy/rust-errno/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/lambda-fairy/rust-errno/compare/v0.2.8...v0.3.0
 [0.2.8]: https://github.com/lambda-fairy/rust-errno/compare/v0.2.7...v0.2.8

@@ -11,13 +11,21 @@ cargo update $@
 cargo vendor -- third-party > .cargo/config
 
 # Remove large but useless windows libraries.
-rm -rf third-party/windows_i686_msvc*/lib
+rm -rf third-party/windows_aarch64_gnullvm*/lib
+rm -rf third-party/windows_aarch64_msvc*/lib
+
 rm -rf third-party/windows_i686_gnu*/lib
-rm -rf third-party/windows_x86_64_msvc/lib
-rm -rf third-party/windows_aarch64_msvc/lib
-rm -rf third-party/windows_x86_64_gnu/lib
+rm -rf third-party/windows_i686_msvc*/lib
+
+rm -rf third-party/windows_x86_64_gnu*/lib
+rm -rf third-party/windows_x86_64_msvc*/lib
+
 rm -rf third-party/winapi-x86_64-pc-windows-gnu/lib
 rm -rf third-party/winapi-i686-pc-windows-gnu/lib
 rm -rf third-party/windows-sys*/src/Windows
-rm -rf third-party/windows_aarch64_msvc*/lib
-rm -rf third-party/windows_x86_64_gnu*/lib
+
+# Unused
+rm -rf third-party/web-sys/src/features
+rm -rf third-party/winapi/src/um
+
+du -h third-party

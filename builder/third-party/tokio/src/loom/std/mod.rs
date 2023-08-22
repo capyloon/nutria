@@ -4,8 +4,9 @@ mod atomic_u16;
 mod atomic_u32;
 mod atomic_u64;
 mod atomic_usize;
+mod barrier;
 mod mutex;
-#[cfg(feature = "parking_lot")]
+#[cfg(all(feature = "parking_lot", not(miri)))]
 mod parking_lot;
 mod unsafe_cell;
 
@@ -55,17 +56,17 @@ pub(crate) mod sync {
     // internal use. Note however that some are not _currently_ named by
     // consuming code.
 
-    #[cfg(feature = "parking_lot")]
+    #[cfg(all(feature = "parking_lot", not(miri)))]
     #[allow(unused_imports)]
     pub(crate) use crate::loom::std::parking_lot::{
         Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, WaitTimeoutResult,
     };
 
-    #[cfg(not(feature = "parking_lot"))]
+    #[cfg(not(all(feature = "parking_lot", not(miri))))]
     #[allow(unused_imports)]
     pub(crate) use std::sync::{Condvar, MutexGuard, RwLock, RwLockReadGuard, WaitTimeoutResult};
 
-    #[cfg(not(feature = "parking_lot"))]
+    #[cfg(not(all(feature = "parking_lot", not(miri))))]
     pub(crate) use crate::loom::std::mutex::Mutex;
 
     pub(crate) mod atomic {
@@ -76,6 +77,8 @@ pub(crate) mod sync {
 
         pub(crate) use std::sync::atomic::{fence, AtomicBool, AtomicPtr, AtomicU8, Ordering};
     }
+
+    pub(crate) use super::barrier::Barrier;
 }
 
 pub(crate) mod sys {

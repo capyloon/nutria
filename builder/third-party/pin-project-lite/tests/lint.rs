@@ -10,7 +10,7 @@
 // lints forbidden as a part of future_incompatible, rust_2018_compatibility, and rust_2021_compatibility are not included in the list below.
 // elided_lifetimes_in_paths, explicit_outlives_requirements, unused_extern_crates:  as a part of rust_2018_idioms
 // unsafe_op_in_unsafe_fn: requires Rust 1.52. and, we don't generate unsafe fn.
-// non_exhaustive_omitted_patterns: unstable
+// non_exhaustive_omitted_patterns, multiple_supertrait_upcastable: unstable
 // unstable_features: no way to generate #![feature(..)] by macros, expect for unstable inner attribute. and this lint is deprecated: https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html#unstable-features
 // unused_crate_dependencies, must_not_suspend: unrelated
 // unsafe_code: checked in forbid_unsafe module
@@ -18,6 +18,8 @@
     box_pointers,
     deprecated_in_future,
     fuzzy_provenance_casts,
+    invalid_reference_casting,
+    let_underscore_drop,
     lossy_provenance_casts,
     macro_use_extern_crate,
     meta_variable_misuse,
@@ -27,19 +29,28 @@
     missing_docs,
     non_ascii_idents,
     noop_method_call,
+    private_bounds,
+    private_interfaces,
     single_use_lifetimes,
     trivial_casts,
     trivial_numeric_casts,
+    unnameable_types,
     unreachable_pub,
     unused_import_braces,
     unused_lifetimes,
     unused_qualifications,
     unused_results,
+    unused_tuple_struct_fields,
     variant_size_differences
 )]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery, clippy::restriction)]
 #![allow(clippy::blanket_clippy_restriction_lints)] // this is a test, so enable all restriction lints intentionally.
-#![allow(clippy::exhaustive_structs, clippy::exhaustive_enums, clippy::single_char_lifetime_names)] // TODO
+#![allow(
+    clippy::exhaustive_enums,
+    clippy::exhaustive_structs,
+    clippy::min_ident_chars,
+    clippy::single_char_lifetime_names
+)] // TODO
 
 pub mod basic {
     include!("include/basic.rs");
@@ -60,6 +71,7 @@ pub mod box_pointers {
     pin_project! {
         #[project = EnumProj]
         #[project_ref = EnumProjRef]
+        #[project(!Unpin)]
         #[derive(Debug)]
         pub enum Enum {
             Struct {
@@ -91,6 +103,7 @@ pub mod explicit_outlives_requirements {
     pin_project! {
         #[project = EnumProj]
         #[project_ref = EnumProjRef]
+        #[project(!Unpin)]
         #[derive(Debug)]
         pub enum Enum<'a, T, U>
         where
@@ -113,6 +126,7 @@ pub mod variant_size_differences {
     pin_project! {
         #[project = EnumProj]
         #[project_ref = EnumProjRef]
+        #[project(!Unpin)]
         #[allow(missing_debug_implementations, missing_copy_implementations)] // https://github.com/rust-lang/rust/pull/74060
         #[allow(variant_size_differences)] // for the type itself
         #[allow(clippy::large_enum_variant)] // for the type itself
@@ -138,6 +152,7 @@ pub mod clippy_mut_mut {
     pin_project! {
         #[project = EnumProj]
         #[project_ref = EnumProjRef]
+        #[project(!Unpin)]
         #[derive(Debug)]
         pub enum Enum<'a, T, U> {
             Struct {
@@ -166,6 +181,7 @@ mod clippy_redundant_pub_crate {
     pin_project! {
         #[project = EnumProj]
         #[project_ref = EnumProjRef]
+        #[project(!Unpin)]
         #[derive(Debug)]
         pub enum Enum<T, U> {
             Struct {
@@ -197,6 +213,7 @@ pub mod clippy_type_repetition_in_bounds {
     pin_project! {
         #[project = EnumProj]
         #[project_ref = EnumProjRef]
+        #[project(!Unpin)]
         #[derive(Debug)]
         pub enum Enum<T, U>
         where
@@ -212,11 +229,11 @@ pub mod clippy_type_repetition_in_bounds {
     }
 }
 
+#[allow(missing_debug_implementations)]
 pub mod clippy_used_underscore_binding {
     use pin_project_lite::pin_project;
 
     pin_project! {
-        #[derive(Debug)]
         pub struct Struct<T, U> {
             #[pin]
             pub _pinned: T,
@@ -227,7 +244,7 @@ pub mod clippy_used_underscore_binding {
     pin_project! {
         #[project = EnumProj]
         #[project_ref = EnumProjRef]
-        #[derive(Debug)]
+        #[project(!Unpin)]
         pub enum Enum<T, U> {
             Struct {
                 #[pin]
@@ -252,6 +269,7 @@ pub mod clippy_ref_option_ref {
     pin_project! {
         #[project = EnumProj]
         #[project_ref = EnumProjRef]
+        #[project(!Unpin)]
         pub enum Enum<'a> {
             Struct {
                 #[pin]

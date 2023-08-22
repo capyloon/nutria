@@ -11,9 +11,9 @@
 
 [package]
 edition = "2018"
-rust-version = "1.56"
+rust-version = "1.62.1"
 name = "indicatif"
-version = "0.17.3"
+version = "0.17.6"
 exclude = ["screenshots/*"]
 description = "A progress bar and cli reporting library for Rust"
 documentation = "https://docs.rs/indicatif"
@@ -41,11 +41,16 @@ version = "0.15"
 features = ["ansi-parsing"]
 default-features = false
 
+[dependencies.futures-core]
+version = "0.3"
+optional = true
+default-features = false
+
 [dependencies.number_prefix]
 version = "0.4"
 
 [dependencies.portable-atomic]
-version = "0.3.15"
+version = "1.0.0"
 
 [dependencies.rayon]
 version = "1.1"
@@ -68,14 +73,24 @@ optional = true
 version = "0.15.1"
 optional = true
 
+[dev-dependencies.clap]
+version = "4"
+features = [
+    "color",
+    "derive",
+]
+
+[dev-dependencies.futures]
+version = "0.3"
+
 [dev-dependencies.once_cell]
 version = "1"
 
+[dev-dependencies.pretty_assertions]
+version = "1.4.0"
+
 [dev-dependencies.rand]
 version = "0.8"
-
-[dev-dependencies.structopt]
-version = "0.3"
 
 [dev-dependencies.tokio]
 version = "1"
@@ -90,9 +105,13 @@ default = [
     "unicode-width",
     "console/unicode-width",
 ]
+futures = ["dep:futures-core"]
 improved_unicode = [
     "unicode-segmentation",
     "unicode-width",
     "console/unicode-width",
 ]
 in_memory = ["vt100"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.instant]
+version = "0.1"

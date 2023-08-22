@@ -5,7 +5,7 @@
 //! Platform support:
 //!
 //! * Linux
-//! * OS X
+//! * macOS
 //! * Windows (colors require Windows 10)
 //!
 //! Best paired with other libraries in the family:
@@ -126,7 +126,7 @@
 //! where the `options` part is optional.  If provided the format is this:
 //!
 //! ```text
-//! [<^>]           for an optional alignment specification
+//! <^>             for an optional alignment specification (left, center and right respectively)
 //! WIDTH           an optional width as positive integer
 //! !               an optional exclamation mark to enable truncation
 //! .STYLE          an optional dot separated style string

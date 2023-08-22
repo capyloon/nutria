@@ -112,7 +112,7 @@
 //! [derive section of the manual]: https://serde.rs/derive.html
 //! [data formats]: https://serde.rs/#data-formats
 
-use lib::*;
+use crate::lib::*;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -122,16 +122,20 @@ pub mod value;
 mod format;
 mod ignored_any;
 mod impls;
+pub(crate) mod size_hint;
 mod utf8;
 
 pub use self::ignored_any::IgnoredAny;
 
+#[cfg(not(any(feature = "std", feature = "unstable")))]
+#[doc(no_inline)]
+pub use crate::std_error::Error as StdError;
+#[cfg(all(feature = "unstable", not(feature = "std")))]
+#[doc(no_inline)]
+pub use core::error::Error as StdError;
 #[cfg(feature = "std")]
 #[doc(no_inline)]
 pub use std::error::Error as StdError;
-#[cfg(not(feature = "std"))]
-#[doc(no_inline)]
-pub use std_error::Error as StdError;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -162,7 +166,7 @@ macro_rules! declare_error_trait {
             ///
             /// The message should not be capitalized and should not end with a period.
             ///
-            /// ```edition2018
+            /// ```edition2021
             /// # use std::str::FromStr;
             /// #
             /// # struct IpAddr;
@@ -307,7 +311,7 @@ declare_error_trait!(Error: Sized + Debug + Display);
 /// This is used as an argument to the `invalid_type`, `invalid_value`, and
 /// `invalid_length` methods of the `Error` trait to build error messages.
 ///
-/// ```edition2018
+/// ```edition2021
 /// # use std::fmt;
 /// #
 /// # use serde::de::{self, Unexpected, Visitor};
@@ -432,10 +436,9 @@ impl<'a> fmt::Display for Unexpected<'a> {
 /// Within the context of a `Visitor` implementation, the `Visitor` itself
 /// (`&self`) is an implementation of this trait.
 ///
-/// ```edition2018
-/// # use std::fmt;
-/// #
+/// ```edition2021
 /// # use serde::de::{self, Unexpected, Visitor};
+/// # use std::fmt;
 /// #
 /// # struct Example;
 /// #
@@ -457,7 +460,7 @@ impl<'a> fmt::Display for Unexpected<'a> {
 ///
 /// Outside of a `Visitor`, `&"..."` can be used.
 ///
-/// ```edition2018
+/// ```edition2021
 /// # use serde::de::{self, Unexpected};
 /// #
 /// # fn example<E>() -> Result<(), E>
@@ -465,7 +468,10 @@ impl<'a> fmt::Display for Unexpected<'a> {
 /// #     E: de::Error,
 /// # {
 /// #     let v = true;
-/// return Err(de::Error::invalid_type(Unexpected::Bool(v), &"a negative integer"));
+/// return Err(de::Error::invalid_type(
+///     Unexpected::Bool(v),
+///     &"a negative integer",
+/// ));
 /// # }
 /// ```
 pub trait Expected {
@@ -564,7 +570,7 @@ pub trait Deserialize<'de>: Sized {
         D: Deserializer<'de>,
     {
         // Default implementation just delegates to `deserialize` impl.
-        *place = try!(Deserialize::deserialize(deserializer));
+        *place = tri!(Deserialize::deserialize(deserializer));
         Ok(())
     }
 }
@@ -577,7 +583,7 @@ pub trait Deserialize<'de>: Sized {
 /// from the input string, but a `from_reader` function may only deserialize
 /// owned data.
 ///
-/// ```edition2018
+/// ```edition2021
 /// # use serde::de::{Deserialize, DeserializeOwned};
 /// # use std::io::{Read, Result};
 /// #
@@ -616,7 +622,7 @@ impl<T> DeserializeOwned for T where T: for<'de> Deserialize<'de> {}
 ///
 /// The canonical API for stateless deserialization looks like this:
 ///
-/// ```edition2018
+/// ```edition2021
 /// # use serde::Deserialize;
 /// #
 /// # enum Error {}
@@ -630,7 +636,7 @@ impl<T> DeserializeOwned for T where T: for<'de> Deserialize<'de> {}
 /// Adjusting an API like this to support stateful deserialization is a matter
 /// of accepting a seed as input:
 ///
-/// ```edition2018
+/// ```edition2021
 /// # use serde::de::DeserializeSeed;
 /// #
 /// # enum Error {}
@@ -663,11 +669,10 @@ impl<T> DeserializeOwned for T where T: for<'de> Deserialize<'de> {}
 /// into it. This requires stateful deserialization using the `DeserializeSeed`
 /// trait.
 ///
-/// ```edition2018
+/// ```edition2021
+/// use serde::de::{Deserialize, DeserializeSeed, Deserializer, SeqAccess, Visitor};
 /// use std::fmt;
 /// use std::marker::PhantomData;
-///
-/// use serde::de::{Deserialize, DeserializeSeed, Deserializer, SeqAccess, Visitor};
 ///
 /// // A DeserializeSeed implementation that uses stateful deserialization to
 /// // append array elements onto the end of an existing vector. The preexisting
@@ -709,7 +714,7 @@ impl<T> DeserializeOwned for T where T: for<'de> Deserialize<'de> {}
 ///             {
 ///                 // Decrease the number of reallocations if there are many elements
 ///                 if let Some(size_hint) = seq.size_hint() {
-///                    self.0.reserve(size_hint);
+///                     self.0.reserve(size_hint);
 ///                 }
 ///
 ///                 // Visit each element in the inner array and push it onto
@@ -1158,7 +1163,7 @@ pub trait Deserializer<'de>: Sized {
     /// human-readable one and binary formats like Postcard will prefer the
     /// compact one.
     ///
-    /// ```edition2018
+    /// ```edition2021
     /// # use std::ops::Add;
     /// # use std::str::FromStr;
     /// #
@@ -1225,11 +1230,11 @@ pub trait Deserializer<'de>: Sized {
     #[doc(hidden)]
     fn __deserialize_content<V>(
         self,
-        _: ::actually_private::T,
+        _: crate::actually_private::T,
         visitor: V,
-    ) -> Result<::private::de::Content<'de>, Self::Error>
+    ) -> Result<crate::__private::de::Content<'de>, Self::Error>
     where
-        V: Visitor<'de, Value = ::private::de::Content<'de>>,
+        V: Visitor<'de, Value = crate::__private::de::Content<'de>>,
     {
         self.deserialize_any(visitor)
     }
@@ -1249,10 +1254,9 @@ pub trait Deserializer<'de>: Sized {
 ///
 /// # Example
 ///
-/// ```edition2018
-/// # use std::fmt;
-/// #
+/// ```edition2021
 /// # use serde::de::{self, Unexpected, Visitor};
+/// # use std::fmt;
 /// #
 /// /// A visitor that deserializes a long string - a string containing at least
 /// /// some minimum number of bytes.
@@ -1290,7 +1294,7 @@ pub trait Visitor<'de>: Sized {
     /// "an integer between 0 and 64". The message should not be capitalized and
     /// should not end with a period.
     ///
-    /// ```edition2018
+    /// ```edition2021
     /// # use std::fmt;
     /// #
     /// # struct S {
@@ -1831,9 +1835,9 @@ pub trait MapAccess<'de> {
         K: DeserializeSeed<'de>,
         V: DeserializeSeed<'de>,
     {
-        match try!(self.next_key_seed(kseed)) {
+        match tri!(self.next_key_seed(kseed)) {
             Some(key) => {
-                let value = try!(self.next_value_seed(vseed));
+                let value = tri!(self.next_value_seed(vseed));
                 Ok(Some((key, value)))
             }
             None => Ok(None),
@@ -2035,7 +2039,7 @@ pub trait VariantAccess<'de>: Sized {
     /// If the data contains a different type of variant, the following
     /// `invalid_type` error should be constructed:
     ///
-    /// ```edition2018
+    /// ```edition2021
     /// # use serde::de::{self, value, DeserializeSeed, Visitor, VariantAccess, Unexpected};
     /// #
     /// # struct X;
@@ -2075,7 +2079,7 @@ pub trait VariantAccess<'de>: Sized {
     /// If the data contains a different type of variant, the following
     /// `invalid_type` error should be constructed:
     ///
-    /// ```edition2018
+    /// ```edition2021
     /// # use serde::de::{self, value, DeserializeSeed, Visitor, VariantAccess, Unexpected};
     /// #
     /// # struct X;
@@ -2131,7 +2135,7 @@ pub trait VariantAccess<'de>: Sized {
     /// If the data contains a different type of variant, the following
     /// `invalid_type` error should be constructed:
     ///
-    /// ```edition2018
+    /// ```edition2021
     /// # use serde::de::{self, value, DeserializeSeed, Visitor, VariantAccess, Unexpected};
     /// #
     /// # struct X;
@@ -2148,11 +2152,7 @@ pub trait VariantAccess<'de>: Sized {
     /// #         T: DeserializeSeed<'de>,
     /// #     { unimplemented!() }
     /// #
-    /// fn tuple_variant<V>(
-    ///     self,
-    ///     _len: usize,
-    ///     _visitor: V,
-    /// ) -> Result<V::Value, Self::Error>
+    /// fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
     /// where
     ///     V: Visitor<'de>,
     /// {
@@ -2178,7 +2178,7 @@ pub trait VariantAccess<'de>: Sized {
     /// If the data contains a different type of variant, the following
     /// `invalid_type` error should be constructed:
     ///
-    /// ```edition2018
+    /// ```edition2021
     /// # use serde::de::{self, value, DeserializeSeed, Visitor, VariantAccess, Unexpected};
     /// #
     /// # struct X;
@@ -2238,10 +2238,10 @@ pub trait VariantAccess<'de>: Sized {
 ///
 /// # Example
 ///
-/// ```edition2018
+/// ```edition2021
+/// use serde::de::{value, Deserialize, IntoDeserializer};
+/// use serde_derive::Deserialize;
 /// use std::str::FromStr;
-/// use serde::Deserialize;
-/// use serde::de::{value, IntoDeserializer};
 ///
 /// #[derive(Deserialize)]
 /// enum Setting {
@@ -2285,12 +2285,12 @@ impl Display for OneOf {
             1 => write!(formatter, "`{}`", self.names[0]),
             2 => write!(formatter, "`{}` or `{}`", self.names[0], self.names[1]),
             _ => {
-                try!(write!(formatter, "one of "));
+                tri!(write!(formatter, "one of "));
                 for (i, alt) in self.names.iter().enumerate() {
                     if i > 0 {
-                        try!(write!(formatter, ", "));
+                        tri!(write!(formatter, ", "));
                     }
-                    try!(write!(formatter, "`{}`", alt));
+                    tri!(write!(formatter, "`{}`", alt));
                 }
                 Ok(())
             }

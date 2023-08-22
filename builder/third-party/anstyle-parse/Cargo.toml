@@ -13,11 +13,12 @@
 edition = "2021"
 rust-version = "1.64.0"
 name = "anstyle-parse"
-version = "0.2.0"
+version = "0.2.1"
 include = [
     "build.rs",
     "src/**/*",
     "Cargo.toml",
+    "Cargo.lock",
     "LICENSE*",
     "README.md",
     "benches/**/*",
@@ -38,38 +39,38 @@ repository = "https://github.com/rust-cli/anstyle.git"
 
 [[package.metadata.release.pre-release-replacements]]
 file = "CHANGELOG.md"
-search = "Unreleased"
+min = 1
 replace = "{{version}}"
-min = 1
+search = "Unreleased"
 
 [[package.metadata.release.pre-release-replacements]]
-file = "CHANGELOG.md"
-search = '\.\.\.HEAD'
-replace = "...{{tag_name}}"
 exactly = 1
+file = "CHANGELOG.md"
+replace = "...{{tag_name}}"
+search = '\.\.\.HEAD'
 
 [[package.metadata.release.pre-release-replacements]]
 file = "CHANGELOG.md"
-search = "ReleaseDate"
-replace = "{{date}}"
 min = 1
+replace = "{{date}}"
+search = "ReleaseDate"
 
 [[package.metadata.release.pre-release-replacements]]
+exactly = 1
 file = "CHANGELOG.md"
-search = "<!-- next-header -->"
 replace = """
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 """
-exactly = 1
+search = "<!-- next-header -->"
 
 [[package.metadata.release.pre-release-replacements]]
+exactly = 1
 file = "CHANGELOG.md"
-search = "<!-- next-url -->"
 replace = """
 <!-- next-url -->
 [Unreleased]: https://github.com/rust-cli/anstyle/compare/{{tag_name}}...HEAD"""
-exactly = 1
+search = "<!-- next-url -->"
 
 [[bench]]
 name = "parse"
@@ -95,7 +96,7 @@ version = "0.4.0"
 version = "1.1.0"
 
 [dev-dependencies.snapbox]
-version = "0.4.10"
+version = "0.4.11"
 features = ["path"]
 
 [dev-dependencies.vte_generate_state_changes]

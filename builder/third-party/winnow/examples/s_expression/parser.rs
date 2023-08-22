@@ -8,17 +8,19 @@ use winnow::{
     combinator::repeat,
     combinator::{cut_err, opt},
     combinator::{delimited, preceded, terminated},
-    error::VerboseError,
+    error::ContextError,
+    error::StrContext,
+    prelude::*,
     token::one_of,
-    IResult, Parser,
 };
 
 /// We start with a top-level function to tie everything together, letting
 /// us call eval on a string directly
 pub fn eval_from_str(src: &str) -> Result<Expr, String> {
-    parse_expr(src)
-        .map_err(|e: winnow::error::ErrMode<VerboseError<&str>>| format!("{:#?}", e))
-        .and_then(|(_, exp)| eval_expression(exp).ok_or_else(|| "Eval failed".to_string()))
+    parse_expr
+        .parse(src)
+        .map_err(|e| e.to_string())
+        .and_then(|exp| eval_expression(exp).ok_or_else(|| "Eval failed".to_string()))
 }
 
 /// For parsing, we start by defining the types that define the shape of data that we want.
@@ -68,7 +70,7 @@ pub enum BuiltIn {
 }
 
 /// With types defined, we move onto the top-level expression parser!
-fn parse_expr(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
+fn parse_expr(i: &mut &'_ str) -> PResult<Expr> {
     preceded(
         multispace0,
         alt((parse_constant, parse_application, parse_if, parse_quote)),
@@ -77,13 +79,13 @@ fn parse_expr(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
 }
 
 /// We then add the Expr layer on top
-fn parse_constant(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
+fn parse_constant(i: &mut &'_ str) -> PResult<Expr> {
     parse_atom.map(Expr::Constant).parse_next(i)
 }
 
 /// Now we take all these simple parsers and connect them.
 /// We can now parse half of our language!
-fn parse_atom(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
+fn parse_atom(i: &mut &'_ str) -> PResult<Atom> {
     alt((
         parse_num,
         parse_bool,
@@ -95,7 +97,7 @@ fn parse_atom(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
 
 /// Next up is number parsing. We're keeping it simple here by accepting any number (> 1)
 /// of digits but ending the program if it doesn't fit into an i32.
-fn parse_num(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
+fn parse_num(i: &mut &'_ str) -> PResult<Atom> {
     alt((
         digit1.try_map(|digit_str: &str| digit_str.parse::<i32>().map(Atom::Num)),
         preceded("-", digit1).map(|digit_str: &str| Atom::Num(-digit_str.parse::<i32>().unwrap())),
@@ -104,7 +106,7 @@ fn parse_num(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
 }
 
 /// Our boolean values are also constant, so we can do it the same way
-fn parse_bool(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
+fn parse_bool(i: &mut &'_ str) -> PResult<Atom> {
     alt((
         "#t".map(|_| Atom::Boolean(true)),
         "#f".map(|_| Atom::Boolean(false)),
@@ -112,7 +114,7 @@ fn parse_bool(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
     .parse_next(i)
 }
 
-fn parse_builtin(i: &str) -> IResult<&str, BuiltIn, VerboseError<&str>> {
+fn parse_builtin(i: &mut &'_ str) -> PResult<BuiltIn> {
     // alt gives us the result of first parser that succeeds, of the series of
     // parsers we give it
     alt((
@@ -126,23 +128,20 @@ fn parse_builtin(i: &str) -> IResult<&str, BuiltIn, VerboseError<&str>> {
 
 /// Continuing the trend of starting from the simplest piece and building up,
 /// we start by creating a parser for the built-in operator functions.
-fn parse_builtin_op(i: &str) -> IResult<&str, BuiltIn, VerboseError<&str>> {
+fn parse_builtin_op(i: &mut &'_ str) -> PResult<BuiltIn> {
     // one_of matches one of the characters we give it
-    let (i, t) = one_of("+-*/=").parse_next(i)?;
+    let t = one_of(['+', '-', '*', '/', '=']).parse_next(i)?;
 
     // because we are matching single character tokens, we can do the matching logic
     // on the returned value
-    Ok((
-        i,
-        match t {
-            '+' => BuiltIn::Plus,
-            '-' => BuiltIn::Minus,
-            '*' => BuiltIn::Times,
-            '/' => BuiltIn::Divide,
-            '=' => BuiltIn::Equal,
-            _ => unreachable!(),
-        },
-    ))
+    Ok(match t {
+        '+' => BuiltIn::Plus,
+        '-' => BuiltIn::Minus,
+        '*' => BuiltIn::Times,
+        '/' => BuiltIn::Divide,
+        '=' => BuiltIn::Equal,
+        _ => unreachable!(),
+    })
 }
 
 /// The next easiest thing to parse are keywords.
@@ -150,10 +149,10 @@ fn parse_builtin_op(i: &str) -> IResult<&str, BuiltIn, VerboseError<&str>> {
 /// and `cut_err` to prevent back-tracking.
 ///
 /// Put plainly: `preceded(":", cut_err(alpha1))` means that once we see the `:`
-/// character, we have to see one or more alphabetic chararcters or the input is invalid.
-fn parse_keyword(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
+/// character, we have to see one or more alphabetic characters or the input is invalid.
+fn parse_keyword(i: &mut &'_ str) -> PResult<Atom> {
     preceded(":", cut_err(alpha1))
-        .context("keyword")
+        .context(StrContext::Label("keyword"))
         .map(|sym_str: &str| Atom::Keyword(sym_str.to_string()))
         .parse_next(i)
 }
@@ -167,7 +166,7 @@ fn parse_keyword(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
 ///
 /// tuples are themselves a parser, used to sequence parsers together, so we can translate this
 /// directly and then map over it to transform the output into an `Expr::Application`
-fn parse_application(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
+fn parse_application(i: &mut &'_ str) -> PResult<Expr> {
     let application_inner = (parse_expr, repeat(0.., parse_expr))
         .map(|(head, tail)| Expr::Application(Box::new(head), tail));
     // finally, we wrap it in an s-expression
@@ -180,7 +179,7 @@ fn parse_application(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
 ///
 /// In fact, we define our parser as if `Expr::If` was defined with an Option in it,
 /// we have the `opt` combinator which fits very nicely here.
-fn parse_if(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
+fn parse_if(i: &mut &'_ str) -> PResult<Expr> {
     let if_inner = preceded(
         // here to avoid ambiguity with other names starting with `if`, if we added
         // variables to our language, we say that if must be terminated by at least
@@ -199,7 +198,7 @@ fn parse_if(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
             Expr::If(Box::new(pred), Box::new(true_branch))
         }
     })
-    .context("if expression");
+    .context(StrContext::Label("if expression"));
     s_exp(if_inner).parse_next(i)
 }
 
@@ -208,12 +207,12 @@ fn parse_if(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
 /// This example doesn't have the symbol atom, but by adding variables and changing
 /// the definition of quote to not always be around an S-expression, we'd get them
 /// naturally.
-fn parse_quote(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
+fn parse_quote(i: &mut &'_ str) -> PResult<Expr> {
     // this should look very straight-forward after all we've done:
     // we find the `'` (quote) character, use cut_err to say that we're unambiguously
     // looking for an s-expression of 0 or more expressions, and then parse them
     preceded("'", cut_err(s_exp(repeat(0.., parse_expr))))
-        .context("quote")
+        .context(StrContext::Label("quote"))
         .map(Expr::Quote)
         .parse_next(i)
 }
@@ -225,14 +224,14 @@ fn parse_quote(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
 //.parse_next/
 /// Unlike the previous functions, this function doesn't take or consume input, instead it
 /// takes a parsing function and returns a new parsing function.
-fn s_exp<'a, O1, F>(inner: F) -> impl Parser<&'a str, O1, VerboseError<&'a str>>
+fn s_exp<'a, O1, F>(inner: F) -> impl Parser<&'a str, O1, ContextError>
 where
-    F: Parser<&'a str, O1, VerboseError<&'a str>>,
+    F: Parser<&'a str, O1, ContextError>,
 {
     delimited(
         '(',
         preceded(multispace0, inner),
-        cut_err(preceded(multispace0, ')')).context("closing paren"),
+        cut_err(preceded(multispace0, ')')).context(StrContext::Label("closing paren")),
     )
 }
 

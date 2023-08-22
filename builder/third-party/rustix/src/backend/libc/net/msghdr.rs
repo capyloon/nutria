@@ -3,15 +3,14 @@
 //! These take closures rather than returning a `c::msghdr` directly because
 //! the message headers may reference stack-local data.
 
-use super::super::c;
-use super::super::conv::{msg_control_len, msg_iov_len};
-use super::super::net::write_sockaddr::{encode_sockaddr_v4, encode_sockaddr_v6};
+use crate::backend::c;
+use crate::backend::conv::{msg_control_len, msg_iov_len};
+use crate::backend::net::write_sockaddr::{encode_sockaddr_v4, encode_sockaddr_v6};
 
-use crate::io::{IoSlice, IoSliceMut};
+use crate::io::{self, IoSlice, IoSliceMut};
 use crate::net::{RecvAncillaryBuffer, SendAncillaryBuffer, SocketAddrV4, SocketAddrV6};
 use crate::utils::as_ptr;
 
-use core::convert::TryInto;
 use core::mem::{size_of, zeroed, MaybeUninit};
 
 /// Create a message header intended to receive a datagram.
@@ -19,11 +18,13 @@ pub(crate) fn with_recv_msghdr<R>(
     name: &mut MaybeUninit<c::sockaddr_storage>,
     iov: &mut [IoSliceMut<'_>],
     control: &mut RecvAncillaryBuffer<'_>,
-    f: impl FnOnce(&mut c::msghdr) -> R,
-) -> R {
+    f: impl FnOnce(&mut c::msghdr) -> io::Result<R>,
+) -> io::Result<R> {
+    control.clear();
+
     let namelen = size_of::<c::sockaddr_storage>() as c::socklen_t;
     let mut msghdr = {
-        let mut h: c::msghdr = unsafe { zeroed() };
+        let mut h = zero_msghdr();
         h.msg_name = name.as_mut_ptr().cast();
         h.msg_namelen = namelen;
         h.msg_iov = iov.as_mut_ptr().cast();
@@ -36,8 +37,10 @@ pub(crate) fn with_recv_msghdr<R>(
     let res = f(&mut msghdr);
 
     // Reset the control length.
-    unsafe {
-        control.set_control_len(msghdr.msg_controllen.try_into().unwrap_or(usize::MAX));
+    if res.is_ok() {
+        unsafe {
+            control.set_control_len(msghdr.msg_controllen.try_into().unwrap_or(usize::MAX));
+        }
     }
 
     res
@@ -50,7 +53,7 @@ pub(crate) fn with_noaddr_msghdr<R>(
     f: impl FnOnce(c::msghdr) -> R,
 ) -> R {
     f({
-        let mut h: c::msghdr = unsafe { zeroed() };
+        let mut h = zero_msghdr();
         h.msg_iov = iov.as_ptr() as _;
         h.msg_iovlen = msg_iov_len(iov.len());
         h.msg_control = control.as_control_ptr().cast();
@@ -66,10 +69,10 @@ pub(crate) fn with_v4_msghdr<R>(
     control: &mut SendAncillaryBuffer<'_, '_, '_>,
     f: impl FnOnce(c::msghdr) -> R,
 ) -> R {
-    let encoded = unsafe { encode_sockaddr_v4(addr) };
+    let encoded = encode_sockaddr_v4(addr);
 
     f({
-        let mut h: c::msghdr = unsafe { zeroed() };
+        let mut h = zero_msghdr();
         h.msg_name = as_ptr(&encoded) as _;
         h.msg_namelen = size_of::<SocketAddrV4>() as _;
         h.msg_iov = iov.as_ptr() as _;
@@ -87,10 +90,10 @@ pub(crate) fn with_v6_msghdr<R>(
     control: &mut SendAncillaryBuffer<'_, '_, '_>,
     f: impl FnOnce(c::msghdr) -> R,
 ) -> R {
-    let encoded = unsafe { encode_sockaddr_v6(addr) };
+    let encoded = encode_sockaddr_v6(addr);
 
     f({
-        let mut h: c::msghdr = unsafe { zeroed() };
+        let mut h = zero_msghdr();
         h.msg_name = as_ptr(&encoded) as _;
         h.msg_namelen = size_of::<SocketAddrV6>() as _;
         h.msg_iov = iov.as_ptr() as _;
@@ -110,7 +113,7 @@ pub(crate) fn with_unix_msghdr<R>(
     f: impl FnOnce(c::msghdr) -> R,
 ) -> R {
     f({
-        let mut h: c::msghdr = unsafe { zeroed() };
+        let mut h = zero_msghdr();
         h.msg_name = as_ptr(addr) as _;
         h.msg_namelen = addr.addr_len();
         h.msg_iov = iov.as_ptr() as _;
@@ -119,4 +122,13 @@ pub(crate) fn with_unix_msghdr<R>(
         h.msg_controllen = msg_control_len(control.control_len());
         h
     })
+}
+
+/// Create a zero-initialized message header struct value.
+#[cfg(all(unix, not(target_os = "redox")))]
+pub(crate) fn zero_msghdr() -> c::msghdr {
+    // SAFETY: We can't initialize all the fields by value because on some
+    // platforms the `msghdr` struct in the libc crate contains private padding
+    // fields. But it is still a C type that's meant to be zero-initializable.
+    unsafe { zeroed() }
 }

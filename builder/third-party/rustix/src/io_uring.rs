@@ -27,9 +27,15 @@
 use crate::fd::{AsFd, BorrowedFd, OwnedFd, RawFd};
 use crate::{backend, io};
 use core::ffi::c_void;
-use core::mem::{zeroed, MaybeUninit};
+use core::mem::MaybeUninit;
 use core::ptr::{null_mut, write_bytes};
-use linux_raw_sys::general as sys;
+use linux_raw_sys::net;
+
+mod sys {
+    pub(super) use linux_raw_sys::io_uring::*;
+    #[cfg(test)]
+    pub(super) use {crate::backend::c::iovec, linux_raw_sys::general::open_how};
+}
 
 /// `io_uring_setup(entries, params)`—Setup a context for performing
 /// asynchronous I/O.
@@ -100,7 +106,8 @@ pub unsafe fn io_uring_enter<Fd: AsFd>(
 
 bitflags::bitflags! {
     /// `IORING_ENTER_*` flags for use with [`io_uring_enter`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringEnterFlags: u32 {
         /// `IORING_ENTER_GETEVENTS`
         const GETEVENTS = sys::IORING_ENTER_GETEVENTS;
@@ -404,7 +411,8 @@ pub enum IoringMsgringCmds {
 
 bitflags::bitflags! {
     /// `IORING_SETUP_*` flags for use with [`io_uring_params`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringSetupFlags: u32 {
         /// `IORING_SETUP_ATTACH_WQ`
         const ATTACH_WQ = sys::IORING_SETUP_ATTACH_WQ;
@@ -452,7 +460,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `IOSQE_*` flags for use with [`io_uring_sqe`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringSqeFlags: u8 {
         /// `1 << IOSQE_ASYNC_BIT`
         const ASYNC = 1 << sys::IOSQE_ASYNC_BIT as u8;
@@ -479,25 +488,27 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `IORING_CQE_F_*` flags for use with [`io_uring_cqe`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringCqeFlags: u32 {
         /// `IORING_CQE_F_BUFFER`
-        const BUFFER = sys::IORING_CQE_F_BUFFER as _;
+        const BUFFER = bitcast!(sys::IORING_CQE_F_BUFFER);
 
         /// `IORING_CQE_F_MORE`
-        const MORE = sys::IORING_CQE_F_MORE as _;
+        const MORE = bitcast!(sys::IORING_CQE_F_MORE);
 
         /// `IORING_CQE_F_SOCK_NONEMPTY`
-        const SOCK_NONEMPTY = sys::IORING_CQE_F_SOCK_NONEMPTY as _;
+        const SOCK_NONEMPTY = bitcast!(sys::IORING_CQE_F_SOCK_NONEMPTY);
 
         /// `IORING_CQE_F_NOTIF`
-        const NOTIF = sys::IORING_CQE_F_NOTIF as _;
+        const NOTIF = bitcast!(sys::IORING_CQE_F_NOTIF);
     }
 }
 
 bitflags::bitflags! {
     /// `IORING_FSYNC_*` flags for use with [`io_uring_sqe`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringFsyncFlags: u32 {
         /// `IORING_FSYNC_DATASYNC`
         const DATASYNC = sys::IORING_FSYNC_DATASYNC;
@@ -507,7 +518,8 @@ bitflags::bitflags! {
 bitflags::bitflags! {
     /// `IORING_TIMEOUT_*` and `IORING_LINK_TIMEOUT_UPDATE` flags for use with
     /// [`io_uring_sqe`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringTimeoutFlags: u32 {
         /// `IORING_TIMEOUT_ABS`
         const ABS = sys::IORING_TIMEOUT_ABS;
@@ -537,7 +549,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `SPLICE_F_*` flags for use with [`io_uring_sqe`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct SpliceFlags: u32 {
         /// `SPLICE_F_FD_IN_FIXED`
         const FD_IN_FIXED = sys::SPLICE_F_FD_IN_FIXED;
@@ -546,7 +559,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `IORING_MSG_RING_*` flags for use with [`io_uring_sqe`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringMsgringFlags: u32 {
         /// `IORING_MSG_RING_CQE_SKIP`
         const CQE_SKIP = sys::IORING_MSG_RING_CQE_SKIP;
@@ -555,7 +569,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `IORING_ASYNC_CANCEL_*` flags for use with [`io_uring_sqe`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringAsyncCancelFlags: u32 {
         /// `IORING_ASYNC_CANCEL_ALL`
         const ALL = sys::IORING_ASYNC_CANCEL_ALL;
@@ -573,7 +588,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `IORING_FEAT_*` flags for use with [`io_uring_params`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringFeatureFlags: u32 {
         /// `IORING_FEAT_CQE_SKIP`
         const CQE_SKIP = sys::IORING_FEAT_CQE_SKIP;
@@ -618,7 +634,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `IO_URING_OP_*` flags for use with [`io_uring_probe_op`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringOpFlags: u16 {
         /// `IO_URING_OP_SUPPORTED`
         const SUPPORTED = sys::IO_URING_OP_SUPPORTED as _;
@@ -627,7 +644,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `IORING_RSRC_*` flags for use with [`io_uring_rsrc_register`].
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringRsrcFlags: u32 {
         /// `IORING_RSRC_REGISTER_SPARSE`
         const REGISTER_SPARSE = sys::IORING_RSRC_REGISTER_SPARSE as _;
@@ -636,7 +654,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `IORING_SQ_*` flags.
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringSqFlags: u32 {
         /// `IORING_SQ_NEED_WAKEUP`
         const NEED_WAKEUP = sys::IORING_SQ_NEED_WAKEUP;
@@ -651,7 +670,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `IORING_CQ_*` flags.
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringCqFlags: u32 {
         /// `IORING_CQ_EVENTFD_DISABLED`
         const EVENTFD_DISABLED = sys::IORING_CQ_EVENTFD_DISABLED;
@@ -660,7 +680,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// `IORING_POLL_*` flags.
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringPollFlags: u32 {
         /// `IORING_POLL_ADD_MULTI`
         const ADD_MULTI = sys::IORING_POLL_ADD_MULTI;
@@ -678,7 +699,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// send/sendmsg flags (`sqe.ioprio`)
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringSendFlags: u16 {
         /// `IORING_RECVSEND_POLL_FIRST`.
         ///
@@ -697,7 +719,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// recv/recvmsg flags (`sqe.ioprio`)
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringRecvFlags: u16 {
         /// `IORING_RECVSEND_POLL_FIRST`
         ///
@@ -716,7 +739,8 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// accept flags (`sqe.ioprio`)
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct IoringAcceptFlags: u16 {
         /// `IORING_ACCEPT_MULTISHOT`
         const MULTISHOT = sys::IORING_ACCEPT_MULTISHOT as _;
@@ -725,22 +749,23 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// recvmsg out flags
-    #[derive(Default)]
+    #[repr(transparent)]
+    #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct RecvmsgOutFlags: u32 {
         /// `MSG_EOR`
-        const EOR = sys::MSG_EOR;
+        const EOR = net::MSG_EOR;
 
         /// `MSG_TRUNC`
-        const TRUNC = sys::MSG_TRUNC;
+        const TRUNC = net::MSG_TRUNC;
 
         /// `MSG_CTRUNC`
-        const CTRUNC = sys::MSG_CTRUNC;
+        const CTRUNC = net::MSG_CTRUNC;
 
         /// `MSG_OOB`
-        const OOB = sys::MSG_OOB;
+        const OOB = net::MSG_OOB;
 
         /// `MSG_ERRQUEUE`
-        const ERRQUEUE = sys::MSG_ERRQUEUE;
+        const ERRQUEUE = net::MSG_ERRQUEUE;
     }
 }
 
@@ -1011,13 +1036,17 @@ pub union splice_fd_in_or_file_index_union {
 }
 
 /// An io_uring Completion Queue Entry.
+///
+/// This does not derive `Copy` or `Clone` because the `big_cqe` field is not
+/// automatically copyable.
 #[allow(missing_docs)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct io_uring_cqe {
     pub user_data: io_uring_user_data,
     pub res: i32,
     pub flags: IoringCqeFlags,
+    pub big_cqe: sys::__IncompleteArrayField<u64>,
 }
 
 #[allow(missing_docs)]
@@ -1216,72 +1245,63 @@ pub struct io_uring_buf {
 impl Default for ioprio_union {
     #[inline]
     fn default() -> Self {
-        // SAFETY: All of Linux's io_uring structs may be zero-initialized.
-        unsafe { zeroed::<Self>() }
+        default_union!(ioprio_union, ioprio)
     }
 }
 
 impl Default for len_union {
     #[inline]
     fn default() -> Self {
-        // SAFETY: All of Linux's io_uring structs may be zero-initialized.
-        unsafe { zeroed::<Self>() }
+        default_union!(len_union, len)
     }
 }
 
 impl Default for off_or_addr2_union {
     #[inline]
     fn default() -> Self {
-        // SAFETY: All of Linux's io_uring structs may be zero-initialized.
-        unsafe { zeroed::<Self>() }
+        default_union!(off_or_addr2_union, off)
     }
 }
 
 impl Default for addr_or_splice_off_in_union {
     #[inline]
     fn default() -> Self {
-        // SAFETY: All of Linux's io_uring structs may be zero-initialized.
-        unsafe { zeroed::<Self>() }
+        default_union!(addr_or_splice_off_in_union, splice_off_in)
     }
 }
 
 impl Default for addr3_or_cmd_union {
     #[inline]
     fn default() -> Self {
-        // SAFETY: All of Linux's io_uring structs may be zero-initialized.
-        unsafe { zeroed::<Self>() }
+        default_union!(addr3_or_cmd_union, addr3)
     }
 }
 
 impl Default for op_flags_union {
     #[inline]
     fn default() -> Self {
-        // SAFETY: All of Linux's io_uring structs may be zero-initialized.
-        unsafe { zeroed::<Self>() }
+        default_union!(op_flags_union, sync_range_flags)
     }
 }
 
 impl Default for buf_union {
     #[inline]
     fn default() -> Self {
-        // SAFETY: All of Linux's io_uring structs may be zero-initialized.
-        unsafe { zeroed::<Self>() }
+        default_union!(buf_union, buf_index)
     }
 }
 
 impl Default for splice_fd_in_or_file_index_union {
     #[inline]
     fn default() -> Self {
-        // SAFETY: All of Linux's io_uring structs may be zero-initialized.
-        unsafe { zeroed::<Self>() }
+        default_union!(splice_fd_in_or_file_index_union, splice_fd_in)
     }
 }
 
 impl Default for register_or_sqe_op_or_sqe_flags_union {
     #[inline]
     fn default() -> Self {
-        // SAFETY: All of Linux's io_uring structs may be zero-initialized.
-        unsafe { zeroed::<Self>() }
+        default_union!(register_or_sqe_op_or_sqe_flags_union, sqe_flags)
     }
 }
 
@@ -1289,67 +1309,7 @@ impl Default for register_or_sqe_op_or_sqe_flags_union {
 /// kernel's versions.
 #[test]
 fn io_uring_layouts() {
-    use core::mem::{align_of, size_of};
-    use memoffset::{offset_of, span_of};
-
-    // Check that the size and alignment of a type match the `sys` bindings.
-    macro_rules! check_type {
-        ($struct:ident) => {
-            assert_eq!(
-                (size_of::<$struct>(), align_of::<$struct>()),
-                (size_of::<sys::$struct>(), align_of::<sys::$struct>())
-            );
-        };
-    }
-
-    // The same as `check_type`, but for unions and anonymous structs we've
-    // renamed to avoid having types like "bindgen_ty_1" in the API.
-    macro_rules! check_renamed_type {
-        ($to:ident, $from:ident) => {
-            assert_eq!(
-                (size_of::<$to>(), align_of::<$to>()),
-                (size_of::<sys::$from>(), align_of::<sys::$from>())
-            );
-        };
-    }
-
-    // Check that the field of a struct has the same offset as the
-    // corresponding field in the `sys` bindings.
-    macro_rules! check_struct_field {
-        ($struct:ident, $field:ident) => {
-            assert_eq!(
-                offset_of!($struct, $field),
-                offset_of!(sys::$struct, $field)
-            );
-            assert_eq!(span_of!($struct, $field), span_of!(sys::$struct, $field));
-        };
-    }
-
-    // The same as `check_struct_field`, but for unions and anonymous structs
-    // we've renamed to avoid having types like "bindgen_ty_1" in the API.
-    macro_rules! check_struct_renamed_field {
-        ($struct:ident, $to:ident, $from:ident) => {
-            assert_eq!(offset_of!($struct, $to), offset_of!(sys::$struct, $from));
-            assert_eq!(span_of!($struct, $to), span_of!(sys::$struct, $from));
-        };
-    }
-
-    // For the common case of no renaming, check all fields of a struct.
-    macro_rules! check_struct {
-        ($name:ident, $($field:ident),*) => {
-            // Check the size and alignment.
-            check_type!($name);
-
-            // Check that we have all the fields.
-            let _test = $name {
-                // SAFETY: All of io_uring's types can be zero-initialized.
-                $($field: unsafe { core::mem::zeroed() }),*
-            };
-
-            // Check that the fields have the right sizes and offsets.
-            $(check_struct_field!($name, $field));*
-        };
-    }
+    use sys as c;
 
     check_renamed_type!(off_or_addr2_union, io_uring_sqe__bindgen_ty_1);
     check_renamed_type!(addr_or_splice_off_in_union, io_uring_sqe__bindgen_ty_2);
@@ -1390,7 +1350,7 @@ fn io_uring_layouts() {
     check_struct_field!(io_uring_restriction, resv);
     check_struct_field!(io_uring_restriction, resv2);
 
-    check_struct!(io_uring_cqe, user_data, res, flags);
+    check_struct!(io_uring_cqe, user_data, res, flags, big_cqe);
     check_struct!(
         io_uring_params,
         sq_entries,

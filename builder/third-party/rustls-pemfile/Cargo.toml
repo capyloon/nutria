@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "rustls-pemfile"
-version = "1.0.2"
+version = "1.0.3"
 description = "Basic .pem file parser for keys and certificates"
 homepage = "https://github.com/rustls/pemfile"
 readme = "README.md"

@@ -1,4 +1,4 @@
-use super::super::c;
+use crate::backend::c;
 use bitflags::bitflags;
 
 bitflags! {
@@ -7,13 +7,15 @@ bitflags! {
     /// For `PROT_NONE`, use `ProtFlags::empty()`.
     ///
     /// [`mmap`]: crate::io::mmap
-    pub struct ProtFlags: c::c_int {
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct ProtFlags: u32 {
         /// `PROT_READ`
-        const READ = c::PROT_READ;
+        const READ = bitcast!(c::PROT_READ);
         /// `PROT_WRITE`
-        const WRITE = c::PROT_WRITE;
+        const WRITE = bitcast!(c::PROT_WRITE);
         /// `PROT_EXEC`
-        const EXEC = c::PROT_EXEC;
+        const EXEC = bitcast!(c::PROT_EXEC);
     }
 }
 
@@ -23,19 +25,36 @@ bitflags! {
     /// For `PROT_NONE`, use `MprotectFlags::empty()`.
     ///
     /// [`mprotect`]: crate::io::mprotect
-    pub struct MprotectFlags: c::c_int {
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct MprotectFlags: u32 {
         /// `PROT_READ`
-        const READ = c::PROT_READ;
+        const READ = bitcast!(c::PROT_READ);
         /// `PROT_WRITE`
-        const WRITE = c::PROT_WRITE;
+        const WRITE = bitcast!(c::PROT_WRITE);
         /// `PROT_EXEC`
-        const EXEC = c::PROT_EXEC;
+        const EXEC = bitcast!(c::PROT_EXEC);
         /// `PROT_GROWSUP`
-        #[cfg(any(target_os = "android", target_os = "linux"))]
-        const GROWSUP = c::PROT_GROWSUP;
+        #[cfg(linux_kernel)]
+        const GROWSUP = bitcast!(c::PROT_GROWSUP);
         /// `PROT_GROWSDOWN`
-        #[cfg(any(target_os = "android", target_os = "linux"))]
-        const GROWSDOWN = c::PROT_GROWSDOWN;
+        #[cfg(linux_kernel)]
+        const GROWSDOWN = bitcast!(c::PROT_GROWSDOWN);
+        /// `PROT_SEM`
+        #[cfg(linux_kernel)]
+        const SEM = linux_raw_sys::general::PROT_SEM;
+        /// `PROT_BTI`
+        #[cfg(all(linux_kernel, target_arch = "aarch64"))]
+        const BTI = linux_raw_sys::general::PROT_BTI;
+        /// `PROT_MTE`
+        #[cfg(all(linux_kernel, target_arch = "aarch64"))]
+        const MTE = linux_raw_sys::general::PROT_MTE;
+        /// `PROT_SAO`
+        #[cfg(all(linux_kernel, any(target_arch = "powerpc", target_arch = "powerpc64")))]
+        const SAO = linux_raw_sys::general::PROT_SAO;
+        /// `PROT_ADI`
+        #[cfg(all(linux_kernel, any(target_arch = "sparc", target_arch = "sparc64")))]
+        const ADI = linux_raw_sys::general::PROT_ADI;
     }
 }
 
@@ -46,9 +65,11 @@ bitflags! {
     ///
     /// [`mmap`]: crate::io::mmap
     /// [`mmap_anonymous`]: crates::io::mmap_anonymous
-    pub struct MapFlags: c::c_int {
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct MapFlags: u32 {
         /// `MAP_SHARED`
-        const SHARED = c::MAP_SHARED;
+        const SHARED = bitcast!(c::MAP_SHARED);
         /// `MAP_SHARED_VALIDATE`
         #[cfg(not(any(
             bsd,
@@ -57,21 +78,23 @@ bitflags! {
             target_os = "emscripten",
             target_os = "fuchsia",
             target_os = "haiku",
+            target_os = "nto",
             target_os = "redox",
         )))]
-        const SHARED_VALIDATE = c::MAP_SHARED_VALIDATE;
+        const SHARED_VALIDATE = bitcast!(c::MAP_SHARED_VALIDATE);
         /// `MAP_PRIVATE`
-        const PRIVATE = c::MAP_PRIVATE;
+        const PRIVATE = bitcast!(c::MAP_PRIVATE);
         /// `MAP_DENYWRITE`
         #[cfg(not(any(
             bsd,
             solarish,
             target_os = "haiku",
+            target_os = "nto",
             target_os = "redox",
         )))]
-        const DENYWRITE = c::MAP_DENYWRITE;
+        const DENYWRITE = bitcast!(c::MAP_DENYWRITE);
         /// `MAP_FIXED`
-        const FIXED = c::MAP_FIXED;
+        const FIXED = bitcast!(c::MAP_FIXED);
         /// `MAP_FIXED_NOREPLACE`
         #[cfg(not(any(
             bsd,
@@ -80,25 +103,28 @@ bitflags! {
             target_os = "emscripten",
             target_os = "fuchsia",
             target_os = "haiku",
+            target_os = "nto",
             target_os = "redox",
         )))]
-        const FIXED_NOREPLACE = c::MAP_FIXED_NOREPLACE;
+        const FIXED_NOREPLACE = bitcast!(c::MAP_FIXED_NOREPLACE);
         /// `MAP_GROWSDOWN`
         #[cfg(not(any(
             bsd,
             solarish,
             target_os = "haiku",
+            target_os = "nto",
             target_os = "redox",
         )))]
-        const GROWSDOWN = c::MAP_GROWSDOWN;
+        const GROWSDOWN = bitcast!(c::MAP_GROWSDOWN);
         /// `MAP_HUGETLB`
         #[cfg(not(any(
             bsd,
             solarish,
             target_os = "haiku",
+            target_os = "nto",
             target_os = "redox",
         )))]
-        const HUGETLB = c::MAP_HUGETLB;
+        const HUGETLB = bitcast!(c::MAP_HUGETLB);
         /// `MAP_HUGE_2MB`
         #[cfg(not(any(
             bsd,
@@ -107,9 +133,10 @@ bitflags! {
             target_os = "emscripten",
             target_os = "fuchsia",
             target_os = "haiku",
+            target_os = "nto",
             target_os = "redox",
         )))]
-        const HUGE_2MB = c::MAP_HUGE_2MB;
+        const HUGE_2MB = bitcast!(c::MAP_HUGE_2MB);
         /// `MAP_HUGE_1GB`
         #[cfg(not(any(
             bsd,
@@ -118,34 +145,37 @@ bitflags! {
             target_os = "emscripten",
             target_os = "fuchsia",
             target_os = "haiku",
+            target_os = "nto",
             target_os = "redox",
         )))]
-        const HUGE_1GB = c::MAP_HUGE_1GB;
+        const HUGE_1GB = bitcast!(c::MAP_HUGE_1GB);
         /// `MAP_LOCKED`
         #[cfg(not(any(
             bsd,
             solarish,
             target_os = "haiku",
+            target_os = "nto",
             target_os = "redox",
         )))]
-        const LOCKED = c::MAP_LOCKED;
+        const LOCKED = bitcast!(c::MAP_LOCKED);
         /// `MAP_NOCORE`
         #[cfg(freebsdlike)]
-        const NOCORE = c::MAP_NOCORE;
+        const NOCORE = bitcast!(c::MAP_NOCORE);
         /// `MAP_NORESERVE`
-        #[cfg(not(any(freebsdlike, target_os = "redox")))]
-        const NORESERVE = c::MAP_NORESERVE;
+        #[cfg(not(any(freebsdlike, target_os = "nto", target_os = "redox")))]
+        const NORESERVE = bitcast!(c::MAP_NORESERVE);
         /// `MAP_NOSYNC`
         #[cfg(freebsdlike)]
-        const NOSYNC = c::MAP_NOSYNC;
+        const NOSYNC = bitcast!(c::MAP_NOSYNC);
         /// `MAP_POPULATE`
         #[cfg(not(any(
             bsd,
             solarish,
             target_os = "haiku",
+            target_os = "nto",
             target_os = "redox",
         )))]
-        const POPULATE = c::MAP_POPULATE;
+        const POPULATE = bitcast!(c::MAP_POPULATE);
         /// `MAP_STACK`
         #[cfg(not(any(
             apple,
@@ -155,10 +185,10 @@ bitflags! {
             target_os = "netbsd",
             target_os = "redox",
         )))]
-        const STACK = c::MAP_STACK;
+        const STACK = bitcast!(c::MAP_STACK);
         /// `MAP_PREFAULT_READ`
         #[cfg(target_os = "freebsd")]
-        const PREFAULT_READ = c::MAP_PREFAULT_READ;
+        const PREFAULT_READ = bitcast!(c::MAP_PREFAULT_READ);
         /// `MAP_SYNC`
         #[cfg(not(any(
             bsd,
@@ -167,16 +197,17 @@ bitflags! {
             target_os = "emscripten",
             target_os = "fuchsia",
             target_os = "haiku",
+            target_os = "nto",
             target_os = "redox",
             all(
-                any(target_os = "android", target_os = "linux"),
-                any(target_arch = "mips", target_arch = "mips64"),
+                linux_kernel,
+                any(target_arch = "mips", target_arch = "mips32r6", target_arch = "mips64", target_arch = "mips64r6"),
             )
         )))]
-        const SYNC = c::MAP_SYNC;
+        const SYNC = bitcast!(c::MAP_SYNC);
         /// `MAP_UNINITIALIZED`
         #[cfg(any())]
-        const UNINITIALIZED = c::MAP_UNINITIALIZED;
+        const UNINITIALIZED = bitcast!(c::MAP_UNINITIALIZED);
     }
 }
 
@@ -188,9 +219,11 @@ bitflags! {
     ///
     /// [`mremap`]: crate::io::mremap
     /// [`mremap_fixed`]: crate::io::mremap_fixed
-    pub struct MremapFlags: i32 {
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct MremapFlags: u32 {
         /// `MREMAP_MAYMOVE`
-        const MAYMOVE = c::MREMAP_MAYMOVE;
+        const MAYMOVE = bitcast!(c::MREMAP_MAYMOVE);
     }
 }
 
@@ -198,27 +231,31 @@ bitflags! {
     /// `MS_*` flags for use with [`msync`].
     ///
     /// [`msync`]: crate::io::msync
-    pub struct MsyncFlags: i32 {
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct MsyncFlags: u32 {
         /// `MS_SYNC`—Requests an update and waits for it to complete.
-        const SYNC = c::MS_SYNC;
+        const SYNC = bitcast!(c::MS_SYNC);
         /// `MS_ASYNC`—Specifies that an update be scheduled, but the call
         /// returns immediately.
-        const ASYNC = c::MS_ASYNC;
+        const ASYNC = bitcast!(c::MS_ASYNC);
         /// `MS_INVALIDATE`—Asks to invalidate other mappings of the same
         /// file (so that they can be updated with the fresh values just
         /// written).
-        const INVALIDATE = c::MS_INVALIDATE;
+        const INVALIDATE = bitcast!(c::MS_INVALIDATE);
     }
 }
 
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(linux_kernel)]
 bitflags! {
     /// `MLOCK_*` flags for use with [`mlock_with`].
     ///
     /// [`mlock_with`]: crate::io::mlock_with
-    pub struct MlockFlags: i32 {
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct MlockFlags: u32 {
         /// `MLOCK_ONFAULT`
-        const ONFAULT = c::MLOCK_ONFAULT as _;
+        const ONFAULT = bitcast!(c::MLOCK_ONFAULT);
     }
 }
 
@@ -227,122 +264,124 @@ bitflags! {
 /// [`madvise`]: crate::mm::madvise
 #[cfg(not(target_os = "redox"))]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-#[repr(i32)]
+#[repr(u32)]
 #[non_exhaustive]
 pub enum Advice {
     /// `POSIX_MADV_NORMAL`
     #[cfg(not(any(target_os = "android", target_os = "haiku")))]
-    Normal = c::POSIX_MADV_NORMAL,
+    Normal = bitcast!(c::POSIX_MADV_NORMAL),
 
     /// `POSIX_MADV_NORMAL`
     #[cfg(any(target_os = "android", target_os = "haiku"))]
-    Normal = c::MADV_NORMAL,
+    Normal = bitcast!(c::MADV_NORMAL),
 
     /// `POSIX_MADV_SEQUENTIAL`
     #[cfg(not(any(target_os = "android", target_os = "haiku")))]
-    Sequential = c::POSIX_MADV_SEQUENTIAL,
+    Sequential = bitcast!(c::POSIX_MADV_SEQUENTIAL),
 
     /// `POSIX_MADV_SEQUENTIAL`
     #[cfg(any(target_os = "android", target_os = "haiku"))]
-    Sequential = c::MADV_SEQUENTIAL,
+    Sequential = bitcast!(c::MADV_SEQUENTIAL),
 
     /// `POSIX_MADV_RANDOM`
     #[cfg(not(any(target_os = "android", target_os = "haiku")))]
-    Random = c::POSIX_MADV_RANDOM,
+    Random = bitcast!(c::POSIX_MADV_RANDOM),
 
     /// `POSIX_MADV_RANDOM`
     #[cfg(any(target_os = "android", target_os = "haiku"))]
-    Random = c::MADV_RANDOM,
+    Random = bitcast!(c::MADV_RANDOM),
 
     /// `POSIX_MADV_WILLNEED`
     #[cfg(not(any(target_os = "android", target_os = "haiku")))]
-    WillNeed = c::POSIX_MADV_WILLNEED,
+    WillNeed = bitcast!(c::POSIX_MADV_WILLNEED),
 
     /// `POSIX_MADV_WILLNEED`
     #[cfg(any(target_os = "android", target_os = "haiku"))]
-    WillNeed = c::MADV_WILLNEED,
+    WillNeed = bitcast!(c::MADV_WILLNEED),
 
     /// `POSIX_MADV_DONTNEED`
     #[cfg(not(any(target_os = "android", target_os = "emscripten", target_os = "haiku")))]
-    DontNeed = c::POSIX_MADV_DONTNEED,
+    DontNeed = bitcast!(c::POSIX_MADV_DONTNEED),
 
     /// `POSIX_MADV_DONTNEED`
     #[cfg(any(target_os = "android", target_os = "haiku"))]
-    DontNeed = i32::MAX - 1,
+    DontNeed = bitcast!(i32::MAX - 1),
 
     /// `MADV_DONTNEED`
     // `MADV_DONTNEED` has the same value as `POSIX_MADV_DONTNEED`. We don't
     // have a separate `posix_madvise` from `madvise`, so we expose a special
     // value which we special-case.
     #[cfg(target_os = "linux")]
-    LinuxDontNeed = i32::MAX,
+    LinuxDontNeed = bitcast!(i32::MAX),
 
     /// `MADV_DONTNEED`
     #[cfg(target_os = "android")]
-    LinuxDontNeed = c::MADV_DONTNEED,
+    LinuxDontNeed = bitcast!(c::MADV_DONTNEED),
     /// `MADV_FREE`
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxFree = c::MADV_FREE,
+    #[cfg(linux_kernel)]
+    LinuxFree = bitcast!(c::MADV_FREE),
     /// `MADV_REMOVE`
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxRemove = c::MADV_REMOVE,
+    #[cfg(linux_kernel)]
+    LinuxRemove = bitcast!(c::MADV_REMOVE),
     /// `MADV_DONTFORK`
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxDontFork = c::MADV_DONTFORK,
+    #[cfg(linux_kernel)]
+    LinuxDontFork = bitcast!(c::MADV_DONTFORK),
     /// `MADV_DOFORK`
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxDoFork = c::MADV_DOFORK,
+    #[cfg(linux_kernel)]
+    LinuxDoFork = bitcast!(c::MADV_DOFORK),
     /// `MADV_HWPOISON`
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxHwPoison = c::MADV_HWPOISON,
+    #[cfg(linux_kernel)]
+    LinuxHwPoison = bitcast!(c::MADV_HWPOISON),
     /// `MADV_SOFT_OFFLINE`
     #[cfg(all(
-        any(target_os = "android", target_os = "linux"),
-        not(any(target_arch = "mips", target_arch = "mips64")),
+        linux_kernel,
+        not(any(
+            target_arch = "mips",
+            target_arch = "mips32r6",
+            target_arch = "mips64",
+            target_arch = "mips64r6"
+        ))
     ))]
-    LinuxSoftOffline = c::MADV_SOFT_OFFLINE,
+    LinuxSoftOffline = bitcast!(c::MADV_SOFT_OFFLINE),
     /// `MADV_MERGEABLE`
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxMergeable = c::MADV_MERGEABLE,
+    #[cfg(linux_kernel)]
+    LinuxMergeable = bitcast!(c::MADV_MERGEABLE),
     /// `MADV_UNMERGEABLE`
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxUnmergeable = c::MADV_UNMERGEABLE,
+    #[cfg(linux_kernel)]
+    LinuxUnmergeable = bitcast!(c::MADV_UNMERGEABLE),
     /// `MADV_HUGEPAGE` (since Linux 2.6.38)
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxHugepage = c::MADV_HUGEPAGE,
+    #[cfg(linux_kernel)]
+    LinuxHugepage = bitcast!(c::MADV_HUGEPAGE),
     /// `MADV_NOHUGEPAGE` (since Linux 2.6.38)
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxNoHugepage = c::MADV_NOHUGEPAGE,
+    #[cfg(linux_kernel)]
+    LinuxNoHugepage = bitcast!(c::MADV_NOHUGEPAGE),
     /// `MADV_DONTDUMP` (since Linux 3.4)
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxDontDump = c::MADV_DONTDUMP,
+    #[cfg(linux_kernel)]
+    LinuxDontDump = bitcast!(c::MADV_DONTDUMP),
     /// `MADV_DODUMP` (since Linux 3.4)
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    LinuxDoDump = c::MADV_DODUMP,
+    #[cfg(linux_kernel)]
+    LinuxDoDump = bitcast!(c::MADV_DODUMP),
     /// `MADV_WIPEONFORK` (since Linux 4.14)
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    #[cfg(feature = "mm")]
-    LinuxWipeOnFork = linux_raw_sys::general::MADV_WIPEONFORK as i32,
+    #[cfg(linux_kernel)]
+    LinuxWipeOnFork = bitcast!(c::MADV_WIPEONFORK),
     /// `MADV_KEEPONFORK` (since Linux 4.14)
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    #[cfg(feature = "mm")]
-    LinuxKeepOnFork = linux_raw_sys::general::MADV_KEEPONFORK as i32,
+    #[cfg(linux_kernel)]
+    LinuxKeepOnFork = bitcast!(c::MADV_KEEPONFORK),
     /// `MADV_COLD` (since Linux 5.4)
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    #[cfg(feature = "mm")]
-    LinuxCold = linux_raw_sys::general::MADV_COLD as i32,
+    #[cfg(linux_kernel)]
+    LinuxCold = bitcast!(c::MADV_COLD),
     /// `MADV_PAGEOUT` (since Linux 5.4)
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    #[cfg(feature = "mm")]
-    LinuxPageOut = linux_raw_sys::general::MADV_PAGEOUT as i32,
+    #[cfg(linux_kernel)]
+    LinuxPageOut = bitcast!(c::MADV_PAGEOUT),
     /// `MADV_POPULATE_READ` (since Linux 5.14)
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    #[cfg(feature = "mm")]
-    LinuxPopulateRead = linux_raw_sys::general::MADV_POPULATE_READ as i32,
+    #[cfg(linux_kernel)]
+    LinuxPopulateRead = bitcast!(c::MADV_POPULATE_READ),
     /// `MADV_POPULATE_WRITE` (since Linux 5.14)
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    #[cfg(feature = "mm")]
-    LinuxPopulateWrite = linux_raw_sys::general::MADV_POPULATE_WRITE as i32,
+    #[cfg(linux_kernel)]
+    LinuxPopulateWrite = bitcast!(c::MADV_POPULATE_WRITE),
+    /// `MADV_DONTNEED_LOCKED` (since Linux 5.18)
+    #[cfg(linux_kernel)]
+    LinuxDontneedLocked = bitcast!(c::MADV_DONTNEED_LOCKED),
 }
 
 #[cfg(target_os = "emscripten")]
@@ -352,15 +391,17 @@ impl Advice {
     pub const DontNeed: Self = Self::Normal;
 }
 
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(linux_kernel)]
 bitflags! {
     /// `O_*` flags for use with [`userfaultfd`].
     ///
     /// [`userfaultfd`]: crate::io::userfaultfd
-    pub struct UserfaultfdFlags: c::c_int {
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct UserfaultfdFlags: u32 {
         /// `O_CLOEXEC`
-        const CLOEXEC = c::O_CLOEXEC;
+        const CLOEXEC = bitcast!(c::O_CLOEXEC);
         /// `O_NONBLOCK`
-        const NONBLOCK = c::O_NONBLOCK;
+        const NONBLOCK = bitcast!(c::O_NONBLOCK);
     }
 }

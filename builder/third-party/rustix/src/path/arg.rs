@@ -65,8 +65,8 @@ pub trait Arg {
     /// Returns a view of this string as a string slice.
     fn as_str(&self) -> io::Result<&str>;
 
-    /// Returns a potentially-lossy rendering of this string as a `Cow<'_,
-    /// str>`.
+    /// Returns a potentially-lossy rendering of this string as a
+    /// `Cow<'_, str>`.
     fn to_string_lossy(&self) -> Cow<'_, str>;
 
     /// Returns a view of this string as a maybe-owned [`CStr`].
@@ -948,7 +948,7 @@ where
     // Taken from
     // <https://github.com/rust-lang/rust/blob/a00f8ba7fcac1b27341679c51bf5a3271fa82df3/library/std/src/sys/common/small_c_string.rs>
     let mut buf = MaybeUninit::<[u8; SMALL_PATH_BUFFER_SIZE]>::uninit();
-    let buf_ptr = buf.as_mut_ptr() as *mut u8;
+    let buf_ptr = buf.as_mut_ptr().cast::<u8>();
 
     // This helps test our safety condition below.
     debug_assert!(bytes.len() + 1 <= SMALL_PATH_BUFFER_SIZE);
@@ -968,8 +968,8 @@ where
     }
 }
 
-/// The slow path which handles any length. In theory OS's only support up
-/// to `PATH_MAX`, but we let the OS enforce that.
+/// The slow path which handles any length. In theory OS's only support up to
+/// `PATH_MAX`, but we let the OS enforce that.
 #[cold]
 fn with_c_str_slow_path<T, F>(bytes: &[u8], f: F) -> io::Result<T>
 where

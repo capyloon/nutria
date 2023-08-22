@@ -1,15 +1,13 @@
 use std::ops::RangeInclusive;
 
-use winnow::branch::alt;
-use winnow::bytes::one_of;
-use winnow::bytes::take_while0;
-use winnow::bytes::take_while1;
+use winnow::combinator::alt;
 use winnow::combinator::eof;
 use winnow::combinator::opt;
-use winnow::multi::many0;
-use winnow::multi::many1;
+use winnow::combinator::repeat;
+use winnow::combinator::terminated;
 use winnow::prelude::*;
-use winnow::sequence::terminated;
+use winnow::token::one_of;
+use winnow::token::take_while;
 
 use crate::parser::prelude::*;
 
@@ -30,8 +28,8 @@ pub(crate) unsafe fn from_utf8_unchecked<'b>(
 pub(crate) const WSCHAR: (u8, u8) = (b' ', b'\t');
 
 // ws = *wschar
-pub(crate) fn ws(input: Input<'_>) -> IResult<Input<'_>, &str, ParserError<'_>> {
-    take_while0(WSCHAR)
+pub(crate) fn ws<'i>(input: &mut Input<'i>) -> PResult<&'i str> {
+    take_while(0.., WSCHAR)
         .map(|b| unsafe { from_utf8_unchecked(b, "`is_wschar` filters out on-ASCII") })
         .parse_next(input)
 }
@@ -50,15 +48,15 @@ pub(crate) const NON_EOL: (u8, RangeInclusive<u8>, RangeInclusive<u8>) =
 pub(crate) const COMMENT_START_SYMBOL: u8 = b'#';
 
 // comment = comment-start-symbol *non-eol
-pub(crate) fn comment(input: Input<'_>) -> IResult<Input<'_>, &[u8], ParserError<'_>> {
-    (COMMENT_START_SYMBOL, take_while0(NON_EOL))
+pub(crate) fn comment<'i>(input: &mut Input<'i>) -> PResult<&'i [u8]> {
+    (COMMENT_START_SYMBOL, take_while(0.., NON_EOL))
         .recognize()
         .parse_next(input)
 }
 
 // newline = ( %x0A /              ; LF
 //             %x0D.0A )           ; CRLF
-pub(crate) fn newline(input: Input<'_>) -> IResult<Input<'_>, u8, ParserError<'_>> {
+pub(crate) fn newline(input: &mut Input<'_>) -> PResult<u8> {
     alt((
         one_of(LF).value(b'\n'),
         (one_of(CR), one_of(LF)).value(b'\n'),
@@ -69,18 +67,19 @@ pub(crate) const LF: u8 = b'\n';
 pub(crate) const CR: u8 = b'\r';
 
 // ws-newline       = *( wschar / newline )
-pub(crate) fn ws_newline(input: Input<'_>) -> IResult<Input<'_>, &str, ParserError<'_>> {
-    many0(alt((newline.value(&b"\n"[..]), take_while1(WSCHAR))))
-        .map(|()| ())
-        .recognize()
-        .map(|b| unsafe {
-            from_utf8_unchecked(b, "`is_wschar` and `newline` filters out on-ASCII")
-        })
-        .parse_next(input)
+pub(crate) fn ws_newline<'i>(input: &mut Input<'i>) -> PResult<&'i str> {
+    repeat(
+        0..,
+        alt((newline.value(&b"\n"[..]), take_while(1.., WSCHAR))),
+    )
+    .map(|()| ())
+    .recognize()
+    .map(|b| unsafe { from_utf8_unchecked(b, "`is_wschar` and `newline` filters out on-ASCII") })
+    .parse_next(input)
 }
 
 // ws-newlines      = newline *( wschar / newline )
-pub(crate) fn ws_newlines(input: Input<'_>) -> IResult<Input<'_>, &str, ParserError<'_>> {
+pub(crate) fn ws_newlines<'i>(input: &mut Input<'i>) -> PResult<&'i str> {
     (newline, ws_newline)
         .recognize()
         .map(|b| unsafe {
@@ -91,11 +90,18 @@ pub(crate) fn ws_newlines(input: Input<'_>) -> IResult<Input<'_>, &str, ParserEr
 
 // note: this rule is not present in the original grammar
 // ws-comment-newline = *( ws-newline-nonempty / comment )
-pub(crate) fn ws_comment_newline(input: Input<'_>) -> IResult<Input<'_>, &[u8], ParserError<'_>> {
-    many0(alt((
-        many1(alt((take_while1(WSCHAR), newline.value(&b"\n"[..])))).map(|()| ()),
-        comment.value(()),
-    )))
+pub(crate) fn ws_comment_newline<'i>(input: &mut Input<'i>) -> PResult<&'i [u8]> {
+    repeat(
+        0..,
+        alt((
+            repeat(
+                1..,
+                alt((take_while(1.., WSCHAR), newline.value(&b"\n"[..]))),
+            )
+            .map(|()| ()),
+            comment.value(()),
+        )),
+    )
     .map(|()| ())
     .recognize()
     .parse_next(input)
@@ -103,15 +109,13 @@ pub(crate) fn ws_comment_newline(input: Input<'_>) -> IResult<Input<'_>, &[u8], 
 
 // note: this rule is not present in the original grammar
 // line-ending = newline / eof
-pub(crate) fn line_ending(input: Input<'_>) -> IResult<Input<'_>, &str, ParserError<'_>> {
+pub(crate) fn line_ending<'i>(input: &mut Input<'i>) -> PResult<&'i str> {
     alt((newline.value("\n"), eof.value(""))).parse_next(input)
 }
 
 // note: this rule is not present in the original grammar
 // line-trailing = ws [comment] skip-line-ending
-pub(crate) fn line_trailing(
-    input: Input<'_>,
-) -> IResult<Input<'_>, std::ops::Range<usize>, ParserError<'_>> {
+pub(crate) fn line_trailing(input: &mut Input<'_>) -> PResult<std::ops::Range<usize>> {
     terminated((ws, opt(comment)).span(), line_ending).parse_next(input)
 }
 

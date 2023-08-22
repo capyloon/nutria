@@ -1,9 +1,8 @@
-// Copyright 2021, Igor Shaula
+// Copyright 2023, Igor Shaula
 // Licensed under the MIT License <LICENSE or
 // http://opensource.org/licenses/MIT>. This file
 // may not be copied, modified, or distributed
 // except according to those terms.
-extern crate winreg;
 use std::io;
 use winreg::enums::*;
 use winreg::RegKey;

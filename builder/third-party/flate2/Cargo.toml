@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "flate2"
-version = "1.0.26"
+version = "1.0.27"
 authors = [
     "Alex Crichton <alex@alexcrichton.com>",
     "Josh Triplett <josh@joshtriplett.org>",
@@ -76,14 +76,18 @@ default-features = false
 version = "0.8"
 
 [features]
-any_zlib = []
+any_impl = []
+any_zlib = ["any_impl"]
 cloudflare_zlib = [
     "any_zlib",
     "cloudflare-zlib-sys",
 ]
 default = ["rust_backend"]
 miniz-sys = ["rust_backend"]
-rust_backend = ["miniz_oxide"]
+rust_backend = [
+    "miniz_oxide",
+    "any_impl",
+]
 zlib = [
     "any_zlib",
     "libz-sys",

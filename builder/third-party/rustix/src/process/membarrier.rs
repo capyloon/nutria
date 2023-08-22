@@ -1,24 +1,20 @@
 //! The Linux `membarrier` syscall.
-//!
-//! # Safety
-//!
-//! This file defines an enum and a bitflags type that represent the same
-//! set of values and are kept in sync.
-#![allow(unsafe_code)]
 
 use crate::process::Cpuid;
 use crate::{backend, io};
 
 pub use backend::process::types::MembarrierCommand;
 
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(linux_kernel)]
 bitflags::bitflags! {
     /// A result from [`membarrier_query`].
     ///
     /// These flags correspond to values of [`MembarrierCommand`] which are
     /// supported in the OS.
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct MembarrierQuery: u32 {
-       /// `MEMBARRIER_CMD_GLOBAL`
+       /// `MEMBARRIER_CMD_GLOBAL` (also known as `MEMBARRIER_CMD_SHARED`)
        #[doc(alias = "SHARED")]
        #[doc(alias = "MEMBARRIER_CMD_SHARED")]
        const GLOBAL = MembarrierCommand::Global as _;
@@ -41,23 +37,23 @@ bitflags::bitflags! {
     }
 }
 
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(linux_kernel)]
 impl MembarrierQuery {
     /// Test whether this query result contains the given command.
     #[inline]
     pub fn contains_command(self, cmd: MembarrierCommand) -> bool {
-        // SAFETY: `MembarrierCommand` is an enum that only contains values
-        // also valid in `MembarrierQuery`.
-        self.contains(unsafe { Self::from_bits_unchecked(cmd as _) })
+        // `MembarrierCommand` is an enum that only contains values also valid
+        // in `MembarrierQuery`.
+        self.contains(Self::from_bits_retain(cmd as _))
     }
 }
 
 /// `membarrier(MEMBARRIER_CMD_QUERY, 0, 0)`—Query the supported `membarrier`
 /// commands.
 ///
-/// This function doesn't return a `Result` because it always succeeds; if
-/// the underlying OS doesn't support the `membarrier` syscall, it returns
-/// an empty `MembarrierQuery` value.
+/// This function doesn't return a `Result` because it always succeeds; if the
+/// underlying OS doesn't support the `membarrier` syscall, it returns an empty
+/// `MembarrierQuery` value.
 ///
 /// # References
 ///  - [Linux]

@@ -2,10 +2,10 @@ use std::cell::RefCell;
 #[allow(unused_imports)]
 use std::ops::DerefMut;
 
-use winnow::bytes::take;
 use winnow::combinator::cut_err;
+use winnow::combinator::delimited;
 use winnow::combinator::peek;
-use winnow::sequence::delimited;
+use winnow::token::take;
 
 // https://github.com/rust-lang/rust/issues/41358
 use crate::parser::key::key;
@@ -27,22 +27,22 @@ const ARRAY_TABLE_CLOSE: &[u8] = b"]]";
 // std-table = std-table-open key *( table-key-sep key) std-table-close
 pub(crate) fn std_table<'s, 'i>(
     state: &'s RefCell<ParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, (), ParserError<'i>> + 's {
-    move |i| {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
+    move |i: &mut Input<'i>| {
         (
             delimited(
                 STD_TABLE_OPEN,
                 cut_err(key),
                 cut_err(STD_TABLE_CLOSE)
-                    .context(Context::Expected(ParserValue::CharLiteral('.')))
-                    .context(Context::Expected(ParserValue::StringLiteral("]"))),
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('.')))
+                    .context(StrContext::Expected(StrContextValue::StringLiteral("]"))),
             )
             .with_span(),
             cut_err(line_trailing)
-                .context(Context::Expected(ParserValue::CharLiteral('\n')))
-                .context(Context::Expected(ParserValue::CharLiteral('#'))),
+                .context(StrContext::Expected(StrContextValue::CharLiteral('\n')))
+                .context(StrContext::Expected(StrContextValue::CharLiteral('#'))),
         )
-            .map_res(|((h, span), t)| state.borrow_mut().deref_mut().on_std_header(h, t, span))
+            .try_map(|((h, span), t)| state.borrow_mut().deref_mut().on_std_header(h, t, span))
             .parse_next(i)
     }
 }
@@ -52,22 +52,22 @@ pub(crate) fn std_table<'s, 'i>(
 // array-table = array-table-open key *( table-key-sep key) array-table-close
 pub(crate) fn array_table<'s, 'i>(
     state: &'s RefCell<ParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, (), ParserError<'i>> + 's {
-    move |i| {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
+    move |i: &mut Input<'i>| {
         (
             delimited(
                 ARRAY_TABLE_OPEN,
                 cut_err(key),
                 cut_err(ARRAY_TABLE_CLOSE)
-                    .context(Context::Expected(ParserValue::CharLiteral('.')))
-                    .context(Context::Expected(ParserValue::StringLiteral("]]"))),
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('.')))
+                    .context(StrContext::Expected(StrContextValue::StringLiteral("]]"))),
             )
             .with_span(),
             cut_err(line_trailing)
-                .context(Context::Expected(ParserValue::CharLiteral('\n')))
-                .context(Context::Expected(ParserValue::CharLiteral('#'))),
+                .context(StrContext::Expected(StrContextValue::CharLiteral('\n')))
+                .context(StrContext::Expected(StrContextValue::CharLiteral('#'))),
         )
-            .map_res(|((h, span), t)| state.borrow_mut().deref_mut().on_array_header(h, t, span))
+            .try_map(|((h, span), t)| state.borrow_mut().deref_mut().on_array_header(h, t, span))
             .parse_next(i)
     }
 }
@@ -77,13 +77,13 @@ pub(crate) fn array_table<'s, 'i>(
 // table = std-table / array-table
 pub(crate) fn table<'s, 'i>(
     state: &'s RefCell<ParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, (), ParserError<'i>> + 's {
-    move |i| {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
+    move |i: &mut Input<'i>| {
         dispatch!(peek::<_, &[u8],_,_>(take(2usize));
             b"[[" => array_table(state),
             _ => std_table(state),
         )
-        .context(Context::Expression("table header"))
+        .context(StrContext::Label("table header"))
         .parse_next(i)
     }
 }

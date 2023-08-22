@@ -2,6 +2,15 @@ use crate::Ipv4Net;
 use crate::Ipv6Net;
 use crate::IpNet;
 
+use alloc::{
+    boxed::Box,
+    string::{
+        String,
+        ToString
+    },
+    vec,
+};
+
 use schemars::{JsonSchema, gen::SchemaGenerator, schema::{SubschemaValidation, Schema, SchemaObject, StringValidation, Metadata, SingleOrVec, InstanceType}};
 
 impl JsonSchema for Ipv4Net {

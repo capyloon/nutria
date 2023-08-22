@@ -11,8 +11,9 @@
 
 [package]
 edition = "2018"
+rust-version = "1.56"
 name = "wasm-bindgen-backend"
-version = "0.2.86"
+version = "0.2.87"
 authors = ["The wasm-bindgen Developers"]
 description = """
 Backend code generation of the wasm-bindgen tool
@@ -43,7 +44,7 @@ version = "2.0"
 features = ["full"]
 
 [dependencies.wasm-bindgen-shared]
-version = "=0.2.86"
+version = "=0.2.87"
 
 [features]
 extra-traits = ["syn/extra-traits"]

@@ -11,8 +11,9 @@
 
 [package]
 edition = "2018"
+rust-version = "1.56"
 name = "wasm-bindgen-macro-support"
-version = "0.2.86"
+version = "0.2.87"
 authors = ["The wasm-bindgen Developers"]
 description = """
 The part of the implementation of the `#[wasm_bindgen]` attribute that is not in the shared backend crate
@@ -37,10 +38,10 @@ features = [
 ]
 
 [dependencies.wasm-bindgen-backend]
-version = "=0.2.86"
+version = "=0.2.87"
 
 [dependencies.wasm-bindgen-shared]
-version = "=0.2.86"
+version = "=0.2.87"
 
 [features]
 extra-traits = ["syn/extra-traits"]

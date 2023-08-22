@@ -1,4 +1,7 @@
 use crate::PrefixLenError;
+#[cfg(not(feature = "std"))]
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+#[cfg(feature = "std")]
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 /// Converts a `IpAddr` network mask into a prefix.

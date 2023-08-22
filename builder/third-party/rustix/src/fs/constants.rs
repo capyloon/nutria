@@ -3,15 +3,17 @@
 use crate::backend;
 
 pub use crate::io::FdFlags;
-pub use backend::fs::types::{Access, Dev, Mode, OFlags};
+#[cfg(not(target_os = "espidf"))]
+pub use backend::fs::types::Access;
+pub use backend::fs::types::{Dev, Mode, OFlags};
 
-#[cfg(not(target_os = "redox"))]
+#[cfg(not(any(target_os = "espidf", target_os = "redox")))]
 pub use backend::fs::types::AtFlags;
 
 #[cfg(apple)]
 pub use backend::fs::types::{CloneFlags, CopyfileFlags};
 
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(linux_kernel)]
 pub use backend::fs::types::*;
 
-pub use backend::time::types::{Nsecs, Secs, Timespec};
+pub use crate::timespec::{Nsecs, Secs, Timespec};

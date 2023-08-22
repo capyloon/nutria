@@ -249,7 +249,7 @@
 //!   dynamic library libproc_macro from rustc toolchain.
 
 // Syn types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/syn/2.0.16")]
+#![doc(html_root_url = "https://docs.rs/syn/2.0.29")]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![allow(non_camel_case_types)]
 #![allow(
@@ -296,10 +296,7 @@
     clippy::wildcard_imports,
 )]
 
-#[cfg(all(
-    not(all(target_arch = "wasm32", any(target_os = "unknown", target_os = "wasi"))),
-    feature = "proc-macro"
-))]
+#[cfg(feature = "proc-macro")]
 extern crate proc_macro;
 
 #[macro_use]
@@ -376,6 +373,7 @@ pub use crate::generics::{
 pub use crate::generics::{ImplGenerics, Turbofish, TypeGenerics};
 
 mod ident;
+#[doc(inline)]
 pub use crate::ident::Ident;
 
 #[cfg(feature = "full")]
@@ -391,9 +389,11 @@ pub use crate::item::{
 };
 
 mod lifetime;
+#[doc(inline)]
 pub use crate::lifetime::Lifetime;
 
 mod lit;
+#[doc(inline)]
 pub use crate::lit::{
     Lit, LitBool, LitByte, LitByteStr, LitChar, LitFloat, LitInt, LitStr, StrStyle,
 };
@@ -422,11 +422,7 @@ pub use crate::op::{BinOp, UnOp};
 #[cfg_attr(doc_cfg, doc(cfg(feature = "parsing")))]
 pub mod parse;
 
-#[cfg(all(
-    not(all(target_arch = "wasm32", any(target_os = "unknown", target_os = "wasi"))),
-    feature = "parsing",
-    feature = "proc-macro"
-))]
+#[cfg(all(feature = "parsing", feature = "proc-macro"))]
 mod parse_macro_input;
 
 #[cfg(all(feature = "parsing", feature = "printing"))]
@@ -860,11 +856,7 @@ pub mod __private;
 ///     expanded.into()
 /// }
 /// ```
-#[cfg(all(
-    not(all(target_arch = "wasm32", any(target_os = "unknown", target_os = "wasi"))),
-    feature = "parsing",
-    feature = "proc-macro"
-))]
+#[cfg(all(feature = "parsing", feature = "proc-macro"))]
 #[cfg_attr(doc_cfg, doc(cfg(all(feature = "parsing", feature = "proc-macro"))))]
 pub fn parse<T: parse::Parse>(tokens: proc_macro::TokenStream) -> Result<T> {
     parse::Parser::parse(T::parse, tokens)

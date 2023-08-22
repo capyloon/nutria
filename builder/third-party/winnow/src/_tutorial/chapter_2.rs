@@ -4,54 +4,139 @@
 //!
 //! ## Tokens
 //!
-//! Matching a single token literal is common enough that `Parser` is implemented for
-//! `char`.
-//!
+//! [`Stream`] provides some core operations to help with parsing.  For example, to process a
+//! single token, you can do:
 //! ```rust
 //! # use winnow::Parser;
-//! # use winnow::IResult;
-//! #
-//! fn parse_prefix(input: &str) -> IResult<&str, char> {
-//!     '0'.parse_next(input)
+//! # use winnow::PResult;
+//! use winnow::stream::Stream;
+//! use winnow::error::ParserError;
+//! use winnow::error::ErrorKind;
+//! use winnow::error::ErrMode;
+//!
+//! fn parse_prefix(input: &mut &str) -> PResult<char> {
+//!     let c = input.next_token().ok_or_else(|| {
+//!         ErrMode::from_error_kind(input, ErrorKind::Token)
+//!     })?;
+//!     if c != '0' {
+//!         return Err(ErrMode::from_error_kind(input, ErrorKind::Verify));
+//!     }
+//!     Ok(c)
 //! }
 //!
 //! fn main()  {
-//!     let input = "0x1a2b Hello";
+//!     let mut input = "0x1a2b Hello";
 //!
-//!     let (remainder, output) = parse_prefix.parse_next(input).unwrap();
+//!     let output = parse_prefix.parse_next(&mut input).unwrap();
 //!
-//!     assert_eq!(remainder, "x1a2b Hello");
+//!     assert_eq!(input, "x1a2b Hello");
 //!     assert_eq!(output, '0');
 //!
-//!     assert!(parse_prefix("d").is_err());
+//!     assert!(parse_prefix.parse_next(&mut "d").is_err());
 //! }
+//! ```
+//!
+//! [`any`] and [`Parser::verify`] are [`Parser`] building blocks on top of [`Stream`]:
+//! ```rust
+//! # use winnow::PResult;
+//! use winnow::Parser;
+//! use winnow::token::any;
+//!
+//! fn parse_prefix(input: &mut &str) -> PResult<char> {
+//!     any.verify(|c| *c == '0').parse_next(input)
+//! }
+//! #
+//! # fn main()  {
+//! #     let mut input = "0x1a2b Hello";
+//! #
+//! #     let output = parse_prefix.parse_next(&mut input).unwrap();
+//! #
+//! #     assert_eq!(input, "x1a2b Hello");
+//! #     assert_eq!(output, '0');
+//! #
+//! #     assert!(parse_prefix.parse_next(&mut "d").is_err());
+//! # }
+//! ```
+//!
+//! Matching a single token literal is common enough that [`Parser`] is implemented for
+//! `char`.
+//!
+//! ```rust
+//! # use winnow::PResult;
+//! use winnow::Parser;
+//!
+//! fn parse_prefix(input: &mut &str) -> PResult<char> {
+//!     '0'.parse_next(input)
+//! }
+//! #
+//! # fn main()  {
+//! #     let mut input = "0x1a2b Hello";
+//! #
+//! #     let output = parse_prefix.parse_next(&mut input).unwrap();
+//! #
+//! #     assert_eq!(input, "x1a2b Hello");
+//! #     assert_eq!(output, '0');
+//! #
+//! #     assert!(parse_prefix.parse_next(&mut "d").is_err());
+//! # }
 //! ```
 //!
 //! ## Tags
 //!
-//! One of the most frequent way of matching a token is when they are combined into a string.
-//! Again, this is common enough that `Parser` is implemented for `&str`:
-//!
+//! [`Stream`] also supports processing slices of tokens:
 //! ```rust
 //! # use winnow::Parser;
-//! # use winnow::IResult;
-//! #
-//! fn parse_prefix(input: &str) -> IResult<&str, &str> {
-//!     "0x".parse_next(input)
+//! # use winnow::PResult;
+//! use winnow::stream::Stream;
+//! use winnow::error::ParserError;
+//! use winnow::error::ErrorKind;
+//! use winnow::error::ErrMode;
+//!
+//! fn parse_prefix<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//!     let expected = "0x";
+//!     if input.len() < expected.len() {
+//!         return Err(ErrMode::from_error_kind(input, ErrorKind::Slice));
+//!     }
+//!     let actual = input.next_slice(expected.len());
+//!     if actual != expected {
+//!         return Err(ErrMode::from_error_kind(input, ErrorKind::Verify));
+//!     }
+//!     Ok(actual)
 //! }
 //!
 //! fn main()  {
-//!     let input = "0x1a2b Hello";
+//!     let mut input = "0x1a2b Hello";
 //!
-//!     let (remainder, output) = parse_prefix.parse_next(input).unwrap();
-//!     assert_eq!(remainder, "1a2b Hello");
+//!     let output = parse_prefix.parse_next(&mut input).unwrap();
+//!     assert_eq!(input, "1a2b Hello");
 //!     assert_eq!(output, "0x");
 //!
-//!     assert!(parse_prefix("0o123").is_err());
+//!     assert!(parse_prefix.parse_next(&mut "0o123").is_err());
 //! }
 //! ```
 //!
-//! In `winnow`, we call this type of parser a [`tag`].
+//! Again, matching a literal is common enough that [`Parser`] is implemented for `&str`:
+//! ```rust
+//! # use winnow::PResult;
+//! use winnow::Parser;
+//!
+//! fn parse_prefix<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//!     "0x".parse_next(input)
+//! }
+//! #
+//! # fn main()  {
+//! #     let mut input = "0x1a2b Hello";
+//! #
+//! #     let output = parse_prefix.parse_next(&mut input).unwrap();
+//! #     assert_eq!(input, "1a2b Hello");
+//! #     assert_eq!(output, "0x");
+//! #
+//! #     assert!(parse_prefix.parse_next(&mut "0o123").is_err());
+//! # }
+//! ```
+//!
+//! In `winnow`, we call this type of parser a [`tag`].  See [`token`] for additional individual
+//! and token-slice parsers.
 //!
 //! ## Character Classes
 //!
@@ -60,21 +145,21 @@
 //!
 //! ```rust
 //! # use winnow::Parser;
-//! # use winnow::IResult;
+//! # use winnow::PResult;
 //! use winnow::token::one_of;
 //!
-//! fn parse_digits(input: &str) -> IResult<&str, char> {
-//!     one_of("0123456789abcdefgABCDEFG").parse_next(input)
+//! fn parse_digits(input: &mut &str) -> PResult<char> {
+//!     one_of(('0'..='9', 'a'..='f', 'A'..='F')).parse_next(input)
 //! }
 //!
 //! fn main() {
-//!     let input = "1a2b Hello";
+//!     let mut input = "1a2b Hello";
 //!
-//!     let (remainder, output) = parse_digits.parse_next(input).unwrap();
-//!     assert_eq!(remainder, "a2b Hello");
+//!     let output = parse_digits.parse_next(&mut input).unwrap();
+//!     assert_eq!(input, "a2b Hello");
 //!     assert_eq!(output, '1');
 //!
-//!     assert!(parse_digits("Z").is_err());
+//!     assert!(parse_digits.parse_next(&mut "Z").is_err());
 //! }
 //! ```
 //!
@@ -82,10 +167,10 @@
 //! > Let's look at it more closely as its used above (resolving all generic parameters):
 //! > ```rust
 //! > # use winnow::prelude::*;
-//! > # use winnow::error::Error;
+//! > # use winnow::error::InputError;
 //! > pub fn one_of<'i>(
-//! >     list: &'static str
-//! > ) -> impl Parser<&'i str, char, Error<&'i str>> {
+//! >     list: &'static [char]
+//! > ) -> impl Parser<&'i str, char, InputError<&'i str>> {
 //! >     // ...
 //! > #    winnow::token::one_of(list)
 //! > }
@@ -93,7 +178,7 @@
 //! > If you have not programmed in a language where functions are values, the type signature of the
 //! > [`one_of`] function might be a surprise.
 //! > The function [`one_of`] *returns a function*. The function it returns is a
-//! > `Parser`, taking a `&str` and returning an `IResult`. This is a common pattern in winnow for
+//! > `Parser`, taking a `&str` and returning an `PResult`. This is a common pattern in winnow for
 //! > configurable or stateful parsers.
 //!
 //! Some of character classes are common enough that a named parser is provided, like with:
@@ -104,48 +189,54 @@
 //! You can then capture sequences of these characters with parsers like [`take_while`].
 //! ```rust
 //! # use winnow::Parser;
-//! # use winnow::IResult;
+//! # use winnow::PResult;
 //! use winnow::token::take_while;
 //!
-//! fn parse_digits(input: &str) -> IResult<&str, &str> {
-//!     take_while(1.., "0123456789abcdefgABCDEFG").parse_next(input)
+//! fn parse_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
+//!     take_while(1.., ('0'..='9', 'a'..='f', 'A'..='F')).parse_next(input)
 //! }
 //!
 //! fn main() {
-//!     let input = "1a2b Hello";
+//!     let mut input = "1a2b Hello";
 //!
-//!     let (remainder, output) = parse_digits.parse_next(input).unwrap();
-//!     assert_eq!(remainder, " Hello");
+//!     let output = parse_digits.parse_next(&mut input).unwrap();
+//!     assert_eq!(input, " Hello");
 //!     assert_eq!(output, "1a2b");
 //!
-//!     assert!(parse_digits("Z").is_err());
+//!     assert!(parse_digits.parse_next(&mut "Z").is_err());
 //! }
 //! ```
 //!
 //! We could simplify this further with by using one of the built-in character classes, [`hex_digit1`]:
 //! ```rust
 //! # use winnow::Parser;
-//! # use winnow::IResult;
+//! # use winnow::PResult;
 //! use winnow::ascii::hex_digit1;
 //!
-//! fn parse_digits(input: &str) -> IResult<&str, &str> {
+//! fn parse_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //!     hex_digit1.parse_next(input)
 //! }
 //!
 //! fn main() {
-//!     let input = "1a2b Hello";
+//!     let mut input = "1a2b Hello";
 //!
-//!     let (remainder, output) = parse_digits.parse_next(input).unwrap();
-//!     assert_eq!(remainder, " Hello");
+//!     let output = parse_digits.parse_next(&mut input).unwrap();
+//!     assert_eq!(input, " Hello");
 //!     assert_eq!(output, "1a2b");
 //!
-//!     assert!(parse_digits("Z").is_err());
+//!     assert!(parse_digits.parse_next(&mut "Z").is_err());
 //! }
 //! ```
+//!
+//! See [`ascii`] for more text-based parsers.
 
 #![allow(unused_imports)]
+use crate::ascii;
 use crate::ascii::hex_digit1;
 use crate::stream::ContainsToken;
+use crate::stream::Stream;
+use crate::token;
+use crate::token::any;
 use crate::token::one_of;
 use crate::token::tag;
 use crate::token::take_while;
@@ -154,3 +245,4 @@ use std::ops::RangeInclusive;
 
 pub use super::chapter_1 as previous;
 pub use super::chapter_3 as next;
+pub use crate::_tutorial as table_of_content;
