@@ -9,7 +9,6 @@ export class ActivityManager {
       `ActivityManager::constructor, handling ${Object.keys(handlers)}`
     );
     this.handlers = handlers;
-    this.swTimer = null;
 
     this.controller = null;
 
@@ -65,15 +64,7 @@ export class ActivityManager {
       }
     } else if (topic === "system") {
       let data = event.data.data;
-      if (data === "stop_activity_keepalive" && this.swTimer) {
-        window.clearInterval(this.swTimer);
-      } else if (data === "start_activity_keepalive" && !this.swTimer) {
-        this.swTimer = window.setInterval(() => {
-          this.controller.postMessage({ topic: "keep-alive" });
-        }, 25000);
-      } else {
-        console.error(`Unexpected system topic: ${data}`);
-      }
+      console.error(`Unexpected system topic: ${data}`);
     } else {
       console.error(`Unexpected topic: ${topic}`);
     }
