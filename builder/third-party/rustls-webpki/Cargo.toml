@@ -11,9 +11,9 @@
 
 [package]
 edition = "2018"
-rust-version = "1.46"
+rust-version = "1.60"
 name = "rustls-webpki"
-version = "0.100.1"
+version = "0.100.2"
 include = [
     "Cargo.toml",
     "LICENSE",
@@ -65,7 +65,7 @@ all-features = true
 opt-level = 3
 lto = true
 codegen-units = 1
-debug = false
+debug = 0
 debug-assertions = false
 rpath = false
 
@@ -73,7 +73,7 @@ rpath = false
 opt-level = 3
 lto = true
 codegen-units = 1
-debug = false
+debug = 0
 debug-assertions = false
 rpath = false
 
@@ -89,6 +89,10 @@ version = "0.7.1"
 
 [dev-dependencies.base64]
 version = "0.13"
+
+[dev-dependencies.rcgen]
+version = "0.11.1"
+default-features = false
 
 [features]
 alloc = ["ring/alloc"]

@@ -17,6 +17,7 @@ use crate::{
     der, signed_data, subject_name, time, Error, SignatureAlgorithm, TrustAnchor,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_chain(
     required_eku_if_present: KeyPurposeId,
     supported_sig_algs: &[&SignatureAlgorithm],
@@ -25,6 +26,7 @@ pub(crate) fn build_chain(
     cert: &Cert,
     time: time::Time,
     sub_ca_count: usize,
+    signatures: &mut usize,
 ) -> Result<(), Error> {
     let used_as_ca = used_as_ca(&cert.ee_or_ca);
 
@@ -79,15 +81,17 @@ pub(crate) fn build_chain(
 
         // TODO: check_distrust(trust_anchor_subject, trust_anchor_spki)?;
 
-        check_signatures(supported_sig_algs, cert, trust_anchor_spki)?;
+        check_signatures(supported_sig_algs, cert, trust_anchor_spki, signatures)?;
 
         Ok(())
     });
 
     // If the error is not fatal, then keep going.
-    if result.is_ok() {
-        return Ok(());
-    }
+    match result {
+        Ok(()) => return Ok(()),
+        err @ Err(Error::MaximumSignatureChecksExceeded) => return err,
+        _ => {}
+    };
 
     loop_while_non_fatal_error(intermediate_certs, |cert_der| {
         let potential_issuer =
@@ -132,6 +136,7 @@ pub(crate) fn build_chain(
             &potential_issuer,
             time,
             next_sub_ca_count,
+            signatures,
         )
     })
 }
@@ -140,10 +145,16 @@ fn check_signatures(
     supported_sig_algs: &[&SignatureAlgorithm],
     cert_chain: &Cert,
     trust_anchor_key: untrusted::Input,
+    signatures: &mut usize,
 ) -> Result<(), Error> {
     let mut spki_value = trust_anchor_key;
     let mut cert = cert_chain;
     loop {
+        *signatures += 1;
+        if *signatures > 100 {
+            return Err(Error::MaximumSignatureChecksExceeded);
+        }
+
         signed_data::verify_signed_data(supported_sig_algs, spki_value, &cert.signed_data)?;
 
         // TODO: check revocation
@@ -341,16 +352,85 @@ fn check_eku(
 
 fn loop_while_non_fatal_error<V>(
     values: V,
-    f: impl Fn(V::Item) -> Result<(), Error>,
+    mut f: impl FnMut(V::Item) -> Result<(), Error>,
 ) -> Result<(), Error>
 where
     V: IntoIterator,
 {
     for v in values {
         // If the error is not fatal, then keep going.
-        if f(v).is_ok() {
-            return Ok(());
+        match f(v) {
+            Ok(()) => return Ok(()),
+            err @ Err(Error::MaximumSignatureChecksExceeded) => return err,
+            _ => {}
         }
     }
     Err(Error::UnknownIssuer)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_too_many_signatures() {
+        use std::convert::TryFrom;
+
+        use crate::{EndEntityCert, Time, ECDSA_P256_SHA256};
+
+        let alg = &rcgen::PKCS_ECDSA_P256_SHA256;
+
+        let make_issuer = || {
+            let mut ca_params = rcgen::CertificateParams::new(Vec::new());
+            ca_params
+                .distinguished_name
+                .push(rcgen::DnType::OrganizationName, "Bogus Subject");
+            ca_params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+            ca_params.key_usages = vec![
+                rcgen::KeyUsagePurpose::KeyCertSign,
+                rcgen::KeyUsagePurpose::DigitalSignature,
+                rcgen::KeyUsagePurpose::CrlSign,
+            ];
+            ca_params.alg = alg;
+            rcgen::Certificate::from_params(ca_params).unwrap()
+        };
+
+        let ca_cert = make_issuer();
+        let ca_cert_der = ca_cert.serialize_der().unwrap();
+
+        let mut intermediates = Vec::with_capacity(101);
+        let mut issuer = ca_cert;
+        for _ in 0..101 {
+            let intermediate = make_issuer();
+            let intermediate_der = intermediate.serialize_der_with_signer(&issuer).unwrap();
+            intermediates.push(intermediate_der);
+            issuer = intermediate;
+        }
+
+        let mut ee_params = rcgen::CertificateParams::new(vec!["example.com".to_string()]);
+        ee_params.is_ca = rcgen::IsCa::ExplicitNoCa;
+        ee_params.alg = alg;
+        let ee_cert = rcgen::Certificate::from_params(ee_params).unwrap();
+        let ee_cert_der = ee_cert.serialize_der_with_signer(&issuer).unwrap();
+
+        let anchors = &[TrustAnchor::try_from_cert_der(&ca_cert_der).unwrap()];
+        let time = Time::from_seconds_since_unix_epoch(0x1fed_f00d);
+        let cert = EndEntityCert::try_from(&ee_cert_der[..]).unwrap();
+        let intermediates_der: Vec<&[u8]> = intermediates.iter().map(|x| x.as_ref()).collect();
+        let intermediate_certs: &[&[u8]] = intermediates_der.as_ref();
+
+        let result = build_chain(
+            EKU_SERVER_AUTH,
+            &[&ECDSA_P256_SHA256],
+            anchors,
+            intermediate_certs,
+            cert.inner(),
+            time,
+            0,
+            &mut 0_usize,
+        );
+
+        assert!(matches!(result, Err(Error::MaximumSignatureChecksExceeded)));
+    }
 }

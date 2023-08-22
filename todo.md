@@ -65,3 +65,25 @@ whereToOpenLink at https://searchfox.org/mozilla-central/source/toolkit/modules/
 Pinephone suspend
 =================
 https://github.com/mrmekon/circadian
+
+I recommend to try power-profiles-daemon - that should be the most modern and general of the many tools for juggling CPU throttling and related tweaks
+simply installing it should limit CPU cores and speeds when on battery - if not then nudge the Mobian developers to try add hooks (or try do that yourself, that will certianly be helpful for Mobian developers!)
+when using power-profiles-daemon, remove all of thermald tuned auto-cpufreq - they should be obsoleted by this newer tool
+ah - power-profiles-daemon is already pulled in by default on Mobian
+Jonas@jonas:matrix.jones.dk
+when you go to control panel -> Power and choose "Power saving" instead of the default "Balanced" then you are really changing power-profiles-daemon settings - as you can see by running powerprofilesctl in a terminal before and after the change
+...so if you want to tune somthing, then have a look at the documentation for power-profiles-daemon how to hook into that, instead of inventing something new
+
+https://www.hadess.net/2023/08/new-responsibilities.html :
+Those freedesktop projects will be archived until further notice:
+- power-profiles-daemon
+
+Pinephone Geolocation
+=====================
+make sure you have Location services enabled in GNOME Control Center
+you should be able to use dbus-monitor to see if it is available
+they also have geoclue-demo to test out too
+
+Keyboard autocorrect
+====================
+https://docs.rs/fast_symspell/0.1.7/fast_symspell/

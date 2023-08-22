@@ -81,6 +81,9 @@ pub enum Error {
     /// and as recommended by RFC6125.
     MalformedExtensions,
 
+    /// The maximum number of signature checks has been reached. Path complexity is too great.
+    MaximumSignatureChecksExceeded,
+
     /// The certificate contains an unsupported critical extension.
     UnsupportedCriticalExtension,
 

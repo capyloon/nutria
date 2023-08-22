@@ -98,6 +98,7 @@ impl<'a> EndEntityCert<'a> {
             &self.inner,
             time,
             0,
+            &mut 0_usize,
         )
     }
 
@@ -130,6 +131,7 @@ impl<'a> EndEntityCert<'a> {
             &self.inner,
             time,
             0,
+            &mut 0_usize,
         )
     }
 
