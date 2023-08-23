@@ -419,9 +419,9 @@ function configureTopStatus() {
 
   window.config.topStatusBar = enableTopStatus;
   if (!enableTopStatus) {
-    document.getElementById("screen").classList.add("no-top-status-bar");
+    document.getElementById("screen").classList.remove("show-top-status-bar");
   } else {
-    document.getElementById("screen").classList.remove("no-top-status-bar");
+    document.getElementById("screen").classList.add("show-top-status-bar");
     let height = Services.prefs.getIntPref("ui.status-top-height", 26);
     const rootElement = document.documentElement;
     rootElement.style.setProperty("--status-top-height", `${height}px`);

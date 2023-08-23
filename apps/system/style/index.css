@@ -78,7 +78,7 @@ body.screen-off {
     min-content;
 }
 
-#screen.no-top-status-bar {
+#screen:not(.show-top-status-bar) {
   grid-template-rows: 0px calc(100vh - var(--statusbar-height)) min-content;
 }
 
