@@ -376,8 +376,8 @@ class ContentWindow extends HTMLElement {
     this.state.fromLockscreen = config.fromLockscreen;
     this.state.whenClosed = config.whenClosed;
     this.state.display = config.details?.display;
-    if (!config.isHomescreen) {
-      this.classList.add("not-homescreen");
+    if (config.isHomescreen) {
+      this.classList.add("homescreen");
     }
   }
 

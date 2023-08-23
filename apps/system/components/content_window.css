@@ -1,4 +1,4 @@
-content-window.not-homescreen {
+content-window:not(.homescreen) {
   background-color: white;
 }
 
