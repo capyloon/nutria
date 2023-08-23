@@ -407,6 +407,28 @@ class TorProxyChannelFilter {
   }
 }
 
+function configureTopStatus() {
+  let enableTopStatus = Services.prefs.getBoolPref(
+    "ui.status-top.enabled",
+    false
+  );
+
+  if (window.config.topStatusBar === enableTopStatus) {
+    return;
+  }
+
+  window.config.topStatusBar = enableTopStatus;
+  if (!enableTopStatus) {
+    document.getElementById("screen").classList.add("no-top-status-bar");
+  } else {
+    document.getElementById("screen").classList.remove("no-top-status-bar");
+    let height = Services.prefs.getIntPref("ui.status-top-height", 26);
+    const rootElement = document.documentElement;
+    rootElement.style.setProperty("--status-top-height", `${height}px`);
+  }
+  window.actionsDispatcher?.dispatch("top-status-bar-changed", enableTopStatus);
+}
+
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
@@ -414,18 +436,8 @@ document.addEventListener(
       `DOMContentLoaded, embedder is ${window.embedderSetupDone}`
     );
 
-    let enableTopStatus = Services.prefs.getBoolPref(
-      "ui.status-top.enabled",
-      false
-    );
-    window.config.topStatusBar = enableTopStatus;
-    if (!enableTopStatus) {
-      document.getElementById("screen").classList.add("no-top-status-bar");
-    } else {
-      let height = Services.prefs.getIntPref("ui.status-top-height", 26);
-      const rootElement = document.documentElement;
-      rootElement.style.setProperty("--status-top-height", `${height}px`);
-    }
+    configureTopStatus();
+    Services.prefs.addObserver("ui.status-top.enabled", configureTopStatus);
 
     // Make sure the embedding is setup.
     await window.embedderSetupDone;

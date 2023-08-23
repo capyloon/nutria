@@ -221,6 +221,11 @@ class StatusBar extends HTMLElement {
       }
     });
 
+    actionsDispatcher.addListener("top-status-bar-changed", () => {
+      // forces an update.
+      this.updateState("", this.state);
+    });
+
     if (embedder.sessionType !== "mobile") {
       actionsDispatcher.addListener(
         "update-frame-list",
