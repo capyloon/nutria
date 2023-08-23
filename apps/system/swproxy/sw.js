@@ -40,7 +40,11 @@ self.onsystemmessage = (evt) => {
     if (evt.name === "activity") {
       const handler = evt.data.webActivityRequestHandler();
       const source = handler.source;
-      if (HAS_RETURN_VALUE_ACTIVITIES.includes(source.name)) {
+
+      let hasReturn = HAS_RETURN_VALUE_ACTIVITIES.includes(source.name);
+
+      if (hasReturn) {
+        evt.waitUntil(handler.postDone());
         let activityId = ActivityRequests.addHandler(handler);
         const data = { source: handler.source, activityId };
         postMessage(evt, {
@@ -48,14 +52,6 @@ self.onsystemmessage = (evt) => {
           type: evt.name,
           data,
         });
-        // Start the 'keepalive message interval' when receiving the first activity message.
-        if (ActivityRequests.size === 1) {
-          postMessage(evt, {
-            category: "systemmessage",
-            type: "activity_keepalive",
-            data: "start",
-          });
-        }
       } else {
         const data = { source: handler.source };
         postMessage(evt, {
@@ -106,14 +102,6 @@ self.addEventListener("message", (event) => {
       handler.postResult(data.activityResult);
     }
     ActivityRequests.removeHandler(data.activityId);
-    // Stop the 'keepalive message interval' if there is no pending activity.
-    if (ActivityRequests.size === 0) {
-      postMessage(event, {
-        category: "systemmessage",
-        type: "activity_keepalive",
-        data: "stop",
-      });
-    }
   }
 
   if (data.notification) {
@@ -121,7 +109,9 @@ self.addEventListener("message", (event) => {
       let notification = data.notification;
       let { title, body, icon, tag, actions } = notification;
       let ndata = notification.data;
-      console.log(`SW notif title=${title} body=${body} tag=${tag} data=${ndata}`);
+      console.log(
+        `SW notif title=${title} body=${body} tag=${tag} data=${ndata}`
+      );
       self.registration
         .showNotification(title, {
           body,
