@@ -16,6 +16,7 @@ body {
 :root {
   /* Use the ui.status-top-height pref to change the default value */
   --status-top-height: 26px;
+  --carousel-backdrop: blur(5px)
 }
 
 body {
@@ -162,11 +163,11 @@ so can't be part of component specific css file.
 }
 
 sl-drawer::part(overlay) {
-  backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: var(--carousel-backdrop);
 }
 
 #status-top.carousel {
-  backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: var(--carousel-backdrop);
 }
 
 #caret-selection {

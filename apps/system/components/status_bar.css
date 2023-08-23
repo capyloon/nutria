@@ -68,7 +68,7 @@ sl-icon {
 }
 
 .container.carousel {
-  backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: var(--carousel-backdrop);
 }
 
 .center {

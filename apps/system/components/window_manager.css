@@ -27,7 +27,7 @@ window-manager .windows {
   scroll-behavior: smooth;
   scrollbar-width: none;
 
-  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.1, 1);
+  transition: all 0.15s cubic-bezier(0.2, 0.9, 0.1, 1), backdrop-filter none;
 }
 
 window-manager.lock-swipe .windows {
@@ -80,7 +80,7 @@ window-manager .carousel {
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: 1fr;
-  backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: var(--carousel-backdrop);
 
   /* This element will overflow scroll and scroll-snap */
   overflow-x: scroll;
@@ -88,7 +88,7 @@ window-manager .carousel {
   scroll-behavior: smooth;
   scrollbar-width: none;
 
-  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.1, 1);
+  transition: all 0.15s cubic-bezier(0.2, 0.9, 0.1, 1), backdrop-filter none;
 }
 
 window-manager .carousel > div {
@@ -148,7 +148,7 @@ window-manager .carousel > div.screenshot.sideline {
 window-manager .carousel > div.screenshot.closing {
   transform: scale(0.75);
   opacity: 0;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 window-manager .carousel > div .head {
