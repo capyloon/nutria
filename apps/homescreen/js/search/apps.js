@@ -67,26 +67,16 @@ class AppsSource extends SearchSource {
   }
 
   domForResult(result) {
-    let node = document.createElement("div");
-    node.classList.add("suggestion");
-
-    let icon = document.createElement("img");
-    icon.setAttribute("src", result.icon);
-    icon.setAttribute("alt", result.name);
-    node.appendChild(icon);
-
-    let doc = document.createElement("span");
-    doc.textContent = result.name;
-
-    node.appendChild(doc);
-    return node;
+      let node = new ActionBookmark({
+        icon: result.icon,
+        title: result.name,
+        url: result.url.href,
+      });
+      node.classList.add("small");
+      return node;
   }
 
-  activate(result) {
-    maybeOpenURL(result.url.href, {
-      display: result.display,
-      icon: result.icon,
-      title: result.name,
-    });
+  activate(_result) {
+    // The <action-bookmark> element manages the click.
   }
 }

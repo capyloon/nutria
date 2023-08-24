@@ -29,6 +29,12 @@
   box-shadow: 2px 2px 3px black;
 }
 
+:host(.small) img {
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 40%;
+}
+
 :host img.animate {
   animation: box-anim 1s linear;
 }

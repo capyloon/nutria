@@ -166,7 +166,15 @@ body {
 
 #apps-results {
   display: flex;
-  flex-wrap: wrap;
+  padding-top: 0.25em;
+  padding-bottom: 0.25em;
+  gap: 0.5em;
+  overflow-y: scroll;
+}
+
+#apps-results action-bookmark {
+  flex: 0;
+  width: 4em;
 }
 
 .suggestion {

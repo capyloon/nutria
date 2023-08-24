@@ -26,8 +26,6 @@ class ActionBookmark extends HTMLElement {
       `;
 
     this.onclick = () => {
-      this.dispatchEvent(new CustomEvent("open-bookmark", { bubbles: true }));
-      console.log(`open-bookmark event dispatched`);
       let details = {
         title: data.title,
         icon: this.icon,
