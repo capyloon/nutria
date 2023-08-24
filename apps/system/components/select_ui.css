@@ -33,7 +33,8 @@
 :host li {
   padding: 0.25em;
   overflow: scroll;
-  max-width: 90%;
+  max-width: 100%;
+  font-size: smaller;
 }
 
 :host li:hover {
@@ -49,6 +50,7 @@
 :host ul {
   list-style: none;
   padding-left: 0;
+  padding-right: 0;
   margin-bottom: 0.5em;
   margin-top: 0.5em;
   flex: 1;
