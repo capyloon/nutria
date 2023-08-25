@@ -6,3 +6,8 @@
 
 .sl-theme-dark * {
 }
+
+/* Use pill shaped buttons by default */
+sl-button::part(base) {
+    border-radius: 9999px;
+}
