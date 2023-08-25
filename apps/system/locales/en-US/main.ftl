@@ -179,12 +179,12 @@ activity-process-image = Process image with…
 permissions-title = Permission Request
 permissions-block = Block
 permissions-allow = Allow
-permissions-remember = Remember my choice
+permissions-remember = Remember this decision
 permissions-name-geolocation = Geolocation
 permissions-name-audio-capture = Audio Recording
 permissions-name-video-capture = Video Recording
 
-confirm-remember-my-choice = Remember My Choice
+confirm-remember-my-choice = Remember this decision
 
 pairing-dialog-title = Enter this code in the remote to connect
 
