@@ -517,11 +517,6 @@ class StatusBar extends HTMLElement {
         .match(/rgba?\((.*)\)/)[1]
         .split(",")
         .map(Number);
-      let luminance =
-        (0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2]) / 255;
-      console.log(
-        `Found background for ${color}: luminance=${luminance} red=${rgba[0]} green=${rgba[1]} blue=${rgba[2]}`
-      );
 
       // rgba detected transparent.
       if (rgba[3] == 0) {
@@ -530,8 +525,26 @@ class StatusBar extends HTMLElement {
         return;
       }
 
+      // See https://searchfox.org/mozilla-central/rev/8be17dcf81d9bd894c398b53282d43d782815967/widget/nsXPLookAndFeel.cpp#1286
+      let normalized = rgba.map((value) => {
+        value = value / 255.0;
+        if (value <= 0.03928) {
+          return value / 12.92;
+        }
+        return Math.pow((value + 0.055) / 1.055, 2.4);
+      });
+      const luminance =
+        0.2126 * normalized[0] +
+        0.7152 * normalized[1] +
+        0.0722 * normalized[2];
+      const high_luminance = luminance > 0.179129;
+      console.log(
+        `Found background for ${color}: luminance=${luminance} red=${rgba[0]} green=${rgba[1]} blue=${rgba[2]}
+       high_luminance=${high_luminance}`
+      );
+
       // Set a class accordingly so that the theme can choose which colors to use.
-      if (luminance > 0.5) {
+      if (high_luminance) {
         this.classList.add("high-luminance");
         this.state.highLuminance = true;
       } else {
