@@ -539,8 +539,7 @@ class StatusBar extends HTMLElement {
         0.0722 * normalized[2];
       const high_luminance = luminance > 0.179129;
       console.log(
-        `Found background for ${color}: luminance=${luminance} red=${rgba[0]} green=${rgba[1]} blue=${rgba[2]}
-       high_luminance=${high_luminance}`
+        `Found background for ${color}: luminance=${luminance} red=${rgba[0]} green=${rgba[1]} blue=${rgba[2]} high_luminance=${high_luminance}`
       );
 
       // Set a class accordingly so that the theme can choose which colors to use.
