@@ -183,6 +183,7 @@ permissions-remember = Remember this decision
 permissions-name-geolocation = Geolocation
 permissions-name-audio-capture = Audio Recording
 permissions-name-video-capture = Video Recording
+permissions-name-desktop-notification = Notifications
 
 confirm-remember-my-choice = Remember this decision
 

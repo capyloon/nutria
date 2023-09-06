@@ -193,7 +193,11 @@ class PermissionsHelper {
       geolocation: "map-pin",
       "audio-capture": "mic",
       "video-capture": "video",
+      "desktop-notification": "bell",
     };
+    if (!icons[permName]) {
+      console.error(`Missing icon for permission: ${permName}`);
+    }
     return icons[permName] || "help-circle";
   }
 
