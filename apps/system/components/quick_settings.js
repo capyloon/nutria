@@ -271,6 +271,17 @@ class QuickSettings extends HTMLElement {
     }
   }
 
+  getNotifications() {
+    let result = [];
+    let notifs = this.shadowRoot.querySelectorAll(
+      ".notifications web-notification"
+    );
+    if (notifs) {
+      notifs.forEach((notif) => result.push(notif._wrapper.notification));
+    }
+    return result;
+  }
+
   initP2P() {
     let appHandler = this.updatePeerApps.bind(this);
     window.appsManager.addEventListener("app-installed", appHandler);

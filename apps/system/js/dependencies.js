@@ -54,6 +54,12 @@ const kDeps = [
     ],
   },
   {
+    name: "wakeup comp",
+    kind: "module",
+    param: ["./components/wakeup_screen.js"],
+    deps: ["api daemon core", "battery helper", "shoelace-icon"],
+  },
+  {
     name: "notifications",
     kind: "script",
     param: ["./js/notifications.js"],
@@ -66,7 +72,7 @@ const kDeps = [
   {
     name: "late start",
     kind: "virtual",
-    deps: ["swproxy", "activity handler", "p2p"],
+    deps: ["swproxy", "activity handler", "p2p", "wakeup comp"],
   },
   {
     name: "swproxy",

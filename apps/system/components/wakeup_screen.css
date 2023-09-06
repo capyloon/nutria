@@ -1,0 +1,62 @@
+/* styles for the <wakeup-screen> element */
+
+:host(:not(.open)) {
+  display: none;
+}
+
+:host {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: black;
+  color: env(theme-wallpaper-accent);
+  padding: 2em;
+  display: flex;
+  flex-direction: column;
+  gap: 2em;
+  font-family: "lcd rounded";
+  z-index: 5000;
+}
+
+:host .flex-fill {
+  flex: 1;
+}
+
+:host .flex-half-fill {
+  flex: 0.5;
+}
+
+:host .time {
+  font-size: 10em;
+}
+
+:host .date {
+  font-size: 2em;
+}
+
+:host .power {
+  text-align: center;
+  font-size: 2em;
+}
+
+:host .notifications {
+  border: 3px dotted;
+  border-radius: 1em;
+  padding: 0.5em;
+  font-size: 2em;
+  width: fit-content;
+  display: flex;
+  gap: 0.25em;
+  align-items: center;
+}
+
+:host .notifications.none {
+  display: none;
+}
+
+:host .notifications img,
+:host .notifications sl-icon {
+  width: 1.25em;
+}

@@ -39,11 +39,71 @@ class PowerManagerService {
       this.reboot();
     });
 
+    window.addEventListener("devicepickup", () => {
+      this.onDevicePickup();
+    });
+
     this.init();
+  }
+
+  async onDevicePickup() {
+    // Don't do anything if the screen is turned on.
+    if (this.isOn) {
+      return;
+    }
+
+    this.pickupActive = true;
+
+    // Open the wakeup screen then turn screen on.
+    let wakeupScreen = document.querySelector("wakeup-screen");
+    wakeupScreen.open();
+    let screenControlInfo = {
+      state: 0, // ScreenState.ON
+      brightness: this._currentBrighness || 100,
+      external: false,
+    };
+    await this.service.controlScreen(screenControlInfo);
+
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 3000);
+    });
+
+    // Check if we canceled the pickup mode befor the end of the delay.
+    if (!this.pickupActive) {
+      return;
+    }
+
+    // Turn off the screen and hide the wakeup-screen.
+    screenControlInfo = {
+      state: 1, // ScreenState.OFF
+      brightness: 0,
+      external: false,
+    };
+    await this.service.controlScreen(screenControlInfo);
+    wakeupScreen.close();
+  }
+
+  async cancelPickupIfNeeded() {
+    if (!this.pickupActive) {
+      return;
+    }
+
+    // Turn off the screen and hide the wakeup-screen.
+    let screenControlInfo = {
+      state: 1, // ScreenState.OFF
+      brightness: 0,
+      external: false,
+    };
+    await this.service.controlScreen(screenControlInfo);
+    document.querySelector("wakeup-screen").close();
+    this.pickupActive = false;
   }
 
   init() {
     this.locked = false;
+    this.isOn = true;
+    this.pickupActive = false;
+
     this._ready = new Promise((resolve, reject) => {
       window.apiDaemon.getPowerManager().then(
         async (service) => {
@@ -105,6 +165,7 @@ class PowerManagerService {
       await this.service.controlScreen(screenControlInfo);
       console.log(`==== PowerManagerService::turnOn done`);
       this.locked = false;
+      this.isOn = true;
     });
   }
 
@@ -126,6 +187,7 @@ class PowerManagerService {
       await this.service.controlScreen(screenControlInfo);
       console.log(`==== PowerManagerService::turnOff done`);
       this.locked = false;
+      this.isOn = false;
 
       // Wake up on any key on desktop.
       if (embedder.sessionType !== "mobile") {
@@ -220,11 +282,13 @@ class PowerManagement {
     embedder.userIdle.addObserver(this.idleCallback, kDefaultIdleTimeoutSec);
 
     // Short press turns on/off the screen.
-    actionsDispatcher.addListener("power-short-press", () => {
+    actionsDispatcher.addListener("power-short-press", async () => {
       // If we are in the power menu, close it.
       if (this.powerMenu.isOpen) {
         this.powerMenu.close();
       }
+
+      await this.service.cancelPickupIfNeeded();
 
       this.powerOn = !this.powerOn;
       actionsDispatcher.dispatch(

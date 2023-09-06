@@ -3,6 +3,21 @@
   src: url(/fonts/Readex_Pro/ReadexPro-VariableFont_wght.ttf);
 }
 
+/* https://www.dafont.com/lcd-phone.font */
+@font-face {
+  font-family: "lcd";
+  src: url("/fonts/lcd/lcd.ttf");
+}
+
+/*
+  https://www.dafont.com/jd-lcd-rounded.font
+  Fixed with `fonttools ttx`.
+*/
+@font-face {
+  font-family: "lcd rounded";
+  src: url("/fonts/lcd/lcd_rounded.ttf");
+}
+
 * {
   --sl-font-sans: "Readex Pro", sans-serif;
   --sl-input-font-family: var(--sl-font-sans);
