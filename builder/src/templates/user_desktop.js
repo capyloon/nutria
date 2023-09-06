@@ -52,7 +52,7 @@ user_pref("apz.fling_curve_threshold_inches_per_ms", "0.01");
 user_pref("apz.fling_friction", "0.004");
 user_pref("apz.fling_stopped_threshold", "0.0");
 user_pref("apz.max_velocity_inches_per_ms", "0.07");
-user_pref("apz.overscroll.enabled", false);
+user_pref("apz.overscroll.enabled", true);
 user_pref("apz.second_tap_tolerance", "0.3");
 user_pref("apz.touch_move_tolerance", "0.03");
 user_pref("apz.touch_start_tolerance", "0.06");
@@ -88,8 +88,6 @@ user_pref("dom.imagecapture.enabled", true);
 user_pref("ipfs.gateway", "dweb.link");
 
 user_pref("b2g.wifi.nmcli-path", "/usr/bin/nmcli");
-
-user_pref("apz.overscroll.enabled", true);
 
 user_pref("dom.dialog_element.enabled", true);
 
