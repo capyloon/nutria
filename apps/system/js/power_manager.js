@@ -57,6 +57,14 @@ class PowerManagerService {
     // Open the wakeup screen then turn screen on.
     let wakeupScreen = document.querySelector("wakeup-screen");
     wakeupScreen.open();
+
+    // Wait enough to prevent showing the lockscreen
+    // or homescreen before the wakeup screen.
+    // TODO: find a more reliable solution.
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 200);
+    });
+
     let screenControlInfo = {
       state: 0, // ScreenState.ON
       brightness: this._currentBrighness || 100,
