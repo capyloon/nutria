@@ -229,3 +229,36 @@ content-window > .container .permissions .items div {
 content-window > .container .permissions #permission-remember {
   margin-top: 1em;
 }
+
+content-window.loading > .container::after {
+  height: 10px;
+  pointer-events: none;
+  content: "";
+  display: block;
+  position: absolute;
+  bottom: 0;
+  width: 50%;
+  left: 25%;
+  background-image: radial-gradient(
+    farthest-side at bottom,
+    env(theme-wallpaper-accent),
+    transparent
+  );
+  animation: indeterminate-bar 1s ease-in-out infinite alternate;
+}
+
+@keyframes indeterminate-bar {
+  0% {
+    transform: translate(-50%);
+    opacity: 0.25;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(50%);
+    opacity: 0.25;
+  }
+}

@@ -480,7 +480,6 @@ class ContentWindow extends HTMLElement {
     let container = document.createElement("div");
     container.classList.add("container");
     container.innerHTML = `
-      <link rel="stylesheet" href="components/content_window.css">
       <web-view remote="${this.config.remote}" remoteType="${remoteType}" ${privateBrowsingAttr} ${browsingContextGroupIdAttr} ${transparent}></web-view>
       <div class="loader running">
         <sl-icon name="loader"></sl-icon>
@@ -1190,6 +1189,7 @@ class ContentWindow extends HTMLElement {
         }
         break;
       case "loadend":
+        this.classList.remove("loading");
         if (!this.gotTheme) {
           this.webView
             .getBackgroundColor()
@@ -1331,6 +1331,7 @@ class ContentWindow extends HTMLElement {
         this.recordVideo = detail.video;
         break;
       case "loadstart":
+        this.classList.add("loading");
         // Reset state when loading a new document.
         this.state.icon = null;
         this.state.title = this.config.details?.title;
@@ -1519,3 +1520,6 @@ class ContentWindow extends HTMLElement {
 }
 
 customElements.define("content-window", ContentWindow);
+
+// Add a single instance of the CSS for this custom element.
+addStylesheet("components/content_window.css");
