@@ -231,7 +231,8 @@ content-window > .container .permissions #permission-remember {
 }
 
 content-window.loading > .container::after {
-  height: 10px;
+  height: 6px;
+  border-radius: 3px;
   pointer-events: none;
   content: "";
   display: block;
@@ -239,10 +240,11 @@ content-window.loading > .container::after {
   bottom: 0;
   width: 50%;
   left: 25%;
-  background-image: radial-gradient(
-    farthest-side at bottom,
+  background-image: linear-gradient(
+    to left,
+    env(theme-wallpaper-muted),
     env(theme-wallpaper-accent),
-    transparent
+    env(theme-wallpaper-muted)
   );
   animation: indeterminate-bar 1s ease-in-out infinite alternate;
 }
