@@ -1,4 +1,5 @@
 use crate::adapter::WinconBytes;
+use crate::IsTerminal;
 use crate::Lockable;
 use crate::RawStream;
 
@@ -36,7 +37,6 @@ where
     }
 
     #[inline]
-    #[cfg(feature = "auto")]
     pub fn is_terminal(&self) -> bool {
         // HACK: We can't get the console's stream to check but if there is a console, it likely is
         // a terminal
@@ -44,8 +44,7 @@ where
     }
 }
 
-#[cfg(feature = "auto")]
-impl<S> is_terminal::IsTerminal for WinconStream<S>
+impl<S> IsTerminal for WinconStream<S>
 where
     S: RawStream,
 {
@@ -78,12 +77,20 @@ where
     }
 }
 
-impl<S> Lockable for WinconStream<S>
-where
-    S: RawStream + Lockable,
-    <S as Lockable>::Locked: RawStream,
-{
-    type Locked = WinconStream<<S as Lockable>::Locked>;
+impl Lockable for WinconStream<std::io::Stdout> {
+    type Locked = WinconStream<std::io::StdoutLock<'static>>;
+
+    #[inline]
+    fn lock(self) -> Self::Locked {
+        Self::Locked {
+            console: self.console.lock(),
+            state: self.state,
+        }
+    }
+}
+
+impl Lockable for WinconStream<std::io::Stderr> {
+    type Locked = WinconStream<std::io::StderrLock<'static>>;
 
     #[inline]
     fn lock(self) -> Self::Locked {

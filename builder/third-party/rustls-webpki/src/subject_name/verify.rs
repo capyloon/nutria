@@ -19,7 +19,9 @@ use super::{
 };
 use crate::{
     cert::{Cert, EndEntityOrCa},
-    der, Error,
+    der,
+    verify_cert::Budget,
+    Error,
 };
 #[cfg(feature = "alloc")]
 use {
@@ -36,7 +38,6 @@ pub(crate) fn verify_cert_dns_name(
     iterate_names(
         Some(cert.subject),
         cert.subject_alt_name,
-        SubjectCommonNameContents::Ignore,
         Err(Error::CertNotValidForName),
         &mut |name| {
             if let GeneralName::DnsName(presented_id) = name {
@@ -70,7 +71,6 @@ pub(crate) fn verify_cert_subject_name(
         // only against Subject Alternative Names.
         None,
         cert.inner().subject_alt_name,
-        SubjectCommonNameContents::Ignore,
         Err(Error::CertNotValidForName),
         &mut |name| {
             if let GeneralName::IpAddress(presented_id) = name {
@@ -88,7 +88,7 @@ pub(crate) fn verify_cert_subject_name(
 pub(crate) fn check_name_constraints(
     input: Option<&mut untrusted::Reader>,
     subordinate_certs: &Cert,
-    subject_common_name_contents: SubjectCommonNameContents,
+    budget: &mut Budget,
 ) -> Result<(), Error> {
     let input = match input {
         Some(input) => input,
@@ -115,13 +115,13 @@ pub(crate) fn check_name_constraints(
         iterate_names(
             Some(child.subject),
             child.subject_alt_name,
-            subject_common_name_contents,
             Ok(()),
             &mut |name| {
                 check_presented_id_conforms_to_constraints(
                     name,
                     permitted_subtrees,
                     excluded_subtrees,
+                    budget,
                 )
             },
         )?;
@@ -141,11 +141,13 @@ fn check_presented_id_conforms_to_constraints(
     name: GeneralName,
     permitted_subtrees: Option<untrusted::Input>,
     excluded_subtrees: Option<untrusted::Input>,
+    budget: &mut Budget,
 ) -> NameIteration {
     match check_presented_id_conforms_to_constraints_in_subtree(
         name,
         Subtrees::PermittedSubtrees,
         permitted_subtrees,
+        budget,
     ) {
         stop @ NameIteration::Stop(..) => {
             return stop;
@@ -157,6 +159,7 @@ fn check_presented_id_conforms_to_constraints(
         name,
         Subtrees::ExcludedSubtrees,
         excluded_subtrees,
+        budget,
     )
 }
 
@@ -170,6 +173,7 @@ fn check_presented_id_conforms_to_constraints_in_subtree(
     name: GeneralName,
     subtrees: Subtrees,
     constraints: Option<untrusted::Input>,
+    budget: &mut Budget,
 ) -> NameIteration {
     let mut constraints = match constraints {
         Some(constraints) => untrusted::Reader::new(constraints),
@@ -182,6 +186,10 @@ fn check_presented_id_conforms_to_constraints_in_subtree(
     let mut has_permitted_subtrees_mismatch = false;
 
     while !constraints.at_end() {
+        if let Err(e) = budget.consume_name_constraint_comparison() {
+            return NameIteration::Stop(Err(e));
+        }
+
         // http://tools.ietf.org/html/rfc5280#section-4.2.1.10: "Within this
         // profile, the minimum and maximum fields are not used with any name
         // forms, thus, the minimum MUST be zero, and maximum MUST be absent."
@@ -298,16 +306,9 @@ enum NameIteration {
     Stop(Result<(), Error>),
 }
 
-#[derive(Clone, Copy)]
-pub(crate) enum SubjectCommonNameContents {
-    DnsName,
-    Ignore,
-}
-
 fn iterate_names<'names>(
     subject: Option<untrusted::Input<'names>>,
     subject_alt_name: Option<untrusted::Input<'names>>,
-    subject_common_name_contents: SubjectCommonNameContents,
     result_if_never_stopped_early: Result<(), Error>,
     f: &mut impl FnMut(GeneralName<'names>) -> NameIteration,
 ) -> Result<(), Error> {
@@ -337,20 +338,7 @@ fn iterate_names<'names>(
         };
     }
 
-    if let (SubjectCommonNameContents::DnsName, Some(subject)) =
-        (subject_common_name_contents, subject)
-    {
-        match common_name(subject) {
-            Ok(Some(cn)) => match f(GeneralName::DnsName(cn)) {
-                NameIteration::Stop(result) => result,
-                NameIteration::KeepGoing => result_if_never_stopped_early,
-            },
-            Ok(None) => result_if_never_stopped_early,
-            Err(err) => Err(err),
-        }
-    } else {
-        result_if_never_stopped_early
-    }
+    result_if_never_stopped_early
 }
 
 #[cfg(feature = "alloc")]
@@ -363,7 +351,6 @@ pub(crate) fn list_cert_dns_names<'names>(
     iterate_names(
         Some(cert.subject),
         cert.subject_alt_name,
-        SubjectCommonNameContents::DnsName,
         Ok(()),
         &mut |name| {
             if let GeneralName::DnsName(presented_id) = name {
@@ -435,24 +422,4 @@ impl<'a> GeneralName<'a> {
             _ => return Err(Error::BadDer),
         })
     }
-}
-
-static COMMON_NAME: untrusted::Input = untrusted::Input::from(&[85, 4, 3]);
-
-fn common_name(input: untrusted::Input) -> Result<Option<untrusted::Input>, Error> {
-    let inner = &mut untrusted::Reader::new(input);
-    der::nested(inner, der::Tag::Set, Error::BadDer, |tagged| {
-        der::nested(tagged, der::Tag::Sequence, Error::BadDer, |tagged| {
-            while !tagged.at_end() {
-                let name_oid = der::expect_tag_and_get_value(tagged, der::Tag::OID)?;
-                if name_oid == COMMON_NAME {
-                    return der::expect_tag_and_get_value(tagged, der::Tag::UTF8String).map(Some);
-                } else {
-                    // discard unused name value
-                    der::read_tag_and_get_value(tagged)?;
-                }
-            }
-            Ok(None)
-        })
-    })
 }

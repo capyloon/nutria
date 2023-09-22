@@ -7,13 +7,13 @@
     target_os = "espidf"
 ))]
 mod eventfd;
-#[cfg(bsd)]
+#[cfg(all(feature = "alloc", bsd))]
 pub mod kqueue;
 mod poll;
 #[cfg(solarish)]
 pub mod port;
 
-#[cfg(linux_kernel)]
+#[cfg(all(feature = "alloc", linux_kernel))]
 pub use crate::backend::event::epoll;
 #[cfg(any(
     linux_kernel,

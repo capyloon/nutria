@@ -2,7 +2,7 @@ use std::env::var;
 use std::io::Write;
 
 /// The directory for inline asm.
-const ASM_PATH: &str = "src/backend/linux_raw/arch/asm";
+const ASM_PATH: &str = "src/backend/linux_raw/arch";
 
 fn main() {
     // Don't rerun this on changes other than build.rs, as we only depend on
@@ -34,6 +34,9 @@ fn main() {
     // enable the libc backend even if rustix is depended on transitively.
     let cfg_use_libc = var("CARGO_CFG_RUSTIX_USE_LIBC").is_ok();
 
+    // Check for `--features=rustc-dep-of-std`.
+    let rustc_dep_of_std = var("CARGO_FEATURE_RUSTC_DEP_OF_STD").is_ok();
+
     // Check for eg. `RUSTFLAGS=--cfg=rustix_use_experimental_features`. This
     // is a rustc flag rather than a cargo feature flag because it's
     // experimental and not something we want accidentally enabled via
@@ -52,7 +55,10 @@ fn main() {
 
     // If experimental features are enabled, auto-detect and use available
     // features.
-    if rustix_use_experimental_features {
+    if rustc_dep_of_std {
+        use_feature("rustc_attrs");
+        use_feature("core_intrinsics");
+    } else if rustix_use_experimental_features {
         use_feature_or_nothing("rustc_attrs");
         use_feature_or_nothing("core_intrinsics");
     }
@@ -69,6 +75,11 @@ fn main() {
     // Feature needed for testing.
     if use_static_assertions() {
         use_feature("static_assertions");
+    }
+
+    // WASI support can utilize wasi_ext if present.
+    if os == "wasi" {
+        use_feature_or_nothing("wasi_ext");
     }
 
     // If the libc backend is requested, or if we're not on a platform for

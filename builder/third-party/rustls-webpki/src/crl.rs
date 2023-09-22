@@ -15,6 +15,7 @@
 use crate::cert::lenient_certificate_serial_number;
 use crate::der::Tag;
 use crate::signed_data::{self, SignedData};
+use crate::verify_cert::Budget;
 use crate::x509::{remember_extension, set_extension_once, Extension};
 use crate::{der, Error, SignatureAlgorithm, Time};
 
@@ -90,6 +91,7 @@ impl CertRevocationList for OwnedCertRevocationList {
             supported_sig_algs,
             untrusted::Input::from(issuer_spki),
             &self.signed_data.borrow(),
+            &mut Budget::default(),
         )
     }
 }
@@ -334,6 +336,7 @@ impl CertRevocationList for BorrowedCertRevocationList<'_> {
             supported_sig_algs,
             untrusted::Input::from(issuer_spki),
             &self.signed_data,
+            &mut Budget::default(),
         )
     }
 }
@@ -631,6 +634,8 @@ mod tests {
 
     #[test]
     #[cfg(feature = "alloc")]
+    // redundant clone, clone_on_copy allowed to verify derived traits.
+    #[allow(clippy::redundant_clone, clippy::clone_on_copy)]
     fn test_derived_traits() {
         let crl = crate::crl::BorrowedCertRevocationList::from_der(include_bytes!(
             "../tests/crls/crl.valid.der"

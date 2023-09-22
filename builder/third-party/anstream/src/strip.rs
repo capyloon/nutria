@@ -1,4 +1,5 @@
 use crate::adapter::StripBytes;
+use crate::IsTerminal;
 use crate::Lockable;
 use crate::RawStream;
 
@@ -29,14 +30,12 @@ where
     }
 
     #[inline]
-    #[cfg(feature = "auto")]
     pub fn is_terminal(&self) -> bool {
         self.raw.is_terminal()
     }
 }
 
-#[cfg(feature = "auto")]
-impl<S> is_terminal::IsTerminal for StripStream<S>
+impl<S> IsTerminal for StripStream<S>
 where
     S: RawStream,
 {

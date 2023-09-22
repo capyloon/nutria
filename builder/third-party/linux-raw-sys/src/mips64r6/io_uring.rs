@@ -350,6 +350,21 @@ pub resv2: __u32,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct io_uring_notification_slot {
+pub tag: __u64,
+pub resv: [__u64; 3usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_uring_notification_register {
+pub nr_slots: __u32,
+pub resv: __u32,
+pub resv2: __u64,
+pub data: __u64,
+pub resv3: __u64,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct io_uring_probe_op {
 pub op: __u8,
 pub resv: __u8,
@@ -414,7 +429,7 @@ pub struct io_uring_buf_reg {
 pub ring_addr: __u64,
 pub ring_entries: __u32,
 pub bgid: __u16,
-pub flags: __u16,
+pub pad: __u16,
 pub resv: [__u64; 3usize],
 }
 #[repr(C)]
@@ -698,7 +713,6 @@ pub const IORING_TIMEOUT_BOOTTIME: u32 = 4;
 pub const IORING_TIMEOUT_REALTIME: u32 = 8;
 pub const IORING_LINK_TIMEOUT_UPDATE: u32 = 16;
 pub const IORING_TIMEOUT_ETIME_SUCCESS: u32 = 32;
-pub const IORING_TIMEOUT_MULTISHOT: u32 = 64;
 pub const IORING_TIMEOUT_CLOCK_MASK: u32 = 12;
 pub const IORING_TIMEOUT_UPDATE_MASK: u32 = 18;
 pub const SPLICE_F_FD_IN_FIXED: u32 = 2147483648;
@@ -725,9 +739,6 @@ pub const IORING_CQE_F_NOTIF: u32 = 8;
 pub const IORING_OFF_SQ_RING: u32 = 0;
 pub const IORING_OFF_CQ_RING: u32 = 134217728;
 pub const IORING_OFF_SQES: u32 = 268435456;
-pub const IORING_OFF_PBUF_RING: u32 = 2147483648;
-pub const IORING_OFF_PBUF_SHIFT: u32 = 16;
-pub const IORING_OFF_MMAP_MASK: u32 = 4160749568;
 pub const IORING_SQ_NEED_WAKEUP: u32 = 1;
 pub const IORING_SQ_CQ_OVERFLOW: u32 = 2;
 pub const IORING_SQ_TASKRUN: u32 = 4;
@@ -794,12 +805,11 @@ pub const IORING_REGISTER_LAST: _bindgen_ty_4 = _bindgen_ty_4::IORING_REGISTER_L
 pub const IORING_REGISTER_USE_REGISTERED_RING: _bindgen_ty_4 = _bindgen_ty_4::IORING_REGISTER_USE_REGISTERED_RING;
 pub const IO_WQ_BOUND: _bindgen_ty_5 = _bindgen_ty_5::IO_WQ_BOUND;
 pub const IO_WQ_UNBOUND: _bindgen_ty_5 = _bindgen_ty_5::IO_WQ_UNBOUND;
-pub const IOU_PBUF_RING_MMAP: _bindgen_ty_6 = _bindgen_ty_6::IOU_PBUF_RING_MMAP;
-pub const IORING_RESTRICTION_REGISTER_OP: _bindgen_ty_7 = _bindgen_ty_7::IORING_RESTRICTION_REGISTER_OP;
-pub const IORING_RESTRICTION_SQE_OP: _bindgen_ty_7 = _bindgen_ty_7::IORING_RESTRICTION_SQE_OP;
-pub const IORING_RESTRICTION_SQE_FLAGS_ALLOWED: _bindgen_ty_7 = _bindgen_ty_7::IORING_RESTRICTION_SQE_FLAGS_ALLOWED;
-pub const IORING_RESTRICTION_SQE_FLAGS_REQUIRED: _bindgen_ty_7 = _bindgen_ty_7::IORING_RESTRICTION_SQE_FLAGS_REQUIRED;
-pub const IORING_RESTRICTION_LAST: _bindgen_ty_7 = _bindgen_ty_7::IORING_RESTRICTION_LAST;
+pub const IORING_RESTRICTION_REGISTER_OP: _bindgen_ty_6 = _bindgen_ty_6::IORING_RESTRICTION_REGISTER_OP;
+pub const IORING_RESTRICTION_SQE_OP: _bindgen_ty_6 = _bindgen_ty_6::IORING_RESTRICTION_SQE_OP;
+pub const IORING_RESTRICTION_SQE_FLAGS_ALLOWED: _bindgen_ty_6 = _bindgen_ty_6::IORING_RESTRICTION_SQE_FLAGS_ALLOWED;
+pub const IORING_RESTRICTION_SQE_FLAGS_REQUIRED: _bindgen_ty_6 = _bindgen_ty_6::IORING_RESTRICTION_SQE_FLAGS_REQUIRED;
+pub const IORING_RESTRICTION_LAST: _bindgen_ty_6 = _bindgen_ty_6::IORING_RESTRICTION_LAST;
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -937,12 +947,6 @@ IO_WQ_UNBOUND = 1,
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum _bindgen_ty_6 {
-IOU_PBUF_RING_MMAP = 1,
-}
-#[repr(u32)]
-#[non_exhaustive]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum _bindgen_ty_7 {
 IORING_RESTRICTION_REGISTER_OP = 0,
 IORING_RESTRICTION_SQE_OP = 1,
 IORING_RESTRICTION_SQE_FLAGS_ALLOWED = 2,

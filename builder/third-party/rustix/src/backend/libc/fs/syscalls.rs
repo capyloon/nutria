@@ -1,9 +1,9 @@
 //! libc syscalls supporting `rustix::fs`.
 
 use crate::backend::c;
-use crate::backend::conv::{
-    borrowed_fd, c_str, ret, ret_c_int, ret_off_t, ret_owned_fd, ret_usize,
-};
+#[cfg(any(apple, linux_kernel, feature = "alloc"))]
+use crate::backend::conv::ret_usize;
+use crate::backend::conv::{borrowed_fd, c_str, ret, ret_c_int, ret_off_t, ret_owned_fd};
 use crate::fd::{BorrowedFd, OwnedFd};
 use crate::ffi::CStr;
 #[cfg(apple)]
@@ -90,6 +90,7 @@ fn open_via_syscall(path: &CStr, oflags: OFlags, mode: Mode) -> io::Result<Owned
         target_arch = "aarch64",
         target_arch = "riscv32",
         target_arch = "riscv64",
+        target_arch = "csky",
         target_arch = "loongarch64"
     ))]
     {
@@ -101,6 +102,7 @@ fn open_via_syscall(path: &CStr, oflags: OFlags, mode: Mode) -> io::Result<Owned
         target_arch = "aarch64",
         target_arch = "riscv32",
         target_arch = "riscv64",
+        target_arch = "csky",
         target_arch = "loongarch64"
     )))]
     unsafe {
@@ -246,6 +248,7 @@ pub(crate) fn statvfs(filename: &CStr) -> io::Result<StatVfs> {
     }
 }
 
+#[cfg(feature = "alloc")]
 #[inline]
 pub(crate) fn readlink(path: &CStr, buf: &mut [u8]) -> io::Result<usize> {
     unsafe {
@@ -255,7 +258,7 @@ pub(crate) fn readlink(path: &CStr, buf: &mut [u8]) -> io::Result<usize> {
     }
 }
 
-#[cfg(not(target_os = "redox"))]
+#[cfg(all(feature = "alloc", not(target_os = "redox")))]
 #[inline]
 pub(crate) fn readlinkat(
     dirfd: BorrowedFd<'_>,
@@ -615,7 +618,7 @@ pub(crate) fn lstat(path: &CStr) -> io::Result<Stat> {
     }
 }
 
-#[cfg(not(any(target_os = "espidf", target_os = "redox")))]
+#[cfg(not(any(target_os = "aix", target_os = "espidf", target_os = "redox")))]
 pub(crate) fn statat(dirfd: BorrowedFd<'_>, path: &CStr, flags: AtFlags) -> io::Result<Stat> {
     // See the comments in `fstat` about using `crate::fs::statx` here.
     #[cfg(all(
@@ -1264,6 +1267,14 @@ pub(crate) fn fchmod(fd: BorrowedFd<'_>, mode: Mode) -> io::Result<()> {
     unsafe { ret(fchmod(borrowed_fd(fd), mode.bits() as c::mode_t)) }
 }
 
+#[cfg(not(target_os = "wasi"))]
+pub(crate) fn chown(path: &CStr, owner: Option<Uid>, group: Option<Gid>) -> io::Result<()> {
+    unsafe {
+        let (ow, gr) = crate::ugid::translate_fchown_args(owner, group);
+        ret(c::chown(c_str(path), ow, gr))
+    }
+}
+
 #[cfg(linux_kernel)]
 pub(crate) fn fchown(fd: BorrowedFd<'_>, owner: Option<Uid>, group: Option<Gid>) -> io::Result<()> {
     // Use `c::syscall` rather than `c::fchown` because some libc
@@ -1411,7 +1422,10 @@ fn libc_statvfs_to_statvfs(from: c::statvfs) -> StatVfs {
         f_files: from.f_files as u64,
         f_ffree: from.f_ffree as u64,
         f_favail: from.f_ffree as u64,
+        #[cfg(not(target_os = "aix"))]
         f_fsid: from.f_fsid as u64,
+        #[cfg(target_os = "aix")]
+        f_fsid: ((from.f_fsid.val[0] as u64) << 32) | from.f_fsid.val[1],
         f_flag: StatVfsMountFlags::from_bits_retain(from.f_flag as u64),
         f_namemax: from.f_namemax as u64,
     }
@@ -2034,12 +2048,12 @@ pub(crate) fn fcntl_fullfsync(fd: BorrowedFd<'_>) -> io::Result<()> {
 }
 
 #[cfg(apple)]
-pub(crate) fn fcntl_nocache(fd: BorrowedFd, value: bool) -> io::Result<()> {
+pub(crate) fn fcntl_nocache(fd: BorrowedFd<'_>, value: bool) -> io::Result<()> {
     unsafe { ret(c::fcntl(borrowed_fd(fd), c::F_NOCACHE, value as c::c_int)) }
 }
 
 #[cfg(apple)]
-pub(crate) fn fcntl_global_nocache(fd: BorrowedFd, value: bool) -> io::Result<()> {
+pub(crate) fn fcntl_global_nocache(fd: BorrowedFd<'_>, value: bool) -> io::Result<()> {
     unsafe {
         ret(c::fcntl(
             borrowed_fd(fd),
@@ -2403,55 +2417,6 @@ pub(crate) fn fremovexattr(fd: BorrowedFd<'_>, name: &CStr) -> io::Result<()> {
     unsafe {
         ret(c::fremovexattr(fd, name.as_ptr(), 0))
     }
-}
-
-#[cfg(linux_kernel)]
-#[inline]
-pub(crate) fn ioctl_blksszget(fd: BorrowedFd) -> io::Result<u32> {
-    let mut result = MaybeUninit::<c::c_uint>::uninit();
-    unsafe {
-        ret(c::ioctl(borrowed_fd(fd), c::BLKSSZGET, result.as_mut_ptr()))?;
-        Ok(result.assume_init() as u32)
-    }
-}
-
-#[cfg(linux_kernel)]
-#[inline]
-pub(crate) fn ioctl_blkpbszget(fd: BorrowedFd) -> io::Result<u32> {
-    let mut result = MaybeUninit::<c::c_uint>::uninit();
-    unsafe {
-        ret(c::ioctl(
-            borrowed_fd(fd),
-            c::BLKPBSZGET,
-            result.as_mut_ptr(),
-        ))?;
-        Ok(result.assume_init() as u32)
-    }
-}
-
-// Sparc lacks `FICLONE`.
-#[cfg(all(linux_kernel, not(any(target_arch = "sparc", target_arch = "sparc64"))))]
-pub(crate) fn ioctl_ficlone(fd: BorrowedFd<'_>, src_fd: BorrowedFd<'_>) -> io::Result<()> {
-    unsafe {
-        ret(c::ioctl(
-            borrowed_fd(fd),
-            c::FICLONE as _,
-            borrowed_fd(src_fd),
-        ))
-    }
-}
-
-#[cfg(linux_kernel)]
-#[inline]
-pub(crate) fn ext4_ioc_resize_fs(fd: BorrowedFd<'_>, blocks: u64) -> io::Result<()> {
-    // TODO: Fix linux-raw-sys to define ioctl codes for sparc.
-    #[cfg(any(target_arch = "sparc", target_arch = "sparc64"))]
-    const EXT4_IOC_RESIZE_FS: u32 = 0x8008_6610;
-
-    #[cfg(not(any(target_arch = "sparc", target_arch = "sparc64")))]
-    use linux_raw_sys::ioctl::EXT4_IOC_RESIZE_FS;
-
-    unsafe { ret(c::ioctl(borrowed_fd(fd), EXT4_IOC_RESIZE_FS as _, &blocks)) }
 }
 
 #[test]

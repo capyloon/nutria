@@ -3,10 +3,6 @@ use super::*;
 pub fn emit_impls() -> ::std::io::Result<()> {
     let out_dir = ::std::env::var("OUT_DIR").unwrap();
     let dest = ::std::path::Path::new(&out_dir).join("generic_const_mappings.rs");
-    println!(
-        "cargo:rustc-env=TYPENUM_BUILD_GENERIC_CONSTS={}",
-        dest.display()
-    );
     let mut f = ::std::fs::File::create(&dest).unwrap();
 
     #[allow(clippy::write_literal)]
@@ -22,6 +18,7 @@ use generic_const_mappings::*;
 /// The main type to use here is [`U`], although [`Const`] and [`ToUInt`] may be needed
 /// in a generic context.
 #[allow(warnings)] // script-generated code
+#[cfg(feature = \"const-generics\")] // hints at doc_auto_cfg
 pub mod generic_const_mappings {
     use crate::*;
 
@@ -77,15 +74,25 @@ pub mod generic_const_mappings {
         write!(
             f,
             "
+    {cfg}
     impl ToUInt for Const<{uint}> {{
         type Output = U{uint};
     }}
 \
             ",
             uint = uint,
+            cfg = feature_gate_to_64_bit(uint),
         )?;
     }
     write!(f, "}}")?;
     f.flush()?;
     Ok(())
+}
+
+const fn feature_gate_to_64_bit(uint: u64) -> &'static str {
+    if uint > u32::MAX as u64 {
+        r#"#[cfg(target_pointer_width = "64")]"#
+    } else {
+        ""
+    }
 }

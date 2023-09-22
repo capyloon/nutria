@@ -246,8 +246,8 @@ RUSTFLAGS="--cfg portable_atomic_no_outline_atomics" cargo ...
             target_arch = "avr",
             target_arch = "msp430",
             all(target_arch = "xtensa", portable_atomic_unsafe_assume_single_core),
-            all(portable_atomic_unstable_asm_experimental_arch, target_arch = "powerpc64"),
-            all(portable_atomic_unstable_asm_experimental_arch, target_arch = "s390x"),
+            all(target_arch = "powerpc64", portable_atomic_unstable_asm_experimental_arch),
+            all(target_arch = "s390x", portable_atomic_unstable_asm_experimental_arch),
         ),
     ),
     feature(asm_experimental_arch)
@@ -258,7 +258,7 @@ RUSTFLAGS="--cfg portable_atomic_no_outline_atomics" cargo ...
 // - cfg(target_has_atomic)
 // - #[target_feature(enable = "lse")] on AArch64
 // - #[target_feature(enable = "cmpxchg16b")] on x86_64
-// - asm! on ARM, AArch64, RISC-V, x86_64
+// - asm! on ARM, AArch64, RISC-V, x86, x86_64
 // - llvm_asm! on AVR (tier 3) and MSP430 (tier 3)
 // - #[instruction_set] on non-Linux pre-v6 ARM (tier 3)
 #![cfg_attr(portable_atomic_unstable_cfg_target_has_atomic, feature(cfg_target_has_atomic))]
@@ -284,12 +284,10 @@ RUSTFLAGS="--cfg portable_atomic_no_outline_atomics" cargo ...
     all(
         portable_atomic_unstable_asm,
         any(
-            all(
-                any(target_arch = "arm", target_arch = "riscv32", target_arch = "riscv64"),
-                not(target_has_atomic = "ptr"),
-            ),
-            all(target_arch = "arm", not(target_has_atomic = "64")),
             target_arch = "aarch64",
+            target_arch = "arm",
+            target_arch = "riscv32",
+            target_arch = "riscv64",
             target_arch = "x86",
             target_arch = "x86_64",
         ),
@@ -302,9 +300,9 @@ RUSTFLAGS="--cfg portable_atomic_no_outline_atomics" cargo ...
 )]
 #![cfg_attr(
     all(
+        target_arch = "arm",
         portable_atomic_unstable_isa_attribute,
         any(test, portable_atomic_unsafe_assume_single_core),
-        target_arch = "arm",
         not(any(target_feature = "v6", portable_atomic_target_feature = "v6")),
         not(target_has_atomic = "ptr"),
     ),
@@ -330,9 +328,15 @@ RUSTFLAGS="--cfg portable_atomic_no_outline_atomics" cargo ...
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(
     all(
-        target_arch = "mips",
         portable_atomic_no_atomic_load_store,
-        not(feature = "critical-section"),
+        not(any(
+            target_arch = "avr",
+            target_arch = "bpf",
+            target_arch = "msp430",
+            target_arch = "riscv32",
+            target_arch = "riscv64",
+            feature = "critical-section",
+        )),
     ),
     allow(unused_imports, unused_macros)
 )]
@@ -526,7 +530,7 @@ cfg_has_atomic_8! {
 cfg_has_atomic_cas! {
 // See https://github.com/rust-lang/rust/pull/114034 for details.
 // https://github.com/rust-lang/rust/blob/9339f446a5302cd5041d3f3b5e59761f36699167/library/core/src/sync/atomic.rs#L134
-// https://godbolt.org/z/EvPTfPh44
+// https://godbolt.org/z/5W85abT58
 #[cfg(portable_atomic_no_cfg_target_has_atomic)]
 const EMULATE_ATOMIC_BOOL: bool = cfg!(all(
     not(portable_atomic_no_atomic_cas),

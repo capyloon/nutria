@@ -1,3 +1,5 @@
+use crate::IsTerminal;
+
 /// In-memory [`RawStream`][crate::RawStream]
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Buffer(Vec<u8>);
@@ -26,8 +28,7 @@ impl AsRef<[u8]> for Buffer {
     }
 }
 
-#[cfg(feature = "auto")]
-impl is_terminal::IsTerminal for Buffer {
+impl IsTerminal for Buffer {
     #[inline]
     fn is_terminal(&self) -> bool {
         false

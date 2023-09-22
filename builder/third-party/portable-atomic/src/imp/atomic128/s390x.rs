@@ -3,8 +3,8 @@
 // s390x supports 128-bit atomic load/store/cmpxchg:
 // https://github.com/llvm/llvm-project/commit/a11f63a952664f700f076fd754476a2b9eb158cc
 //
-// As of LLVM 16, LLVM's minimal supported architecture level is z10:
-// https://github.com/llvm/llvm-project/blob/llvmorg-16.0.0/llvm/lib/Target/SystemZ/SystemZProcessors.td)
+// LLVM's minimal supported architecture level is z10:
+// https://github.com/llvm/llvm-project/blob/llvmorg-17.0.0-rc2/llvm/lib/Target/SystemZ/SystemZProcessors.td)
 // This does not appear to have changed since the current s390x backend was added in LLVM 3.3:
 // https://github.com/llvm/llvm-project/commit/5f613dfd1f7edb0ae95d521b7107b582d9df5103#diff-cbaef692b3958312e80fd5507a7e2aff071f1acb086f10e8a96bc06a7bb289db
 //
@@ -25,23 +25,7 @@ include!("macros.rs");
 
 use core::{arch::asm, sync::atomic::Ordering};
 
-/// A 128-bit value represented as a pair of 64-bit values.
-///
-/// This type is `#[repr(C)]`, both fields have the same in-memory representation
-/// and are plain old datatypes, so access to the fields is always safe.
-#[derive(Clone, Copy)]
-#[repr(C)]
-union U128 {
-    whole: u128,
-    pair: Pair,
-}
-// A pair of 64-bit values in native-endian (big-endian) order.
-#[derive(Clone, Copy)]
-#[repr(C)]
-struct Pair {
-    hi: u64,
-    lo: u64,
-}
+use crate::utils::{Pair, U128};
 
 // Use distinct operands on z196 or later, otherwise split to lgr and $op.
 #[cfg(any(target_feature = "distinct-ops", portable_atomic_target_feature = "distinct-ops"))]
@@ -155,7 +139,7 @@ unsafe fn atomic_compare_exchange(
     debug_assert!(dst as usize % 16 == 0);
 
     // SAFETY: the caller must uphold the safety contract.
-    let res = unsafe {
+    let prev = unsafe {
         // atomic CAS is always SeqCst.
         let old = U128 { whole: old };
         let new = U128 { whole: new };
@@ -168,14 +152,15 @@ unsafe fn atomic_compare_exchange(
             inout("r1") old.pair.lo => prev_lo,
             in("r12") new.pair.hi,
             in("r13") new.pair.lo,
+            // Do not use `preserves_flags` because CDSG modifies the condition code.
             options(nostack),
         );
         U128 { pair: Pair { hi: prev_hi, lo: prev_lo } }.whole
     };
-    if res == old {
-        Ok(res)
+    if prev == old {
+        Ok(prev)
     } else {
-        Err(res)
+        Err(prev)
     }
 }
 
@@ -195,12 +180,12 @@ where
     unsafe {
         // This is a private function and all instances of `f` only operate on the value
         // loaded, so there is no need to synchronize the first load/failed CAS.
-        let mut old = atomic_load(dst, Ordering::Relaxed);
+        let mut prev = atomic_load(dst, Ordering::Relaxed);
         loop {
-            let next = f(old);
-            match atomic_compare_exchange_weak(dst, old, next, order, Ordering::Relaxed) {
+            let next = f(prev);
+            match atomic_compare_exchange_weak(dst, prev, next, order, Ordering::Relaxed) {
                 Ok(x) => return x,
-                Err(x) => old = x,
+                Err(x) => prev = x,
             }
         }
     }
@@ -231,6 +216,7 @@ unsafe fn atomic_swap(dst: *mut u128, val: u128, _order: Ordering) -> u128 {
             out("r1") prev_lo,
             in("r12") val.pair.hi,
             in("r13") val.pair.lo,
+            // Do not use `preserves_flags` because CDSG modifies the condition code.
             options(nostack),
         );
         U128 { pair: Pair { hi: prev_hi, lo: prev_lo } }.whole
@@ -271,6 +257,7 @@ macro_rules! atomic_rmw_cas_3 {
                     out("r1") prev_lo,
                     out("r12") _,
                     out("r13") _,
+                    // Do not use `preserves_flags` because CDSG modifies the condition code.
                     options(nostack),
                 );
                 U128 { pair: Pair { hi: prev_hi, lo: prev_lo } }.whole
@@ -307,6 +294,7 @@ macro_rules! atomic_rmw_cas_2 {
                     out("r1") prev_lo,
                     out("r12") _,
                     out("r13") _,
+                    // Do not use `preserves_flags` because CDSG modifies the condition code.
                     options(nostack),
                 );
                 U128 { pair: Pair { hi: prev_hi, lo: prev_lo } }.whole
@@ -425,7 +413,7 @@ atomic_rmw_cas_3! {
 // We use atomic_update for atomic min/max on pre-z196 because
 // z10 doesn't seem to have a good way to implement 128-bit min/max.
 // loc{,g}r requires z196 or later.
-// https://godbolt.org/z/qodPK45qz
+// https://godbolt.org/z/j8KG9q5oq
 #[cfg(not(any(
     target_feature = "load-store-on-cond",
     portable_atomic_target_feature = "load-store-on-cond",

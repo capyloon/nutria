@@ -90,16 +90,6 @@ fn additional_dns_labels() {
 }
 
 #[test]
-fn disallow_subject_common_name() {
-    let ee = include_bytes!("tls_server_certs/disallow_subject_common_name.ee.der");
-    let ca = include_bytes!("tls_server_certs/disallow_subject_common_name.ca.der");
-    assert_eq!(
-        check_cert(ee, ca, &[], &[]),
-        Err(webpki::Error::NameConstraintViolation)
-    );
-}
-
-#[test]
 fn disallow_dns_san() {
     let ee = include_bytes!("tls_server_certs/disallow_dns_san.ee.der");
     let ca = include_bytes!("tls_server_certs/disallow_dns_san.ca.der");
@@ -135,18 +125,6 @@ fn allow_dns_san_and_subject_common_name() {
             &["allowed-cn.example.com"]
         ),
         Ok(())
-    );
-}
-
-#[test]
-fn allow_dns_san_and_disallow_subject_common_name() {
-    let ee =
-        include_bytes!("tls_server_certs/allow_dns_san_and_disallow_subject_common_name.ee.der");
-    let ca =
-        include_bytes!("tls_server_certs/allow_dns_san_and_disallow_subject_common_name.ca.der");
-    assert_eq!(
-        check_cert(ee, ca, &[], &[]),
-        Err(webpki::Error::NameConstraintViolation)
     );
 }
 

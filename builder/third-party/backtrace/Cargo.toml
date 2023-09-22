@@ -12,9 +12,10 @@
 [package]
 edition = "2018"
 name = "backtrace"
-version = "0.3.68"
+version = "0.3.69"
 authors = ["The Rust Project Developers"]
 build = "build.rs"
+exclude = ["/ci/"]
 autoexamples = true
 autotests = true
 description = """
@@ -62,10 +63,6 @@ name = "current-exe-mismatch"
 harness = false
 required-features = ["std"]
 
-[dependencies.addr2line]
-version = "0.20.0"
-default-features = false
-
 [dependencies.cfg-if]
 version = "1.0"
 
@@ -73,26 +70,6 @@ version = "1.0"
 version = "0.4.0"
 features = ["alloc"]
 optional = true
-default-features = false
-
-[dependencies.libc]
-version = "0.2.146"
-default-features = false
-
-[dependencies.miniz_oxide]
-version = "0.7.0"
-default-features = false
-
-[dependencies.object]
-version = "0.31.1"
-features = [
-    "read_core",
-    "elf",
-    "macho",
-    "pe",
-    "unaligned",
-    "archive",
-]
 default-features = false
 
 [dependencies.rustc-demangle]
@@ -138,6 +115,30 @@ verify-winapi = [
     "winapi/winbase",
     "winapi/winnt",
 ]
+
+[target."cfg(not(all(windows, target_env = \"msvc\", not(target_vendor = \"uwp\"))))".dependencies.addr2line]
+version = "0.21.0"
+default-features = false
+
+[target."cfg(not(all(windows, target_env = \"msvc\", not(target_vendor = \"uwp\"))))".dependencies.libc]
+version = "0.2.146"
+default-features = false
+
+[target."cfg(not(all(windows, target_env = \"msvc\", not(target_vendor = \"uwp\"))))".dependencies.miniz_oxide]
+version = "0.7.0"
+default-features = false
+
+[target."cfg(not(all(windows, target_env = \"msvc\", not(target_vendor = \"uwp\"))))".dependencies.object]
+version = "0.32.0"
+features = [
+    "read_core",
+    "elf",
+    "macho",
+    "pe",
+    "unaligned",
+    "archive",
+]
+default-features = false
 
 [target."cfg(windows)".dependencies.winapi]
 version = "0.3.9"

@@ -6,6 +6,9 @@
 // Note: On Miri and ThreadSanitizer which do not support inline assembly, we don't use
 // this module and use CAS loop instead.
 //
+// Refs:
+// - x86 and amd64 instruction reference https://www.felixcloutier.com/x86
+//
 // Generated asm:
 // - x86_64 https://godbolt.org/z/8fve4YP1G
 
@@ -116,11 +119,9 @@ impl AtomicU64 {
 macro_rules! atomic_bit_opts {
     ($atomic_type:ident, $int_type:ident, $val_modifier:tt, $ptr_size:tt) => {
         // LLVM 14 and older don't support generating `lock bt{s,r,c}`.
-        // https://godbolt.org/z/G1TMKza97
         // LLVM 15 only supports generating `lock bt{s,r,c}` for immediate bit offsets.
-        // https://godbolt.org/z/dzzhr81z6
-        // LLVM 16 can generate `lock bt{s,r,c}` for both immediate and register bit offsets.
-        // https://godbolt.org/z/7YTvsorn1
+        // LLVM 16+ can generate `lock bt{s,r,c}` for both immediate and register bit offsets.
+        // https://godbolt.org/z/TGhr5z4ds
         // So, use fetch_* based implementations on LLVM 16+, otherwise use asm based implementations.
         #[cfg(portable_atomic_llvm_16)]
         impl_default_bit_opts!($atomic_type, $int_type);
@@ -138,18 +139,18 @@ macro_rules! atomic_bit_opts {
                 //
                 // https://www.felixcloutier.com/x86/bts
                 unsafe {
-                    let out: u8;
+                    let r: u8;
                     // atomic RMW is always SeqCst.
                     asm!(
                         concat!("lock bts ", $ptr_size, " ptr [{dst", ptr_modifier!(), "}], {bit", $val_modifier, "}"),
-                        "setb {out}",
+                        "setb {r}",
                         dst = in(reg) dst,
                         bit = in(reg) (bit & (Self::BITS - 1)) as $int_type,
-                        out = out(reg_byte) out,
+                        r = out(reg_byte) r,
                         // Do not use `preserves_flags` because BTS modifies the CF flag.
                         options(nostack),
                     );
-                    out != 0
+                    r != 0
                 }
             }
             #[inline]
@@ -162,18 +163,18 @@ macro_rules! atomic_bit_opts {
                 //
                 // https://www.felixcloutier.com/x86/btr
                 unsafe {
-                    let out: u8;
+                    let r: u8;
                     // atomic RMW is always SeqCst.
                     asm!(
                         concat!("lock btr ", $ptr_size, " ptr [{dst", ptr_modifier!(), "}], {bit", $val_modifier, "}"),
-                        "setb {out}",
+                        "setb {r}",
                         dst = in(reg) dst,
                         bit = in(reg) (bit & (Self::BITS - 1)) as $int_type,
-                        out = out(reg_byte) out,
+                        r = out(reg_byte) r,
                         // Do not use `preserves_flags` because BTR modifies the CF flag.
                         options(nostack),
                     );
-                    out != 0
+                    r != 0
                 }
             }
             #[inline]
@@ -186,18 +187,18 @@ macro_rules! atomic_bit_opts {
                 //
                 // https://www.felixcloutier.com/x86/btc
                 unsafe {
-                    let out: u8;
+                    let r: u8;
                     // atomic RMW is always SeqCst.
                     asm!(
                         concat!("lock btc ", $ptr_size, " ptr [{dst", ptr_modifier!(), "}], {bit", $val_modifier, "}"),
-                        "setb {out}",
+                        "setb {r}",
                         dst = in(reg) dst,
                         bit = in(reg) (bit & (Self::BITS - 1)) as $int_type,
-                        out = out(reg_byte) out,
+                        r = out(reg_byte) r,
                         // Do not use `preserves_flags` because BTC modifies the CF flag.
                         options(nostack),
                     );
-                    out != 0
+                    r != 0
                 }
             }
         }

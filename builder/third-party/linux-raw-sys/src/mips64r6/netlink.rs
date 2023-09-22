@@ -943,7 +943,6 @@ pub const IFLA_BRPORT_LOCKED: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_LOCKED;
 pub const IFLA_BRPORT_MAB: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_MAB;
 pub const IFLA_BRPORT_MCAST_N_GROUPS: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_MCAST_N_GROUPS;
 pub const IFLA_BRPORT_MCAST_MAX_GROUPS: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_MCAST_MAX_GROUPS;
-pub const IFLA_BRPORT_NEIGH_VLAN_SUPPRESS: _bindgen_ty_8 = _bindgen_ty_8::IFLA_BRPORT_NEIGH_VLAN_SUPPRESS;
 pub const __IFLA_BRPORT_MAX: _bindgen_ty_8 = _bindgen_ty_8::__IFLA_BRPORT_MAX;
 pub const IFLA_INFO_UNSPEC: _bindgen_ty_9 = _bindgen_ty_9::IFLA_INFO_UNSPEC;
 pub const IFLA_INFO_KIND: _bindgen_ty_9 = _bindgen_ty_9::IFLA_INFO_KIND;
@@ -971,7 +970,6 @@ pub const IFLA_MACVLAN_MACADDR_DATA: _bindgen_ty_12 = _bindgen_ty_12::IFLA_MACVL
 pub const IFLA_MACVLAN_MACADDR_COUNT: _bindgen_ty_12 = _bindgen_ty_12::IFLA_MACVLAN_MACADDR_COUNT;
 pub const IFLA_MACVLAN_BC_QUEUE_LEN: _bindgen_ty_12 = _bindgen_ty_12::IFLA_MACVLAN_BC_QUEUE_LEN;
 pub const IFLA_MACVLAN_BC_QUEUE_LEN_USED: _bindgen_ty_12 = _bindgen_ty_12::IFLA_MACVLAN_BC_QUEUE_LEN_USED;
-pub const IFLA_MACVLAN_BC_CUTOFF: _bindgen_ty_12 = _bindgen_ty_12::IFLA_MACVLAN_BC_CUTOFF;
 pub const __IFLA_MACVLAN_MAX: _bindgen_ty_12 = _bindgen_ty_12::__IFLA_MACVLAN_MAX;
 pub const IFLA_VRF_UNSPEC: _bindgen_ty_13 = _bindgen_ty_13::IFLA_VRF_UNSPEC;
 pub const IFLA_VRF_TABLE: _bindgen_ty_13 = _bindgen_ty_13::IFLA_VRF_TABLE;
@@ -1790,8 +1788,7 @@ IFLA_BRPORT_LOCKED = 39,
 IFLA_BRPORT_MAB = 40,
 IFLA_BRPORT_MCAST_N_GROUPS = 41,
 IFLA_BRPORT_MCAST_MAX_GROUPS = 42,
-IFLA_BRPORT_NEIGH_VLAN_SUPPRESS = 43,
-__IFLA_BRPORT_MAX = 44,
+__IFLA_BRPORT_MAX = 43,
 }
 #[repr(u32)]
 #[non_exhaustive]
@@ -1838,8 +1835,7 @@ IFLA_MACVLAN_MACADDR_DATA = 5,
 IFLA_MACVLAN_MACADDR_COUNT = 6,
 IFLA_MACVLAN_BC_QUEUE_LEN = 7,
 IFLA_MACVLAN_BC_QUEUE_LEN_USED = 8,
-IFLA_MACVLAN_BC_CUTOFF = 9,
-__IFLA_MACVLAN_MAX = 10,
+__IFLA_MACVLAN_MAX = 9,
 }
 #[repr(u32)]
 #[non_exhaustive]

@@ -257,3 +257,59 @@ impl<'a> EndEntityCert<'a> {
         subject_name::list_cert_dns_names(self)
     }
 }
+
+#[cfg(feature = "alloc")]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils;
+
+    // This test reproduces https://github.com/rustls/webpki/issues/167 --- an
+    // end-entity cert where the common name is a `PrintableString` rather than
+    // a `UTF8String` cannot iterate over its subject alternative names.
+    #[test]
+    fn printable_string_common_name() {
+        const DNS_NAME: &str = "test.example.com";
+
+        let issuer = test_utils::make_issuer("Test", None);
+
+        let ee_cert_der = {
+            let mut params = rcgen::CertificateParams::new(vec![DNS_NAME.to_string()]);
+            // construct a certificate that uses `PrintableString` as the
+            // common name value, rather than `UTF8String`.
+            params.distinguished_name.push(
+                rcgen::DnType::CommonName,
+                rcgen::DnValue::PrintableString("example.com".to_string()),
+            );
+            params.is_ca = rcgen::IsCa::ExplicitNoCa;
+            params.alg = test_utils::RCGEN_SIGNATURE_ALG;
+            let cert = rcgen::Certificate::from_params(params)
+                .expect("failed to make ee cert (this is a test bug)");
+            cert.serialize_der_with_signer(&issuer)
+                .expect("failed to serialize signed ee cert (this is a test bug)")
+        };
+
+        expect_dns_name(&ee_cert_der, DNS_NAME);
+    }
+
+    // This test reproduces https://github.com/rustls/webpki/issues/167 --- an
+    // end-entity cert where the common name is an empty SEQUENCE.
+    #[test]
+    fn empty_sequence_common_name() {
+        // handcrafted cert DER produced using `ascii2der`, since `rcgen` is
+        // unwilling to generate this particular weird cert.
+        let ee_cert_der = include_bytes!("../tests/misc/empty_sequence_common_name.der").as_slice();
+        expect_dns_name(ee_cert_der, "example.com");
+    }
+
+    fn expect_dns_name(der: &[u8], name: &str) {
+        let cert =
+            EndEntityCert::try_from(der).expect("should parse end entity certificate correctly");
+
+        let mut names = cert
+            .dns_names()
+            .expect("should get all DNS names correctly for end entity cert");
+        assert_eq!(names.next().map(<&str>::from), Some(name));
+        assert_eq!(names.next().map(<&str>::from), None);
+    }
+}

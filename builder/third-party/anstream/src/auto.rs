@@ -1,5 +1,6 @@
 #[cfg(feature = "auto")]
 use crate::ColorChoice;
+use crate::IsTerminal;
 use crate::Lockable;
 use crate::RawStream;
 use crate::StripStream;
@@ -130,7 +131,7 @@ where
             StreamInner::PassThrough(w) => w.is_terminal(),
             StreamInner::Strip(w) => w.is_terminal(),
             #[cfg(all(windows, feature = "wincon"))]
-            StreamInner::Wincon(w) => true,
+            StreamInner::Wincon(_) => true, // its only ever a terminal
         }
     }
 }
@@ -161,7 +162,7 @@ fn choice(raw: &dyn RawStream) -> ColorChoice {
 }
 
 #[cfg(feature = "auto")]
-impl<S> is_terminal::IsTerminal for AutoStream<S>
+impl<S> IsTerminal for AutoStream<S>
 where
     S: RawStream,
 {
@@ -171,11 +172,25 @@ where
     }
 }
 
-impl<S> AutoStream<S>
-where
-    S: Lockable + RawStream,
-    <S as Lockable>::Locked: RawStream,
-{
+impl AutoStream<std::io::Stdout> {
+    /// Get exclusive access to the `AutoStream`
+    ///
+    /// Why?
+    /// - Faster performance when writing in a loop
+    /// - Avoid other threads interleaving output with the current thread
+    #[inline]
+    pub fn lock(self) -> <Self as Lockable>::Locked {
+        let inner = match self.inner {
+            StreamInner::PassThrough(w) => StreamInner::PassThrough(w.lock()),
+            StreamInner::Strip(w) => StreamInner::Strip(w.lock()),
+            #[cfg(all(windows, feature = "wincon"))]
+            StreamInner::Wincon(w) => StreamInner::Wincon(w.lock()),
+        };
+        AutoStream { inner }
+    }
+}
+
+impl AutoStream<std::io::Stderr> {
     /// Get exclusive access to the `AutoStream`
     ///
     /// Why?
@@ -234,12 +249,17 @@ where
     // Not bothering with `write_fmt` as it just calls `write_all`
 }
 
-impl<S> Lockable for AutoStream<S>
-where
-    S: Lockable + RawStream,
-    <S as Lockable>::Locked: RawStream,
-{
-    type Locked = AutoStream<<S as Lockable>::Locked>;
+impl Lockable for AutoStream<std::io::Stdout> {
+    type Locked = AutoStream<<std::io::Stdout as Lockable>::Locked>;
+
+    #[inline]
+    fn lock(self) -> Self::Locked {
+        self.lock()
+    }
+}
+
+impl Lockable for AutoStream<std::io::Stderr> {
+    type Locked = AutoStream<<std::io::Stderr as Lockable>::Locked>;
 
     #[inline]
     fn lock(self) -> Self::Locked {

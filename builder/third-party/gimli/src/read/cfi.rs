@@ -8,7 +8,9 @@ use core::mem;
 use core::num::Wrapping;
 
 use super::util::{ArrayLike, ArrayVec};
-use crate::common::{DebugFrameOffset, EhFrameOffset, Encoding, Format, Register, SectionId};
+use crate::common::{
+    DebugFrameOffset, EhFrameOffset, Encoding, Format, Register, SectionId, Vendor,
+};
 use crate::constants::{self, DwEhPe};
 use crate::endianity::Endianity;
 use crate::read::{
@@ -34,6 +36,7 @@ pub struct DebugFrame<R: Reader> {
     section: R,
     address_size: u8,
     segment_size: u8,
+    vendor: Vendor,
 }
 
 impl<R: Reader> DebugFrame<R> {
@@ -51,6 +54,13 @@ impl<R: Reader> DebugFrame<R> {
     /// This is only used if the CIE version is less than 4.
     pub fn set_segment_size(&mut self, segment_size: u8) {
         self.segment_size = segment_size
+    }
+
+    /// Set the vendor extensions to use.
+    ///
+    /// This defaults to `Vendor::Default`.
+    pub fn set_vendor(&mut self, vendor: Vendor) {
+        self.vendor = vendor;
     }
 }
 
@@ -95,6 +105,7 @@ impl<R: Reader> From<R> for DebugFrame<R> {
             section,
             address_size: mem::size_of::<usize>() as u8,
             segment_size: 0,
+            vendor: Vendor::Default,
         }
     }
 }
@@ -158,11 +169,7 @@ impl<R: Reader> EhFrameHdr<R> {
         if fde_count_enc == constants::DW_EH_PE_omit || table_enc == constants::DW_EH_PE_omit {
             fde_count = 0
         } else {
-            let ptr = parse_encoded_pointer(fde_count_enc, &parameters, &mut reader)?;
-            fde_count = match ptr {
-                Pointer::Direct(c) => c,
-                Pointer::Indirect(_) => return Err(Error::UnsupportedPointerEncoding),
-            }
+            fde_count = parse_encoded_pointer(fde_count_enc, &parameters, &mut reader)?.direct()?;
         }
 
         Ok(ParsedEhFrameHdr {
@@ -348,11 +355,8 @@ impl<'a, R: Reader + 'a> EhHdrTable<'a, R> {
             let head = reader.split(R::Offset::from_u64((len / 2) * row_size)?)?;
             let tail = reader.clone();
 
-            let pivot = parse_encoded_pointer(self.hdr.table_enc, &parameters, &mut reader)?;
-            let pivot = match pivot {
-                Pointer::Direct(x) => x,
-                Pointer::Indirect(_) => return Err(Error::UnsupportedPointerEncoding),
-            };
+            let pivot =
+                parse_encoded_pointer(self.hdr.table_enc, &parameters, &mut reader)?.direct()?;
 
             match pivot.cmp(&address) {
                 Ordering::Equal => {
@@ -379,15 +383,8 @@ impl<'a, R: Reader + 'a> EhHdrTable<'a, R> {
     ///
     /// This does not support indirect pointers.
     pub fn pointer_to_offset(&self, ptr: Pointer) -> Result<EhFrameOffset<R::Offset>> {
-        let ptr = match ptr {
-            Pointer::Direct(x) => x,
-            _ => return Err(Error::UnsupportedPointerEncoding),
-        };
-
-        let eh_frame_ptr = match self.hdr.eh_frame_ptr() {
-            Pointer::Direct(x) => x,
-            _ => return Err(Error::UnsupportedPointerEncoding),
-        };
+        let ptr = ptr.direct()?;
+        let eh_frame_ptr = self.hdr.eh_frame_ptr().direct()?;
 
         // Calculate the offset in the EhFrame section
         R::Offset::from_u64(ptr - eh_frame_ptr).map(EhFrameOffset)
@@ -496,6 +493,7 @@ impl<'a, R: Reader + 'a> EhHdrTable<'a, R> {
 pub struct EhFrame<R: Reader> {
     section: R,
     address_size: u8,
+    vendor: Vendor,
 }
 
 impl<R: Reader> EhFrame<R> {
@@ -504,6 +502,13 @@ impl<R: Reader> EhFrame<R> {
     /// This defaults to the native word size.
     pub fn set_address_size(&mut self, address_size: u8) {
         self.address_size = address_size
+    }
+
+    /// Set the vendor extensions to use.
+    ///
+    /// This defaults to `Vendor::Default`.
+    pub fn set_vendor(&mut self, vendor: Vendor) {
+        self.vendor = vendor;
     }
 }
 
@@ -547,6 +552,7 @@ impl<R: Reader> From<R> for EhFrame<R> {
         EhFrame {
             section,
             address_size: mem::size_of::<usize>() as u8,
+            vendor: Vendor::Default,
         }
     }
 }
@@ -627,6 +633,9 @@ pub trait _UnwindSectionPrivate<R: Reader> {
 
     /// The segment size to use if `has_address_and_segment_sizes` returns false.
     fn segment_size(&self) -> u8;
+
+    /// The vendor extensions to use.
+    fn vendor(&self) -> Vendor;
 }
 
 /// A section holding unwind information: either `.debug_frame` or
@@ -822,6 +831,10 @@ impl<R: Reader> _UnwindSectionPrivate<R> for DebugFrame<R> {
     fn segment_size(&self) -> u8 {
         self.segment_size
     }
+
+    fn vendor(&self) -> Vendor {
+        self.vendor
+    }
 }
 
 impl<R: Reader> UnwindSection<R> for DebugFrame<R> {
@@ -861,6 +874,10 @@ impl<R: Reader> _UnwindSectionPrivate<R> for EhFrame<R> {
 
     fn segment_size(&self) -> u8 {
         0
+    }
+
+    fn vendor(&self) -> Vendor {
+        self.vendor
     }
 }
 
@@ -1435,6 +1452,7 @@ impl<R: Reader> CommonInformationEntry<R> {
                 address_size: self.address_size,
                 section: section.section(),
             },
+            vendor: section.vendor(),
         }
     }
 
@@ -1683,12 +1701,12 @@ impl<R: Reader> FrameDescriptionEntry<R> {
             let initial_address = parse_encoded_pointer(encoding, parameters, input)?;
 
             // Ignore indirection.
-            let initial_address = initial_address.into();
+            let initial_address = initial_address.pointer();
 
             // Address ranges cannot be relative to anything, so just grab the
             // data format bits from the encoding.
             let address_range = parse_encoded_pointer(encoding.format(), parameters, input)?;
-            Ok((initial_address, address_range.into()))
+            Ok((initial_address, address_range.pointer()))
         } else {
             let initial_address = input.read_address(cie.address_size)?;
             let address_range = input.read_address(cie.address_size)?;
@@ -1778,6 +1796,7 @@ impl<R: Reader> FrameDescriptionEntry<R> {
                 address_size: self.cie.address_size,
                 section: section.section(),
             },
+            vendor: section.vendor(),
         }
     }
 
@@ -2414,6 +2433,18 @@ impl<'a, 'ctx, R: Reader, A: UnwindContextStorage<R>> UnwindTable<'a, 'ctx, R, A
                 self.ctx.row_mut().saved_args_size = size;
             }
 
+            // AArch64 extension.
+            NegateRaState => {
+                let register = crate::AArch64::RA_SIGN_STATE;
+                let value = match self.ctx.row().register(register) {
+                    RegisterRule::Undefined => 0,
+                    RegisterRule::Constant(value) => value,
+                    _ => return Err(Error::CfiInstructionInInvalidContext),
+                };
+                self.ctx
+                    .set_register_rule(register, RegisterRule::Constant(value ^ 1))?;
+            }
+
             // No operation.
             Nop => {}
         };
@@ -2783,6 +2814,7 @@ impl<R: Reader> CfaRule<R> {
 /// has been saved and the rule to find the value for the register in the
 /// previous frame."
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum RegisterRule<R: Reader> {
     /// > A register that has this rule has no recoverable value in the previous
     /// > frame. (By convention, it is not preserved by a callee.)
@@ -2815,6 +2847,9 @@ pub enum RegisterRule<R: Reader> {
 
     /// "The rule is defined externally to this specification by the augmenter."
     Architectural,
+
+    /// This is a pseudo-register with a constant value.
+    Constant(u64),
 }
 
 impl<R: Reader> RegisterRule<R> {
@@ -2825,6 +2860,7 @@ impl<R: Reader> RegisterRule<R> {
 
 /// A parsed call frame instruction.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum CallFrameInstruction<R: Reader> {
     // 6.4.2.1 Row Creation Methods
     /// > 1. DW_CFA_set_loc
@@ -3102,6 +3138,17 @@ pub enum CallFrameInstruction<R: Reader> {
         size: u64,
     },
 
+    /// > DW_CFA_AARCH64_negate_ra_state
+    /// >
+    /// > AArch64 Extension
+    /// >
+    /// > The DW_CFA_AARCH64_negate_ra_state operation negates bit[0] of the
+    /// > RA_SIGN_STATE pseudo-register. It does not take any operands. The
+    /// > DW_CFA_AARCH64_negate_ra_state must not be mixed with other DWARF Register
+    /// > Rule Instructions on the RA_SIGN_STATE pseudo-register in one Common
+    /// > Information Entry (CIE) and Frame Descriptor Entry (FDE) program sequence.
+    NegateRaState,
+
     // 6.4.2.5 Padding Instruction
     /// > 1. DW_CFA_nop
     /// >
@@ -3118,6 +3165,7 @@ impl<R: Reader> CallFrameInstruction<R> {
         input: &mut R,
         address_encoding: Option<DwEhPe>,
         parameters: &PointerEncodingParameters<R>,
+        vendor: Vendor,
     ) -> Result<CallFrameInstruction<R>> {
         let instruction = input.read_u8()?;
         let high_bits = instruction & CFI_INSTRUCTION_HIGH_BITS_MASK;
@@ -3151,10 +3199,7 @@ impl<R: Reader> CallFrameInstruction<R> {
 
             constants::DW_CFA_set_loc => {
                 let address = if let Some(encoding) = address_encoding {
-                    match parse_encoded_pointer(encoding, parameters, input)? {
-                        Pointer::Direct(x) => x,
-                        _ => return Err(Error::UnsupportedPointerEncoding),
-                    }
+                    parse_encoded_pointer(encoding, parameters, input)?.direct()?
                 } else {
                     input.read_address(parameters.address_size)?
                 };
@@ -3309,6 +3354,10 @@ impl<R: Reader> CallFrameInstruction<R> {
                 Ok(CallFrameInstruction::ArgsSize { size })
             }
 
+            constants::DW_CFA_AARCH64_negate_ra_state if vendor == Vendor::AArch64 => {
+                Ok(CallFrameInstruction::NegateRaState)
+            }
+
             otherwise => Err(Error::UnknownCallFrameInstruction(otherwise)),
         }
     }
@@ -3323,6 +3372,7 @@ pub struct CallFrameInstructionIter<'a, R: Reader> {
     input: R,
     address_encoding: Option<constants::DwEhPe>,
     parameters: PointerEncodingParameters<'a, R>,
+    vendor: Vendor,
 }
 
 impl<'a, R: Reader> CallFrameInstructionIter<'a, R> {
@@ -3332,8 +3382,12 @@ impl<'a, R: Reader> CallFrameInstructionIter<'a, R> {
             return Ok(None);
         }
 
-        match CallFrameInstruction::parse(&mut self.input, self.address_encoding, &self.parameters)
-        {
+        match CallFrameInstruction::parse(
+            &mut self.input,
+            self.address_encoding,
+            &self.parameters,
+            self.vendor,
+        ) {
             Ok(instruction) => Ok(Some(instruction)),
             Err(e) => {
                 self.input.empty();
@@ -3389,15 +3443,6 @@ impl Default for Pointer {
     }
 }
 
-impl From<Pointer> for u64 {
-    #[inline]
-    fn from(p: Pointer) -> u64 {
-        match p {
-            Pointer::Direct(p) | Pointer::Indirect(p) => p,
-        }
-    }
-}
-
 impl Pointer {
     #[inline]
     fn new(encoding: constants::DwEhPe, address: u64) -> Pointer {
@@ -3405,6 +3450,23 @@ impl Pointer {
             Pointer::Indirect(address)
         } else {
             Pointer::Direct(address)
+        }
+    }
+
+    /// Return the direct pointer value.
+    #[inline]
+    pub fn direct(self) -> Result<u64> {
+        match self {
+            Pointer::Direct(p) => Ok(p),
+            Pointer::Indirect(_) => Err(Error::UnsupportedPointerEncoding),
+        }
+    }
+
+    /// Return the pointer value, discarding indirectness information.
+    #[inline]
+    pub fn pointer(self) -> u64 {
+        match self {
+            Pointer::Direct(p) | Pointer::Indirect(p) => p,
         }
     }
 }
@@ -3637,7 +3699,7 @@ mod tests {
                 .uleb(cie.code_alignment_factor)
                 .sleb(cie.data_alignment_factor)
                 .uleb(cie.return_address_register.0.into())
-                .append_bytes(cie.initial_instructions.into())
+                .append_bytes(cie.initial_instructions.slice())
                 .mark(&end);
 
             cie.length = (&end - &start) as usize;
@@ -3714,11 +3776,11 @@ mod tests {
                     let section = section.uleb(u64::from(fde.cie.address_size));
                     match fde.cie.address_size {
                         4 => section.D32({
-                            let x: u64 = lsda.into();
+                            let x: u64 = lsda.pointer();
                             x as u32
                         }),
                         8 => section.D64({
-                            let x: u64 = lsda.into();
+                            let x: u64 = lsda.pointer();
                             x
                         }),
                         x => panic!("Unsupported address size: {}", x),
@@ -3732,7 +3794,7 @@ mod tests {
                 section
             };
 
-            let section = section.append_bytes(fde.instructions.into()).mark(&end);
+            let section = section.append_bytes(fde.instructions.slice()).mark(&end);
 
             fde.length = (&end - &start) as usize;
             length.set_const(fde.length as u64);
@@ -4445,7 +4507,7 @@ mod tests {
             address_size,
             section: &R::default(),
         };
-        CallFrameInstruction::parse(input, None, parameters)
+        CallFrameInstruction::parse(input, None, parameters, Vendor::Default)
     }
 
     #[test]
@@ -4558,7 +4620,12 @@ mod tests {
             section: &EndianSlice::new(&[], LittleEndian),
         };
         assert_eq!(
-            CallFrameInstruction::parse(input, Some(constants::DW_EH_PE_textrel), parameters),
+            CallFrameInstruction::parse(
+                input,
+                Some(constants::DW_EH_PE_textrel),
+                parameters,
+                Vendor::Default
+            ),
             Ok(CallFrameInstruction::SetLoc {
                 address: expected_addr,
             })
@@ -5018,6 +5085,27 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_cfi_instruction_negate_ra_state() {
+        let expected_rest = [1, 2, 3, 4];
+        let section = Section::with_endian(Endian::Little)
+            .D8(constants::DW_CFA_AARCH64_negate_ra_state.0)
+            .append_bytes(&expected_rest);
+        let contents = section.get_contents().unwrap();
+        let input = &mut EndianSlice::new(&contents, LittleEndian);
+        let parameters = &PointerEncodingParameters {
+            bases: &SectionBaseAddresses::default(),
+            func_base: None,
+            address_size: 8,
+            section: &EndianSlice::default(),
+        };
+        assert_eq!(
+            CallFrameInstruction::parse(input, None, parameters, Vendor::AArch64),
+            Ok(CallFrameInstruction::NegateRaState)
+        );
+        assert_eq!(*input, EndianSlice::new(&expected_rest, LittleEndian));
+    }
+
+    #[test]
     fn test_parse_cfi_instruction_unknown_instruction() {
         let expected_rest = [1, 2, 3, 4];
         let unknown_instr = constants::DwCfa(0b0011_1111);
@@ -5065,6 +5153,7 @@ mod tests {
             input,
             address_encoding: None,
             parameters,
+            vendor: Vendor::Default,
         };
 
         assert_eq!(
@@ -5102,6 +5191,7 @@ mod tests {
             input,
             address_encoding: None,
             parameters,
+            vendor: Vendor::Default,
         };
 
         assert_eq!(
@@ -5576,6 +5666,55 @@ mod tests {
             ),
         ];
 
+        assert_eval(ctx, expected, cie, None, instructions);
+    }
+
+    #[test]
+    fn test_eval_negate_ra_state() {
+        let cie = make_test_cie();
+        let ctx = UnwindContext::new();
+        let mut expected = ctx.clone();
+        expected
+            .set_register_rule(crate::AArch64::RA_SIGN_STATE, RegisterRule::Constant(1))
+            .unwrap();
+        let instructions = [(Ok(false), CallFrameInstruction::NegateRaState)];
+        assert_eval(ctx, expected, cie, None, instructions);
+
+        let cie = make_test_cie();
+        let ctx = UnwindContext::new();
+        let mut expected = ctx.clone();
+        expected
+            .set_register_rule(crate::AArch64::RA_SIGN_STATE, RegisterRule::Constant(0))
+            .unwrap();
+        let instructions = [
+            (Ok(false), CallFrameInstruction::NegateRaState),
+            (Ok(false), CallFrameInstruction::NegateRaState),
+        ];
+        assert_eval(ctx, expected, cie, None, instructions);
+
+        // NegateRaState can't be used with other instructions.
+        let cie = make_test_cie();
+        let ctx = UnwindContext::new();
+        let mut expected = ctx.clone();
+        expected
+            .set_register_rule(
+                crate::AArch64::RA_SIGN_STATE,
+                RegisterRule::Offset(cie.data_alignment_factor as i64),
+            )
+            .unwrap();
+        let instructions = [
+            (
+                Ok(false),
+                CallFrameInstruction::Offset {
+                    register: crate::AArch64::RA_SIGN_STATE,
+                    factored_offset: 1,
+                },
+            ),
+            (
+                Err(Error::CfiInstructionInInvalidContext),
+                CallFrameInstruction::NegateRaState,
+            ),
+        ];
         assert_eval(ctx, expected, cie, None, instructions);
     }
 
@@ -6262,7 +6401,6 @@ mod tests {
 
         section.start().set_const(0);
         let section = section.get_contents().unwrap();
-        let section = EndianSlice::new(&section, LittleEndian);
         let eh_frame = kind.section(&section);
 
         // Setup eh_frame_hdr

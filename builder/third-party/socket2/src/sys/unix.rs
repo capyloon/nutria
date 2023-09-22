@@ -70,9 +70,9 @@ use std::{io, slice};
 use libc::ssize_t;
 use libc::{in6_addr, in_addr};
 
-#[cfg(not(target_os = "redox"))]
-use crate::RecvFlags;
 use crate::{Domain, Protocol, SockAddr, TcpKeepalive, Type};
+#[cfg(not(target_os = "redox"))]
+use crate::{MsgHdr, MsgHdrMut, RecvFlags};
 
 pub(crate) use libc::c_int;
 
@@ -81,9 +81,9 @@ pub(crate) use libc::{AF_INET, AF_INET6, AF_UNIX};
 // Used in `Type`.
 #[cfg(all(feature = "all", target_os = "linux"))]
 pub(crate) use libc::SOCK_DCCP;
-#[cfg(all(feature = "all", not(target_os = "redox")))]
+#[cfg(all(feature = "all", not(any(target_os = "redox", target_os = "espidf"))))]
 pub(crate) use libc::SOCK_RAW;
-#[cfg(feature = "all")]
+#[cfg(all(feature = "all", not(target_os = "espidf")))]
 pub(crate) use libc::SOCK_SEQPACKET;
 pub(crate) use libc::{SOCK_DGRAM, SOCK_STREAM};
 // Used in `Protocol`.
@@ -105,12 +105,16 @@ pub(crate) use libc::IPPROTO_SCTP;
 pub(crate) use libc::IPPROTO_UDPLITE;
 pub(crate) use libc::{IPPROTO_ICMP, IPPROTO_ICMPV6, IPPROTO_TCP, IPPROTO_UDP};
 // Used in `SockAddr`.
+#[cfg(all(feature = "all", any(target_os = "freebsd", target_os = "openbsd")))]
+pub(crate) use libc::IPPROTO_DIVERT;
 pub(crate) use libc::{
     sa_family_t, sockaddr, sockaddr_in, sockaddr_in6, sockaddr_storage, socklen_t,
 };
 // Used in `RecvFlags`.
+#[cfg(not(any(target_os = "redox", target_os = "espidf")))]
+pub(crate) use libc::MSG_TRUNC;
 #[cfg(not(target_os = "redox"))]
-pub(crate) use libc::{MSG_TRUNC, SO_OOBINLINE};
+pub(crate) use libc::SO_OOBINLINE;
 // Used in `Socket`.
 #[cfg(not(target_os = "nto"))]
 pub(crate) use libc::ipv6_mreq as Ipv6Mreq;
@@ -123,9 +127,10 @@ pub(crate) use libc::ipv6_mreq as Ipv6Mreq;
     target_os = "redox",
     target_os = "solaris",
     target_os = "haiku",
+    target_os = "espidf",
 )))]
 pub(crate) use libc::IPV6_RECVTCLASS;
-#[cfg(all(feature = "all", not(target_os = "redox")))]
+#[cfg(all(feature = "all", not(any(target_os = "redox", target_os = "espidf"))))]
 pub(crate) use libc::IP_HDRINCL;
 #[cfg(not(any(
     target_os = "aix",
@@ -138,6 +143,7 @@ pub(crate) use libc::IP_HDRINCL;
     target_os = "solaris",
     target_os = "haiku",
     target_os = "nto",
+    target_os = "espidf",
 )))]
 pub(crate) use libc::IP_RECVTOS;
 #[cfg(not(any(
@@ -176,6 +182,7 @@ pub(crate) use libc::{
     target_os = "redox",
     target_os = "fuchsia",
     target_os = "nto",
+    target_os = "espidf",
 )))]
 pub(crate) use libc::{
     ip_mreq_source as IpMreqSource, IP_ADD_SOURCE_MEMBERSHIP, IP_DROP_SOURCE_MEMBERSHIP,
@@ -327,6 +334,7 @@ type IovLen = usize;
     target_os = "solaris",
     target_os = "tvos",
     target_os = "watchos",
+    target_os = "espidf",
 ))]
 type IovLen = c_int;
 
@@ -469,10 +477,11 @@ impl_debug!(
     libc::SOCK_DGRAM,
     #[cfg(all(feature = "all", target_os = "linux"))]
     libc::SOCK_DCCP,
-    #[cfg(not(target_os = "redox"))]
+    #[cfg(not(any(target_os = "redox", target_os = "espidf")))]
     libc::SOCK_RAW,
-    #[cfg(not(any(target_os = "redox", target_os = "haiku")))]
+    #[cfg(not(any(target_os = "redox", target_os = "haiku", target_os = "espidf")))]
     libc::SOCK_RDM,
+    #[cfg(not(target_os = "espidf"))]
     libc::SOCK_SEQPACKET,
     /* TODO: add these optional bit OR-ed flags:
     #[cfg(any(
@@ -520,6 +529,8 @@ impl_debug!(
         )
     ))]
     libc::IPPROTO_UDPLITE,
+    #[cfg(all(feature = "all", any(target_os = "freebsd", target_os = "openbsd")))]
+    libc::IPPROTO_DIVERT,
 );
 
 /// Unix-only API.
@@ -534,6 +545,7 @@ impl RecvFlags {
     /// On Unix this corresponds to the `MSG_EOR` flag.
     ///
     /// [`SEQPACKET`]: Type::SEQPACKET
+    #[cfg(not(target_os = "espidf"))]
     pub const fn is_end_of_record(self) -> bool {
         self.0 & libc::MSG_EOR != 0
     }
@@ -552,11 +564,13 @@ impl RecvFlags {
 #[cfg(not(target_os = "redox"))]
 impl std::fmt::Debug for RecvFlags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RecvFlags")
-            .field("is_end_of_record", &self.is_end_of_record())
-            .field("is_out_of_band", &self.is_out_of_band())
-            .field("is_truncated", &self.is_truncated())
-            .finish()
+        let mut s = f.debug_struct("RecvFlags");
+        #[cfg(not(target_os = "espidf"))]
+        s.field("is_end_of_record", &self.is_end_of_record());
+        s.field("is_out_of_band", &self.is_out_of_band());
+        #[cfg(not(target_os = "espidf"))]
+        s.field("is_truncated", &self.is_truncated());
+        s.finish()
     }
 }
 
@@ -640,6 +654,39 @@ pub(crate) fn unix_sockaddr(path: &Path) -> io::Result<SockAddr> {
             }
     };
     Ok(unsafe { SockAddr::new(storage, len as socklen_t) })
+}
+
+// Used in `MsgHdr`.
+#[cfg(not(target_os = "redox"))]
+pub(crate) use libc::msghdr;
+
+#[cfg(not(target_os = "redox"))]
+pub(crate) fn set_msghdr_name(msg: &mut msghdr, name: &SockAddr) {
+    msg.msg_name = name.as_ptr() as *mut _;
+    msg.msg_namelen = name.len();
+}
+
+#[cfg(not(target_os = "redox"))]
+#[allow(clippy::unnecessary_cast)] // IovLen type can be `usize`.
+pub(crate) fn set_msghdr_iov(msg: &mut msghdr, ptr: *mut libc::iovec, len: usize) {
+    msg.msg_iov = ptr;
+    msg.msg_iovlen = min(len, IovLen::MAX as usize) as IovLen;
+}
+
+#[cfg(not(target_os = "redox"))]
+pub(crate) fn set_msghdr_control(msg: &mut msghdr, ptr: *mut libc::c_void, len: usize) {
+    msg.msg_control = ptr;
+    msg.msg_controllen = len as _;
+}
+
+#[cfg(not(target_os = "redox"))]
+pub(crate) fn set_msghdr_flags(msg: &mut msghdr, flags: libc::c_int) {
+    msg.msg_flags = flags;
+}
+
+#[cfg(not(target_os = "redox"))]
+pub(crate) fn msghdr_flags(msg: &msghdr) -> RecvFlags {
+    RecvFlags(msg.msg_flags)
 }
 
 /// Unix only API.
@@ -950,7 +997,9 @@ pub(crate) fn recv_vectored(
     bufs: &mut [crate::MaybeUninitSlice<'_>],
     flags: c_int,
 ) -> io::Result<(usize, RecvFlags)> {
-    recvmsg(fd, ptr::null_mut(), bufs, flags).map(|(n, _, recv_flags)| (n, recv_flags))
+    let mut msg = MsgHdrMut::new().with_buffers(bufs);
+    let n = recvmsg(fd, &mut msg, flags)?;
+    Ok((n, msg.flags()))
 }
 
 #[cfg(not(target_os = "redox"))]
@@ -959,42 +1008,29 @@ pub(crate) fn recv_from_vectored(
     bufs: &mut [crate::MaybeUninitSlice<'_>],
     flags: c_int,
 ) -> io::Result<(usize, RecvFlags, SockAddr)> {
-    // Safety: `recvmsg` initialises the address storage and we set the length
+    let mut msg = MsgHdrMut::new().with_buffers(bufs);
+    // SAFETY: `recvmsg` initialises the address storage and we set the length
     // manually.
-    unsafe {
+    let (n, addr) = unsafe {
         SockAddr::try_init(|storage, len| {
-            recvmsg(fd, storage, bufs, flags).map(|(n, addrlen, recv_flags)| {
-                // Set the correct address length.
-                *len = addrlen;
-                (n, recv_flags)
-            })
-        })
-    }
-    .map(|((n, recv_flags), addr)| (n, recv_flags, addr))
+            msg.inner.msg_name = storage.cast();
+            msg.inner.msg_namelen = *len;
+            let n = recvmsg(fd, &mut msg, flags)?;
+            // Set the correct address length.
+            *len = msg.inner.msg_namelen;
+            Ok(n)
+        })?
+    };
+    Ok((n, msg.flags(), addr))
 }
 
-/// Returns the (bytes received, sending address len, `RecvFlags`).
 #[cfg(not(target_os = "redox"))]
-#[allow(clippy::unnecessary_cast)] // For `IovLen::MAX as usize` (Already `usize` on Linux).
-fn recvmsg(
+pub(crate) fn recvmsg(
     fd: Socket,
-    msg_name: *mut sockaddr_storage,
-    bufs: &mut [crate::MaybeUninitSlice<'_>],
+    msg: &mut MsgHdrMut<'_, '_, '_>,
     flags: c_int,
-) -> io::Result<(usize, libc::socklen_t, RecvFlags)> {
-    let msg_namelen = if msg_name.is_null() {
-        0
-    } else {
-        size_of::<sockaddr_storage>() as libc::socklen_t
-    };
-    // libc::msghdr contains unexported padding fields on Fuchsia.
-    let mut msg: libc::msghdr = unsafe { mem::zeroed() };
-    msg.msg_name = msg_name.cast();
-    msg.msg_namelen = msg_namelen;
-    msg.msg_iov = bufs.as_mut_ptr().cast();
-    msg.msg_iovlen = min(bufs.len(), IovLen::MAX as usize) as IovLen;
-    syscall!(recvmsg(fd, &mut msg, flags))
-        .map(|n| (n as usize, msg.msg_namelen, RecvFlags(msg.msg_flags)))
+) -> io::Result<usize> {
+    syscall!(recvmsg(fd, &mut msg.inner, flags)).map(|n| n as usize)
 }
 
 pub(crate) fn send(fd: Socket, buf: &[u8], flags: c_int) -> io::Result<usize> {
@@ -1009,7 +1045,8 @@ pub(crate) fn send(fd: Socket, buf: &[u8], flags: c_int) -> io::Result<usize> {
 
 #[cfg(not(target_os = "redox"))]
 pub(crate) fn send_vectored(fd: Socket, bufs: &[IoSlice<'_>], flags: c_int) -> io::Result<usize> {
-    sendmsg(fd, ptr::null(), 0, bufs, flags)
+    let msg = MsgHdr::new().with_buffers(bufs);
+    sendmsg(fd, &msg, flags)
 }
 
 pub(crate) fn send_to(fd: Socket, buf: &[u8], addr: &SockAddr, flags: c_int) -> io::Result<usize> {
@@ -1031,30 +1068,13 @@ pub(crate) fn send_to_vectored(
     addr: &SockAddr,
     flags: c_int,
 ) -> io::Result<usize> {
-    sendmsg(fd, addr.as_storage_ptr(), addr.len(), bufs, flags)
+    let msg = MsgHdr::new().with_addr(addr).with_buffers(bufs);
+    sendmsg(fd, &msg, flags)
 }
 
-/// Returns the (bytes received, sending address len, `RecvFlags`).
 #[cfg(not(target_os = "redox"))]
-#[allow(clippy::unnecessary_cast)] // For `IovLen::MAX as usize` (Already `usize` on Linux).
-fn sendmsg(
-    fd: Socket,
-    msg_name: *const sockaddr_storage,
-    msg_namelen: socklen_t,
-    bufs: &[IoSlice<'_>],
-    flags: c_int,
-) -> io::Result<usize> {
-    // libc::msghdr contains unexported padding fields on Fuchsia.
-    let mut msg: libc::msghdr = unsafe { mem::zeroed() };
-    // Safety: we're creating a `*mut` pointer from a reference, which is UB
-    // once actually used. However the OS should not write to it in the
-    // `sendmsg` system call.
-    msg.msg_name = (msg_name as *mut sockaddr_storage).cast();
-    msg.msg_namelen = msg_namelen;
-    // Safety: Same as above about `*const` -> `*mut`.
-    msg.msg_iov = bufs.as_ptr() as *mut _;
-    msg.msg_iovlen = min(bufs.len(), IovLen::MAX as usize) as IovLen;
-    syscall!(sendmsg(fd, &msg, flags)).map(|n| n as usize)
+pub(crate) fn sendmsg(fd: Socket, msg: &MsgHdr<'_, '_, '_>, flags: c_int) -> io::Result<usize> {
+    syscall!(sendmsg(fd, &msg.inner, flags)).map(|n| n as usize)
 }
 
 /// Wrapper around `getsockopt` to deal with platform specific timeouts.
@@ -1254,6 +1274,7 @@ pub(crate) fn from_in6_addr(addr: in6_addr) -> Ipv6Addr {
     target_os = "redox",
     target_os = "solaris",
     target_os = "nto",
+    target_os = "espidf",
 )))]
 pub(crate) const fn to_mreqn(
     multiaddr: &Ipv4Addr,
@@ -1820,8 +1841,8 @@ impl crate::Socket {
     /// Sets the value for the `SO_SETFIB` option on this socket.
     ///
     /// Bind socket to the specified forwarding table (VRF) on a FreeBSD.
-    #[cfg(all(feature = "all", any(target_os = "freebsd")))]
-    #[cfg_attr(docsrs, doc(cfg(all(feature = "all", any(target_os = "freebsd")))))]
+    #[cfg(all(feature = "all", target_os = "freebsd"))]
+    #[cfg_attr(docsrs, doc(cfg(all(feature = "all", target_os = "freebsd"))))]
     pub fn set_fib(&self, fib: u32) -> io::Result<()> {
         syscall!(setsockopt(
             self.as_raw(),
@@ -1831,6 +1852,33 @@ impl crate::Socket {
             mem::size_of::<u32>() as libc::socklen_t,
         ))
         .map(|_| ())
+    }
+
+    /// This method is deprecated, use [`crate::Socket::bind_device_by_index_v4`].
+    #[cfg(all(
+        feature = "all",
+        any(
+            target_os = "ios",
+            target_os = "macos",
+            target_os = "tvos",
+            target_os = "watchos",
+        )
+    ))]
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(all(
+            feature = "all",
+            any(
+                target_os = "ios",
+                target_os = "macos",
+                target_os = "tvos",
+                target_os = "watchos",
+            )
+        )))
+    )]
+    #[deprecated = "Use `Socket::bind_device_by_index_v4` instead"]
+    pub fn bind_device_by_index(&self, interface: Option<NonZeroU32>) -> io::Result<()> {
+        self.bind_device_by_index_v4(interface)
     }
 
     /// Sets the value for `IP_BOUND_IF` option on this socket.
@@ -1864,9 +1912,45 @@ impl crate::Socket {
             )
         )))
     )]
-    pub fn bind_device_by_index(&self, interface: Option<NonZeroU32>) -> io::Result<()> {
+    pub fn bind_device_by_index_v4(&self, interface: Option<NonZeroU32>) -> io::Result<()> {
         let index = interface.map_or(0, NonZeroU32::get);
         unsafe { setsockopt(self.as_raw(), IPPROTO_IP, libc::IP_BOUND_IF, index) }
+    }
+
+    /// Sets the value for `IPV6_BOUND_IF` option on this socket.
+    ///
+    /// If a socket is bound to an interface, only packets received from that
+    /// particular interface are processed by the socket.
+    ///
+    /// If `interface` is `None`, the binding is removed. If the `interface`
+    /// index is not valid, an error is returned.
+    ///
+    /// One can use [`libc::if_nametoindex`] to convert an interface alias to an
+    /// index.
+    #[cfg(all(
+        feature = "all",
+        any(
+            target_os = "ios",
+            target_os = "macos",
+            target_os = "tvos",
+            target_os = "watchos",
+        )
+    ))]
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(all(
+            feature = "all",
+            any(
+                target_os = "ios",
+                target_os = "macos",
+                target_os = "tvos",
+                target_os = "watchos",
+            )
+        )))
+    )]
+    pub fn bind_device_by_index_v6(&self, interface: Option<NonZeroU32>) -> io::Result<()> {
+        let index = interface.map_or(0, NonZeroU32::get);
+        unsafe { setsockopt(self.as_raw(), IPPROTO_IPV6, libc::IPV6_BOUND_IF, index) }
     }
 
     /// Gets the value for `IP_BOUND_IF` option on this socket, i.e. the index
@@ -1895,9 +1979,69 @@ impl crate::Socket {
             )
         )))
     )]
-    pub fn device_index(&self) -> io::Result<Option<NonZeroU32>> {
+    pub fn device_index_v4(&self) -> io::Result<Option<NonZeroU32>> {
         let index =
             unsafe { getsockopt::<libc::c_uint>(self.as_raw(), IPPROTO_IP, libc::IP_BOUND_IF)? };
+        Ok(NonZeroU32::new(index))
+    }
+
+    /// This method is deprecated, use [`crate::Socket::device_index_v4`].
+    #[cfg(all(
+        feature = "all",
+        any(
+            target_os = "ios",
+            target_os = "macos",
+            target_os = "tvos",
+            target_os = "watchos",
+        )
+    ))]
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(all(
+            feature = "all",
+            any(
+                target_os = "ios",
+                target_os = "macos",
+                target_os = "tvos",
+                target_os = "watchos",
+            )
+        )))
+    )]
+    #[deprecated = "Use `Socket::device_index_v4` instead"]
+    pub fn device_index(&self) -> io::Result<Option<NonZeroU32>> {
+        self.device_index_v4()
+    }
+
+    /// Gets the value for `IPV6_BOUND_IF` option on this socket, i.e. the index
+    /// for the interface to which the socket is bound.
+    ///
+    /// Returns `None` if the socket is not bound to any interface, otherwise
+    /// returns an interface index.
+    #[cfg(all(
+        feature = "all",
+        any(
+            target_os = "ios",
+            target_os = "macos",
+            target_os = "tvos",
+            target_os = "watchos",
+        )
+    ))]
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(all(
+            feature = "all",
+            any(
+                target_os = "ios",
+                target_os = "macos",
+                target_os = "tvos",
+                target_os = "watchos",
+            )
+        )))
+    )]
+    pub fn device_index_v6(&self) -> io::Result<Option<NonZeroU32>> {
+        let index = unsafe {
+            getsockopt::<libc::c_uint>(self.as_raw(), IPPROTO_IPV6, libc::IPV6_BOUND_IF)?
+        };
         Ok(NonZeroU32::new(index))
     }
 
@@ -1978,6 +2122,35 @@ impl crate::Socket {
                 self.as_raw(),
                 libc::SOL_SOCKET,
                 libc::SO_REUSEPORT,
+                reuse as c_int,
+            )
+        }
+    }
+
+    /// Get the value of the `SO_REUSEPORT_LB` option on this socket.
+    ///
+    /// For more information about this option, see [`set_reuse_port_lb`].
+    ///
+    /// [`set_reuse_port_lb`]: crate::Socket::set_reuse_port_lb
+    #[cfg(all(feature = "all", target_os = "freebsd"))]
+    pub fn reuse_port_lb(&self) -> io::Result<bool> {
+        unsafe {
+            getsockopt::<c_int>(self.as_raw(), libc::SOL_SOCKET, libc::SO_REUSEPORT_LB)
+                .map(|reuse| reuse != 0)
+        }
+    }
+
+    /// Set value for the `SO_REUSEPORT_LB` option on this socket.
+    ///
+    /// This allows multiple programs or threads to bind to the same port and
+    /// incoming connections will be load balanced using a hash function.
+    #[cfg(all(feature = "all", target_os = "freebsd"))]
+    pub fn set_reuse_port_lb(&self, reuse: bool) -> io::Result<()> {
+        unsafe {
+            setsockopt(
+                self.as_raw(),
+                libc::SOL_SOCKET,
+                libc::SO_REUSEPORT_LB,
                 reuse as c_int,
             )
         }
@@ -2424,8 +2597,8 @@ impl crate::Socket {
     /// Therefore, there is no corresponding `set` helper.
     ///
     /// For more information about this option, see [Linux patch](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=5daab9db7b65df87da26fd8cfa695fb9546a1ddb)
-    #[cfg(all(feature = "all", any(target_os = "linux")))]
-    #[cfg_attr(docsrs, doc(cfg(all(feature = "all", any(target_os = "linux")))))]
+    #[cfg(all(feature = "all", target_os = "linux"))]
+    #[cfg_attr(docsrs, doc(cfg(all(feature = "all", target_os = "linux"))))]
     pub fn cookie(&self) -> io::Result<u64> {
         unsafe { getsockopt::<libc::c_ulonglong>(self.as_raw(), libc::SOL_SOCKET, libc::SO_COOKIE) }
     }
@@ -2535,11 +2708,7 @@ impl crate::Socket {
             payload.as_mut_ptr().cast(),
             &mut len,
         ))
-        .map(|_| {
-            let buf = &payload[..len as usize];
-            // TODO: use `MaybeUninit::slice_assume_init_ref` once stable.
-            unsafe { &*(buf as *const [_] as *const [u8]) }.into()
-        })
+        .map(|_| payload[..len as usize].to_vec())
     }
 
     /// Set the value of the `TCP_CONGESTION` option for this socket.

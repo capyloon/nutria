@@ -14,6 +14,10 @@ pub(crate) const PROC_SUPER_MAGIC: u32 = 0x0000_9fa0;
 #[cfg(all(linux_kernel, target_env = "musl"))]
 pub(crate) const NFS_SUPER_MAGIC: u32 = 0x0000_6969;
 
+#[cfg(feature = "process")]
+#[cfg(not(any(target_os = "espidf", target_os = "wasi")))]
+pub(crate) const EXIT_SIGNALED_SIGABRT: c_int = 128 + SIGABRT as c_int;
+
 // TODO: Upstream these.
 #[cfg(all(linux_kernel, feature = "net"))]
 pub(crate) const ETH_P_TSN: c_int = linux_raw_sys::if_ether::ETH_P_TSN as _;
@@ -79,6 +83,9 @@ pub(crate) const IUCLC: tcflag_t = linux_raw_sys::general::IUCLC as _;
 #[cfg(all(linux_kernel, feature = "termios"))]
 pub(crate) const XCASE: tcflag_t = linux_raw_sys::general::XCASE as _;
 
+#[cfg(target_os = "aix")]
+pub(crate) const MSG_DONTWAIT: c_int = libc::MSG_NONBLOCK;
+
 // On PowerPC, the regular `termios` has the `termios2` fields and there is no
 // `termios2`. linux-raw-sys has aliases `termios2` to `termios` to cover this
 // difference, but we still need to manually import it since `libc` doesn't
@@ -106,13 +113,15 @@ pub(super) use libc::open64 as open;
 pub(super) use libc::posix_fallocate64 as posix_fallocate;
 #[cfg(any(all(linux_like, not(target_os = "android")), target_os = "aix"))]
 pub(super) use libc::{blkcnt64_t as blkcnt_t, rlim64_t as rlim_t};
+// TODO: AIX has `stat64x`, `fstat64x`, `lstat64x`, and `stat64xat`; add them
+// to the upstream libc crate and implement rustix's `statat` etc. with them.
 #[cfg(target_os = "aix")]
 pub(super) use libc::{
-    blksize64_t as blksize_t, fstat64 as fstat, fstatat, fstatfs64 as fstatfs,
-    fstatvfs64 as fstatvfs, ftruncate64 as ftruncate, getrlimit64 as getrlimit, ino_t,
-    lseek64 as lseek, mmap, off64_t as off_t, openat, posix_fadvise64 as posix_fadvise, preadv,
-    pwritev, rlimit64 as rlimit, setrlimit64 as setrlimit, statfs64 as statfs,
-    statvfs64 as statvfs, RLIM_INFINITY,
+    blksize64_t as blksize_t, fstat64 as fstat, fstatfs64 as fstatfs, fstatvfs64 as fstatvfs,
+    ftruncate64 as ftruncate, getrlimit64 as getrlimit, ino_t, lseek64 as lseek, mmap,
+    off64_t as off_t, openat, posix_fadvise64 as posix_fadvise, preadv, pwritev,
+    rlimit64 as rlimit, setrlimit64 as setrlimit, statfs64 as statfs, statvfs64 as statvfs,
+    RLIM_INFINITY,
 };
 #[cfg(linux_like)]
 pub(super) use libc::{

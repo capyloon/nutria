@@ -761,6 +761,7 @@ impl BytesMut {
     ///
     /// assert_eq!(b"aaabbbcccddd", &buf[..]);
     /// ```
+    #[inline]
     pub fn extend_from_slice(&mut self, extend: &[u8]) {
         let cnt = extend.len();
         self.reserve(cnt);
@@ -1101,7 +1102,7 @@ unsafe impl BufMut for BytesMut {
         if self.capacity() == self.len() {
             self.reserve(64);
         }
-        UninitSlice::from_slice(self.spare_capacity_mut())
+        self.spare_capacity_mut().into()
     }
 
     // Specialize these methods so they can skip checking `remaining_mut`

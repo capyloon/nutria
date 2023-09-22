@@ -587,7 +587,6 @@ pub const MCAST_MSFILTER: u32 = 48;
 pub const IP_MULTICAST_ALL: u32 = 49;
 pub const IP_UNICAST_IF: u32 = 50;
 pub const IP_LOCAL_PORT_RANGE: u32 = 51;
-pub const IP_PROTOCOL: u32 = 52;
 pub const MCAST_EXCLUDE: u32 = 0;
 pub const MCAST_INCLUDE: u32 = 1;
 pub const IP_DEFAULT_MULTICAST_TTL: u32 = 1;

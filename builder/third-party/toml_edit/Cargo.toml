@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.64.0"
+rust-version = "1.66.0"
 name = "toml_edit"
-version = "0.19.14"
+version = "0.19.15"
 authors = [
     "Andronik Ordian <write@reusable.software>",
     "Ed Page <eopage@gmail.com>",

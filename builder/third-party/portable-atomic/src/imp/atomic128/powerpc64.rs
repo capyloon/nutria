@@ -2,10 +2,10 @@
 //
 // powerpc64 on pwr8+ support 128-bit atomics:
 // https://github.com/llvm/llvm-project/commit/549e118e93c666914a1045fde38a2cac33e1e445
-// https://github.com/llvm/llvm-project/blob/llvmorg-16.0.0/llvm/test/CodeGen/PowerPC/atomics-i128-ldst.ll
-// https://github.com/llvm/llvm-project/blob/llvmorg-16.0.0/llvm/test/CodeGen/PowerPC/atomics-i128.ll
+// https://github.com/llvm/llvm-project/blob/llvmorg-17.0.0-rc2/llvm/test/CodeGen/PowerPC/atomics-i128-ldst.ll
+// https://github.com/llvm/llvm-project/blob/llvmorg-17.0.0-rc2/llvm/test/CodeGen/PowerPC/atomics-i128.ll
 //
-// powerpc64le is pwr8+ by default https://github.com/llvm/llvm-project/blob/llvmorg-16.0.0/llvm/lib/Target/PowerPC/PPC.td#L663
+// powerpc64le is pwr8+ by default https://github.com/llvm/llvm-project/blob/llvmorg-17.0.0-rc2/llvm/lib/Target/PowerPC/PPC.td#L663
 // See also https://github.com/rust-lang/rust/issues/59932
 //
 // Note that we do not separate LL and SC into separate functions, but handle
@@ -50,16 +50,19 @@ mod fallback;
         target_os = "linux",
         any(
             target_env = "gnu",
-            all(target_env = "musl", not(target_feature = "crt-static")),
+            all(any(target_env = "musl", target_env = "ohos"), not(target_feature = "crt-static")),
             portable_atomic_outline_atomics,
         ),
     ),
+    target_os = "android",
     target_os = "freebsd",
 ))]
 #[path = "detect/auxv.rs"]
 mod detect;
 
 use core::{arch::asm, sync::atomic::Ordering};
+
+use crate::utils::{Pair, U128};
 
 macro_rules! debug_assert_pwr8 {
     () => {
@@ -125,27 +128,6 @@ macro_rules! end_pwr8 {
     () => {
         ""
     };
-}
-
-/// A 128-bit value represented as a pair of 64-bit values.
-///
-/// This type is `#[repr(C)]`, both fields have the same in-memory representation
-/// and are plain old datatypes, so access to the fields is always safe.
-#[derive(Clone, Copy)]
-#[repr(C)]
-union U128 {
-    whole: u128,
-    pair: Pair,
-}
-// A pair of 64-bit values in native-endian order.
-#[derive(Clone, Copy)]
-#[repr(C)]
-struct Pair {
-    #[cfg(target_endian = "big")]
-    hi: u64,
-    lo: u64,
-    #[cfg(target_endian = "little")]
-    hi: u64,
 }
 
 macro_rules! atomic_rmw {
@@ -406,7 +388,7 @@ unsafe fn atomic_compare_exchange_pwr8(
     // SAFETY: the caller must uphold the safety contract.
     //
     // Refs: "4.6.2.2 128-bit Load And Reserve and Store Conditional Instructions" of Power ISA
-    let res = unsafe {
+    let prev = unsafe {
         let old = U128 { whole: old };
         let new = U128 { whole: new };
         let (mut prev_hi, mut prev_lo);
@@ -420,9 +402,9 @@ unsafe fn atomic_compare_exchange_pwr8(
                         "xor {tmp_lo}, %r9, {old_lo}",
                         "xor {tmp_hi}, %r8, {old_hi}",
                         "or. {tmp_lo}, {tmp_lo}, {tmp_hi}",
-                        "bne %cr0, 3f",
+                        "bne %cr0, 3f", // jump if compare failed
                         "stqcx. %r6, 0, {dst}",
-                        "bne %cr0, 2b",
+                        "bne %cr0, 2b", // continue loop if store failed
                     "3:",
                     $acquire,
                     end_pwr8!(),
@@ -445,7 +427,7 @@ unsafe fn atomic_compare_exchange_pwr8(
         atomic_rmw!(cmpxchg, order);
         U128 { pair: Pair { hi: prev_hi, lo: prev_lo } }.whole
     };
-    (res, res == old)
+    (prev, prev == old)
 }
 
 // TODO: LLVM appears to generate strong CAS for powerpc64 128-bit weak CAS,
@@ -679,7 +661,7 @@ use atomic_not_pwr8 as atomic_not;
 #[inline]
 unsafe fn atomic_not_pwr8(dst: *mut u128, order: Ordering) -> u128 {
     // SAFETY: the caller must uphold the safety contract.
-    unsafe { atomic_xor_pwr8(dst, core::u128::MAX, order) }
+    unsafe { atomic_xor_pwr8(dst, u128::MAX, order) }
 }
 
 #[cfg(portable_atomic_llvm_16)]

@@ -26,15 +26,46 @@ macro_rules! algos {
         }
     };
 
+    (@algo $algo:ident [$algo_s:expr] $decoder:ident $encoder:ident <$inner:ident>
+        { @dec $($decoder_methods:tt)* }
+    ) => {
+        #[cfg(feature = $algo_s)]
+        decoder! {
+            #[doc = concat!("A ", $algo_s, " decoder, or decompressor")]
+            #[cfg(feature = $algo_s)]
+            $decoder<$inner>
+
+            { $($decoder_methods)* }
+        }
+    };
+
     ($($mod:ident)::+ <$inner:ident>) => {
         algos!(@algo brotli ["brotli"] BrotliDecoder BrotliEncoder <$inner>
         { @enc
             pub fn with_quality(inner: $inner, level: crate::Level) -> Self {
                 let params = brotli::enc::backward_references::BrotliEncoderParams::default();
+
                 Self {
                     inner: crate::$($mod::)+generic::Encoder::new(
                         inner,
                         crate::codec::BrotliEncoder::new(level.into_brotli(params)),
+                    ),
+                }
+            }
+
+            /// Creates a new encoder, using the specified compression level and parameters, which
+            /// will read uncompressed data from the given stream and emit a compressed stream.
+            pub fn with_quality_and_params(
+                inner: $inner,
+                level: crate::Level,
+                params: crate::brotli::EncoderParams,
+            ) -> Self {
+                let params = level.into_brotli(params.as_brotli());
+
+                Self {
+                    inner: crate::$($mod::)+generic::Encoder::new(
+                        inner,
+                        crate::codec::BrotliEncoder::new(params),
                     ),
                 }
             }
@@ -68,6 +99,10 @@ macro_rules! algos {
                 }
             }
         }
+        { @dec }
+        );
+
+        algos!(@algo deflate ["deflate64"] Deflate64Decoder Deflate64Encoder <$inner>
         { @dec }
         );
 

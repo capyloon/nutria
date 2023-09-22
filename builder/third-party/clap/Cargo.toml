@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.64.0"
+rust-version = "1.70.0"
 name = "clap"
-version = "4.3.23"
+version = "4.4.4"
 include = [
     "build.rs",
     "src/**/*",
@@ -367,15 +367,11 @@ path = "examples/derive_ref/flatten_hand_args.rs"
 required-features = ["derive"]
 
 [dependencies.clap_builder]
-version = "=4.3.23"
+version = "=4.4.4"
 default-features = false
 
 [dependencies.clap_derive]
-version = "=4.3.12"
-optional = true
-
-[dependencies.once_cell]
-version = "1.12.0"
+version = "=4.4.2"
 optional = true
 
 [dev-dependencies.humantime]
@@ -388,16 +384,16 @@ version = "1.0.14"
 version = "1.1.0"
 
 [dev-dependencies.snapbox]
-version = "0.4.11"
+version = "0.4.12"
 
 [dev-dependencies.static_assertions]
 version = "1.1.0"
 
 [dev-dependencies.trybuild]
-version = "1.0.82"
+version = "1.0.83"
 
 [dev-dependencies.trycmd]
-version = "0.14.16"
+version = "0.14.17"
 features = [
     "color-auto",
     "diff",
@@ -427,10 +423,7 @@ deprecated = [
     "clap_builder/deprecated",
     "clap_derive?/deprecated",
 ]
-derive = [
-    "dep:clap_derive",
-    "dep:once_cell",
-]
+derive = ["dep:clap_derive"]
 env = ["clap_builder/env"]
 error-context = ["clap_builder/error-context"]
 help = ["clap_builder/help"]

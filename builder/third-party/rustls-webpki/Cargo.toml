@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.60"
 name = "rustls-webpki"
-version = "0.101.4"
+version = "0.101.6"
 include = [
     "Cargo.toml",
     "/LICENSE",

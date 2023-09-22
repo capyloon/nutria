@@ -33,6 +33,4 @@ pub use ip_address::IpAddr;
 mod verify;
 #[cfg(feature = "alloc")]
 pub(super) use verify::list_cert_dns_names;
-pub(super) use verify::{
-    check_name_constraints, verify_cert_subject_name, SubjectCommonNameContents,
-};
+pub(super) use verify::{check_name_constraints, verify_cert_subject_name};

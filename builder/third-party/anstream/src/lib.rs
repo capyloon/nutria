@@ -39,6 +39,7 @@ mod buffer;
 #[macro_use]
 mod macros;
 mod auto;
+mod is_terminal;
 mod lockable;
 mod raw;
 mod strip;
@@ -46,6 +47,7 @@ mod strip;
 mod wincon;
 
 pub use auto::AutoStream;
+pub use is_terminal::IsTerminal;
 pub use lockable::Lockable;
 pub use raw::RawStream;
 pub use strip::StripStream;

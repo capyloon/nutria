@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "walkdir"
-version = "2.3.3"
+version = "2.4.0"
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 exclude = [
     "/ci/*",

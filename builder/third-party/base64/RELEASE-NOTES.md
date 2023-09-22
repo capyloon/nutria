@@ -1,3 +1,14 @@
+# 0.21.4
+
+- Make `encoded_len` `const`, allowing the creation of arrays sized to encode compile-time-known data lengths
+
+# 0.21.3
+
+- Implement `source` instead of `cause` on Error types
+- Roll back MSRV to 1.48.0 so Debian can continue to live in a time warp
+- Slightly faster chunked encoding for short inputs
+- Decrease binary size
+
 # 0.21.2
 
 - Rollback MSRV to 1.57.0 -- only dev dependencies need 1.60, not the main code
@@ -5,13 +16,13 @@
 # 0.21.1
 
 - Remove the possibility of panicking during decoded length calculations
-- `DecoderReader` no longer sometimes erroneously ignores padding  [#226](https://github.com/marshallpierce/rust-base64/issues/226)
+- `DecoderReader` no longer sometimes erroneously ignores
+  padding  [#226](https://github.com/marshallpierce/rust-base64/issues/226)
 
 ## Breaking changes
 
 - `Engine.internal_decode` return type changed
 - Update MSRV to 1.60.0
-
 
 # 0.21.0
 
@@ -58,7 +69,8 @@ precisely, see the following table.
 
 ## Breaking changes
 
-- Re-exports of preconfigured engines in `engine` are removed in favor of `base64::prelude::...` that are better suited to those who wish to `use` the entire path to a name.
+- Re-exports of preconfigured engines in `engine` are removed in favor of `base64::prelude::...` that are better suited
+  to those who wish to `use` the entire path to a name.
 
 # 0.21.0-beta.1
 

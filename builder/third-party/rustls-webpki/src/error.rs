@@ -13,6 +13,7 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 use core::fmt;
+use core::ops::ControlFlow;
 
 /// An error that occurs during certificate validation or name validation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -92,6 +93,15 @@ pub enum Error {
     /// A name constraint was malformed, potentially containing invalid characters or
     /// invalid labels.
     MalformedNameConstraint,
+
+    /// The maximum number of name constraint comparisons has been reached.
+    MaximumNameConstraintComparisonsExceeded,
+
+    /// The maximum number of internal path building calls has been reached. Path complexity is too great.
+    MaximumPathBuildCallsExceeded,
+
+    /// The path search was terminated because it became too deep.
+    MaximumPathDepthExceeded,
 
     /// The maximum number of signature checks has been reached. Path complexity is too great.
     MaximumSignatureChecksExceeded,
@@ -185,49 +195,78 @@ impl Error {
     pub(crate) fn rank(&self) -> u32 {
         match &self {
             // Errors related to certificate validity
-            Error::CertNotValidYet | Error::CertExpired => 27,
-            Error::CertNotValidForName => 26,
-            Error::CertRevoked => 25,
-            Error::InvalidCrlSignatureForPublicKey | Error::InvalidSignatureForPublicKey => 24,
-            Error::SignatureAlgorithmMismatch => 23,
-            Error::RequiredEkuNotFound => 22,
-            Error::NameConstraintViolation => 21,
-            Error::PathLenConstraintViolated => 20,
-            Error::CaUsedAsEndEntity | Error::EndEntityUsedAsCa => 19,
-            Error::IssuerNotCrlSigner => 18,
+            Error::CertNotValidYet | Error::CertExpired => 290,
+            Error::CertNotValidForName => 280,
+            Error::CertRevoked => 270,
+            Error::InvalidCrlSignatureForPublicKey | Error::InvalidSignatureForPublicKey => 260,
+            Error::SignatureAlgorithmMismatch => 250,
+            Error::RequiredEkuNotFound => 240,
+            Error::NameConstraintViolation => 230,
+            Error::PathLenConstraintViolated => 220,
+            Error::CaUsedAsEndEntity | Error::EndEntityUsedAsCa => 210,
+            Error::IssuerNotCrlSigner => 200,
 
             // Errors related to supported features used in an invalid way.
-            Error::InvalidCertValidity => 17,
-            Error::InvalidNetworkMaskConstraint => 16,
-            Error::InvalidSerialNumber => 15,
-            Error::InvalidCrlNumber => 14,
+            Error::InvalidCertValidity => 190,
+            Error::InvalidNetworkMaskConstraint => 180,
+            Error::InvalidSerialNumber => 170,
+            Error::InvalidCrlNumber => 160,
 
             // Errors related to unsupported features.
             Error::UnsupportedCrlSignatureAlgorithmForPublicKey
-            | Error::UnsupportedSignatureAlgorithmForPublicKey => 13,
-            Error::UnsupportedCrlSignatureAlgorithm | Error::UnsupportedSignatureAlgorithm => 12,
-            Error::UnsupportedCriticalExtension => 11,
-            Error::UnsupportedCertVersion => 11,
-            Error::UnsupportedCrlVersion => 10,
-            Error::UnsupportedDeltaCrl => 9,
-            Error::UnsupportedIndirectCrl => 8,
-            Error::UnsupportedRevocationReason => 7,
+            | Error::UnsupportedSignatureAlgorithmForPublicKey => 150,
+            Error::UnsupportedCrlSignatureAlgorithm | Error::UnsupportedSignatureAlgorithm => 140,
+            Error::UnsupportedCriticalExtension => 130,
+            Error::UnsupportedCertVersion => 130,
+            Error::UnsupportedCrlVersion => 120,
+            Error::UnsupportedDeltaCrl => 110,
+            Error::UnsupportedIndirectCrl => 100,
+            Error::UnsupportedRevocationReason => 90,
+            // Reserved for webpki 0.102.0+ usages:
+            // Error::UnsupportedRevocationReasonsPartitioning => 80,
+            // Error::UnsupportedCrlIssuingDistributionPoint => 70,
+            Error::MaximumPathDepthExceeded => 61,
 
             // Errors related to malformed data.
-            Error::MalformedDnsIdentifier => 6,
-            Error::MalformedNameConstraint => 5,
-            Error::MalformedExtensions => 4,
-            Error::ExtensionValueInvalid => 3,
+            Error::MalformedDnsIdentifier => 60,
+            Error::MalformedNameConstraint => 50,
+            Error::MalformedExtensions => 40,
+            Error::ExtensionValueInvalid => 30,
 
             // Generic DER errors.
-            Error::BadDerTime => 2,
-            Error::BadDer => 1,
+            Error::BadDerTime => 20,
+            Error::BadDer => 10,
 
-            // Special case error - not subject to ranking.
+            // Special case errors - not subject to ranking.
             Error::MaximumSignatureChecksExceeded => 0,
+            Error::MaximumPathBuildCallsExceeded => 0,
+            Error::MaximumNameConstraintComparisonsExceeded => 0,
 
             // Default catch all error - should be renamed in the future.
             Error::UnknownIssuer => 0,
+        }
+    }
+
+    /// Returns true for errors that should be considered fatal during path building. Errors of
+    /// this class should halt any further path building and be returned immediately.
+    #[inline]
+    pub(crate) fn is_fatal(&self) -> bool {
+        matches!(
+            self,
+            Error::MaximumSignatureChecksExceeded
+                | Error::MaximumPathBuildCallsExceeded
+                | Error::MaximumNameConstraintComparisonsExceeded
+        )
+    }
+}
+
+impl From<Error> for ControlFlow<Error, Error> {
+    fn from(value: Error) -> Self {
+        match value {
+            // If an error is fatal, we've exhausted the potential for continued search.
+            err if err.is_fatal() => Self::Break(err),
+            // Otherwise we've rejected one candidate chain, but may continue to search for others.
+            err => Self::Continue(err),
         }
     }
 }

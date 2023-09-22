@@ -229,6 +229,3 @@ pub const PR_MDWE_REFUSE_EXEC_GAIN: u32 = 1;
 pub const PR_GET_MDWE: u32 = 66;
 pub const PR_SET_VMA: u32 = 1398164801;
 pub const PR_SET_VMA_ANON_NAME: u32 = 0;
-pub const PR_GET_AUXV: u32 = 1096112214;
-pub const PR_SET_MEMORY_MERGE: u32 = 67;
-pub const PR_GET_MEMORY_MERGE: u32 = 68;

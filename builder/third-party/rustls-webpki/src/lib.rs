@@ -60,6 +60,10 @@ mod x509;
 
 #[allow(deprecated)]
 pub use trust_anchor::{TlsClientTrustAnchors, TlsServerTrustAnchors};
+
+#[cfg(test)]
+pub(crate) mod test_utils;
+
 pub use {
     cert::{Cert, EndEntityOrCa},
     crl::{BorrowedCertRevocationList, BorrowedRevokedCert, CertRevocationList, RevocationReason},

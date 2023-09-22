@@ -34,7 +34,7 @@ impl WinconStream for std::io::Stdout {
     }
 }
 
-impl<'s> WinconStream for std::io::StdoutLock<'s> {
+impl WinconStream for std::io::StdoutLock<'static> {
     fn set_colors(
         &mut self,
         fg: Option<anstyle::AnsiColor>,
@@ -66,7 +66,7 @@ impl WinconStream for std::io::Stderr {
     }
 }
 
-impl<'s> WinconStream for std::io::StderrLock<'s> {
+impl WinconStream for std::io::StderrLock<'static> {
     fn set_colors(
         &mut self,
         fg: Option<anstyle::AnsiColor>,
@@ -100,18 +100,15 @@ impl WinconStream for std::fs::File {
 
 #[cfg(windows)]
 mod wincon {
-    use std::os::windows::io::{AsHandle, AsRawHandle};
+    use std::os::windows::io::AsHandle;
 
     pub(super) fn set_colors<S: AsHandle>(
         stream: &mut S,
         fg: Option<anstyle::AnsiColor>,
         bg: Option<anstyle::AnsiColor>,
     ) -> std::io::Result<()> {
-        let handle = stream.as_handle();
-        let handle = handle.as_raw_handle();
         if let (Some(fg), Some(bg)) = (fg, bg) {
-            let attributes = crate::windows::set_colors(fg, bg);
-            crate::windows::set_console_text_attributes(handle, attributes)
+            crate::windows::set_colors(stream, fg, bg)
         } else {
             Ok(())
         }
@@ -120,11 +117,7 @@ mod wincon {
     pub(super) fn get_colors<S: AsHandle>(
         stream: &S,
     ) -> std::io::Result<(Option<anstyle::AnsiColor>, Option<anstyle::AnsiColor>)> {
-        let handle = stream.as_handle();
-        let handle = handle.as_raw_handle();
-        let info = crate::windows::get_screen_buffer_info(handle)?;
-        let (fg, bg) = crate::windows::get_colors(&info);
-        Ok((Some(fg), Some(bg)))
+        crate::windows::get_colors(stream).map(|(fg, bg)| (Some(fg), Some(bg)))
     }
 }
 

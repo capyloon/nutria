@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "async-compression"
-version = "0.4.1"
+version = "0.4.3"
 authors = [
     "Wim Looman <wim@nemo157.com>",
     "Allen Bui <fairingrey@gmail.com>",
@@ -106,6 +106,10 @@ default-features = false
 version = "0.4.4"
 optional = true
 
+[dependencies.deflate64]
+version = "0.1.5"
+optional = true
+
 [dependencies.flate2]
 version = "1.0.11"
 optional = true
@@ -160,12 +164,14 @@ all-algorithms = [
     "xz",
     "zlib",
     "zstd",
+    "deflate64",
 ]
 all-implementations = [
     "futures-io",
     "tokio",
 ]
 deflate = ["flate2"]
+deflate64 = ["dep:deflate64"]
 gzip = ["flate2"]
 lzma = ["xz2"]
 xz = ["xz2"]

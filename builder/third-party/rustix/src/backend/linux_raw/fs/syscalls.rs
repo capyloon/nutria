@@ -40,7 +40,6 @@ use linux_raw_sys::general::{
     F_ADD_SEALS, F_GETFL, F_GET_SEALS, F_SETFL, SEEK_CUR, SEEK_DATA, SEEK_END, SEEK_HOLE, SEEK_SET,
     STATX__RESERVED,
 };
-use linux_raw_sys::ioctl::{BLKPBSZGET, BLKSSZGET, EXT4_IOC_RESIZE_FS, FICLONE};
 #[cfg(target_pointer_width = "32")]
 use {
     crate::backend::conv::{hi, lo, slice_just_addr},
@@ -155,6 +154,30 @@ pub(crate) fn chownat(
             c_uint(ow),
             c_uint(gr),
             flags
+        ))
+    }
+}
+
+#[inline]
+pub(crate) fn chown(path: &CStr, owner: Option<Uid>, group: Option<Gid>) -> io::Result<()> {
+    // Most architectures have a `chown` syscall.
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "riscv64")))]
+    unsafe {
+        let (ow, gr) = crate::ugid::translate_fchown_args(owner, group);
+        ret(syscall_readonly!(__NR_chown, path, c_uint(ow), c_uint(gr)))
+    }
+
+    // Aarch64 and RISC-V don't, so use `fchownat`.
+    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+    unsafe {
+        let (ow, gr) = crate::ugid::translate_fchown_args(owner, group);
+        ret(syscall_readonly!(
+            __NR_fchownat,
+            raw_fd(AT_FDCWD),
+            path,
+            c_uint(ow),
+            c_uint(gr),
+            zero()
         ))
     }
 }
@@ -913,6 +936,7 @@ fn statfs_to_statvfs(statfs: StatFs) -> StatVfs {
     }
 }
 
+#[cfg(feature = "alloc")]
 #[inline]
 pub(crate) fn readlink(path: &CStr, buf: &mut [u8]) -> io::Result<usize> {
     let (buf_addr_mut, buf_len) = slice_mut(buf);
@@ -927,6 +951,7 @@ pub(crate) fn readlink(path: &CStr, buf: &mut [u8]) -> io::Result<usize> {
     }
 }
 
+#[cfg(feature = "alloc")]
 #[inline]
 pub(crate) fn readlinkat(
     dirfd: BorrowedFd<'_>,
@@ -1232,6 +1257,7 @@ pub(crate) fn mkdirat(dirfd: BorrowedFd<'_>, path: &CStr, mode: Mode) -> io::Res
     unsafe { ret(syscall_readonly!(__NR_mkdirat, dirfd, path, mode)) }
 }
 
+#[cfg(feature = "alloc")]
 #[inline]
 pub(crate) fn getdents(fd: BorrowedFd<'_>, dirent: &mut [u8]) -> io::Result<usize> {
     let (dirent_addr_mut, dirent_len) = slice_mut(dirent);
@@ -1618,41 +1644,6 @@ pub(crate) fn lremovexattr(path: &CStr, name: &CStr) -> io::Result<()> {
 #[inline]
 pub(crate) fn fremovexattr(fd: BorrowedFd<'_>, name: &CStr) -> io::Result<()> {
     unsafe { ret(syscall_readonly!(__NR_fremovexattr, fd, name)) }
-}
-
-#[inline]
-pub(crate) fn ioctl_blksszget(fd: BorrowedFd) -> io::Result<u32> {
-    let mut result = MaybeUninit::<c::c_uint>::uninit();
-    unsafe {
-        ret(syscall!(__NR_ioctl, fd, c_uint(BLKSSZGET), &mut result))?;
-        Ok(result.assume_init() as u32)
-    }
-}
-
-#[inline]
-pub(crate) fn ioctl_blkpbszget(fd: BorrowedFd) -> io::Result<u32> {
-    let mut result = MaybeUninit::<c::c_uint>::uninit();
-    unsafe {
-        ret(syscall!(__NR_ioctl, fd, c_uint(BLKPBSZGET), &mut result))?;
-        Ok(result.assume_init() as u32)
-    }
-}
-
-#[inline]
-pub(crate) fn ioctl_ficlone(fd: BorrowedFd<'_>, src_fd: BorrowedFd<'_>) -> io::Result<()> {
-    unsafe { ret(syscall_readonly!(__NR_ioctl, fd, c_uint(FICLONE), src_fd)) }
-}
-
-#[inline]
-pub(crate) fn ext4_ioc_resize_fs(fd: BorrowedFd<'_>, blocks: u64) -> io::Result<()> {
-    unsafe {
-        ret(syscall_readonly!(
-            __NR_ioctl,
-            fd,
-            c_uint(EXT4_IOC_RESIZE_FS),
-            by_ref(&blocks)
-        ))
-    }
 }
 
 #[test]

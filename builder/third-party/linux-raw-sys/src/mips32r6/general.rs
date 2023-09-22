@@ -892,9 +892,9 @@ pub sa_handler_kernel: __kernel_sighandler_t,
 pub sa_flags: crate::ctypes::c_ulong,
 pub sa_mask: kernel_sigset_t,
 }
-pub const LINUX_VERSION_CODE: u32 = 394240;
+pub const LINUX_VERSION_CODE: u32 = 393984;
 pub const LINUX_VERSION_MAJOR: u32 = 6;
-pub const LINUX_VERSION_PATCHLEVEL: u32 = 4;
+pub const LINUX_VERSION_PATCHLEVEL: u32 = 3;
 pub const LINUX_VERSION_SUBLEVEL: u32 = 0;
 pub const AT_SYSINFO_EHDR: u32 = 33;
 pub const AT_VECTOR_SIZE_ARCH: u32 = 1;
@@ -1028,6 +1028,7 @@ pub const O_CLOEXEC: u32 = 524288;
 pub const O_PATH: u32 = 2097152;
 pub const __O_TMPFILE: u32 = 4194304;
 pub const O_TMPFILE: u32 = 4259840;
+pub const O_TMPFILE_MASK: u32 = 4260096;
 pub const O_NDELAY: u32 = 128;
 pub const F_DUPFD: u32 = 0;
 pub const F_GETFD: u32 = 1;
@@ -2743,7 +2744,6 @@ pub const UFFD_FEATURE_MINOR_HUGETLBFS: u32 = 512;
 pub const UFFD_FEATURE_MINOR_SHMEM: u32 = 1024;
 pub const UFFD_FEATURE_EXACT_ADDRESS: u32 = 2048;
 pub const UFFD_FEATURE_WP_HUGETLBFS_SHMEM: u32 = 4096;
-pub const UFFD_FEATURE_WP_UNPOPULATED: u32 = 8192;
 pub const UFFD_USER_MODE_ONLY: u32 = 1;
 pub const DT_UNKNOWN: u32 = 0;
 pub const DT_FIFO: u32 = 1;

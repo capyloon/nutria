@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.64.0"
+rust-version = "1.70.0"
 name = "clap_derive"
-version = "4.3.12"
+version = "4.4.2"
 include = [
     "build.rs",
     "src/**/*",

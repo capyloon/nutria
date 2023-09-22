@@ -17,13 +17,6 @@
 #[macro_use]
 mod arch;
 mod conv;
-#[cfg(any(
-    feature = "param",
-    feature = "runtime",
-    feature = "time",
-    target_arch = "x86"
-))]
-mod elf;
 mod reg;
 #[cfg(any(feature = "time", target_arch = "x86"))]
 mod vdso;
@@ -36,7 +29,7 @@ pub(crate) mod event;
     feature = "fs",
     all(
         not(feature = "use-libc-auxv"),
-        not(target_vendor = "mustang"),
+        not(feature = "use-explicitly-provided-auxv"),
         any(
             feature = "param",
             feature = "runtime",
@@ -104,7 +97,7 @@ pub(crate) mod prctl;
     feature = "thread",
     all(
         not(feature = "use-libc-auxv"),
-        not(target_vendor = "mustang"),
+        not(feature = "use-explicitly-provided-auxv"),
         any(
             feature = "param",
             feature = "runtime",

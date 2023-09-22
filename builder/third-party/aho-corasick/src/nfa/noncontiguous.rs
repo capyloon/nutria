@@ -309,25 +309,27 @@ impl NFA {
         })
     }
 
-    /// Return the transition following the one given. If the one given is the
-    /// last transition for the given state, then return `None`.
+    /// Return the link following the one given. If the one given is the last
+    /// link for the given state, then return `None`.
     ///
-    /// If no previous transition is given, then this returns the first
-    /// transition in the state, if one exists.
+    /// If no previous link is given, then this returns the first link in the
+    /// state, if one exists.
     ///
     /// This is useful for manually iterating over the transitions in a single
     /// state without borrowing the NFA. This permits mutating other parts of
-    /// the NFA during iteration.
-    fn next_transition(
+    /// the NFA during iteration. Namely, one can access the transition pointed
+    /// to by the link via `self.sparse[link]`.
+    fn next_link(
         &self,
         sid: StateID,
-        prev: Option<Transition>,
-    ) -> Option<Transition> {
-        let link = prev.map_or(self.states[sid].sparse, |t| t.link);
+        prev: Option<StateID>,
+    ) -> Option<StateID> {
+        let link =
+            prev.map_or(self.states[sid].sparse, |p| self.sparse[p].link);
         if link == StateID::ZERO {
             None
         } else {
-            Some(self.sparse[link])
+            Some(link)
         }
     }
 
@@ -420,6 +422,46 @@ impl NFA {
         Ok(())
     }
 
+    /// This sets every possible transition (all 255 of them) for the given
+    /// state to the name `next` value.
+    ///
+    /// This is useful for efficiently initializing start/dead states.
+    ///
+    /// # Panics
+    ///
+    /// This requires that the state has no transitions added to it already.
+    /// If it has any transitions, then this panics. It will also panic if
+    /// the state has been densified prior to calling this.
+    fn init_full_state(
+        &mut self,
+        prev: StateID,
+        next: StateID,
+    ) -> Result<(), BuildError> {
+        assert_eq!(
+            StateID::ZERO,
+            self.states[prev].dense,
+            "state must not be dense yet"
+        );
+        assert_eq!(
+            StateID::ZERO,
+            self.states[prev].sparse,
+            "state must have zero transitions"
+        );
+        let mut prev_link = StateID::ZERO;
+        for byte in 0..=255 {
+            let new_link = self.alloc_transition()?;
+            self.sparse[new_link] =
+                Transition { byte, next, link: StateID::ZERO };
+            if prev_link == StateID::ZERO {
+                self.states[prev].sparse = new_link;
+            } else {
+                self.sparse[prev_link].link = new_link;
+            }
+            prev_link = new_link;
+        }
+        Ok(())
+    }
+
     /// Add a match for the given pattern ID to the state for the given ID.
     fn add_match(
         &mut self,
@@ -431,14 +473,8 @@ impl NFA {
         while self.matches[link].link != StateID::ZERO {
             link = self.matches[link].link;
         }
-        let new_match_link =
-            StateID::new(self.matches.len()).map_err(|e| {
-                BuildError::state_id_overflow(
-                    StateID::MAX.as_u64(),
-                    e.attempted(),
-                )
-            })?;
-        self.matches.push(Match { pid, link: StateID::ZERO });
+        let new_match_link = self.alloc_match()?;
+        self.matches[new_match_link].pid = pid;
         if link == StateID::ZERO {
             self.states[sid].matches = new_match_link;
         } else {
@@ -651,8 +687,6 @@ unsafe impl Automaton for NFA {
 
     #[inline(always)]
     fn memory_usage(&self) -> usize {
-        use core::mem::size_of;
-
         self.states.len() * core::mem::size_of::<State>()
             + self.sparse.len() * core::mem::size_of::<Transition>()
             + self.matches.len() * core::mem::size_of::<Match>()
@@ -666,9 +700,6 @@ unsafe impl Automaton for NFA {
         self.prefilter.as_ref()
     }
 }
-
-// BREADCRUMBS: Add `dense` field below that is non-zero when the state's
-// transitions are defined in a dense table.
 
 /// A representation of a sparse NFA state for an Aho-Corasick automaton.
 ///
@@ -954,7 +985,11 @@ impl<'a> Compiler<'a> {
         self.nfa.special.start_anchored_id = self.nfa.alloc_state(0)?;
         // Initialize the unanchored starting state in order to make it dense,
         // and thus make transition lookups on this state faster.
-        self.init_unanchored_start_state();
+        self.init_unanchored_start_state()?;
+        // Set all transitions on the DEAD state to point to itself. This way,
+        // the DEAD state can never be escaped. It MUST be used as a sentinel
+        // in any correct search.
+        self.add_dead_state_loop()?;
         // Build the base trie from the given patterns.
         self.build_trie(patterns)?;
         self.nfa.states.shrink_to_fit();
@@ -972,10 +1007,6 @@ impl<'a> Compiler<'a> {
         // Rewrite transitions to the FAIL state on the unanchored start state
         // as self-transitions. This keeps the start state active at all times.
         self.add_unanchored_start_state_loop();
-        // Set all transitions on the DEAD state to point to itself. This way,
-        // the DEAD state can never be escaped. It MUST be used as a sentinel
-        // in any correct search.
-        self.add_dead_state_loop();
         // Make some (possibly zero) states use a dense representation for
         // transitions. It's important to do this right after the states
         // and non-failure transitions are solidified. That way, subsequent
@@ -1103,17 +1134,17 @@ impl<'a> Compiler<'a> {
                     prev = next;
                 } else {
                     let next = self.nfa.alloc_state(depth)?;
-                    self.nfa.add_transition(prev, b, next);
+                    self.nfa.add_transition(prev, b, next)?;
                     if self.builder.ascii_case_insensitive {
                         let b = opposite_ascii_case(b);
-                        self.nfa.add_transition(prev, b, next);
+                        self.nfa.add_transition(prev, b, next)?;
                     }
                     prev = next;
                 }
             }
             // Once the pattern has been added, log the match in the final
             // state that it reached.
-            self.nfa.add_match(prev, pid);
+            self.nfa.add_match(prev, pid)?;
         }
         Ok(())
     }
@@ -1250,9 +1281,10 @@ impl<'a> Compiler<'a> {
         // transitions, then this would never terminate.
         let mut queue = VecDeque::new();
         let mut seen = self.queued_set();
-        let mut prevt = None;
-        while let Some(t) = self.nfa.next_transition(start_uid, prevt) {
-            prevt = Some(t);
+        let mut prev_link = None;
+        while let Some(link) = self.nfa.next_link(start_uid, prev_link) {
+            prev_link = Some(link);
+            let t = self.nfa.sparse[link];
 
             // Skip anything we've seen before and any self-transitions on the
             // start state.
@@ -1274,9 +1306,10 @@ impl<'a> Compiler<'a> {
             }
         }
         while let Some(id) = queue.pop_front() {
-            let mut prevt = None;
-            while let Some(t) = self.nfa.next_transition(id, prevt) {
-                prevt = Some(t);
+            let mut prev_link = None;
+            while let Some(link) = self.nfa.next_link(id, prev_link) {
+                prev_link = Some(link);
+                let t = self.nfa.sparse[link];
 
                 if seen.contains(t.next) {
                     // The only way to visit a duplicate state in a transition
@@ -1478,12 +1511,14 @@ impl<'a> Compiler<'a> {
                 continue;
             }
             let dense = self.nfa.alloc_dense_state()?;
-            let mut prevt = None;
-            while let Some(t) = self.nfa.next_transition(sid, prevt) {
+            let mut prev_link = None;
+            while let Some(link) = self.nfa.next_link(sid, prev_link) {
+                prev_link = Some(link);
+                let t = self.nfa.sparse[link];
+
                 let class = usize::from(self.nfa.byte_classes.get(t.byte));
                 let index = dense.as_usize() + class;
                 self.nfa.dense[index] = t.next;
-                prevt = Some(t);
             }
             self.nfa.states[sid].dense = dense;
         }
@@ -1511,11 +1546,12 @@ impl<'a> Compiler<'a> {
     /// make the unanchored starting state dense, and thus in turn make
     /// transition lookups on it faster. (Which is worth doing because it's
     /// the most active state.)
-    fn init_unanchored_start_state(&mut self) {
+    fn init_unanchored_start_state(&mut self) -> Result<(), BuildError> {
         let start_uid = self.nfa.special.start_unanchored_id;
-        for byte in 0..=255 {
-            self.nfa.add_transition(start_uid, byte, NFA::FAIL);
-        }
+        let start_aid = self.nfa.special.start_anchored_id;
+        self.nfa.init_full_state(start_uid, NFA::FAIL)?;
+        self.nfa.init_full_state(start_aid, NFA::FAIL)?;
+        Ok(())
     }
 
     /// Setup the anchored start state by copying all of the transitions and
@@ -1525,10 +1561,18 @@ impl<'a> Compiler<'a> {
     fn set_anchored_start_state(&mut self) -> Result<(), BuildError> {
         let start_uid = self.nfa.special.start_unanchored_id;
         let start_aid = self.nfa.special.start_anchored_id;
-        let mut prevt = None;
-        while let Some(t) = self.nfa.next_transition(start_uid, prevt) {
-            prevt = Some(t);
-            self.nfa.add_transition(start_aid, t.byte, t.next)?;
+        let (mut uprev_link, mut aprev_link) = (None, None);
+        loop {
+            let unext = self.nfa.next_link(start_uid, uprev_link);
+            let anext = self.nfa.next_link(start_aid, aprev_link);
+            let (ulink, alink) = match (unext, anext) {
+                (Some(ulink), Some(alink)) => (ulink, alink),
+                (None, None) => break,
+                _ => unreachable!(),
+            };
+            uprev_link = Some(ulink);
+            aprev_link = Some(alink);
+            self.nfa.sparse[alink].next = self.nfa.sparse[ulink].next;
         }
         self.nfa.copy_matches(start_uid, start_aid)?;
         // This is the main difference between the unanchored and anchored
@@ -1552,9 +1596,11 @@ impl<'a> Compiler<'a> {
     /// state already exists or not.
     fn add_unanchored_start_state_loop(&mut self) {
         let start_uid = self.nfa.special.start_unanchored_id;
-        for b in 0..=255 {
-            if self.nfa.follow_transition(start_uid, b) == NFA::FAIL {
-                self.nfa.add_transition(start_uid, b, start_uid);
+        let mut prev_link = None;
+        while let Some(link) = self.nfa.next_link(start_uid, prev_link) {
+            prev_link = Some(link);
+            if self.nfa.sparse[link].next() == NFA::FAIL {
+                self.nfa.sparse[link].next = start_uid;
             }
         }
     }
@@ -1574,11 +1620,18 @@ impl<'a> Compiler<'a> {
     fn close_start_state_loop_for_leftmost(&mut self) {
         let start_uid = self.nfa.special.start_unanchored_id;
         let start = &mut self.nfa.states[start_uid];
+        let dense = start.dense;
         if self.builder.match_kind.is_leftmost() && start.is_match() {
-            for b in 0..=255 {
-                if self.nfa.follow_transition_sparse(start_uid, b) == start_uid
-                {
-                    self.nfa.add_transition(start_uid, b, NFA::DEAD);
+            let mut prev_link = None;
+            while let Some(link) = self.nfa.next_link(start_uid, prev_link) {
+                prev_link = Some(link);
+                if self.nfa.sparse[link].next() == start_uid {
+                    self.nfa.sparse[link].next = NFA::DEAD;
+                    if dense != StateID::ZERO {
+                        let b = self.nfa.sparse[link].byte;
+                        let class = usize::from(self.nfa.byte_classes.get(b));
+                        self.nfa.dense[dense.as_usize() + class] = NFA::DEAD;
+                    }
                 }
             }
         }
@@ -1587,10 +1640,9 @@ impl<'a> Compiler<'a> {
     /// Sets all transitions on the dead state to point back to the dead state.
     /// Normally, missing transitions map back to the failure state, but the
     /// point of the dead state is to act as a sink that can never be escaped.
-    fn add_dead_state_loop(&mut self) {
-        for b in 0..=255 {
-            self.nfa.add_transition(NFA::DEAD, b, NFA::DEAD);
-        }
+    fn add_dead_state_loop(&mut self) -> Result<(), BuildError> {
+        self.nfa.init_full_state(NFA::DEAD, NFA::DEAD)?;
+        Ok(())
     }
 }
 

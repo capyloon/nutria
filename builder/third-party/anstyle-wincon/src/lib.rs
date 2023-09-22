@@ -14,7 +14,7 @@ mod console;
 mod lockable;
 mod stream;
 #[cfg(windows)]
-mod windows;
+pub mod windows;
 
 pub use console::Console;
 pub use lockable::Lockable;

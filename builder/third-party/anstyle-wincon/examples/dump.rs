@@ -46,7 +46,7 @@ fn style(fixed: u8, layer: Layer, effects: anstyle::Effects) -> anstyle::Style {
 }
 
 fn print_number(
-    stdout: &mut anstyle_wincon::Console<std::io::StdoutLock<'_>>,
+    stdout: &mut anstyle_wincon::Console<std::io::StdoutLock<'static>>,
     fixed: u8,
     style: anstyle::Style,
 ) -> std::io::Result<()> {
@@ -72,17 +72,12 @@ struct Args {
     layer: Layer,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 enum Layer {
+    #[default]
     Fg,
     Bg,
     Underline,
-}
-
-impl Default for Layer {
-    fn default() -> Self {
-        Layer::Fg
-    }
 }
 
 impl Args {

@@ -19,7 +19,9 @@ use bitflags::bitflags;
 
 use crate::backend::c::{c_int, c_uint, c_void};
 use crate::backend::prctl::syscalls;
-use crate::ffi::{CStr, CString};
+use crate::ffi::CStr;
+#[cfg(feature = "alloc")]
+use crate::ffi::CString;
 use crate::io;
 use crate::pid::Pid;
 use crate::prctl::{
@@ -61,6 +63,7 @@ pub fn set_keep_capabilities(enable: bool) -> io::Result<()> {
 // PR_GET_NAME/PR_SET_NAME
 //
 
+#[cfg(feature = "alloc")]
 const PR_GET_NAME: c_int = 16;
 
 /// Get the name of the calling thread.
@@ -70,6 +73,7 @@ const PR_GET_NAME: c_int = 16;
 ///
 /// [`prctl(PR_GET_NAME,...)`]: https://man7.org/linux/man-pages/man2/prctl.2.html
 #[inline]
+#[cfg(feature = "alloc")]
 pub fn name() -> io::Result<CString> {
     let mut buffer = [0_u8; 16];
     unsafe { prctl_2args(PR_GET_NAME, buffer.as_mut_ptr().cast())? };
@@ -438,6 +442,9 @@ bitflags! {
         const NO_CAP_AMBIENT_RAISE = 1_u32 << 6;
         /// Set [`NO_CAP_AMBIENT_RAISE`] irreversibly.
         const NO_CAP_AMBIENT_RAISE_LOCKED = 1_u32 << 7;
+
+        /// <https://docs.rs/bitflags/latest/bitflags/#externally-defined-flags>
+        const _ = !0;
     }
 }
 
@@ -745,6 +752,9 @@ bitflags! {
         const TCF_SYNC = 1_u32 << 1;
         /// Asynchronous tag check fault mode.
         const TCF_ASYNC = 1_u32 << 2;
+
+        /// <https://docs.rs/bitflags/latest/bitflags/#externally-defined-flags>
+        const _ = !0;
     }
 }
 

@@ -21,9 +21,11 @@ use std::os::windows::io::{FromRawSocket, IntoRawSocket};
 use std::time::Duration;
 
 use crate::sys::{self, c_int, getsockopt, setsockopt, Bool};
+#[cfg(all(unix, not(target_os = "redox")))]
+use crate::MsgHdrMut;
 use crate::{Domain, Protocol, SockAddr, TcpKeepalive, Type};
 #[cfg(not(target_os = "redox"))]
-use crate::{MaybeUninitSlice, RecvFlags};
+use crate::{MaybeUninitSlice, MsgHdr, RecvFlags};
 
 /// Owned wrapper around a system socket.
 ///
@@ -46,8 +48,8 @@ use crate::{MaybeUninitSlice, RecvFlags};
 /// # Notes
 ///
 /// Some methods that set options on `Socket` require two system calls to set
-/// there options without overwriting previously set options. We do this by
-/// first getting the current settings, applying the desired changes and than
+/// their options without overwriting previously set options. We do this by
+/// first getting the current settings, applying the desired changes, and then
 /// updating the settings. This means that the operation is **not** atomic. This
 /// can lead to a data race when two threads are changing options in parallel.
 ///
@@ -627,6 +629,19 @@ impl Socket {
         sys::peek_sender(self.as_raw())
     }
 
+    /// Receive a message from a socket using a message structure.
+    ///
+    /// This is not supported on Windows as calling `WSARecvMsg` (the `recvmsg`
+    /// equivalent) is not straight forward on Windows. See
+    /// <https://github.com/microsoft/Windows-classic-samples/blob/7cbd99ac1d2b4a0beffbaba29ea63d024ceff700/Samples/Win7Samples/netds/winsock/recvmsg/rmmc.cpp>
+    /// for an example (in C++).
+    #[doc = man_links!(recvmsg(2))]
+    #[cfg(all(unix, not(target_os = "redox")))]
+    #[cfg_attr(docsrs, doc(cfg(all(unix, not(target_os = "redox")))))]
+    pub fn recvmsg(&self, msg: &mut MsgHdrMut<'_, '_, '_>, flags: sys::c_int) -> io::Result<usize> {
+        sys::recvmsg(self.as_raw(), msg, flags)
+    }
+
     /// Sends data on the socket to a connected peer.
     ///
     /// This is typically used on TCP sockets or datagram sockets which have
@@ -725,6 +740,14 @@ impl Socket {
     ) -> io::Result<usize> {
         sys::send_to_vectored(self.as_raw(), bufs, addr, flags)
     }
+
+    /// Send a message on a socket using a message structure.
+    #[doc = man_links!(sendmsg(2))]
+    #[cfg(not(target_os = "redox"))]
+    #[cfg_attr(docsrs, doc(cfg(not(target_os = "redox"))))]
+    pub fn sendmsg(&self, msg: &MsgHdr<'_, '_, '_>, flags: sys::c_int) -> io::Result<usize> {
+        sys::sendmsg(self.as_raw(), msg, flags)
+    }
 }
 
 /// Set `SOCK_CLOEXEC` and `NO_HANDLE_INHERIT` on the `ty`pe on platforms that
@@ -767,6 +790,7 @@ fn set_common_flags(socket: Socket) -> io::Result<Socket> {
             target_os = "linux",
             target_os = "netbsd",
             target_os = "openbsd",
+            target_os = "espidf",
         ))
     ))]
     socket._set_cloexec(true)?;
@@ -1085,8 +1109,11 @@ impl Socket {
     /// For more information about this option, see [`set_header_included`].
     ///
     /// [`set_header_included`]: Socket::set_header_included
-    #[cfg(all(feature = "all", not(target_os = "redox")))]
-    #[cfg_attr(docsrs, doc(cfg(all(feature = "all", not(target_os = "redox")))))]
+    #[cfg(all(feature = "all", not(any(target_os = "redox", target_os = "espidf"))))]
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(all(feature = "all", not(any(target_os = "redox", target_os = "espidf")))))
+    )]
     pub fn header_included(&self) -> io::Result<bool> {
         unsafe {
             getsockopt::<c_int>(self.as_raw(), sys::IPPROTO_IP, sys::IP_HDRINCL)
@@ -1109,8 +1136,11 @@ impl Socket {
         any(target_os = "fuchsia", target_os = "illumos", target_os = "solaris"),
         allow(rustdoc::broken_intra_doc_links)
     )]
-    #[cfg(all(feature = "all", not(target_os = "redox")))]
-    #[cfg_attr(docsrs, doc(cfg(all(feature = "all", not(target_os = "redox")))))]
+    #[cfg(all(feature = "all", not(any(target_os = "redox", target_os = "espidf"))))]
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(all(feature = "all", not(any(target_os = "redox", target_os = "espidf")))))
+    )]
     pub fn set_header_included(&self, included: bool) -> io::Result<()> {
         unsafe {
             setsockopt(
@@ -1214,6 +1244,7 @@ impl Socket {
         target_os = "redox",
         target_os = "solaris",
         target_os = "nto",
+        target_os = "espidf",
     )))]
     pub fn join_multicast_v4_n(
         &self,
@@ -1245,6 +1276,7 @@ impl Socket {
         target_os = "redox",
         target_os = "solaris",
         target_os = "nto",
+        target_os = "espidf",
     )))]
     pub fn leave_multicast_v4_n(
         &self,
@@ -1277,6 +1309,7 @@ impl Socket {
         target_os = "redox",
         target_os = "fuchsia",
         target_os = "nto",
+        target_os = "espidf",
     )))]
     pub fn join_ssm_v4(
         &self,
@@ -1312,6 +1345,7 @@ impl Socket {
         target_os = "redox",
         target_os = "fuchsia",
         target_os = "nto",
+        target_os = "espidf",
     )))]
     pub fn leave_ssm_v4(
         &self,
@@ -1489,6 +1523,7 @@ impl Socket {
         target_os = "solaris",
         target_os = "haiku",
         target_os = "nto",
+        target_os = "espidf",
     )))]
     pub fn set_recv_tos(&self, recv_tos: bool) -> io::Result<()> {
         unsafe {
@@ -1517,6 +1552,7 @@ impl Socket {
         target_os = "solaris",
         target_os = "haiku",
         target_os = "nto",
+        target_os = "espidf",
     )))]
     pub fn recv_tos(&self) -> io::Result<bool> {
         unsafe {
@@ -1732,6 +1768,7 @@ impl Socket {
         target_os = "redox",
         target_os = "solaris",
         target_os = "haiku",
+        target_os = "espidf",
     )))]
     pub fn recv_tclass_v6(&self) -> io::Result<bool> {
         unsafe {
@@ -1754,6 +1791,7 @@ impl Socket {
         target_os = "redox",
         target_os = "solaris",
         target_os = "haiku",
+        target_os = "espidf",
     )))]
     pub fn set_recv_tclass_v6(&self, recv_tclass: bool) -> io::Result<()> {
         unsafe {

@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.64.0"
+rust-version = "1.70.0"
 name = "anstyle-wincon"
-version = "1.0.2"
+version = "2.1.0"
 include = [
     "build.rs",
     "src/**/*",

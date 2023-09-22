@@ -10,16 +10,11 @@
 use crate::backend::conv::loff_t_from_u64;
 #[cfg(all(
     target_pointer_width = "32",
-    any(
-        target_arch = "arm",
-        target_arch = "mips",
-        target_arch = "mips32r6",
-        target_arch = "power"
-    ),
+    any(target_arch = "arm", target_arch = "mips", target_arch = "mips32r6"),
 ))]
 use crate::backend::conv::zero;
 use crate::backend::conv::{
-    by_ref, c_uint, raw_fd, ret, ret_c_uint, ret_discarded_fd, ret_owned_fd, ret_usize, slice,
+    c_uint, raw_fd, ret, ret_c_int, ret_c_uint, ret_discarded_fd, ret_owned_fd, ret_usize, slice,
     slice_mut,
 };
 #[cfg(target_pointer_width = "32")]
@@ -27,12 +22,11 @@ use crate::backend::conv::{hi, lo};
 use crate::backend::{c, MAX_IOV};
 use crate::fd::{AsFd, BorrowedFd, OwnedFd, RawFd};
 use crate::io::{self, DupFlags, FdFlags, IoSlice, IoSliceMut, ReadWriteFlags};
+use crate::ioctl::{IoctlOutput, RawOpcode};
 #[cfg(all(feature = "fs", feature = "net"))]
 use crate::net::{RecvFlags, SendFlags};
 use core::cmp;
-use core::mem::MaybeUninit;
 use linux_raw_sys::general::{F_DUPFD_CLOEXEC, F_GETFD, F_SETFD};
-use linux_raw_sys::ioctl::{FIONBIO, FIONREAD};
 
 #[inline]
 pub(crate) fn read(fd: BorrowedFd<'_>, buf: &mut [u8]) -> io::Result<usize> {
@@ -48,12 +42,7 @@ pub(crate) fn pread(fd: BorrowedFd<'_>, buf: &mut [u8], pos: u64) -> io::Result<
     // <https://github.com/torvalds/linux/blob/fcadab740480e0e0e9fa9bd272acd409884d431a/arch/arm64/kernel/sys32.c#L75>
     #[cfg(all(
         target_pointer_width = "32",
-        any(
-            target_arch = "arm",
-            target_arch = "mips",
-            target_arch = "mips32r6",
-            target_arch = "power"
-        ),
+        any(target_arch = "arm", target_arch = "mips", target_arch = "mips32r6"),
     ))]
     unsafe {
         ret_usize(syscall!(
@@ -68,12 +57,7 @@ pub(crate) fn pread(fd: BorrowedFd<'_>, buf: &mut [u8], pos: u64) -> io::Result<
     }
     #[cfg(all(
         target_pointer_width = "32",
-        not(any(
-            target_arch = "arm",
-            target_arch = "mips",
-            target_arch = "mips32r6",
-            target_arch = "power"
-        )),
+        not(any(target_arch = "arm", target_arch = "mips", target_arch = "mips32r6")),
     ))]
     unsafe {
         ret_usize(syscall!(
@@ -183,12 +167,7 @@ pub(crate) fn pwrite(fd: BorrowedFd<'_>, buf: &[u8], pos: u64) -> io::Result<usi
     // <https://github.com/torvalds/linux/blob/fcadab740480e0e0e9fa9bd272acd409884d431a/arch/arm64/kernel/sys32.c#L81-L83>
     #[cfg(all(
         target_pointer_width = "32",
-        any(
-            target_arch = "arm",
-            target_arch = "mips",
-            target_arch = "mips32r6",
-            target_arch = "power"
-        ),
+        any(target_arch = "arm", target_arch = "mips", target_arch = "mips32r6"),
     ))]
     unsafe {
         ret_usize(syscall_readonly!(
@@ -203,12 +182,7 @@ pub(crate) fn pwrite(fd: BorrowedFd<'_>, buf: &[u8], pos: u64) -> io::Result<usi
     }
     #[cfg(all(
         target_pointer_width = "32",
-        not(any(
-            target_arch = "arm",
-            target_arch = "mips",
-            target_arch = "mips32r6",
-            target_arch = "power"
-        )),
+        not(any(target_arch = "arm", target_arch = "mips", target_arch = "mips32r6")),
     ))]
     unsafe {
         ret_usize(syscall_readonly!(
@@ -307,25 +281,21 @@ pub(crate) unsafe fn close(fd: RawFd) {
 }
 
 #[inline]
-pub(crate) fn ioctl_fionread(fd: BorrowedFd<'_>) -> io::Result<u64> {
-    unsafe {
-        let mut result = MaybeUninit::<c::c_int>::uninit();
-        ret(syscall!(__NR_ioctl, fd, c_uint(FIONREAD), &mut result))?;
-        Ok(result.assume_init() as u64)
-    }
+pub(crate) unsafe fn ioctl(
+    fd: BorrowedFd<'_>,
+    request: RawOpcode,
+    arg: *mut c::c_void,
+) -> io::Result<IoctlOutput> {
+    ret_c_int(syscall!(__NR_ioctl, fd, c_uint(request), arg))
 }
 
 #[inline]
-pub(crate) fn ioctl_fionbio(fd: BorrowedFd<'_>, value: bool) -> io::Result<()> {
-    unsafe {
-        let data = c::c_int::from(value);
-        ret(syscall_readonly!(
-            __NR_ioctl,
-            fd,
-            c_uint(FIONBIO),
-            by_ref(&data)
-        ))
-    }
+pub(crate) unsafe fn ioctl_readonly(
+    fd: BorrowedFd<'_>,
+    request: RawOpcode,
+    arg: *mut c::c_void,
+) -> io::Result<IoctlOutput> {
+    ret_c_int(syscall_readonly!(__NR_ioctl, fd, c_uint(request), arg))
 }
 
 #[cfg(all(feature = "fs", feature = "net"))]
@@ -376,6 +346,7 @@ pub(crate) fn dup(fd: BorrowedFd<'_>) -> io::Result<OwnedFd> {
     unsafe { ret_owned_fd(syscall_readonly!(__NR_dup, fd)) }
 }
 
+#[allow(clippy::needless_pass_by_ref_mut)]
 #[inline]
 pub(crate) fn dup2(fd: BorrowedFd<'_>, new: &mut OwnedFd) -> io::Result<()> {
     #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
@@ -392,6 +363,7 @@ pub(crate) fn dup2(fd: BorrowedFd<'_>, new: &mut OwnedFd) -> io::Result<()> {
     }
 }
 
+#[allow(clippy::needless_pass_by_ref_mut)]
 #[inline]
 pub(crate) fn dup3(fd: BorrowedFd<'_>, new: &mut OwnedFd, flags: DupFlags) -> io::Result<()> {
     unsafe { ret_discarded_fd(syscall_readonly!(__NR_dup3, fd, new.as_fd(), flags)) }

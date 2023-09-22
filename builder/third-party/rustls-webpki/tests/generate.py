@@ -314,13 +314,6 @@ def tls_server_certs(force: bool) -> None:
 
         generate_tls_server_cert_test(
             output,
-            "disallow_subject_common_name",
-            expected_error="NameConstraintViolation",
-            subject_common_name="disallowed.example.com",
-            excluded_subtrees=[x509.DNSName("disallowed.example.com")],
-        )
-        generate_tls_server_cert_test(
-            output,
             "disallow_dns_san",
             expected_error="NameConstraintViolation",
             sans=[x509.DNSName("disallowed.example.com")],
@@ -352,15 +345,6 @@ def tls_server_certs(force: bool) -> None:
                 x509.DNSName("allowed-san.example.com"),
                 x509.DNSName("allowed-cn.example.com"),
             ],
-        )
-        generate_tls_server_cert_test(
-            output,
-            "allow_dns_san_and_disallow_subject_common_name",
-            expected_error="NameConstraintViolation",
-            sans=[x509.DNSName("allowed-san.example.com")],
-            subject_common_name="disallowed-cn.example.com",
-            permitted_subtrees=[x509.DNSName("allowed-san.example.com")],
-            excluded_subtrees=[x509.DNSName("disallowed-cn.example.com")],
         )
         generate_tls_server_cert_test(
             output,

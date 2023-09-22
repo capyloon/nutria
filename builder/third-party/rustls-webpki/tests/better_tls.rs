@@ -15,7 +15,7 @@ pub fn path_building() {
     let path_building_suite = better_tls
         .suites
         .get("pathbuilding")
-        .expect("missing pathbuilding suite");
+        .unwrap_or_else(|| panic!("missing pathbuilding suite"));
 
     for testcase in &path_building_suite.test_cases {
         println!("Testing path building test case {:?}", testcase.id);

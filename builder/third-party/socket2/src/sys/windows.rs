@@ -20,6 +20,8 @@ use std::time::{Duration, Instant};
 use std::{process, ptr, slice};
 
 use windows_sys::Win32::Foundation::{SetHandleInformation, HANDLE, HANDLE_FLAG_INHERIT};
+#[cfg(feature = "all")]
+use windows_sys::Win32::Networking::WinSock::SO_PROTOCOL_INFOW;
 use windows_sys::Win32::Networking::WinSock::{
     self, tcp_keepalive, FIONBIO, IN6_ADDR, IN6_ADDR_0, INVALID_SOCKET, IN_ADDR, IN_ADDR_0,
     POLLERR, POLLHUP, POLLRDNORM, POLLWRNORM, SD_BOTH, SD_RECEIVE, SD_SEND, SIO_KEEPALIVE_VALS,
@@ -28,7 +30,7 @@ use windows_sys::Win32::Networking::WinSock::{
 };
 use windows_sys::Win32::System::Threading::INFINITE;
 
-use crate::{RecvFlags, SockAddr, TcpKeepalive, Type};
+use crate::{MsgHdr, RecvFlags, SockAddr, TcpKeepalive, Type};
 
 #[allow(non_camel_case_types)]
 pub(crate) type c_int = std::os::raw::c_int;
@@ -61,7 +63,7 @@ pub(crate) use windows_sys::Win32::Networking::WinSock::{
     SOCKADDR_STORAGE as sockaddr_storage,
 };
 #[allow(non_camel_case_types)]
-pub(crate) type sa_family_t = windows_sys::Win32::Networking::WinSock::sa_family_t;
+pub(crate) type sa_family_t = windows_sys::Win32::Networking::WinSock::ADDRESS_FAMILY;
 #[allow(non_camel_case_types)]
 pub(crate) type socklen_t = windows_sys::Win32::Networking::WinSock::socklen_t;
 // Used in `Socket`.
@@ -185,6 +187,32 @@ impl<'a> MaybeUninitSlice<'a> {
     pub fn as_mut_slice(&mut self) -> &mut [MaybeUninit<u8>] {
         unsafe { slice::from_raw_parts_mut(self.vec.buf.cast(), self.vec.len as usize) }
     }
+}
+
+// Used in `MsgHdr`.
+pub(crate) use windows_sys::Win32::Networking::WinSock::WSAMSG as msghdr;
+
+pub(crate) fn set_msghdr_name(msg: &mut msghdr, name: &SockAddr) {
+    msg.name = name.as_ptr() as *mut _;
+    msg.namelen = name.len();
+}
+
+pub(crate) fn set_msghdr_iov(msg: &mut msghdr, ptr: *mut WSABUF, len: usize) {
+    msg.lpBuffers = ptr;
+    msg.dwBufferCount = min(len, u32::MAX as usize) as u32;
+}
+
+pub(crate) fn set_msghdr_control(msg: &mut msghdr, ptr: *mut u8, len: usize) {
+    msg.Control.buf = ptr;
+    msg.Control.len = len as u32;
+}
+
+pub(crate) fn set_msghdr_flags(msg: &mut msghdr, flags: c_int) {
+    msg.dwFlags = flags as u32;
+}
+
+pub(crate) fn msghdr_flags(msg: &msghdr) -> RecvFlags {
+    RecvFlags(msg.dwFlags as c_int)
 }
 
 fn init() {
@@ -637,6 +665,23 @@ pub(crate) fn send_to_vectored(
     .map(|_| nsent as usize)
 }
 
+pub(crate) fn sendmsg(socket: Socket, msg: &MsgHdr<'_, '_, '_>, flags: c_int) -> io::Result<usize> {
+    let mut nsent = 0;
+    syscall!(
+        WSASendMsg(
+            socket,
+            &msg.inner,
+            flags as u32,
+            &mut nsent,
+            ptr::null_mut(),
+            None,
+        ),
+        PartialEq::eq,
+        SOCKET_ERROR
+    )
+    .map(|_| nsent as usize)
+}
+
 /// Wrapper around `getsockopt` to deal with platform specific timeouts.
 pub(crate) fn timeout_opt(fd: Socket, lvl: c_int, name: i32) -> io::Result<Option<Duration>> {
     unsafe { getsockopt(fd, lvl, name).map(from_ms) }
@@ -875,6 +920,21 @@ impl crate::Socket {
             Err(io::Error::last_os_error())
         } else {
             Ok(())
+        }
+    }
+
+    /// Returns the [`Protocol`] of this socket by checking the `SO_PROTOCOL_INFOW`
+    /// option on this socket.
+    ///
+    /// [`Protocol`]: crate::Protocol
+    #[cfg(feature = "all")]
+    pub fn protocol(&self) -> io::Result<Option<crate::Protocol>> {
+        let info = unsafe {
+            getsockopt::<WSAPROTOCOL_INFOW>(self.as_raw(), SOL_SOCKET, SO_PROTOCOL_INFOW)?
+        };
+        match info.iProtocol {
+            0 => Ok(None),
+            p => Ok(Some(crate::Protocol::from(p))),
         }
     }
 }

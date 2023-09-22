@@ -17,7 +17,7 @@ impl Color {
 
     /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
-    pub fn on_default(self) -> crate::Style {
+    pub const fn on_default(self) -> crate::Style {
         crate::Style::new().fg_color(Some(self))
     }
 
@@ -185,8 +185,8 @@ impl AnsiColor {
 
     /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
-    pub fn on_default(self) -> crate::Style {
-        crate::Style::new().fg_color(Some(self.into()))
+    pub const fn on_default(self) -> crate::Style {
+        crate::Style::new().fg_color(Some(Color::Ansi(self)))
     }
 
     /// Render the ANSI code for a foreground color
@@ -340,8 +340,8 @@ impl Ansi256Color {
 
     /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
-    pub fn on_default(self) -> crate::Style {
-        crate::Style::new().fg_color(Some(self.into()))
+    pub const fn on_default(self) -> crate::Style {
+        crate::Style::new().fg_color(Some(Color::Ansi256(self)))
     }
 
     #[inline]
@@ -460,8 +460,8 @@ impl RgbColor {
 
     /// Create a [`Style`][crate::Style] with this as the foreground
     #[inline]
-    pub fn on_default(self) -> crate::Style {
-        crate::Style::new().fg_color(Some(self.into()))
+    pub const fn on_default(self) -> crate::Style {
+        crate::Style::new().fg_color(Some(Color::Rgb(self)))
     }
 
     #[inline]
@@ -598,6 +598,7 @@ impl core::fmt::Display for DisplayBuffer {
 }
 
 #[cfg(test)]
+#[cfg(feature = "std")]
 mod test {
     use super::*;
 

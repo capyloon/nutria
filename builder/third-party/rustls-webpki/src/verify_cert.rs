@@ -12,6 +12,9 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+use core::default::Default;
+use core::ops::ControlFlow;
+
 use crate::{
     cert::{Cert, EndEntityOrCa},
     der, signed_data, subject_name, time, CertRevocationList, Error, SignatureAlgorithm,
@@ -27,7 +30,10 @@ pub(crate) struct ChainOptions<'a> {
 }
 
 pub(crate) fn build_chain(opts: &ChainOptions, cert: &Cert, time: time::Time) -> Result<(), Error> {
-    build_chain_inner(opts, cert, time, 0, &mut 0_usize)
+    build_chain_inner(opts, cert, time, 0, &mut Budget::default()).map_err(|e| match e {
+        ControlFlow::Break(err) => err,
+        ControlFlow::Continue(err) => err,
+    })
 }
 
 fn build_chain_inner(
@@ -35,8 +41,8 @@ fn build_chain_inner(
     cert: &Cert,
     time: time::Time,
     sub_ca_count: usize,
-    signatures: &mut usize,
-) -> Result<(), Error> {
+    budget: &mut Budget,
+) -> Result<(), ControlFlow<Error, Error>> {
     let used_as_ca = used_as_ca(&cert.ee_or_ca);
 
     check_issuer_independent_properties(cert, time, used_as_ca, sub_ca_count, opts.eku.inner)?;
@@ -48,8 +54,7 @@ fn build_chain_inner(
             const MAX_SUB_CA_COUNT: usize = 6;
 
             if sub_ca_count >= MAX_SUB_CA_COUNT {
-                // TODO(XXX): Candidate for a more specific error - Error::PathTooDeep?
-                return Err(Error::UnknownIssuer);
+                return Err(Error::MaximumPathDepthExceeded.into());
             }
         }
         UsedAsCa::No => {
@@ -57,44 +62,26 @@ fn build_chain_inner(
         }
     }
 
-    // for the purpose of name constraints checking, only end-entity server certificates
-    // could plausibly have a DNS name as a subject commonName that could contribute to
-    // path validity
-    let subject_common_name_contents = if opts
-        .eku
-        .inner
-        .key_purpose_id_equals(EKU_SERVER_AUTH.oid_value)
-        && used_as_ca == UsedAsCa::No
-    {
-        subject_name::SubjectCommonNameContents::DnsName
-    } else {
-        subject_name::SubjectCommonNameContents::Ignore
-    };
-
     let result = loop_while_non_fatal_error(
         Error::UnknownIssuer,
         opts.trust_anchors,
         |trust_anchor: &TrustAnchor| {
             let trust_anchor_subject = untrusted::Input::from(trust_anchor.subject);
             if cert.issuer != trust_anchor_subject {
-                return Err(Error::UnknownIssuer);
+                return Err(Error::UnknownIssuer.into());
             }
-
-            let name_constraints = trust_anchor.name_constraints.map(untrusted::Input::from);
-
-            untrusted::read_all_optional(name_constraints, Error::BadDer, |value| {
-                subject_name::check_name_constraints(value, cert, subject_common_name_contents)
-            })?;
 
             // TODO: check_distrust(trust_anchor_subject, trust_anchor_spki)?;
 
-            check_signatures(
+            check_signed_chain(
                 opts.supported_sig_algs,
                 cert,
                 trust_anchor,
                 opts.crls,
-                signatures,
+                budget,
             )?;
+
+            check_signed_chain_name_constraints(cert, trust_anchor, budget)?;
 
             Ok(())
         },
@@ -102,7 +89,12 @@ fn build_chain_inner(
 
     let err = match result {
         Ok(()) => return Ok(()),
-        Err(err) => err,
+        // Fatal errors should halt further path building.
+        res @ Err(ControlFlow::Break(_)) => return res,
+        // Non-fatal errors should be carried forward as the default_error for subsequent
+        // loop_while_non_fatal_error processing and only returned once all other path-building
+        // options have been exhausted.
+        Err(ControlFlow::Continue(err)) => err,
     };
 
     loop_while_non_fatal_error(err, opts.intermediate_certs, |cert_der| {
@@ -110,7 +102,7 @@ fn build_chain_inner(
             Cert::from_der(untrusted::Input::from(cert_der), EndEntityOrCa::Ca(cert))?;
 
         if potential_issuer.subject != cert.issuer {
-            return Err(Error::UnknownIssuer);
+            return Err(Error::UnknownIssuer.into());
         }
 
         // Prevent loops; see RFC 4158 section 5.2.
@@ -119,7 +111,7 @@ fn build_chain_inner(
             if potential_issuer.spki.value() == prev.spki.value()
                 && potential_issuer.subject == prev.subject
             {
-                return Err(Error::UnknownIssuer);
+                return Err(Error::UnknownIssuer.into());
             }
             match &prev.ee_or_ca {
                 EndEntityOrCa::EndEntity => {
@@ -131,36 +123,29 @@ fn build_chain_inner(
             }
         }
 
-        untrusted::read_all_optional(potential_issuer.name_constraints, Error::BadDer, |value| {
-            subject_name::check_name_constraints(value, cert, subject_common_name_contents)
-        })?;
-
         let next_sub_ca_count = match used_as_ca {
             UsedAsCa::No => sub_ca_count,
             UsedAsCa::Yes => sub_ca_count + 1,
         };
 
-        build_chain_inner(opts, &potential_issuer, time, next_sub_ca_count, signatures)
+        budget.consume_build_chain_call()?;
+        build_chain_inner(opts, &potential_issuer, time, next_sub_ca_count, budget)
     })
 }
 
-fn check_signatures(
+fn check_signed_chain(
     supported_sig_algs: &[&SignatureAlgorithm],
     cert_chain: &Cert,
     trust_anchor: &TrustAnchor,
     crls: &[&dyn CertRevocationList],
-    signatures: &mut usize,
-) -> Result<(), Error> {
+    budget: &mut Budget,
+) -> Result<(), ControlFlow<Error, Error>> {
     let mut spki_value = untrusted::Input::from(trust_anchor.spki);
     let mut issuer_subject = untrusted::Input::from(trust_anchor.subject);
     let mut issuer_key_usage = None; // TODO(XXX): Consider whether to track TrustAnchor KU.
     let mut cert = cert_chain;
     loop {
-        *signatures += 1;
-        if *signatures > 100 {
-            return Err(Error::MaximumSignatureChecksExceeded);
-        }
-        signed_data::verify_signed_data(supported_sig_algs, spki_value, &cert.signed_data)?;
+        signed_data::verify_signed_data(supported_sig_algs, spki_value, &cert.signed_data, budget)?;
 
         if !crls.is_empty() {
             check_crls(
@@ -170,6 +155,7 @@ fn check_signatures(
                 spki_value,
                 issuer_key_usage,
                 crls,
+                budget,
             )?;
         }
 
@@ -187,6 +173,91 @@ fn check_signatures(
     }
 
     Ok(())
+}
+
+fn check_signed_chain_name_constraints(
+    cert_chain: &Cert,
+    trust_anchor: &TrustAnchor,
+    budget: &mut Budget,
+) -> Result<(), ControlFlow<Error, Error>> {
+    let mut cert = cert_chain;
+    let mut name_constraints = trust_anchor
+        .name_constraints
+        .as_ref()
+        .map(|der| untrusted::Input::from(der));
+
+    loop {
+        untrusted::read_all_optional(name_constraints, Error::BadDer, |value| {
+            subject_name::check_name_constraints(value, cert, budget)
+        })?;
+
+        match &cert.ee_or_ca {
+            EndEntityOrCa::Ca(child_cert) => {
+                name_constraints = cert.name_constraints;
+                cert = child_cert;
+            }
+            EndEntityOrCa::EndEntity => {
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub(crate) struct Budget {
+    signatures: usize,
+    build_chain_calls: usize,
+    name_constraint_comparisons: usize,
+}
+
+impl Budget {
+    #[inline]
+    pub(crate) fn consume_signature(&mut self) -> Result<(), Error> {
+        self.signatures = self
+            .signatures
+            .checked_sub(1)
+            .ok_or(Error::MaximumSignatureChecksExceeded)?;
+        Ok(())
+    }
+
+    #[inline]
+    fn consume_build_chain_call(&mut self) -> Result<(), Error> {
+        self.build_chain_calls = self
+            .build_chain_calls
+            .checked_sub(1)
+            .ok_or(Error::MaximumPathBuildCallsExceeded)?;
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn consume_name_constraint_comparison(&mut self) -> Result<(), Error> {
+        self.name_constraint_comparisons = self
+            .name_constraint_comparisons
+            .checked_sub(1)
+            .ok_or(Error::MaximumNameConstraintComparisonsExceeded)?;
+        Ok(())
+    }
+}
+
+impl Default for Budget {
+    fn default() -> Self {
+        Self {
+            // This limit is taken from the remediation for golang CVE-2018-16875.  However,
+            // note that golang subsequently implemented AKID matching due to this limit
+            // being hit in real applications (see <https://github.com/spiffe/spire/issues/1004>).
+            // So this may actually be too aggressive.
+            signatures: 100,
+
+            // This limit is taken from NSS libmozpkix, see:
+            // <https://github.com/nss-dev/nss/blob/bb4a1d38dd9e92923525ac6b5ed0288479f3f3fc/lib/mozpkix/lib/pkixbuild.cpp#L381-L393>
+            build_chain_calls: 200_000,
+
+            // This limit is taken from golang crypto/x509's default, see:
+            // <https://github.com/golang/go/blob/ac17bb6f13979f2ab9fcd45f0758b43ed72d0973/src/crypto/x509/verify.go#L588-L592>
+            name_constraint_comparisons: 250_000,
+        }
+    }
 }
 
 // Zero-sized marker type representing positive assertion that revocation status was checked
@@ -207,6 +278,7 @@ fn check_crls(
     issuer_spki: untrusted::Input,
     issuer_ku: Option<untrusted::Input>,
     crls: &[&dyn CertRevocationList],
+    budget: &mut Budget,
 ) -> Result<Option<CertNotRevoked>, Error> {
     assert_eq!(cert.issuer, issuer_subject);
 
@@ -222,6 +294,10 @@ fn check_crls(
     // TODO(XXX): consider whether we can refactor so this happens once up-front, instead
     //            of per-lookup.
     //            https://github.com/rustls/webpki/issues/81
+    // Note: The `verify_signature` method is part of a public trait in the exported API.
+    //       We can't add a budget argument to that fn in a semver compatible way and so must
+    //       consume signature budget here before calling verify_signature.
+    budget.consume_signature()?;
     crl.verify_signature(supported_sig_algs, issuer_spki.as_slice_less_safe())
         .map_err(crl_signature_err)?;
 
@@ -499,8 +575,8 @@ impl KeyUsageMode {
 fn loop_while_non_fatal_error<V>(
     default_error: Error,
     values: V,
-    mut f: impl FnMut(V::Item) -> Result<(), Error>,
-) -> Result<(), Error>
+    mut f: impl FnMut(V::Item) -> Result<(), ControlFlow<Error, Error>>,
+) -> Result<(), ControlFlow<Error, Error>>
 where
     V: IntoIterator,
 {
@@ -508,16 +584,22 @@ where
     for v in values {
         match f(v) {
             Ok(()) => return Ok(()),
-            err @ Err(Error::MaximumSignatureChecksExceeded) => return err,
-            Err(new_error) => error = error.most_specific(new_error),
+            // Fatal errors should halt further looping.
+            res @ Err(ControlFlow::Break(_)) => return res,
+            // Non-fatal errors should be ranked by specificity and only returned
+            // once all other path-building options have been exhausted.
+            Err(ControlFlow::Continue(new_error)) => error = error.most_specific(new_error),
         }
     }
-    Err(error)
+    Err(error.into())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "alloc")]
+    use crate::test_utils::{make_end_entity, make_issuer};
 
     #[test]
     fn eku_key_purpose_id() {
@@ -525,65 +607,221 @@ mod tests {
             .key_purpose_id_equals(EKU_SERVER_AUTH.oid_value))
     }
 
-    #[test]
     #[cfg(feature = "alloc")]
-    fn test_too_many_signatures() {
-        use crate::ECDSA_P256_SHA256;
-        use crate::{EndEntityCert, Time};
+    enum TrustAnchorIsActualIssuer {
+        Yes,
+        No,
+    }
 
-        let alg = &rcgen::PKCS_ECDSA_P256_SHA256;
-
-        let make_issuer = || {
-            let mut ca_params = rcgen::CertificateParams::new(Vec::new());
-            ca_params
-                .distinguished_name
-                .push(rcgen::DnType::OrganizationName, "Bogus Subject");
-            ca_params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-            ca_params.key_usages = vec![
-                rcgen::KeyUsagePurpose::KeyCertSign,
-                rcgen::KeyUsagePurpose::DigitalSignature,
-                rcgen::KeyUsagePurpose::CrlSign,
-            ];
-            ca_params.alg = alg;
-            rcgen::Certificate::from_params(ca_params).unwrap()
-        };
-
-        let ca_cert = make_issuer();
+    #[cfg(feature = "alloc")]
+    fn build_degenerate_chain(
+        intermediate_count: usize,
+        trust_anchor_is_actual_issuer: TrustAnchorIsActualIssuer,
+        budget: Option<Budget>,
+    ) -> ControlFlow<Error, Error> {
+        let ca_cert = make_issuer("Bogus Subject", None);
         let ca_cert_der = ca_cert.serialize_der().unwrap();
 
-        let mut intermediates = Vec::with_capacity(101);
+        let mut intermediates = Vec::with_capacity(intermediate_count);
         let mut issuer = ca_cert;
-        for _ in 0..101 {
-            let intermediate = make_issuer();
+        for _ in 0..intermediate_count {
+            let intermediate = make_issuer("Bogus Subject", None);
             let intermediate_der = intermediate.serialize_der_with_signer(&issuer).unwrap();
             intermediates.push(intermediate_der);
             issuer = intermediate;
         }
 
-        let mut ee_params = rcgen::CertificateParams::new(vec!["example.com".to_string()]);
-        ee_params.is_ca = rcgen::IsCa::ExplicitNoCa;
-        ee_params.alg = alg;
-        let ee_cert = rcgen::Certificate::from_params(ee_params).unwrap();
-        let ee_cert_der = ee_cert.serialize_der_with_signer(&issuer).unwrap();
+        if let TrustAnchorIsActualIssuer::No = trust_anchor_is_actual_issuer {
+            intermediates.pop();
+        }
 
-        let anchors = &[TrustAnchor::try_from_cert_der(&ca_cert_der).unwrap()];
+        verify_chain(
+            &ca_cert_der,
+            &intermediates,
+            &make_end_entity(&issuer),
+            budget,
+        )
+        .unwrap_err()
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_too_many_signatures() {
+        assert!(matches!(
+            build_degenerate_chain(5, TrustAnchorIsActualIssuer::Yes, None),
+            ControlFlow::Break(Error::MaximumSignatureChecksExceeded)
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_too_many_path_calls() {
+        assert!(matches!(
+            build_degenerate_chain(
+                10,
+                TrustAnchorIsActualIssuer::No,
+                Some(Budget {
+                    // Crafting a chain that will expend the build chain calls budget without
+                    // first expending the signature checks budget is tricky, so we artificially
+                    // inflate the signature limit to make this test easier to write.
+                    signatures: usize::MAX,
+                    ..Budget::default()
+                })
+            ),
+            ControlFlow::Break(Error::MaximumPathBuildCallsExceeded)
+        ));
+    }
+
+    #[cfg(feature = "alloc")]
+    fn build_linear_chain(chain_length: usize) -> Result<(), ControlFlow<Error, Error>> {
+        let ca_cert = make_issuer(format!("Bogus Subject {chain_length}"), None);
+        let ca_cert_der = ca_cert.serialize_der().unwrap();
+
+        let mut intermediates = Vec::with_capacity(chain_length);
+        let mut issuer = ca_cert;
+        for i in 0..chain_length {
+            let intermediate = make_issuer(format!("Bogus Subject {i}"), None);
+            let intermediate_der = intermediate.serialize_der_with_signer(&issuer).unwrap();
+            intermediates.push(intermediate_der);
+            issuer = intermediate;
+        }
+
+        verify_chain(
+            &ca_cert_der,
+            &intermediates,
+            &make_end_entity(&issuer),
+            None,
+        )
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn longest_allowed_path() {
+        assert!(build_linear_chain(1).is_ok());
+        assert!(build_linear_chain(2).is_ok());
+        assert!(build_linear_chain(3).is_ok());
+        assert!(build_linear_chain(4).is_ok());
+        assert!(build_linear_chain(5).is_ok());
+        assert!(build_linear_chain(6).is_ok());
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn path_too_long() {
+        assert!(matches!(
+            build_linear_chain(7),
+            Err(ControlFlow::Continue(Error::MaximumPathDepthExceeded))
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn name_constraint_budget() {
+        // Issue a trust anchor that imposes name constraints. The constraint should match
+        // the end entity certificate SAN.
+        let ca_cert = make_issuer(
+            "Constrained Root",
+            Some(rcgen::NameConstraints {
+                permitted_subtrees: vec![rcgen::GeneralSubtree::DnsName(".com".into())],
+                excluded_subtrees: vec![],
+            }),
+        );
+        let ca_cert_der = ca_cert.serialize_der().unwrap();
+
+        // Create a series of intermediate issuers. We'll only use one in the actual built path,
+        // helping demonstrate that the name constraint budget is not expended checking certificates
+        // that are not part of the path we compute.
+        const NUM_INTERMEDIATES: usize = 5;
+        let mut intermediates = Vec::with_capacity(NUM_INTERMEDIATES);
+        for i in 0..NUM_INTERMEDIATES {
+            intermediates.push(make_issuer(format!("Intermediate {i}"), None));
+        }
+
+        // Each intermediate should be issued by the trust anchor.
+        let mut intermediates_der = Vec::with_capacity(NUM_INTERMEDIATES);
+        for intermediate in &intermediates {
+            intermediates_der.push(intermediate.serialize_der_with_signer(&ca_cert).unwrap());
+        }
+
+        // Create an end-entity cert that is issued by the last of the intermediates.
+        let ee_cert = make_end_entity(intermediates.last().unwrap());
+
+        // We use a custom budget to make it easier to write a test, otherwise it is tricky to
+        // stuff enough names/constraints into the potential chains while staying within the path
+        // depth limit and the build chain call limit.
+        let passing_budget = Budget {
+            // One comparison against the intermediate's distinguished name.
+            // One comparison against the EE's distinguished name.
+            // One comparison against the EE's SAN.
+            //  = 3 total comparisons.
+            name_constraint_comparisons: 3,
+            ..Budget::default()
+        };
+
+        // Validation should succeed with the name constraint comparison budget allocated above.
+        // This shows that we're not consuming budget on unused intermediates: we didn't budget
+        // enough comparisons for that to pass the overall chain building.
+        assert!(verify_chain(
+            &ca_cert_der,
+            &intermediates_der,
+            &ee_cert,
+            Some(passing_budget),
+        )
+        .is_ok());
+
+        let failing_budget = Budget {
+            // See passing_budget: 2 comparisons is not sufficient.
+            name_constraint_comparisons: 2,
+            ..Budget::default()
+        };
+        // Validation should fail when the budget is smaller than the number of comparisons performed
+        // on the validated path. This demonstrates we properly fail path building when too many
+        // name constraint comparisons occur.
+        let result = verify_chain(
+            &ca_cert_der,
+            &intermediates_der,
+            &ee_cert,
+            Some(failing_budget),
+        );
+
+        assert!(matches!(
+            result,
+            Err(ControlFlow::Break(
+                Error::MaximumNameConstraintComparisonsExceeded
+            ))
+        ));
+    }
+
+    #[cfg(feature = "alloc")]
+    fn verify_chain(
+        trust_anchor_der: &[u8],
+        intermediates_der: &[Vec<u8>],
+        ee_cert_der: &[u8],
+        budget: Option<Budget>,
+    ) -> Result<(), ControlFlow<Error, Error>> {
+        use crate::ECDSA_P256_SHA256;
+        use crate::{EndEntityCert, Time};
+
+        let anchors = &[TrustAnchor::try_from_cert_der(trust_anchor_der).unwrap()];
         let time = Time::from_seconds_since_unix_epoch(0x1fed_f00d);
-        let cert = EndEntityCert::try_from(&ee_cert_der[..]).unwrap();
-        let intermediates_der: Vec<&[u8]> = intermediates.iter().map(|x| x.as_ref()).collect();
-        let intermediate_certs: &[&[u8]] = intermediates_der.as_ref();
+        let cert = EndEntityCert::try_from(ee_cert_der).unwrap();
+        let intermediates_der = intermediates_der
+            .iter()
+            .map(|x| x.as_ref())
+            .collect::<Vec<_>>();
 
-        let result = build_chain(
+        build_chain_inner(
             &ChainOptions {
                 eku: KeyUsage::server_auth(),
                 supported_sig_algs: &[&ECDSA_P256_SHA256],
                 trust_anchors: anchors,
-                intermediate_certs,
+                intermediate_certs: &intermediates_der,
                 crls: &[],
             },
             cert.inner(),
             time,
-        );
-
-        assert!(matches!(result, Err(Error::MaximumSignatureChecksExceeded)));
+            0,
+            &mut budget.unwrap_or_default(),
+        )
     }
 }

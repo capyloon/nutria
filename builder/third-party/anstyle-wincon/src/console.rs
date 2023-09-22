@@ -59,20 +59,6 @@ where
         self.reset()
     }
 
-    /// Allow changing the stream
-    pub fn map<S1: crate::WinconStream + std::io::Write>(
-        mut self,
-        op: impl FnOnce(S) -> S1,
-    ) -> Console<S1> {
-        Console {
-            stream: Some(op(self.stream.take().unwrap())),
-            initial_fg: self.initial_fg,
-            initial_bg: self.initial_bg,
-            last_fg: self.last_fg,
-            last_bg: self.last_bg,
-        }
-    }
-
     /// Get the inner writer
     #[inline]
     pub fn into_inner(mut self) -> S {
@@ -101,8 +87,33 @@ where
         Ok(())
     }
 
+    fn as_stream(&self) -> &S {
+        self.stream.as_ref().unwrap()
+    }
+
     fn as_stream_mut(&mut self) -> &mut S {
         self.stream.as_mut().unwrap()
+    }
+}
+
+impl<S> Console<S>
+where
+    S: crate::WinconStream + std::io::Write + std::io::IsTerminal,
+{
+    pub fn is_terminal(&self) -> bool {
+        std::io::IsTerminal::is_terminal(self.as_stream())
+    }
+}
+
+impl<S> Drop for Console<S>
+where
+    S: crate::WinconStream + std::io::Write,
+{
+    fn drop(&mut self) {
+        // Otherwise `Console::lock` took it
+        if self.stream.is_some() {
+            let _ = self.reset();
+        }
     }
 }
 
@@ -140,17 +151,5 @@ where
     #[inline]
     fn lock(self) -> Self::Locked {
         self.lock()
-    }
-}
-
-impl<S> Drop for Console<S>
-where
-    S: crate::WinconStream + std::io::Write,
-{
-    fn drop(&mut self) {
-        // Otherwise `Console::lock` took it
-        if self.stream.is_some() {
-            let _ = self.reset();
-        }
     }
 }

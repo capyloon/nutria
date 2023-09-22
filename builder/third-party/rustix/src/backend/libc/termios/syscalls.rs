@@ -9,7 +9,7 @@ use crate::backend::c;
 use crate::backend::conv::ret_pid_t;
 use crate::backend::conv::{borrowed_fd, ret};
 use crate::fd::BorrowedFd;
-#[cfg(feature = "procfs")]
+#[cfg(all(feature = "alloc", feature = "procfs"))]
 #[cfg(not(any(target_os = "fuchsia", target_os = "wasi")))]
 use crate::ffi::CStr;
 #[cfg(any(
@@ -92,7 +92,7 @@ pub(crate) fn tcsetpgrp(fd: BorrowedFd<'_>, pid: Pid) -> io::Result<()> {
 
 #[cfg(not(any(target_os = "espidf", target_os = "wasi")))]
 pub(crate) fn tcsetattr(
-    fd: BorrowedFd,
+    fd: BorrowedFd<'_>,
     optional_actions: OptionalActions,
     termios: &Termios,
 ) -> io::Result<()> {
@@ -165,27 +165,27 @@ pub(crate) fn tcsetattr(
 }
 
 #[cfg(not(target_os = "wasi"))]
-pub(crate) fn tcsendbreak(fd: BorrowedFd) -> io::Result<()> {
+pub(crate) fn tcsendbreak(fd: BorrowedFd<'_>) -> io::Result<()> {
     unsafe { ret(c::tcsendbreak(borrowed_fd(fd), 0)) }
 }
 
 #[cfg(not(any(target_os = "espidf", target_os = "wasi")))]
-pub(crate) fn tcdrain(fd: BorrowedFd) -> io::Result<()> {
+pub(crate) fn tcdrain(fd: BorrowedFd<'_>) -> io::Result<()> {
     unsafe { ret(c::tcdrain(borrowed_fd(fd))) }
 }
 
 #[cfg(not(any(target_os = "espidf", target_os = "wasi")))]
-pub(crate) fn tcflush(fd: BorrowedFd, queue_selector: QueueSelector) -> io::Result<()> {
+pub(crate) fn tcflush(fd: BorrowedFd<'_>, queue_selector: QueueSelector) -> io::Result<()> {
     unsafe { ret(c::tcflush(borrowed_fd(fd), queue_selector as _)) }
 }
 
 #[cfg(not(any(target_os = "espidf", target_os = "wasi")))]
-pub(crate) fn tcflow(fd: BorrowedFd, action: Action) -> io::Result<()> {
+pub(crate) fn tcflow(fd: BorrowedFd<'_>, action: Action) -> io::Result<()> {
     unsafe { ret(c::tcflow(borrowed_fd(fd), action as _)) }
 }
 
 #[cfg(not(target_os = "wasi"))]
-pub(crate) fn tcgetsid(fd: BorrowedFd) -> io::Result<Pid> {
+pub(crate) fn tcgetsid(fd: BorrowedFd<'_>) -> io::Result<Pid> {
     unsafe {
         let pid = ret_pid_t(c::tcgetsid(borrowed_fd(fd)))?;
         Ok(Pid::from_raw_unchecked(pid))
@@ -193,12 +193,12 @@ pub(crate) fn tcgetsid(fd: BorrowedFd) -> io::Result<Pid> {
 }
 
 #[cfg(not(any(target_os = "espidf", target_os = "wasi")))]
-pub(crate) fn tcsetwinsize(fd: BorrowedFd, winsize: Winsize) -> io::Result<()> {
+pub(crate) fn tcsetwinsize(fd: BorrowedFd<'_>, winsize: Winsize) -> io::Result<()> {
     unsafe { ret(c::ioctl(borrowed_fd(fd), c::TIOCSWINSZ, &winsize)) }
 }
 
 #[cfg(not(any(target_os = "espidf", target_os = "wasi")))]
-pub(crate) fn tcgetwinsize(fd: BorrowedFd) -> io::Result<Winsize> {
+pub(crate) fn tcgetwinsize(fd: BorrowedFd<'_>) -> io::Result<Winsize> {
     unsafe {
         let mut buf = MaybeUninit::<Winsize>::uninit();
         ret(c::ioctl(
@@ -208,26 +208,6 @@ pub(crate) fn tcgetwinsize(fd: BorrowedFd) -> io::Result<Winsize> {
         ))?;
         Ok(buf.assume_init())
     }
-}
-
-#[cfg(not(any(
-    target_os = "espidf",
-    target_os = "haiku",
-    target_os = "redox",
-    target_os = "wasi"
-)))]
-pub(crate) fn ioctl_tiocexcl(fd: BorrowedFd) -> io::Result<()> {
-    unsafe { ret(c::ioctl(borrowed_fd(fd), c::TIOCEXCL as _)) }
-}
-
-#[cfg(not(any(
-    target_os = "espidf",
-    target_os = "haiku",
-    target_os = "redox",
-    target_os = "wasi"
-)))]
-pub(crate) fn ioctl_tiocnxcl(fd: BorrowedFd) -> io::Result<()> {
-    unsafe { ret(c::ioctl(borrowed_fd(fd), c::TIOCNXCL as _)) }
 }
 
 #[cfg(not(any(target_os = "espidf", target_os = "nto", target_os = "wasi")))]
@@ -367,7 +347,7 @@ pub(crate) fn isatty(fd: BorrowedFd<'_>) -> bool {
     unsafe { c::isatty(borrowed_fd(fd)) != 0 }
 }
 
-#[cfg(feature = "procfs")]
+#[cfg(all(feature = "alloc", feature = "procfs"))]
 #[cfg(not(any(target_os = "fuchsia", target_os = "wasi")))]
 pub(crate) fn ttyname(dirfd: BorrowedFd<'_>, buf: &mut [MaybeUninit<u8>]) -> io::Result<usize> {
     unsafe {

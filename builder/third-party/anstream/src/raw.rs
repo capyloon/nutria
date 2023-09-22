@@ -1,19 +1,13 @@
-/// Required functionality for underlying [`std::io::Write`] for adaptation
-#[cfg(not(any(feature = "auto", all(windows, feature = "wincon"))))]
-pub trait RawStream: std::io::Write + private::Sealed {}
+use crate::IsTerminal;
 
 /// Required functionality for underlying [`std::io::Write`] for adaptation
-#[cfg(all(feature = "auto", not(all(windows, feature = "wincon"))))]
-pub trait RawStream: std::io::Write + is_terminal::IsTerminal + private::Sealed {}
+#[cfg(not(all(windows, feature = "wincon")))]
+pub trait RawStream: std::io::Write + IsTerminal + private::Sealed {}
 
 /// Required functionality for underlying [`std::io::Write`] for adaptation
-#[cfg(all(not(feature = "auto"), all(windows, feature = "wincon")))]
-pub trait RawStream: std::io::Write + anstyle_wincon::WinconStream + private::Sealed {}
-
-/// Required functionality for underlying [`std::io::Write`] for adaptation
-#[cfg(all(feature = "auto", all(windows, feature = "wincon")))]
+#[cfg(all(windows, feature = "wincon"))]
 pub trait RawStream:
-    std::io::Write + is_terminal::IsTerminal + anstyle_wincon::WinconStream + private::Sealed
+    std::io::Write + IsTerminal + anstyle_wincon::WinconStream + private::Sealed
 {
 }
 

@@ -156,6 +156,9 @@ pub enum FileKind {
     /// This supports a larger number of sections.
     #[cfg(feature = "coff")]
     CoffBig,
+    /// A Windows short import file.
+    #[cfg(feature = "coff")]
+    CoffImport,
     /// A dyld cache file containing Mach-O images.
     #[cfg(feature = "macho")]
     DyldCache,
@@ -232,6 +235,7 @@ impl FileKind {
             [0x00, b'a', b's', b'm', ..] => FileKind::Wasm,
             #[cfg(feature = "pe")]
             [b'M', b'Z', ..] if offset == 0 => {
+                // offset == 0 restriction is because optional_header_magic only looks at offset 0
                 match pe::optional_header_magic(data) {
                     Ok(crate::pe::IMAGE_NT_OPTIONAL_HDR32_MAGIC) => {
                         FileKind::Pe32
@@ -253,16 +257,19 @@ impl FileKind {
             // COFF x86-64
             | [0x64, 0x86, ..] => FileKind::Coff,
             #[cfg(feature = "coff")]
+            [0x00, 0x00, 0xff, 0xff, 0x00, 0x00, ..] => FileKind::CoffImport,
+            #[cfg(feature = "coff")]
             [0x00, 0x00, 0xff, 0xff, 0x02, 0x00, ..] if offset == 0 => {
+                // offset == 0 restriction is because anon_object_class_id only looks at offset 0
                 match coff::anon_object_class_id(data) {
                     Ok(crate::pe::ANON_OBJECT_HEADER_BIGOBJ_CLASS_ID) => FileKind::CoffBig,
                     _ => return Err(Error("Unknown anon object file")),
                 }
             }
             #[cfg(feature = "xcoff")]
-            [0x01, 0xDF, ..] => FileKind::Xcoff32,
+            [0x01, 0xdf, ..] => FileKind::Xcoff32,
             #[cfg(feature = "xcoff")]
-            [0x01, 0xF7, ..] => FileKind::Xcoff64,
+            [0x01, 0xf7, ..] => FileKind::Xcoff64,
             _ => return Err(Error("Unknown file magic")),
         };
         Ok(kind)

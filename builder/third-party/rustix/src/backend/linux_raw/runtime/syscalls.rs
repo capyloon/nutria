@@ -3,8 +3,7 @@
 //! # Safety
 //!
 //! See the `rustix::backend` module documentation for details.
-#![allow(unsafe_code)]
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![allow(unsafe_code, clippy::undocumented_unsafe_blocks)]
 
 use crate::backend::c;
 #[cfg(target_arch = "x86")]
@@ -93,7 +92,10 @@ pub(crate) mod tls {
         ret_infallible(syscall_readonly!(
             __NR_arch_prctl,
             c_uint(ARCH_SET_FS),
-            data
+            data,
+            zero(),
+            zero(),
+            zero()
         ))
     }
 
@@ -105,7 +107,14 @@ pub(crate) mod tls {
 
     #[inline]
     pub(crate) unsafe fn set_thread_name(name: &CStr) -> io::Result<()> {
-        ret(syscall_readonly!(__NR_prctl, c_uint(PR_SET_NAME), name))
+        ret(syscall_readonly!(
+            __NR_prctl,
+            c_uint(PR_SET_NAME),
+            name,
+            zero(),
+            zero(),
+            zero()
+        ))
     }
 
     #[inline]

@@ -4,7 +4,6 @@ use crate::backend::c;
 use bitflags::bitflags;
 
 /// A type for holding raw integer socket types.
-#[doc(hidden)]
 pub type RawSocketType = u32;
 
 /// `SOCK_*` constants for use with [`socket`].
@@ -48,11 +47,14 @@ impl SocketType {
 }
 
 /// A type for holding raw integer address families.
-#[doc(hidden)]
 pub type RawAddressFamily = c::sa_family_t;
 
 /// `AF_*` constants for use with [`socket`], [`socket_with`], and
 /// [`socketpair`].
+///
+/// [`socket`]: crate::net::socket()
+/// [`socket_with`]: crate::net::socket_with
+/// [`socketpair`]: crate::net::socketpair()
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct AddressFamily(pub(crate) RawAddressFamily);
@@ -86,6 +88,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -99,13 +102,17 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
     )))]
     pub const AX25: Self = Self(c::AF_AX25 as _);
     /// `AF_IPX`
-    #[cfg(not(target_os = "espidf"))]
+    #[cfg(not(any(
+        target_os = "espidf",
+        target_os = "aix",
+    )))]
     pub const IPX: Self = Self(c::AF_IPX as _);
     /// `AF_APPLETALK`
     #[cfg(not(target_os = "espidf"))]
@@ -115,6 +122,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -125,6 +133,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -135,6 +144,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -144,6 +154,7 @@ impl AddressFamily {
     #[cfg(not(any(
         bsd,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -154,6 +165,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -167,6 +179,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -177,6 +190,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -186,6 +200,7 @@ impl AddressFamily {
     #[cfg(not(any(
         bsd,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -200,6 +215,7 @@ impl AddressFamily {
     #[cfg(not(any(
         bsd,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -210,6 +226,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -220,6 +237,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -230,6 +248,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -240,6 +259,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -252,6 +272,7 @@ impl AddressFamily {
     #[cfg(not(any(
         bsd,
         solarish,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -262,6 +283,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -272,6 +294,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -282,6 +305,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -292,6 +316,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -302,19 +327,27 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
     )))]
     pub const TIPC: Self = Self(c::AF_TIPC as _);
     /// `AF_BLUETOOTH`
-    #[cfg(not(any(apple, solarish, windows, target_os = "espidf")))]
+    #[cfg(not(any(
+        apple,
+        solarish,
+        windows,
+        target_os = "aix",
+        target_os = "espidf",
+    )))]
     pub const BLUETOOTH: Self = Self(c::AF_BLUETOOTH as _);
     /// `AF_IUCV`
     #[cfg(not(any(
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -325,19 +358,27 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
     )))]
     pub const RXRPC: Self = Self(c::AF_RXRPC as _);
     /// `AF_ISDN`
-    #[cfg(not(any(solarish, windows, target_os = "espidf", target_os = "haiku")))]
+    #[cfg(not(any(
+        solarish,
+        windows,
+        target_os = "aix",
+        target_os = "espidf",
+        target_os = "haiku",
+    )))]
     pub const ISDN: Self = Self(c::AF_ISDN as _);
     /// `AF_PHONET`
     #[cfg(not(any(
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -348,6 +389,7 @@ impl AddressFamily {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -411,7 +453,7 @@ impl AddressFamily {
     #[cfg(any(bsd, solarish, target_os = "aix", target_os = "nto"))]
     pub const IMPLINK: Self = Self(c::AF_IMPLINK as _);
     /// `AF_IEEE80211`
-    #[cfg(any(apple, freebsdlike, linuxlike, target_os = "netbsd"))]
+    #[cfg(any(apple, freebsdlike, target_os = "netbsd"))]
     pub const IEEE80211: Self = Self(c::AF_IEEE80211 as _);
     /// `AF_INET6_SDP`
     #[cfg(target_os = "freebsd")]
@@ -438,7 +480,7 @@ impl AddressFamily {
     #[cfg(any(netbsdlike, target_os = "dragonfly", target_os = "emscripten", target_os = "fuchsia"))]
     pub const MPLS: Self = Self(c::AF_MPLS as _);
     /// `AF_NATM`
-    #[cfg(any(bsd, target_os = "aix", target_os = "nto"))]
+    #[cfg(any(bsd, target_os = "nto"))]
     pub const NATM: Self = Self(c::AF_NATM as _);
     /// `AF_NBS`
     #[cfg(solarish)]
@@ -498,7 +540,7 @@ impl AddressFamily {
     #[cfg(target_os = "freebsd")]
     pub const SCLUSTER: Self = Self(c::AF_SCLUSTER as _);
     /// `AF_SIP`
-    #[cfg(any(apple, target_os = "freebsd", target_os = "opensbd"))]
+    #[cfg(any(apple, target_os = "freebsd", target_os = "openbsd"))]
     pub const SIP: Self = Self(c::AF_SIP as _);
     /// `AF_SLOW`
     #[cfg(target_os = "freebsd")]
@@ -533,7 +575,6 @@ impl AddressFamily {
 }
 
 /// A type for holding raw integer protocols.
-#[doc(hidden)]
 pub type RawProtocol = core::num::NonZeroU32;
 
 const fn new_raw_protocol(u: u32) -> RawProtocol {
@@ -595,6 +636,7 @@ pub mod ipproto {
         apple,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "dragonfly",
         target_os = "espidf",
         target_os = "haiku",
@@ -621,6 +663,7 @@ pub mod ipproto {
         solarish,
         netbsdlike,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto",
@@ -631,22 +674,30 @@ pub mod ipproto {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto"
     )))]
     pub const BEETPH: Protocol = Protocol(new_raw_protocol(c::IPPROTO_BEETPH as _));
     /// `IPPROTO_ENCAP`
-    #[cfg(not(any(solarish, windows, target_os = "espidf", target_os = "haiku")))]
+    #[cfg(not(any(
+        solarish,
+        windows,
+        target_os = "aix",
+        target_os = "espidf",
+        target_os = "haiku",
+    )))]
     pub const ENCAP: Protocol = Protocol(new_raw_protocol(c::IPPROTO_ENCAP as _));
     /// `IPPROTO_PIM`
-    #[cfg(not(any(solarish, target_os = "espidf", target_os = "haiku")))]
+    #[cfg(not(any(solarish, target_os = "aix", target_os = "espidf", target_os = "haiku")))]
     pub const PIM: Protocol = Protocol(new_raw_protocol(c::IPPROTO_PIM as _));
     /// `IPPROTO_COMP`
     #[cfg(not(any(
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "nto"
@@ -667,6 +718,7 @@ pub mod ipproto {
         netbsdlike,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "dragonfly",
         target_os = "espidf",
         target_os = "haiku",
@@ -678,6 +730,7 @@ pub mod ipproto {
         apple,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "dragonfly",
         target_os = "espidf",
         target_os = "haiku",
@@ -696,6 +749,7 @@ pub mod ipproto {
         bsd,
         solarish,
         windows,
+        target_os = "aix",
         target_os = "emscripten",
         target_os = "espidf",
         target_os = "fuchsia",
@@ -1262,12 +1316,23 @@ bitflags! {
     #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct SocketFlags: c::c_uint {
         /// `SOCK_NONBLOCK`
-        #[cfg(not(any(apple, windows, target_os = "espidf", target_os = "haiku", target_os = "nto")))]
+        #[cfg(not(any(
+            apple,
+            windows,
+            target_os = "aix",
+            target_os = "espidf",
+            target_os = "haiku",
+            target_os = "nto",
+        )))]
         const NONBLOCK = bitcast!(c::SOCK_NONBLOCK);
 
         /// `SOCK_CLOEXEC`
-        #[cfg(not(any(apple, windows, target_os = "haiku")))]
+        #[cfg(not(any(apple, windows, target_os = "aix", target_os = "haiku")))]
         const CLOEXEC = bitcast!(c::SOCK_CLOEXEC);
+
+        // This deliberately lacks a `const _ = !0`, so that users can use
+        // `from_bits_truncate` to extract the `SocketFlags` from a flags
+        // value that also includes a `SocketType`.
     }
 }
 

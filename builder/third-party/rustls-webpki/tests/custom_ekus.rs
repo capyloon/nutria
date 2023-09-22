@@ -31,7 +31,7 @@ pub fn verify_custom_eku_mdoc() {
     let ee = include_bytes!("misc/mdoc_eku.ee.der");
     let ca = include_bytes!("misc/mdoc_eku.ca.der");
 
-    let eku_mdoc = KeyUsage::required(&[(40 * 1) + 0, 129, 140, 93, 5, 1, 2]);
+    let eku_mdoc = KeyUsage::required(&[40, 129, 140, 93, 5, 1, 2]);
     check_cert(ee, ca, eku_mdoc, time, Ok(()));
     check_cert(ee, ca, KeyUsage::server_auth(), time, err);
     check_cert(ee, ca, eku_mdoc, time, Ok(()));

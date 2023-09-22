@@ -12,8 +12,12 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+use crate::verify_cert::Budget;
 use crate::{der, Error};
 use ring::signature;
+
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
 /// X.509 certificates and related items that are signed are almost always
 /// encoded in the format "tbs||signatureAlgorithm||signature". This structure
@@ -152,7 +156,10 @@ pub(crate) fn verify_signed_data(
     supported_algorithms: &[&SignatureAlgorithm],
     spki_value: untrusted::Input,
     signed_data: &SignedData,
+    budget: &mut Budget,
 ) -> Result<(), Error> {
+    budget.consume_signature()?;
+
     // We need to verify the signature in `signed_data` using the public key
     // in `public_key`. In order to know which *ring* signature verification
     // algorithm to use, we need to know the public key algorithm (ECDSA,
@@ -498,7 +505,8 @@ mod tests {
             signed_data::verify_signed_data(
                 SUPPORTED_ALGORITHMS_IN_TESTS,
                 spki_value,
-                &signed_data
+                &signed_data,
+                &mut Budget::default()
             )
         );
     }
@@ -795,6 +803,7 @@ mod tests {
         }
     }
 
+    use crate::verify_cert::Budget;
     use alloc::str::Lines;
 
     fn read_pem_section(lines: &mut Lines, section_name: &str) -> Vec<u8> {

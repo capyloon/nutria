@@ -1162,7 +1162,7 @@ checksum = "e5ea92a5b6195c6ef2a0295ea818b312502c6fc94dde986c5553242e18fd4ce2"
 
 [[package]]
 name = "reqwest"
-version = "0.11.19"
+version = "0.11.20"
 dependencies = [
  "async-compression",
  "base64",
