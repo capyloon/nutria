@@ -48,4 +48,4 @@ popd
 popd
 
 # Synchronize with live server.
-rsync -v -a apt-repo capyloon@capyloon:/data
+rsync --progress -v -a apt-repo capyloon@capyloon:/data
