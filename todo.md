@@ -30,7 +30,7 @@ Capyloon app:
 
 p2p discovery
 =============
-- stage 2: remote peer discovery
+- switch to iroh or veilid ??
 
 Next Release items
 ==================
@@ -87,3 +87,36 @@ they also have geoclue-demo to test out too
 Keyboard autocorrect
 ====================
 https://docs.rs/fast_symspell/0.1.7/fast_symspell/
+
+vfs over iroh
+=============
+
+- https://github.com/vlcn-io/cr-sqlite https://www.youtube.com/watch?v=T1ES9x8DKR4
+
+Hardware
+========
+
+https://www.amazon.com/dp/B0CHS6HP52?th=1&linkCode=sl1&tag=lp_daily_deals-20&linkId=c20f16bedb29226097d8fd23a38a5d0f&language=en_US&ref_=as_li_ss_tl
+
+
+Apps / bookmarks / homescreen shortcuts
+=======================================
+
+- Unify "installed apps", "tiles" and "bookmarks" as "favorites".
+    - add a "favorite" tag to places entries.
+    - prompt user to add to homecreen or not.
+- The homescreen has its own notion of shortcut: either a favorite or some other kind of object (contact, activity call).
+- "Vertical homescreen": homescreen with a set of sections that scroll, and at the bottom the search field. Sections can either contain "static" content like widgets, set of shortcuts or be a view on some dynamic content. Examples of dynamic content can be "last contacts I interacted with", "most viewed gallery albums", "playlist of my favorite songs". This is achieved by querying the 
+
+
+Capyloon Lite
+=============
+
+Not a full OS, an app bringing:
+- Tiles.
+- VFS.
+- P2P with content based addressed resources.
+
+Headless part to monitor p2p state, notifications.
+
+"system ui / homescreen" : keep some "tab management" UI.
