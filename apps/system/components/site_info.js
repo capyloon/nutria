@@ -32,14 +32,14 @@ class SiteInfo extends HTMLElement {
           <span data-l10n-id="site-info-add-home"></span>
         </sl-button>
         <sl-button variant="neutral" size="small" class="split-screen" data-l10n-id="site-info-split-screen"></sl-button>
-        <sl-icon name="file-text" class="reader-mode hidden"></sl-icon>
         <span class="flex-fill"></span>
+        <sl-icon name="chevron-down" class="more-info"></sl-icon>
       </div>
-      <div class="utils">
+      <div class="utils additional-info">
         <img class="tosdr-img"/>
         <span class="flex-fill"></span>
       </div>
-      <div class="utils">
+      <div class="utils additional-info">
         <sl-select hoist size="small" class="ua-chooser">
           <span slot="label" data-l10n-id="site-info-choose-ua"></span>
           <sl-option value="b2g" data-l10n-id="site-info-b2g-ua"></sl-option>
@@ -48,10 +48,12 @@ class SiteInfo extends HTMLElement {
         </sl-select>
         <span class="flex-fill"></span>
       </div>
+      <sl-divider></sl-divider>
       <div class="utils">
         <sl-icon class="nav-reload" name="refresh-cw"></sl-icon>
         <sl-icon class="nav-back" name="chevron-left"></sl-icon>
         <sl-icon class="nav-forward" name="chevron-right"></sl-icon>
+        <sl-icon name="file-text" class="reader-mode hidden"></sl-icon>
         <span class="flex-fill"></span>
         <sl-icon class="share" name="share-2"></sl-icon>
         <sl-icon class="zoom-out" name="zoom-out"></sl-icon>
@@ -60,6 +62,8 @@ class SiteInfo extends HTMLElement {
       </div>
     </div>
     `;
+
+    this.classList.add("hide-additional-info");
 
     let l10nReady = document.l10n.translateFragment(shadow);
 
@@ -94,6 +98,16 @@ class SiteInfo extends HTMLElement {
 
     this.stateUpdater = this.updateState.bind(this);
     this.drawer = this.parentElement;
+
+    shadow.querySelector(".more-info").onclick = (event) => {
+      this.classList.toggle("hide-additional-info");
+      event.target.setAttribute(
+        "name",
+        this.classList.contains("hide-additional-info")
+          ? "chevron-down"
+          : "chevron-up"
+      );
+    };
   }
 
   close() {

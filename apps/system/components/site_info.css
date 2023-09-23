@@ -28,18 +28,19 @@
 .url {
   font-style: italic;
   font-weight: lighter;
+  font-size: smaller;
 }
 
 .utils {
   display: flex;
   justify-content: center;
   align-items: center;
-  grid-gap: 0.5em;
   margin-top: 0.35em;
 }
 
 .utils:not(:last-of-type) {
   margin-bottom: 0.35em;
+  gap: 0.5em;
 }
 
 .flex-fill {
@@ -51,8 +52,8 @@
 }
 
 :host sl-icon.active {
-  background-color: var(--sl-color-primary-600);
-  color: var(--sl-color-neutral-0);
+  background-color: env(theme-wallpaper-accent);
+  color: env(theme-wallpaper-muted);
   border-radius: 40%;
 }
 
@@ -66,8 +67,8 @@
   border-radius: 0.5em;
   padding-left: 0.5em;
   padding-right: 0.25em;
-  color: var(--sl-panel-background-color);
-  background-color: var(--sl-color-neutral-700);
+  background-color: env(theme-wallpaper-accent);
+  color: env(theme-wallpaper-muted);
   font-weight: bolder;
 }
 
@@ -95,4 +96,8 @@
 
 :host .search img {
   width: 24px;
+}
+
+:host(.hide-additional-info) .additional-info {
+  display: none;
 }
