@@ -1,24 +1,24 @@
 {
   "aarch64-apple-darwin": {
-    "b2g": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/b2g-119.0.en-US.mac-aarch64.tar.bz2",
-    "api-daemon": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/api-daemon-aarch64-apple-darwin.tar.xz",
-    "ipfsd": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/ipfsd-aarch64-apple-darwin.tar.xz"
+    "b2g": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/b2g-120.0.en-US.mac-aarch64.tar.bz2",
+    "api-daemon": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/api-daemon-aarch64-apple-darwin.tar.xz",
+    "ipfsd": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/ipfsd-aarch64-apple-darwin.tar.xz"
   },
   "aarch64-unknown-linux-gnu": {
-    "b2g": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/b2g-119.0.en-US.linux-aarch64.tar.bz2",
-    "api-daemon": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/api-daemon-aarch64-unknown-linux-gnu.tar.xz",
-    "b2ghald": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/b2ghald-aarch64-unknown-linux-gnu.tar.xz",
-    "ipfsd": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/ipfsd-aarch64-unknown-linux-gnu.tar.xz"
+    "b2g": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/b2g-120.0.en-US.linux-aarch64.tar.bz2",
+    "api-daemon": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/api-daemon-aarch64-unknown-linux-gnu.tar.xz",
+    "b2ghald": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/b2ghald-aarch64-unknown-linux-gnu.tar.xz",
+    "ipfsd": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/ipfsd-aarch64-unknown-linux-gnu.tar.xz"
   },
   "x86_64-apple-darwin": {
-    "b2g": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/b2g-119.0.en-US.mac-x86_64.tar.bz2",
-    "api-daemon": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/api-daemon-x86_64-apple-darwin.tar.xz",
-    "ipfsd": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/ipfsd-x86_64-apple-darwin.tar.xz"
+    "b2g": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/b2g-120.0.en-US.mac-x86_64.tar.bz2",
+    "api-daemon": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/api-daemon-x86_64-apple-darwin.tar.xz",
+    "ipfsd": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/ipfsd-x86_64-apple-darwin.tar.xz"
   },
   "x86_64-unknown-linux-gnu": {
-    "b2g": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/b2g-119.0.en-US.linux-x86_64.tar.bz2",
-    "api-daemon": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/api-daemon-x86_64-unknown-linux-gnu.tar.xz",
-    "b2ghald": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/b2ghald-x86_64-unknown-linux-gnu.tar.xz",
-    "ipfsd": "https://debian.capyloon.org/prebuilts/b469ed3b-5fa7-4d3a-bb64-4998b67dc0bd/ipfsd-x86_64-unknown-linux-gnu.tar.xz"
+    "b2g": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/b2g-120.0.en-US.linux-x86_64.tar.bz2",
+    "api-daemon": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/api-daemon-x86_64-unknown-linux-gnu.tar.xz",
+    "b2ghald": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/b2ghald-x86_64-unknown-linux-gnu.tar.xz",
+    "ipfsd": "https://debian.capyloon.org/prebuilts/41f14d9c-9e2f-4607-89e2-f002ec2da0c9/ipfsd-x86_64-unknown-linux-gnu.tar.xz"
   }
 }
