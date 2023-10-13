@@ -27,9 +27,13 @@ class SiteInfo extends HTMLElement {
         <span class="flex-fill"></span>
       </div>
       <div class="utils">
-        <sl-button variant="neutral" size="small" class="add-home hidden">
-          <img src="resources/pwalogo.svg" height="12px">
-          <span data-l10n-id="site-info-add-home"></span>
+        <sl-button variant="neutral" size="small" class="add-home hidden favorite">
+          <div>
+            <img src="resources/pwalogo.svg" height="12px">
+            <span></span>
+            <!-- inline copy of the "star" icon to be able to change the fill color -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
         </sl-button>
         <sl-button variant="neutral" size="small" class="split-screen" data-l10n-id="site-info-split-screen"></sl-button>
         <span class="flex-fill"></span>
@@ -356,14 +360,19 @@ class SiteInfo extends HTMLElement {
     let button = this.inShadowRoot("sl-button.add-home");
     button.classList.remove("hidden");
     let pwaLogo = this.inShadowRoot("sl-button.add-home img");
+    let label = this.inShadowRoot("sl-button.add-home span");
     if (this.state.manifestUrl && this.state.manifestUrl !== "") {
       pwaLogo.classList.remove("hidden");
+      label.dataset.l10nId = "site-info-install-pwa";
     } else {
       pwaLogo.classList.add("hidden");
+      label.dataset.l10nId = "site-info-add-favorite";
     }
+    document.l10n.translateFragment(label);
+    this.updateFavorite(button);
     button.onclick = async (event) => {
       event.stopPropagation();
-      this.addToHome();
+      this.addToFavorites();
       this.close();
     };
 
@@ -375,20 +384,84 @@ class SiteInfo extends HTMLElement {
     this.drawer.show();
   }
 
+  async maybeAppForManifest(manifestUrl) {
+    let service = await window.apiDaemon.getAppsManager();
+    let app;
+    try {
+      // Check if the app is installed. getApp() expects the cached url, so instead
+      // we need to get all apps and check their update url...
+      let apps = await service.getAll();
+      app = apps.find((app) => {
+        return app.updateUrl == manifestUrl;
+      });
+    } catch (e) {}
+    return app;
+  }
+
+  async updateFavorite(node) {
+    let isFavorite = false;
+    // If we have a manifest URL, check if the app is already installed.
+    if (this.state.manifestUrl && this.state.manifestUrl !== "") {
+      isFavorite = !!(await this.maybeAppForManifest(this.state.manifestUrl));
+    } else if (URL.canParse(this.state.url)) {
+      // Otherwise check if the current URL has a 'favorite' tag.
+      let url = new URL(this.state.url);
+      url.hash = "";
+
+      let place = await contentManager.getPlace(url.href);
+
+      let tags = place.meta.tags || [];
+      isFavorite = tags.includes("favorite");
+    }
+
+    if (isFavorite) {
+      node.classList.add("favorite");
+    } else {
+      node.classList.remove("favorite");
+    }
+  }
+
+  async addToFavorites() {
+    // If we have a manifest URL, check if the app is already installed.
+    if (this.state.manifestUrl && this.state.manifestUrl !== "") {
+      let app = await this.maybeAppForManifest(this.state.manifestUrl);
+      if (!app) {
+        // Install the new app.
+        try {
+          let service = await window.apiDaemon.getAppsManager();
+          let appObject = await service.installPwa(this.state.manifestUrl);
+          let msg = await window.utils.l10n("success-add-to-home");
+          window.toaster.show(msg, "success");
+          console.log(
+            `SiteInfo: PWA installation success for ${this.state.manifestUrl}: ${appObject}`
+          );
+        } catch (e) {
+          let msg = await window.utils.l10n("error-add-to-home");
+          window.toaster.show(msg, "danger");
+          console.error(
+            `SiteInfo: Failed to install app: ${JSON.stringify(e)}`
+          );
+        }
+      }
+    } else if (URL.canParse(this.state.url)) {
+      // Add the favorite tag if needed.
+      let url = new URL(this.state.url);
+      url.hash = "";
+
+      let place = await contentManager.getPlace(url.href);
+      let tags = place.meta.tags || [];
+      if (!tags.includes("favorite")) {
+        await place.addTag("favorite");
+      }
+    }
+  }
+
   async addToHome() {
     let activityData = null;
 
     if (this.state.manifestUrl && this.state.manifestUrl !== "") {
       let service = await window.apiDaemon.getAppsManager();
-      let app;
-      try {
-        // Check if the app is installed. getApp() expects the cached url, so instead
-        // we need to get all apps and check their update url...
-        let apps = await service.getAll();
-        app = apps.find((app) => {
-          return app.updateUrl == this.state.manifestUrl;
-        });
-      } catch (e) {}
+      let app = await this.maybeAppForManifest(this.state.manifestUrl);
       if (app) {
         // The app is already installed, we won't re-install it but only
         // add it to the homescreen.

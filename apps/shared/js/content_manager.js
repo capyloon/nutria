@@ -313,12 +313,13 @@ export class ContentManager extends EventTarget {
 
   // Remove the hash part if any.
   cleanupUrl(url) {
-    let res = url.trim();
-    let hash = res.indexOf("#");
-    if (hash !== -1) {
-      res = res.substring(0, hash);
+    if (URL.canParse(url)) {
+      let res = new URL(url);
+      res.hash = "";
+      return res.href;
+    } else {
+      return null;
     }
-    return res;
   }
 
   // Creates or updates a places entry.
@@ -358,6 +359,12 @@ export class ContentManager extends EventTarget {
       url,
       highPriority ? lib.VisitPriority.HIGH : lib.VisitPriority.NORMAL
     );
+  }
+
+  async getPlace(url) {
+    let places = await this.ensureTopLevelContainer("places");
+    let entry = await this.childByName(places, url);
+    return entry;
   }
 
   async visitPlace(url, highPriority = false) {
@@ -1048,7 +1055,7 @@ class ContactsManager extends ContentManager {
     if (!this.list) {
       await this.updateList();
     }
-    let contact = this.list.find(contact => {
+    let contact = this.list.find((contact) => {
       let dids = (contact.did || []).map((did) => did.uri);
       return dids.includes(did);
     });

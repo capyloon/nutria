@@ -32,7 +32,8 @@ selection-share = Share…
 selection-search = Search ”{$query}”
 
 # Site Info Panel
-site-info-add-home = Add To Home
+site-info-install-pwa = Install
+site-info-add-favorite = Add Favorite
 site-info-split-screen = Split Screen
 site-info-choose-ua = User Agent
 site-info-b2g-ua = Default
