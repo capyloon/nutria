@@ -7,8 +7,8 @@ use std::path::PathBuf;
 
 pub struct PushedApps {
     pub apps: Vec<PathBuf>,
-    pub system_update: bool, // Special case if we are updating the system app, since that requires a b2g restart
-    pub homescreen_update: bool, // Special case if we are updating the homescreen, we'll have to kill it to force a restart.
+    pub system_update: bool, // Special case if we are updating the system, shared or keyboard apps, since that requires a b2g restart
+    pub homescreen_update: bool, // Special case if we are updating the homescreen or the shared app, we'll have to kill it to force a restart.
 }
 
 impl PushedApps {
@@ -35,7 +35,7 @@ impl PushedApps {
                 for app_name in list {
                     if let Some(path) = source_apps.get(&app_name) {
                         res.push(path.clone());
-                        if app_name == "system" || app_name == "shared" {
+                        if app_name == "system" || app_name == "shared" || app_name == "keyboard" {
                             system_update = true;
                         }
                         if app_name == "homescreen" || app_name == "shared" {

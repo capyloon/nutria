@@ -235,7 +235,12 @@ impl AdbCommand for PushCommand {
     fn run_on_device(&self, device: &Device) -> Result<(), AdbError> {
         if self.system_update {
             info!("Restarting b2g because of the system app update.");
-            for command in ["stop b2g", "start b2g"] {
+            for command in [
+                "stop b2g",
+                "stop api-daemon",
+                "start api-daemon",
+                "start b2g",
+            ] {
                 match device.execute_host_shell_command(command) {
                     Ok(res) => info!("{}: [Success] {}", command, res.trim()),
                     Err(err) => {
