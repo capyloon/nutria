@@ -1,6 +1,7 @@
 # Generic actions
 button-ok = Ok
 button-cancel = Cancel
+button-add = Add
 
 # Power key menu actions
 action-shutdown = Shutdown
@@ -34,6 +35,9 @@ selection-search = Search ”{$query}”
 # Site Info Panel
 site-info-install-pwa = Install
 site-info-add-favorite = Add Favorite
+site-info-remove-favorite = Remove Favorite
+siteinfo-ask-add-to-home-title = New Favorite
+siteinfo-ask-add-to-home-text = Do you want to add this favorite to your homescreen?
 site-info-split-screen = Split Screen
 site-info-choose-ua = User Agent
 site-info-b2g-ua = Default

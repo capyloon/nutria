@@ -366,10 +366,10 @@ class SiteInfo extends HTMLElement {
       label.dataset.l10nId = "site-info-install-pwa";
     } else {
       pwaLogo.classList.add("hidden");
-      label.dataset.l10nId = "site-info-add-favorite";
     }
-    document.l10n.translateFragment(label);
-    this.updateFavorite(button);
+    this.updateFavorite(button, label).then(() => {
+      document.l10n.translateFragment(label);
+    });
     button.onclick = async (event) => {
       event.stopPropagation();
       this.addToFavorites();
@@ -398,7 +398,7 @@ class SiteInfo extends HTMLElement {
     return app;
   }
 
-  async updateFavorite(node) {
+  async updateFavorite(node, label) {
     let isFavorite = false;
     // If we have a manifest URL, check if the app is already installed.
     if (this.state.manifestUrl && this.state.manifestUrl !== "") {
@@ -412,6 +412,11 @@ class SiteInfo extends HTMLElement {
 
       let tags = place.meta.tags || [];
       isFavorite = tags.includes("favorite");
+      if (isFavorite) {
+        label.dataset.l10nId = "site-info-remove-favorite";
+      } else {
+        label.dataset.l10nId = "site-info-add-favorite";
+      }
     }
 
     if (isFavorite) {
@@ -452,45 +457,34 @@ class SiteInfo extends HTMLElement {
       let tags = place.meta.tags || [];
       if (!tags.includes("favorite")) {
         await place.addTag("favorite");
+
+        let title = await window.utils.l10n("siteinfo-ask-add-to-home-title");
+        let text = await window.utils.l10n("siteinfo-ask-add-to-home-text");
+        let btnAdd = await window.utils.l10n("button-add");
+        let btnCancel = await window.utils.l10n("button-cancel");
+
+        let dialog = document.querySelector("confirm-dialog");
+        let result = await dialog.open({
+          title,
+          text,
+          buttons: [
+            { id: "add", label: btnAdd, variant: "primary" },
+            { id: "cancel", label: btnCancel },
+          ],
+          focused: "add",
+        });
+        if (result == "add") {
+          this.addToHome({
+            siteInfo: this.state,
+          });
+        }
+      } else {
+        await place.removeTag("favorite");
       }
     }
   }
 
-  async addToHome() {
-    let activityData = null;
-
-    if (this.state.manifestUrl && this.state.manifestUrl !== "") {
-      let service = await window.apiDaemon.getAppsManager();
-      let app = await this.maybeAppForManifest(this.state.manifestUrl);
-      if (app) {
-        // The app is already installed, we won't re-install it but only
-        // add it to the homescreen.
-        activityData = { app };
-      } else {
-        // Install the new app.
-        try {
-          let appObject = await service.installPwa(this.state.manifestUrl);
-          let msg = await window.utils.l10n("success-add-to-home");
-          window.toaster.show(msg, "success");
-          console.log(
-            `SiteInfo: PWA installation success for this.state.manifestUrl: ${appObject}`
-          );
-        } catch (e) {
-          let msg = await window.utils.l10n("error-add-to-home");
-          window.toaster.show(msg, "danger");
-          console.error(
-            `SiteInfo: Failed to install app: ${JSON.stringify(e)}`
-          );
-        }
-        // All done when installing a new app.
-        return;
-      }
-    } else {
-      activityData = {
-        siteInfo: this.state,
-      };
-    }
-
+  async addToHome(activityData) {
     console.log(
       `SiteInfo: about to call add-to-home activity for ${JSON.stringify(
         activityData
