@@ -174,12 +174,14 @@ class KeyboardLayout {
     }
 
     if (event.type === "pointerdown") {
+      target.classList.add("active");
       navigator.vibrate(10);
       this.cancelPointerUp = false;
       if (!((target.behavior && target.behavior.press) || target.nobubble)) {
         this.showKeyBubble(target, key);
       }
     } else if (event.type === "pointerup") {
+      target.classList.remove("active");
       if (this.cancelPointerUp) {
         return;
       }
@@ -196,6 +198,7 @@ class KeyboardLayout {
         }
       }
     } else if (event.type === "contextmenu") {
+      target.classList.remove("active");
       this.cancelPointerUp = true;
       if (target.behavior && target.behavior.longpress) {
         this.processCommand(target.behavior.longpress.split(" "));

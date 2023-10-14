@@ -58,7 +58,7 @@ body {
   border-bottom: 1px solid #b5b5b5;
 }
 
-#vkb span.keycap:active {
+#vkb span.outer.active .keycap {
   background-color: rgb(230, 234, 241);
 }
 
