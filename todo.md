@@ -108,11 +108,35 @@ Apps / bookmarks / homescreen shortcuts
 - The homescreen has its own notion of shortcut: either a favorite or some other kind of object (contact, activity call).
 - "Vertical homescreen": homescreen with a set of sections that scroll, and at the bottom the search field. Sections can either contain "static" content like widgets, set of shortcuts or be a view on some dynamic content. Examples of dynamic content can be "last contacts I interacted with", "most viewed gallery albums", "playlist of my favorite songs". This is achieved by querying the 
 
+CapyPod
+=======
+
+## Your personal (data + compute) platform.
+
+A user controls its "root" DID, and a set of device specific DIDs receiving delegated capabilities.
+
+### Data is managed by a store with the following features:
+- Private, shared and public data.
+- Capability based access for non public data.
+- Mutable resources made of resource level metadata and a set of representations, each with their own content type.
+- Resource retrieval using multiple navigation and content based paradigms (hierarchycal, tags, facets, full text search etc.).
+- Multi device sync, offline capable.
+- Backup / restore from a dumb cloud service acting as another linked device.
+
+### Computing
+Computing over the data store is loosely coupled since any program able to access the data store API and authenticate properly can be used. It's up to the application platform to enforce additional constraints on the programs.
+
+One interesting possibility is to use the data store itself to store and share programs:
+- Building multi-device experiences like remote controlled media players, games, etc.
+- Building private programs tailored to a specific use case.
+
+With programs-as-data, it's crucial to use portable code - both for device and OS independence and for long term usability of these programs. Web based technologies are the best fit here, along with pure Wasm when no UI is needed.
+
 
 Capyloon Lite
 =============
 
-Not a full OS, an app bringing:
+Not a full OS, but an app bringing:
 - Tiles.
 - VFS.
 - P2P with content based addressed resources.
@@ -120,3 +144,5 @@ Not a full OS, an app bringing:
 Headless part to monitor p2p state, notifications.
 
 "system ui / homescreen" : keep some "tab management" UI.
+
+Target platforms: Android + Desktop.
