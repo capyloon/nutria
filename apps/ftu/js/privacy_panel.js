@@ -33,15 +33,21 @@ class PrivacyPanel {
     let icon = document.getElementById("privacy-tor-icon");
     icon.src = `http://shared.localhost:${location.port}/resources/tor.ico`;
     if (event.detail.value) {
-        icon.classList.remove("disabled");
+      icon.classList.remove("disabled");
     } else {
-        icon.classList.add("disabled");
+      icon.classList.add("disabled");
     }
   }
 
   updateTp(event) {
     this.log(`updateTp -> ${event.detail.value}`);
     let icon = document.getElementById("privacy-tp-icon");
+    icon.name = event.detail.value ? "shield" : "shield-off";
+  }
+
+  updateGpc(event) {
+    this.log(`updateGpc -> ${event.detail.value}`);
+    let icon = document.getElementById("privacy-gpc-icon");
     icon.name = event.detail.value ? "shield" : "shield-off";
   }
 
@@ -69,6 +75,11 @@ class PrivacyPanel {
       "tp",
       "privacy.trackingprotection.enabled",
       this.updateTp
+    );
+    await this.addSwitchBinding(
+      "gpc",
+      "privacy.globalprivacycontrol.enabled",
+      this.updateGpc
     );
 
     this.ready = true;
