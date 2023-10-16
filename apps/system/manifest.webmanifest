@@ -23,10 +23,7 @@
       "wifi-manage": {}
     },
     "serviceworker": {
-      "script_url": "swproxy/sw.js",
-      "options": {
-        "scope": "swproxy/"
-      }
+      "script_url": "sw.js"
     },
     "activities": {
       "publish-resource": {
