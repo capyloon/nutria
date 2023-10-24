@@ -4,7 +4,7 @@
 //! Do not use the functions in this module unless you've read all of their
 //! code. They don't always behave the same way as functions with similar names
 //! in `libc`. Sometimes information about the differences is included in the
-//! Linux documentation under "C library/kernel differences" sections. And, if
+//! Linux documentation under “C library/kernel differences” sections. And, if
 //! there is a libc in the process, these functions may have surprising
 //! interactions with it.
 //!
@@ -89,7 +89,7 @@ pub unsafe fn arm_set_tls(data: *mut c_void) -> io::Result<()> {
     backend::runtime::syscalls::tls::arm_set_tls(data)
 }
 
-/// `prctl(PR_SET_FS, data)`—Set the x86_64 `fs` register.
+/// `prctl(PR_SET_FS, data)`—Set the x86-64 `fs` register.
 ///
 /// # Safety
 ///
@@ -101,7 +101,7 @@ pub unsafe fn set_fs(data: *mut c_void) {
     backend::runtime::syscalls::tls::set_fs(data)
 }
 
-/// Set the x86_64 thread ID address.
+/// Set the x86-64 thread ID address.
 ///
 /// # Safety
 ///
@@ -188,7 +188,7 @@ pub const EXIT_FAILURE: i32 = backend::c::EXIT_FAILURE;
 /// Return fields from the main executable segment headers ("phdrs") relevant
 /// to initializing TLS provided to the program at startup.
 ///
-/// `addr` will always be non-null, even when the TLS data is absent, ao that
+/// `addr` will always be non-null, even when the TLS data is absent, so that
 /// the `addr` and `file_size` parameters are suitable for creating a slice
 /// with `slice::from_raw_parts`.
 #[inline]
@@ -484,4 +484,29 @@ pub unsafe fn sigwaitinfo(set: &Sigset) -> io::Result<Siginfo> {
 #[inline]
 pub unsafe fn sigtimedwait(set: &Sigset, timeout: Option<Timespec>) -> io::Result<Siginfo> {
     backend::runtime::syscalls::sigtimedwait(set, timeout)
+}
+
+/// `getauxval(AT_SECURE)`—Returns the Linux “secure execution” mode.
+///
+/// Return a boolean value indicating whether “secure execution” mode was
+/// requested, due to the process having elevated privileges. This includes
+/// whether the `AT_SECURE` AUX value is set, and whether the initial real UID
+/// and GID differ from the initial effective UID and GID.
+///
+/// The meaning of “secure execution” mode is beyond the scope of this comment.
+///
+/// # References
+///  - [Linux]
+///
+/// [Linux]: https://man7.org/linux/man-pages/man3/getauxval.3.html
+#[cfg(any(
+    linux_raw,
+    any(
+        all(target_os = "android", target_pointer_width = "64"),
+        target_os = "linux",
+    )
+))]
+#[inline]
+pub fn linux_secure() -> bool {
+    backend::param::auxv::linux_secure()
 }

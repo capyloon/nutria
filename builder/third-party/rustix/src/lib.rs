@@ -115,9 +115,9 @@
 )]
 #![cfg_attr(asm_experimental_arch, feature(asm_experimental_arch))]
 #![cfg_attr(not(feature = "all-apis"), allow(dead_code))]
-// It is common in linux and libc APIs for types to vary between platforms.
+// It is common in Linux and libc APIs for types to vary between platforms.
 #![allow(clippy::unnecessary_cast)]
-// It is common in linux and libc APIs for types to vary between platforms.
+// It is common in Linux and libc APIs for types to vary between platforms.
 #![allow(clippy::useless_conversion)]
 // Redox and WASI have enough differences that it isn't worth precisely
 // conditionalizing all the `use`s for them.
@@ -202,7 +202,7 @@ pub mod io;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "io_uring")))]
 pub mod io_uring;
 pub mod ioctl;
-#[cfg(not(any(windows, target_os = "espidf", target_os = "wasi")))]
+#[cfg(not(any(windows, target_os = "espidf", target_os = "vita", target_os = "wasi")))]
 #[cfg(feature = "mm")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "mm")))]
 pub mod mm;
@@ -246,6 +246,16 @@ pub mod pty;
 #[cfg(feature = "rand")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "rand")))]
 pub mod rand;
+#[cfg(not(any(
+    windows,
+    target_os = "android",
+    target_os = "espidf",
+    target_os = "vita",
+    target_os = "wasi"
+)))]
+#[cfg(feature = "shm")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "shm")))]
+pub mod shm;
 #[cfg(not(windows))]
 #[cfg(feature = "stdio")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "stdio")))]
@@ -254,7 +264,7 @@ pub mod stdio;
 #[cfg(not(any(windows, target_os = "wasi")))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system")))]
 pub mod system;
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "vita")))]
 #[cfg(feature = "termios")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "termios")))]
 pub mod termios;
@@ -326,7 +336,8 @@ mod clockid;
     feature = "runtime",
     feature = "termios",
     feature = "thread",
-    all(bsd, feature = "event")
+    all(bsd, feature = "event"),
+    all(linux_kernel, feature = "net")
 ))]
 mod pid;
 #[cfg(any(feature = "process", feature = "thread"))]
@@ -369,6 +380,7 @@ mod timespec;
             feature = "time",
             target_arch = "x86",
         )
-    )
+    ),
+    all(linux_kernel, feature = "net")
 ))]
 mod ugid;

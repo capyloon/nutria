@@ -581,7 +581,7 @@ impl<'a, Num: ArgNumber> From<crate::event::EventfdFlags> for ArgReg<'a, Num> {
     }
 }
 
-#[cfg(all(feature = "alloc", feature = "event"))]
+#[cfg(feature = "event")]
 impl<'a, Num: ArgNumber> From<crate::event::epoll::CreateFlags> for ArgReg<'a, Num> {
     #[inline]
     fn from(flags: crate::event::epoll::CreateFlags) -> Self {
@@ -617,6 +617,15 @@ impl<'a, Num: ArgNumber> From<crate::backend::mm::types::MremapFlags> for ArgReg
 impl<'a, Num: ArgNumber> From<crate::backend::mm::types::MlockFlags> for ArgReg<'a, Num> {
     #[inline]
     fn from(flags: crate::backend::mm::types::MlockFlags) -> Self {
+        c_uint(flags.bits())
+    }
+}
+
+#[cfg(feature = "mm")]
+#[cfg(any(linux_kernel, freebsdlike, netbsdlike))]
+impl<'a, Num: ArgNumber> From<crate::backend::mm::types::MlockAllFlags> for ArgReg<'a, Num> {
+    #[inline]
+    fn from(flags: crate::backend::mm::types::MlockAllFlags) -> Self {
         c_uint(flags.bits())
     }
 }

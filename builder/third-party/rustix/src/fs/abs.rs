@@ -1,7 +1,7 @@
 //! POSIX-style filesystem functions which operate on bare paths.
 
 use crate::fd::OwnedFd;
-#[cfg(not(target_os = "espidf"))]
+#[cfg(not(any(target_os = "espidf", target_os = "vita")))]
 use crate::fs::Access;
 #[cfg(not(any(
     solarish,
@@ -10,6 +10,7 @@ use crate::fs::Access;
     target_os = "netbsd",
     target_os = "nto",
     target_os = "redox",
+    target_os = "vita",
     target_os = "wasi",
 )))]
 use crate::fs::StatFs;
@@ -129,7 +130,8 @@ fn _readlink(path: &CStr, mut buffer: Vec<u8>) -> io::Result<CString> {
             buffer.resize(nread, 0_u8);
             return Ok(CString::new(buffer).unwrap());
         }
-        buffer.reserve(1); // use `Vec` reallocation strategy to grow capacity exponentially
+        // Use `Vec` reallocation strategy to grow capacity exponentially.
+        buffer.reserve(1);
         buffer.resize(buffer.capacity(), 0_u8);
     }
 }
@@ -235,7 +237,7 @@ pub fn mkdir<P: path::Arg>(path: P, mode: Mode) -> io::Result<()> {
 ///
 /// [POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/access.html
 /// [Linux]: https://man7.org/linux/man-pages/man2/access.2.html
-#[cfg(not(target_os = "espidf"))]
+#[cfg(not(any(target_os = "espidf", target_os = "vita")))]
 #[inline]
 pub fn access<P: path::Arg>(path: P, access: Access) -> io::Result<()> {
     path.into_with_c_str(|path| backend::fs::syscalls::access(path, access))
@@ -257,6 +259,7 @@ pub fn access<P: path::Arg>(path: P, access: Access) -> io::Result<()> {
     target_os = "netbsd",
     target_os = "nto",
     target_os = "redox",
+    target_os = "vita",
     target_os = "wasi",
 )))]
 #[inline]

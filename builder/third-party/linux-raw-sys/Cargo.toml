@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.63"
 name = "linux-raw-sys"
-version = "0.4.7"
+version = "0.4.10"
 authors = ["Dan Gohman <dev@sunfishcode.online>"]
 exclude = [
     "/gen",
@@ -36,6 +36,11 @@ features = [
     "default",
     "ioctl",
     "netlink",
+    "io_uring",
+    "if_ether",
+    "net",
+    "prctl",
+    "elf",
 ]
 targets = [
     "x86_64-unknown-linux-gnu",

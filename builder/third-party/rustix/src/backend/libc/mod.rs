@@ -111,7 +111,7 @@ pub(crate) mod io;
 #[cfg(linux_kernel)]
 #[cfg(feature = "io_uring")]
 pub(crate) mod io_uring;
-#[cfg(not(any(windows, target_os = "espidf", target_os = "wasi")))]
+#[cfg(not(any(windows, target_os = "espidf", target_os = "vita", target_os = "wasi")))]
 #[cfg(feature = "mm")]
 pub(crate) mod mm;
 #[cfg(linux_kernel)]
@@ -148,7 +148,7 @@ pub(crate) mod rand;
 #[cfg(not(target_os = "wasi"))]
 #[cfg(feature = "system")]
 pub(crate) mod system;
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "vita")))]
 #[cfg(feature = "termios")]
 pub(crate) mod termios;
 #[cfg(not(windows))]
@@ -184,6 +184,15 @@ pub(crate) mod pid;
 #[cfg(any(feature = "process", feature = "thread"))]
 #[cfg(linux_kernel)]
 pub(crate) mod prctl;
+#[cfg(not(any(
+    windows,
+    target_os = "android",
+    target_os = "espidf",
+    target_os = "vita",
+    target_os = "wasi"
+)))]
+#[cfg(feature = "shm")]
+pub(crate) mod shm;
 #[cfg(any(feature = "fs", feature = "thread", feature = "process"))]
 #[cfg(not(any(windows, target_os = "wasi")))]
 pub(crate) mod ugid;

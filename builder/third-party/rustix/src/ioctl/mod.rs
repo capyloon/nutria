@@ -86,16 +86,16 @@ pub unsafe fn ioctl<F: AsFd, I: Ioctl>(fd: F, mut ioctl: I) -> Result<I::Output>
     let request = I::OPCODE.raw();
     let arg = ioctl.as_ptr();
 
-    // SAFETY: The variant of `Ioctl` asserts that this is a valid IOCTL call to
-    // make.
+    // SAFETY: The variant of `Ioctl` asserts that this is a valid IOCTL call
+    // to make.
     let output = if I::IS_MUTATING {
         _ioctl(fd, request, arg)?
     } else {
         _ioctl_readonly(fd, request, arg)?
     };
 
-    // SAFETY: The variant of `Ioctl` asserts that this is a valid pointer to the
-    // output data.
+    // SAFETY: The variant of `Ioctl` asserts that this is a valid pointer to
+    // the output data.
     I::output_from_ptr(output, arg)
 }
 
@@ -204,7 +204,9 @@ impl Opcode {
         Self { raw }
     }
 
-    /// Create a new opcode from a direction, group, number and size.
+    /// Create a new opcode from a direction, group, number, and size.
+    ///
+    /// This corresponds to the C macro `_IOC(direction, group, number, size)`
     #[cfg(any(linux_kernel, bsd))]
     #[inline]
     pub const fn from_components(
@@ -225,8 +227,11 @@ impl Opcode {
         ))
     }
 
-    /// Create a new non-mutating opcode from a group, a number and the type of
-    /// data.
+    /// Create a new non-mutating opcode from a group, a number, and the type
+    /// of data.
+    ///
+    /// This corresponds to the C macro `_IO(group, number)` when `T` is zero
+    /// sized.
     #[cfg(any(linux_kernel, bsd))]
     #[inline]
     pub const fn none<T>(group: u8, number: u8) -> Self {
@@ -235,6 +240,8 @@ impl Opcode {
 
     /// Create a new reading opcode from a group, a number and the type of
     /// data.
+    ///
+    /// This corresponds to the C macro `_IOR(group, number, T)`.
     #[cfg(any(linux_kernel, bsd))]
     #[inline]
     pub const fn read<T>(group: u8, number: u8) -> Self {
@@ -243,6 +250,8 @@ impl Opcode {
 
     /// Create a new writing opcode from a group, a number and the type of
     /// data.
+    ///
+    /// This corresponds to the C macro `_IOW(group, number, T)`.
     #[cfg(any(linux_kernel, bsd))]
     #[inline]
     pub const fn write<T>(group: u8, number: u8) -> Self {
@@ -251,6 +260,8 @@ impl Opcode {
 
     /// Create a new reading and writing opcode from a group, a number and the
     /// type of data.
+    ///
+    /// This corresponds to the C macro `_IOWR(group, number, T)`.
     #[cfg(any(linux_kernel, bsd))]
     #[inline]
     pub const fn read_write<T>(group: u8, number: u8) -> Self {
@@ -314,8 +325,14 @@ type _RawOpcode = c::c_int;
 #[cfg(all(not(linux_raw), target_os = "android"))]
 type _RawOpcode = c::c_int;
 
-// BSD, Haiku, and Redox use `unsigned long`.
-#[cfg(any(bsd, target_os = "redox", target_os = "haiku"))]
+// BSD, Haiku, Hurd, Redox, and Vita use `unsigned long`.
+#[cfg(any(
+    bsd,
+    target_os = "redox",
+    target_os = "haiku",
+    target_os = "hurd",
+    target_os = "vita"
+))]
 type _RawOpcode = c::c_ulong;
 
 // AIX, Emscripten, Fuchsia, Solaris, and WASI use a `int`.

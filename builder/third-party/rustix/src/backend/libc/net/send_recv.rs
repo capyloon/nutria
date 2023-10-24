@@ -2,7 +2,8 @@ use crate::backend::c;
 use bitflags::bitflags;
 
 bitflags! {
-    /// `MSG_* flags for use with [`send`], [`send_to`], and related functions.
+    /// `MSG_*` flags for use with [`send`], [`send_to`], and related
+    /// functions.
     ///
     /// [`send`]: crate::net::send
     /// [`sendto`]: crate::net::sendto
@@ -18,6 +19,7 @@ bitflags! {
             target_os = "espidf",
             target_os = "nto",
             target_os = "haiku",
+            target_os = "vita",
         )))]
         const CONFIRM = bitcast!(c::MSG_CONFIRM);
         /// `MSG_DONTROUTE`
@@ -36,9 +38,10 @@ bitflags! {
             target_os = "aix",
             target_os = "haiku",
             target_os = "nto",
+            target_os = "vita",
         )))]
         const MORE = bitcast!(c::MSG_MORE);
-        #[cfg(not(any(apple, windows)))]
+        #[cfg(not(any(apple, windows, target_os = "vita")))]
         /// `MSG_NOSIGNAL`
         const NOSIGNAL = bitcast!(c::MSG_NOSIGNAL);
         /// `MSG_OOB`
@@ -50,7 +53,8 @@ bitflags! {
 }
 
 bitflags! {
-    /// `MSG_* flags for use with [`recv`], [`recvfrom`], and related functions.
+    /// `MSG_*` flags for use with [`recv`], [`recvfrom`], and related
+    /// functions.
     ///
     /// [`recv`]: crate::net::recv
     /// [`recvfrom`]: crate::net::recvfrom
@@ -65,6 +69,7 @@ bitflags! {
             target_os = "espidf",
             target_os = "haiku",
             target_os = "nto",
+            target_os = "vita",
         )))]
         /// `MSG_CMSG_CLOEXEC`
         const CMSG_CLOEXEC = bitcast!(c::MSG_CMSG_CLOEXEC);
@@ -80,6 +85,7 @@ bitflags! {
             target_os = "espidf",
             target_os = "haiku",
             target_os = "nto",
+            target_os = "vita",
         )))]
         const ERRQUEUE = bitcast!(c::MSG_ERRQUEUE);
         /// `MSG_OOB`

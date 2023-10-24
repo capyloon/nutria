@@ -366,8 +366,9 @@ pub enum Capability {
     ///
     /// [`Capability::SystemAdmin`] is required to use bpf_probe_write_user.
     ///
-    /// [`Capability::SystemAdmin`] is required to iterate system wide loaded
-    /// programs, maps, links, BTFs and convert their IDs to file descriptors.
+    /// [`Capability::SystemAdmin`] is required to iterate system-wide loaded
+    /// programs, maps, links, and BTFs, and convert their IDs to file
+    /// descriptors.
     ///
     /// [`Capability::PerformanceMonitoring`] and
     /// [`Capability::BerkeleyPacketFilters`] are required to load tracing
@@ -742,11 +743,13 @@ const PR_MTE_TAG_SHIFT: u32 = 3;
 const PR_MTE_TAG_MASK: u32 = 0xffff_u32 << PR_MTE_TAG_SHIFT;
 
 bitflags! {
-    /// Zero means addresses that are passed for the purpose of being dereferenced by the kernel must be untagged.
+    /// Zero means addresses that are passed for the purpose of being
+    /// dereferenced by the kernel must be untagged.
     #[repr(transparent)]
     #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct TaggedAddressMode: u32 {
-        /// Addresses that are passed for the purpose of being dereferenced by the kernel may be tagged.
+        /// Addresses that are passed for the purpose of being dereferenced by
+        /// the kernel may be tagged.
         const ENABLED = 1_u32 << 0;
         /// Synchronous tag check fault mode.
         const TCF_SYNC = 1_u32 << 1;

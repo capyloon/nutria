@@ -86,6 +86,11 @@ pub(crate) const XCASE: tcflag_t = linux_raw_sys::general::XCASE as _;
 #[cfg(target_os = "aix")]
 pub(crate) const MSG_DONTWAIT: c_int = libc::MSG_NONBLOCK;
 
+// TODO: Remove once https://github.com/rust-lang/libc/pull/3377 is merged and released.
+#[cfg(target_os = "netbsd")]
+#[cfg(feature = "net")]
+pub(crate) const SO_NOSIGPIPE: c_int = 0x0800;
+
 // On PowerPC, the regular `termios` has the `termios2` fields and there is no
 // `termios2`. linux-raw-sys has aliases `termios2` to `termios` to cover this
 // difference, but we still need to manually import it since `libc` doesn't
@@ -109,7 +114,12 @@ pub(super) use libc::fallocate64 as fallocate;
 #[cfg(not(any(target_arch = "aarch64", target_arch = "riscv64")))]
 #[cfg(any(linux_like, target_os = "aix"))]
 pub(super) use libc::open64 as open;
-#[cfg(any(linux_kernel, target_os = "aix", target_os = "l4re"))]
+#[cfg(any(
+    linux_kernel,
+    target_os = "aix",
+    target_os = "hurd",
+    target_os = "l4re"
+))]
 pub(super) use libc::posix_fallocate64 as posix_fallocate;
 #[cfg(any(all(linux_like, not(target_os = "android")), target_os = "aix"))]
 pub(super) use libc::{blkcnt64_t as blkcnt_t, rlim64_t as rlim_t};
@@ -123,7 +133,7 @@ pub(super) use libc::{
     rlimit64 as rlimit, setrlimit64 as setrlimit, statfs64 as statfs, statvfs64 as statvfs,
     RLIM_INFINITY,
 };
-#[cfg(linux_like)]
+#[cfg(any(linux_like, target_os = "hurd"))]
 pub(super) use libc::{
     fstat64 as fstat, fstatat64 as fstatat, fstatfs64 as fstatfs, fstatvfs64 as fstatvfs,
     ftruncate64 as ftruncate, getrlimit64 as getrlimit, ino64_t as ino_t, lseek64 as lseek,
@@ -144,11 +154,16 @@ pub(super) use libc::{
         target_arch = "mips64r6"
     )
 )))]
-#[cfg(any(linux_like, target_os = "aix"))]
+#[cfg(any(linux_like, target_os = "aix", target_os = "hurd"))]
 pub(super) use libc::{lstat64 as lstat, stat64 as stat};
-#[cfg(any(linux_kernel, target_os = "aix", target_os = "emscripten"))]
+#[cfg(any(
+    linux_kernel,
+    target_os = "aix",
+    target_os = "hurd",
+    target_os = "emscripten"
+))]
 pub(super) use libc::{pread64 as pread, pwrite64 as pwrite};
-#[cfg(any(target_os = "linux", target_os = "emscripten"))]
+#[cfg(any(target_os = "linux", target_os = "hurd", target_os = "emscripten"))]
 pub(super) use libc::{preadv64 as preadv, pwritev64 as pwritev};
 
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
@@ -319,7 +334,7 @@ mod readwrite_pv64 {
 #[cfg(target_os = "android")]
 pub(super) use readwrite_pv64::{preadv64 as preadv, pwritev64 as pwritev};
 
-// macOS added preadv and pwritev in version 11.0
+// macOS added `preadv` and `pwritev` in version 11.0.
 #[cfg(apple)]
 mod readwrite_pv {
     weakcall! {

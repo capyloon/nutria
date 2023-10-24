@@ -1,13 +1,20 @@
 //! libc syscalls supporting `rustix::fs`.
 
 use crate::backend::c;
-#[cfg(any(apple, linux_kernel, feature = "alloc"))]
+#[cfg(any(
+    apple,
+    linux_kernel,
+    feature = "alloc",
+    all(linux_kernel, feature = "procfs")
+))]
 use crate::backend::conv::ret_usize;
 use crate::backend::conv::{borrowed_fd, c_str, ret, ret_c_int, ret_off_t, ret_owned_fd};
 use crate::fd::{BorrowedFd, OwnedFd};
 use crate::ffi::CStr;
 #[cfg(apple)]
 use crate::ffi::CString;
+#[cfg(not(any(target_os = "espidf", target_os = "vita")))]
+use crate::fs::Access;
 #[cfg(not(any(
     apple,
     netbsdlike,
@@ -16,6 +23,7 @@ use crate::ffi::CString;
     target_os = "espidf",
     target_os = "haiku",
     target_os = "redox",
+    target_os = "vita",
 )))]
 use crate::fs::Advice;
 #[cfg(not(any(target_os = "espidf", target_os = "redox")))]
@@ -28,9 +36,10 @@ use crate::fs::AtFlags;
     target_os = "espidf",
     target_os = "nto",
     target_os = "redox",
+    target_os = "vita",
 )))]
 use crate::fs::FallocateFlags;
-#[cfg(not(any(target_os = "espidf", target_os = "wasi")))]
+#[cfg(not(any(target_os = "espidf", target_os = "vita", target_os = "wasi")))]
 use crate::fs::FlockOperation;
 #[cfg(any(linux_kernel, target_os = "freebsd"))]
 use crate::fs::MemfdFlags;
@@ -43,12 +52,19 @@ use crate::fs::SealFlags;
     target_os = "netbsd",
     target_os = "nto",
     target_os = "redox",
+    target_os = "vita",
     target_os = "wasi",
 )))]
 use crate::fs::StatFs;
-#[cfg(not(target_os = "espidf"))]
-use crate::fs::{Access, Timestamps};
-#[cfg(not(any(apple, target_os = "espidf", target_os = "redox", target_os = "wasi")))]
+#[cfg(not(any(target_os = "espidf", target_os = "vita")))]
+use crate::fs::Timestamps;
+#[cfg(not(any(
+    apple,
+    target_os = "espidf",
+    target_os = "redox",
+    target_os = "vita",
+    target_os = "wasi"
+)))]
 use crate::fs::{Dev, FileType};
 use crate::fs::{Mode, OFlags, SeekFrom, Stat};
 #[cfg(not(any(target_os = "haiku", target_os = "redox", target_os = "wasi")))]
@@ -125,7 +141,7 @@ fn open_via_syscall(path: &CStr, oflags: OFlags, mode: Mode) -> io::Result<Owned
 pub(crate) fn open(path: &CStr, oflags: OFlags, mode: Mode) -> io::Result<OwnedFd> {
     // Work around <https://sourceware.org/bugzilla/show_bug.cgi?id=17523>.
     // glibc versions before 2.25 don't handle `O_TMPFILE` correctly.
-    #[cfg(all(unix, target_env = "gnu"))]
+    #[cfg(all(unix, target_env = "gnu", not(target_os = "hurd")))]
     if oflags.contains(OFlags::TMPFILE) && crate::backend::if_glibc_is_less_than_2_25() {
         return open_via_syscall(path, oflags, mode);
     }
@@ -153,7 +169,7 @@ pub(crate) fn open(path: &CStr, oflags: OFlags, mode: Mode) -> io::Result<OwnedF
 /// Use a direct syscall (via libc) for `openat`.
 ///
 /// This is only currently necessary as a workaround for old glibc; see below.
-#[cfg(all(unix, target_env = "gnu"))]
+#[cfg(all(unix, target_env = "gnu", not(target_os = "hurd")))]
 fn openat_via_syscall(
     dirfd: BorrowedFd<'_>,
     path: &CStr,
@@ -188,7 +204,7 @@ pub(crate) fn openat(
 ) -> io::Result<OwnedFd> {
     // Work around <https://sourceware.org/bugzilla/show_bug.cgi?id=17523>.
     // glibc versions before 2.25 don't handle `O_TMPFILE` correctly.
-    #[cfg(all(unix, target_env = "gnu"))]
+    #[cfg(all(unix, target_env = "gnu", not(target_os = "hurd")))]
     if oflags.contains(OFlags::TMPFILE) && crate::backend::if_glibc_is_less_than_2_25() {
         return openat_via_syscall(dirfd, path, oflags, mode);
     }
@@ -227,6 +243,7 @@ pub(crate) fn openat(
     target_os = "netbsd",
     target_os = "nto",
     target_os = "redox",
+    target_os = "vita",
     target_os = "wasi",
 )))]
 #[inline]
@@ -258,7 +275,10 @@ pub(crate) fn readlink(path: &CStr, buf: &mut [u8]) -> io::Result<usize> {
     }
 }
 
-#[cfg(all(feature = "alloc", not(target_os = "redox")))]
+#[cfg(all(
+    any(feature = "alloc", all(linux_kernel, feature = "procfs")),
+    not(target_os = "redox")
+))]
 #[inline]
 pub(crate) fn readlinkat(
     dirfd: BorrowedFd<'_>,
@@ -680,12 +700,17 @@ fn statat_old(dirfd: BorrowedFd<'_>, path: &CStr, flags: AtFlags) -> io::Result<
     }
 }
 
-#[cfg(not(any(target_os = "espidf", target_os = "emscripten")))]
+#[cfg(not(any(target_os = "espidf", target_os = "emscripten", target_os = "vita")))]
 pub(crate) fn access(path: &CStr, access: Access) -> io::Result<()> {
     unsafe { ret(c::access(c_str(path), access.bits())) }
 }
 
-#[cfg(not(any(target_os = "emscripten", target_os = "espidf", target_os = "redox")))]
+#[cfg(not(any(
+    target_os = "emscripten",
+    target_os = "espidf",
+    target_os = "redox",
+    target_os = "vita"
+)))]
 pub(crate) fn accessat(
     dirfd: BorrowedFd<'_>,
     path: &CStr,
@@ -751,7 +776,7 @@ pub(crate) fn accessat(
     Ok(())
 }
 
-#[cfg(not(any(target_os = "espidf", target_os = "redox")))]
+#[cfg(not(any(target_os = "espidf", target_os = "redox", target_os = "vita")))]
 pub(crate) fn utimensat(
     dirfd: BorrowedFd<'_>,
     path: &CStr,
@@ -831,8 +856,8 @@ pub(crate) fn utimensat(
             ));
         }
 
-        // `setattrlistat` was introduced in 10.13 along with `utimensat`, so if
-        // we don't have `utimensat`, we don't have `setattrlistat` either.
+        // `setattrlistat` was introduced in 10.13 along with `utimensat`, so
+        // if we don't have `utimensat`, we don't have `setattrlistat` either.
         // Emulate it using `fork`, and `fchdir` and [`setattrlist`].
         //
         // [`setattrlist`]: https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/setattrlist.2.html
@@ -925,7 +950,11 @@ fn utimensat_old(
                 .tv_sec
                 .try_into()
                 .map_err(|_| io::Errno::OVERFLOW)?,
-            tv_nsec: times.last_access.tv_nsec,
+            tv_nsec: times
+                .last_access
+                .tv_nsec
+                .try_into()
+                .map_err(|_| io::Errno::OVERFLOW)?,
         },
         c::timespec {
             tv_sec: times
@@ -933,7 +962,11 @@ fn utimensat_old(
                 .tv_sec
                 .try_into()
                 .map_err(|_| io::Errno::OVERFLOW)?,
-            tv_nsec: times.last_modification.tv_nsec,
+            tv_nsec: times
+                .last_modification
+                .tv_nsec
+                .try_into()
+                .map_err(|_| io::Errno::OVERFLOW)?,
         },
     ];
     unsafe {
@@ -1054,7 +1087,13 @@ pub(crate) fn chownat(
     }
 }
 
-#[cfg(not(any(apple, target_os = "espidf", target_os = "redox", target_os = "wasi")))]
+#[cfg(not(any(
+    apple,
+    target_os = "espidf",
+    target_os = "redox",
+    target_os = "vita",
+    target_os = "wasi"
+)))]
 pub(crate) fn mknodat(
     dirfd: BorrowedFd<'_>,
     path: &CStr,
@@ -1133,6 +1172,7 @@ pub(crate) fn copy_file_range(
     target_os = "espidf",
     target_os = "haiku",
     target_os = "redox",
+    target_os = "vita",
 )))]
 pub(crate) fn fadvise(fd: BorrowedFd<'_>, offset: u64, len: u64, advice: Advice) -> io::Result<()> {
     let offset = offset as i64;
@@ -1189,6 +1229,7 @@ pub(crate) fn fcntl_add_seals(fd: BorrowedFd<'_>, seals: SealFlags) -> io::Resul
     target_os = "espidf",
     target_os = "fuchsia",
     target_os = "redox",
+    target_os = "vita",
     target_os = "wasi"
 )))]
 #[inline]
@@ -1234,8 +1275,8 @@ pub(crate) fn seek(fd: BorrowedFd<'_>, pos: SeekFrom) -> io::Result<u64> {
         SeekFrom::Hole(offset) => (c::SEEK_HOLE, offset),
     };
 
-    // ESP-IDF doesn't support 64-bit offsets.
-    #[cfg(target_os = "espidf")]
+    // ESP-IDF and Vita don't support 64-bit offsets.
+    #[cfg(any(target_os = "espidf", target_os = "vita"))]
     let offset: i32 = offset.try_into().map_err(|_| io::Errno::OVERFLOW)?;
 
     let offset = unsafe { ret_off_t(c::lseek(borrowed_fd(fd), offset, whence))? };
@@ -1302,7 +1343,12 @@ pub(crate) fn fchown(fd: BorrowedFd<'_>, owner: Option<Uid>, group: Option<Gid>)
     }
 }
 
-#[cfg(not(any(target_os = "espidf", target_os = "solaris", target_os = "wasi")))]
+#[cfg(not(any(
+    target_os = "espidf",
+    target_os = "solaris",
+    target_os = "vita",
+    target_os = "wasi"
+)))]
 pub(crate) fn flock(fd: BorrowedFd<'_>, operation: FlockOperation) -> io::Result<()> {
     unsafe { ret(c::flock(borrowed_fd(fd), operation as c::c_int)) }
 }
@@ -1324,7 +1370,12 @@ pub(crate) fn syncfs(fd: BorrowedFd<'_>) -> io::Result<()> {
     unsafe { ret(syncfs(borrowed_fd(fd))) }
 }
 
-#[cfg(not(any(target_os = "espidf", target_os = "redox", target_os = "wasi")))]
+#[cfg(not(any(
+    target_os = "espidf",
+    target_os = "redox",
+    target_os = "vita",
+    target_os = "wasi"
+)))]
 pub(crate) fn sync() {
     unsafe { c::sync() }
 }
@@ -1392,6 +1443,7 @@ fn fstat_old(fd: BorrowedFd<'_>) -> io::Result<Stat> {
     target_os = "netbsd",
     target_os = "nto",
     target_os = "redox",
+    target_os = "vita",
     target_os = "wasi",
 )))]
 pub(crate) fn fstatfs(fd: BorrowedFd<'_>) -> io::Result<StatFs> {
@@ -1431,7 +1483,7 @@ fn libc_statvfs_to_statvfs(from: c::statvfs) -> StatVfs {
     }
 }
 
-#[cfg(not(target_os = "espidf"))]
+#[cfg(not(any(target_os = "espidf", target_os = "vita")))]
 pub(crate) fn futimens(fd: BorrowedFd<'_>, times: &Timestamps) -> io::Result<()> {
     // Old 32-bit version: libc has `futimens` but it is not y2038 safe by
     // default. But there may be a `__futimens64` we can use.
@@ -1507,7 +1559,11 @@ fn futimens_old(fd: BorrowedFd<'_>, times: &Timestamps) -> io::Result<()> {
                 .tv_sec
                 .try_into()
                 .map_err(|_| io::Errno::OVERFLOW)?,
-            tv_nsec: times.last_access.tv_nsec,
+            tv_nsec: times
+                .last_access
+                .tv_nsec
+                .try_into()
+                .map_err(|_| io::Errno::OVERFLOW)?,
         },
         c::timespec {
             tv_sec: times
@@ -1515,7 +1571,11 @@ fn futimens_old(fd: BorrowedFd<'_>, times: &Timestamps) -> io::Result<()> {
                 .tv_sec
                 .try_into()
                 .map_err(|_| io::Errno::OVERFLOW)?,
-            tv_nsec: times.last_modification.tv_nsec,
+            tv_nsec: times
+                .last_modification
+                .tv_nsec
+                .try_into()
+                .map_err(|_| io::Errno::OVERFLOW)?,
         },
     ];
 
@@ -1531,6 +1591,7 @@ fn futimens_old(fd: BorrowedFd<'_>, times: &Timestamps) -> io::Result<()> {
     target_os = "espidf",
     target_os = "nto",
     target_os = "redox",
+    target_os = "vita",
 )))]
 pub(crate) fn fallocate(
     fd: BorrowedFd<'_>,
@@ -1557,7 +1618,8 @@ pub(crate) fn fallocate(
         assert!(mode.is_empty());
         let err = unsafe { c::posix_fallocate(borrowed_fd(fd), offset, len) };
 
-        // `posix_fallocate` returns its error status rather than using `errno`.
+        // `posix_fallocate` returns its error status rather than using
+        // `errno`.
         if err == 0 {
             Ok(())
         } else {
@@ -1607,6 +1669,7 @@ pub(crate) fn fsync(fd: BorrowedFd<'_>) -> io::Result<()> {
     target_os = "espidf",
     target_os = "haiku",
     target_os = "redox",
+    target_os = "vita",
 )))]
 pub(crate) fn fdatasync(fd: BorrowedFd<'_>) -> io::Result<()> {
     unsafe { ret(c::fdatasync(borrowed_fd(fd))) }
