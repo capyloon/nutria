@@ -17,8 +17,8 @@ use core::ops::ControlFlow;
 
 use crate::{
     cert::{Cert, EndEntityOrCa},
-    der, signed_data, subject_name, time, CertRevocationList, Error, SignatureAlgorithm,
-    TrustAnchor,
+    der, public_values_eq, signed_data, subject_name, time, CertRevocationList, Error,
+    SignatureAlgorithm, TrustAnchor,
 };
 
 pub(crate) struct ChainOptions<'a> {
@@ -67,7 +67,7 @@ fn build_chain_inner(
         opts.trust_anchors,
         |trust_anchor: &TrustAnchor| {
             let trust_anchor_subject = untrusted::Input::from(trust_anchor.subject);
-            if cert.issuer != trust_anchor_subject {
+            if !public_values_eq(cert.issuer, trust_anchor_subject) {
                 return Err(Error::UnknownIssuer.into());
             }
 
@@ -101,15 +101,15 @@ fn build_chain_inner(
         let potential_issuer =
             Cert::from_der(untrusted::Input::from(cert_der), EndEntityOrCa::Ca(cert))?;
 
-        if potential_issuer.subject != cert.issuer {
+        if !public_values_eq(potential_issuer.subject, cert.issuer) {
             return Err(Error::UnknownIssuer.into());
         }
 
         // Prevent loops; see RFC 4158 section 5.2.
         let mut prev = cert;
         loop {
-            if potential_issuer.spki.value() == prev.spki.value()
-                && potential_issuer.subject == prev.subject
+            if public_values_eq(potential_issuer.spki.value(), prev.spki.value())
+                && public_values_eq(potential_issuer.subject, prev.subject)
             {
                 return Err(Error::UnknownIssuer.into());
             }
@@ -280,7 +280,7 @@ fn check_crls(
     crls: &[&dyn CertRevocationList],
     budget: &mut Budget,
 ) -> Result<Option<CertNotRevoked>, Error> {
-    assert_eq!(cert.issuer, issuer_subject);
+    assert!(public_values_eq(cert.issuer, issuer_subject));
 
     let crl = match crls
         .iter()
@@ -500,17 +500,19 @@ impl ExtendedKeyUsage {
     }
 
     fn key_purpose_id_equals(&self, value: untrusted::Input<'_>) -> bool {
-        match self {
-            ExtendedKeyUsage::Required(eku) => *eku,
-            ExtendedKeyUsage::RequiredIfPresent(eku) => *eku,
-        }
-        .oid_value
-            == value
+        public_values_eq(
+            match self {
+                ExtendedKeyUsage::Required(eku) => *eku,
+                ExtendedKeyUsage::RequiredIfPresent(eku) => *eku,
+            }
+            .oid_value,
+            value,
+        )
     }
 }
 
 /// An OID value indicating an Extended Key Usage (EKU) key purpose.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy)]
 struct KeyPurposeId {
     oid_value: untrusted::Input<'static>,
 }
@@ -525,6 +527,14 @@ impl KeyPurposeId {
         }
     }
 }
+
+impl PartialEq<Self> for KeyPurposeId {
+    fn eq(&self, other: &Self) -> bool {
+        public_values_eq(self.oid_value, other.oid_value)
+    }
+}
+
+impl Eq for KeyPurposeId {}
 
 // id-pkix            OBJECT IDENTIFIER ::= { 1 3 6 1 5 5 7 }
 // id-kp              OBJECT IDENTIFIER ::= { id-pkix 3 }

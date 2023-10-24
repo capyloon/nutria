@@ -12,25 +12,23 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-#[cfg(feature = "alloc")]
+#![cfg(feature = "alloc")]
+
 use ring::{
     error,
     io::der,
-    rand,
+    rand, rsa,
     signature::{self, KeyPair},
     test, test_file,
 };
-use std::convert::TryFrom;
 
-#[cfg(all(target_arch = "wasm32", feature = "wasm32_c"))]
-use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use wasm_bindgen_test::{wasm_bindgen_test as test, wasm_bindgen_test_configure};
 
-#[cfg(all(target_arch = "wasm32", feature = "wasm32_c"))]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 wasm_bindgen_test_configure!(run_in_browser);
 
-#[cfg(feature = "alloc")]
 #[test]
-#[cfg_attr(all(target_arch = "wasm32", feature = "wasm32_c"), wasm_bindgen_test)]
 fn rsa_from_pkcs8_test() {
     test::run(
         test_file!("rsa_from_pkcs8_tests.txt"),
@@ -40,8 +38,8 @@ fn rsa_from_pkcs8_test() {
             let input = test_case.consume_bytes("Input");
             let error = test_case.consume_optional_string("Error");
 
-            match (signature::RsaKeyPair::from_pkcs8(&input), error) {
-                (Ok(_), None) => (),
+            match (rsa::KeyPair::from_pkcs8(&input), error) {
+                (Ok(_), None) => {}
                 (Err(e), None) => panic!("Failed with error \"{}\", but expected to succeed", e),
                 (Ok(_), Some(e)) => panic!("Succeeded, but expected error \"{}\"", e),
                 (Err(actual), Some(expected)) => assert_eq!(format!("{}", actual), expected),
@@ -54,7 +52,6 @@ fn rsa_from_pkcs8_test() {
 
 #[cfg(feature = "alloc")]
 #[test]
-#[cfg_attr(all(target_arch = "wasm32", feature = "wasm32_c"), wasm_bindgen_test)]
 fn test_signature_rsa_pkcs1_sign() {
     let rng = rand::SystemRandom::new();
     test::run(
@@ -75,7 +72,7 @@ fn test_signature_rsa_pkcs1_sign() {
             let expected = test_case.consume_bytes("Sig");
             let result = test_case.consume_string("Result");
 
-            let key_pair = signature::RsaKeyPair::from_der(&private_key);
+            let key_pair = rsa::KeyPair::from_der(&private_key);
             if result == "Fail-Invalid-Key" {
                 assert!(key_pair.is_err());
                 return Ok(());
@@ -84,7 +81,7 @@ fn test_signature_rsa_pkcs1_sign() {
 
             // XXX: This test is too slow on Android ARM Travis CI builds.
             // TODO: re-enable these tests on Android ARM.
-            let mut actual = vec![0u8; key_pair.public_modulus_len()];
+            let mut actual = vec![0u8; key_pair.public().modulus_len()];
             key_pair
                 .sign(alg, &rng, &msg, actual.as_mut_slice())
                 .unwrap();
@@ -96,7 +93,6 @@ fn test_signature_rsa_pkcs1_sign() {
 
 #[cfg(feature = "alloc")]
 #[test]
-#[cfg_attr(all(target_arch = "wasm32", feature = "wasm32_c"), wasm_bindgen_test)]
 fn test_signature_rsa_pss_sign() {
     test::run(
         test_file!("rsa_pss_sign_tests.txt"),
@@ -113,7 +109,7 @@ fn test_signature_rsa_pss_sign() {
 
             let result = test_case.consume_string("Result");
             let private_key = test_case.consume_bytes("Key");
-            let key_pair = signature::RsaKeyPair::from_der(&private_key);
+            let key_pair = rsa::KeyPair::from_der(&private_key);
             if key_pair.is_err() && result == "Fail-Invalid-Key" {
                 return Ok(());
             }
@@ -124,7 +120,7 @@ fn test_signature_rsa_pss_sign() {
 
             let rng = test::rand::FixedSliceRandom { bytes: &salt };
 
-            let mut actual = vec![0u8; key_pair.public_modulus_len()];
+            let mut actual = vec![0u8; key_pair.public().modulus_len()];
             key_pair.sign(alg, &rng, &msg, actual.as_mut_slice())?;
             assert_eq!(actual.as_slice() == &expected[..], result == "Pass");
             Ok(())
@@ -132,9 +128,36 @@ fn test_signature_rsa_pss_sign() {
     );
 }
 
+// `KeyPair::sign` requires that the output buffer is the same length as
+// the public key modulus. Test what happens when it isn't the same length.
+#[test]
+fn test_signature_rsa_pkcs1_sign_output_buffer_len() {
+    // Sign the message "hello, world", using PKCS#1 v1.5 padding and the
+    // SHA256 digest algorithm.
+    const MESSAGE: &[u8] = b"hello, world";
+    let rng = rand::SystemRandom::new();
+
+    const PRIVATE_KEY_DER: &[u8] =
+        include_bytes!("../src/rsa/signature_rsa_example_private_key.der");
+    let key_pair = rsa::KeyPair::from_der(PRIVATE_KEY_DER).unwrap();
+
+    // When the output buffer is not exactly the right length, `sign()` returns
+    // an error (and does not panic or invoke UB). if `sign` doesn't check that
+    // the length is correct at the beginning then there are various possible
+    // failure points when the output buffer is too small.
+    for len in 0..key_pair.public().modulus_len() + 1 {
+        let mut signature = vec![0; len];
+        assert_eq!(
+            len == key_pair.public().modulus_len(),
+            key_pair
+                .sign(&signature::RSA_PKCS1_SHA256, &rng, MESSAGE, &mut signature)
+                .is_ok()
+        );
+    }
+}
+
 #[cfg(feature = "alloc")]
 #[test]
-#[cfg_attr(all(target_arch = "wasm32", feature = "wasm32_c"), wasm_bindgen_test)]
 fn test_signature_rsa_pkcs1_verify() {
     let sha1_params = &[
         (
@@ -216,7 +239,6 @@ fn test_signature_rsa_pkcs1_verify() {
 
 #[cfg(feature = "alloc")]
 #[test]
-#[cfg_attr(all(target_arch = "wasm32", feature = "wasm32_c"), wasm_bindgen_test)]
 fn test_signature_rsa_pss_verify() {
     test::run(
         test_file!("rsa_pss_verify_tests.txt"),
@@ -266,7 +288,6 @@ fn test_signature_rsa_pss_verify() {
 // and use them to verify a signature.
 #[cfg(feature = "alloc")]
 #[test]
-#[cfg_attr(all(target_arch = "wasm32", feature = "wasm32_c"), wasm_bindgen_test)]
 fn test_signature_rsa_primitive_verification() {
     test::run(
         test_file!("rsa_primitive_verify_tests.txt"),
@@ -287,33 +308,38 @@ fn test_signature_rsa_primitive_verification() {
 
 #[cfg(feature = "alloc")]
 #[test]
-#[cfg_attr(all(target_arch = "wasm32", feature = "wasm32_c"), wasm_bindgen_test)]
-fn rsa_test_public_key_coverage() {
+fn rsa_test_keypair_coverage() {
     const PRIVATE_KEY: &[u8] = include_bytes!("rsa_test_private_key_2048.p8");
-    const PUBLIC_KEY: &[u8] = include_bytes!("rsa_test_public_key_2048.der");
-    const PUBLIC_KEY_DEBUG: &str = include_str!("rsa_test_public_key_2048_debug.txt");
 
-    let key_pair = signature::RsaKeyPair::from_pkcs8(PRIVATE_KEY).unwrap();
+    let key_pair = rsa::KeyPair::from_pkcs8(PRIVATE_KEY).unwrap();
 
-    // Test `AsRef<[u8]>`
-    assert_eq!(key_pair.public_key().as_ref(), PUBLIC_KEY);
+    // Test that `signature::KeyPair::PublicKey` is `rsa::PublicKey`; if it
+    // were a separate type then it would need to be tested separately.
+    let _: &rsa::PublicKey = key_pair.public_key();
 
-    // Test `Clone`.
-    let _ = key_pair.public_key().clone();
-
-    // Test `exponent()`.
-    assert_eq!(
-        &[0x01, 0x00, 0x01],
-        key_pair
-            .public_key()
-            .exponent()
-            .big_endian_without_leading_zero()
-    );
+    test_public_key_coverage(key_pair.public());
+    // Test clones.
+    test_public_key_coverage(&key_pair.public().clone());
 
     // Test `Debug`
-    assert_eq!(PUBLIC_KEY_DEBUG, format!("{:?}", key_pair.public_key()));
     assert_eq!(
-        format!("RsaKeyPair {{ public_key: {:?} }}", key_pair.public_key()),
+        format!("RsaKeyPair {{ public: {:?} }}", key_pair.public_key()),
         format!("{:?}", key_pair)
     );
+}
+
+fn test_public_key_coverage(key: &rsa::PublicKey) {
+    // Test `AsRef<[u8]>`
+    const PUBLIC_KEY: &[u8] = include_bytes!("rsa_test_public_key_2048.der");
+    assert_eq!(key.as_ref(), PUBLIC_KEY);
+
+    // Test `Debug`.
+    const PUBLIC_KEY_DEBUG: &str = include_str!("rsa_test_public_key_2048_debug.txt");
+    assert_eq!(PUBLIC_KEY_DEBUG, format!("{:?}", key));
+
+    let components = rsa::PublicKeyComponents::<Vec<_>>::from(key);
+    const PUBLIC_KEY_MODULUS_BE_BYTES: &[u8] = include_bytes!("rsa_test_public_modulus.bin");
+    assert_eq!(PUBLIC_KEY_MODULUS_BE_BYTES, &components.n);
+    const _65537: &[u8] = &[0x01, 0x00, 0x01];
+    assert_eq!(_65537, &components.e);
 }

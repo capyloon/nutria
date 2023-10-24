@@ -26,7 +26,7 @@
 
 use crate::{
     c, cpu, debug,
-    endian::{self, BigEndian},
+    endian::{ArrayEncoding, BigEndian},
     polyfill,
 };
 use core::num::Wrapping;
@@ -63,7 +63,9 @@ impl BlockContext {
     pub(crate) fn update(&mut self, input: &[u8]) {
         let num_blocks = input.len() / self.algorithm.block_len;
         assert_eq!(num_blocks * self.algorithm.block_len, input.len());
+
         if num_blocks > 0 {
+            let _cpu_features = self.cpu_features;
             unsafe {
                 (self.algorithm.block_data_order)(&mut self.state, input.as_ptr(), num_blocks);
             }
@@ -84,7 +86,7 @@ impl BlockContext {
         padding_pos += 1;
 
         if padding_pos > block_len - self.algorithm.len_len {
-            polyfill::slice::fill(&mut pending[padding_pos..block_len], 0);
+            pending[padding_pos..block_len].fill(0);
             unsafe {
                 (self.algorithm.block_data_order)(&mut self.state, pending.as_ptr(), 1);
             }
@@ -93,7 +95,7 @@ impl BlockContext {
             padding_pos = 0;
         }
 
-        polyfill::slice::fill(&mut pending[padding_pos..(block_len - 8)], 0);
+        pending[padding_pos..(block_len - 8)].fill(0);
 
         // Output the length, in bits, in big endian order.
         let completed_data_bits = self
@@ -160,9 +162,7 @@ impl Context {
         }
     }
 
-    /// Updates the digest with all the data in `data`. `update` may be called
-    /// zero or more times until `finish` is called. It must not be called
-    /// after `finish` has been called.
+    /// Updates the digest with all the data in `data`.
     pub fn update(&mut self, data: &[u8]) {
         let block_len = self.block.algorithm.block_len;
         if data.len() < block_len - self.num_pending {
@@ -190,9 +190,10 @@ impl Context {
         }
     }
 
-    /// Finalizes the digest calculation and returns the digest value. `finish`
-    /// consumes the context so it cannot be (mis-)used after `finish` has been
-    /// called.
+    /// Finalizes the digest calculation and returns the digest value.
+    ///
+    /// `finish` consumes the context so it cannot be (mis-)used after `finish`
+    /// has been called.
     pub fn finish(mut self) -> Digest {
         let block_len = self.block.algorithm.block_len;
         self.block
@@ -229,7 +230,7 @@ pub fn digest(algorithm: &'static Algorithm, data: &[u8]) -> Digest {
 
 /// A calculated digest value.
 ///
-/// Use `as_ref` to get the value as a `&[u8]`.
+/// Use [`Self::as_ref`] to get the value as a `&[u8]`.
 #[derive(Clone, Copy)]
 pub struct Digest {
     value: Output,
@@ -248,7 +249,7 @@ impl AsRef<[u8]> for Digest {
     #[inline(always)]
     fn as_ref(&self) -> &[u8] {
         let as64 = unsafe { &self.value.as64 };
-        &endian::as_byte_slice(as64)[..self.algorithm.output_len]
+        &as64.as_byte_array()[..self.algorithm.output_len]
     }
 }
 
@@ -261,19 +262,9 @@ impl core::fmt::Debug for Digest {
 
 /// A digest algorithm.
 pub struct Algorithm {
-    /// The length of a finalized digest.
-    pub output_len: usize,
-
-    /// The size of the chaining value of the digest function, in bytes. For
-    /// non-truncated algorithms (SHA-1, SHA-256, SHA-512), this is equal to
-    /// `output_len`. For truncated algorithms (e.g. SHA-384, SHA-512/256),
-    /// this is equal to the length before truncation. This is mostly helpful
-    /// for determining the size of an HMAC key that is appropriate for the
-    /// digest algorithm.
-    pub chaining_len: usize,
-
-    /// The internal block length.
-    pub block_len: usize,
+    output_len: usize,
+    chaining_len: usize,
+    block_len: usize,
 
     /// The length of the length in the padding.
     len_len: usize,
@@ -304,6 +295,29 @@ impl PartialEq for Algorithm {
 impl Eq for Algorithm {}
 
 derive_debug_via_id!(Algorithm);
+
+impl Algorithm {
+    /// The internal block length.
+    pub fn block_len(&self) -> usize {
+        self.block_len
+    }
+
+    /// The size of the chaining value of the digest function, in bytes.
+    ///
+    /// For non-truncated algorithms (SHA-1, SHA-256, SHA-512), this is equal
+    /// to [`Self::output_len()`]. For truncated algorithms (e.g. SHA-384,
+    /// SHA-512/256), this is equal to the length before truncation. This is
+    /// mostly helpful for determining the size of an HMAC key that is
+    /// appropriate for the digest algorithm.
+    pub fn chaining_len(&self) -> usize {
+        self.chaining_len
+    }
+
+    /// The length of a finalized digest.
+    pub fn output_len(&self) -> usize {
+        self.output_len
+    }
+}
 
 /// SHA-1 as specified in [FIPS 180-4]. Deprecated.
 ///
@@ -338,7 +352,7 @@ pub static SHA256: Algorithm = Algorithm {
     chaining_len: SHA256_OUTPUT_LEN,
     block_len: 512 / 8,
     len_len: 64 / 8,
-    block_data_order: sha2::GFp_sha256_block_data_order,
+    block_data_order: sha2::sha256_block_data_order,
     format_output: sha256_format_output,
     initial_state: State {
         as32: [
@@ -363,7 +377,7 @@ pub static SHA384: Algorithm = Algorithm {
     chaining_len: SHA512_OUTPUT_LEN,
     block_len: SHA512_BLOCK_LEN,
     len_len: SHA512_LEN_LEN,
-    block_data_order: sha2::GFp_sha512_block_data_order,
+    block_data_order: sha2::sha512_block_data_order,
     format_output: sha512_format_output,
     initial_state: State {
         as64: [
@@ -388,7 +402,7 @@ pub static SHA512: Algorithm = Algorithm {
     chaining_len: SHA512_OUTPUT_LEN,
     block_len: SHA512_BLOCK_LEN,
     len_len: SHA512_LEN_LEN,
-    block_data_order: sha2::GFp_sha512_block_data_order,
+    block_data_order: sha2::sha512_block_data_order,
     format_output: sha512_format_output,
     initial_state: State {
         as64: [
@@ -417,7 +431,7 @@ pub static SHA512_256: Algorithm = Algorithm {
     chaining_len: SHA512_OUTPUT_LEN,
     block_len: SHA512_BLOCK_LEN,
     len_len: SHA512_LEN_LEN,
-    block_data_order: sha2::GFp_sha512_block_data_order,
+    block_data_order: sha2::sha512_block_data_order,
     format_output: sha512_format_output,
     initial_state: State {
         as64: [
@@ -448,47 +462,29 @@ union Output {
     as32: [BigEndian<u32>; 256 / 8 / core::mem::size_of::<BigEndian<u32>>()],
 }
 
-/// The maximum block length (`Algorithm::block_len`) of all the algorithms in
-/// this module.
+/// The maximum block length ([`Algorithm::block_len()`]) of all the algorithms
+/// in this module.
 pub const MAX_BLOCK_LEN: usize = 1024 / 8;
 
-/// The maximum output length (`Algorithm::output_len`) of all the algorithms
-/// in this module.
+/// The maximum output length ([`Algorithm::output_len()`]) of all the
+/// algorithms in this module.
 pub const MAX_OUTPUT_LEN: usize = 512 / 8;
 
-/// The maximum chaining length (`Algorithm::chaining_len`) of all the
+/// The maximum chaining length ([`Algorithm::chaining_len()`]) of all the
 /// algorithms in this module.
 pub const MAX_CHAINING_LEN: usize = MAX_OUTPUT_LEN;
 
 fn sha256_format_output(input: State) -> Output {
     let input = unsafe { &input.as32 };
     Output {
-        as32: [
-            BigEndian::from(input[0]),
-            BigEndian::from(input[1]),
-            BigEndian::from(input[2]),
-            BigEndian::from(input[3]),
-            BigEndian::from(input[4]),
-            BigEndian::from(input[5]),
-            BigEndian::from(input[6]),
-            BigEndian::from(input[7]),
-        ],
+        as32: input.map(BigEndian::from),
     }
 }
 
 fn sha512_format_output(input: State) -> Output {
     let input = unsafe { &input.as64 };
     Output {
-        as64: [
-            BigEndian::from(input[0]),
-            BigEndian::from(input[1]),
-            BigEndian::from(input[2]),
-            BigEndian::from(input[3]),
-            BigEndian::from(input[4]),
-            BigEndian::from(input[5]),
-            BigEndian::from(input[6]),
-            BigEndian::from(input[7]),
-        ],
+        as64: input.map(BigEndian::from),
     }
 }
 
@@ -515,8 +511,8 @@ const SHA512_LEN_LEN: usize = 128 / 8;
 
 #[cfg(test)]
 mod tests {
-
     mod max_input {
+        extern crate alloc;
         use super::super::super::digest;
         use crate::polyfill;
         use alloc::vec;

@@ -47,12 +47,10 @@
 //! agreement::agree_ephemeral(
 //!     my_private_key,
 //!     &peer_public_key,
-//!     ring::error::Unspecified,
 //!     |_key_material| {
 //!         // In a real application, we'd apply a KDF to the key material and the
 //!         // public keys (as recommended in RFC 7748) and then derive session
 //!         // keys from the result. We omit all that here.
-//!         Ok(())
 //!     },
 //! )?;
 //!
@@ -83,7 +81,7 @@ derive_debug_via_field!(Algorithm, curve);
 
 impl Eq for Algorithm {}
 impl PartialEq for Algorithm {
-    fn eq(&self, other: &Algorithm) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.curve.id == other.curve.id
     }
 }
@@ -114,7 +112,7 @@ impl EphemeralPrivateKey {
         //
         // This only handles the key generation part of step 1. The rest of
         // step one is done by `compute_public_key()`.
-        let private_key = ec::Seed::generate(&alg.curve, rng, cpu_features)?;
+        let private_key = ec::Seed::generate(alg.curve, rng, cpu_features)?;
         Ok(Self {
             private_key,
             algorithm: alg,
@@ -180,22 +178,18 @@ impl PublicKey {
 }
 
 /// An unparsed, possibly malformed, public key for key agreement.
-pub struct UnparsedPublicKey<B: AsRef<[u8]>> {
+#[derive(Clone, Copy)]
+pub struct UnparsedPublicKey<B> {
     algorithm: &'static Algorithm,
     bytes: B,
 }
 
-impl<B: Copy> Copy for UnparsedPublicKey<B> where B: AsRef<[u8]> {}
-
-impl<B: Clone> Clone for UnparsedPublicKey<B>
+impl<B> AsRef<[u8]> for UnparsedPublicKey<B>
 where
     B: AsRef<[u8]>,
 {
-    fn clone(&self) -> Self {
-        Self {
-            algorithm: self.algorithm,
-            bytes: self.bytes.clone(),
-        }
+    fn as_ref(&self) -> &[u8] {
+        self.bytes.as_ref()
     }
 }
 
@@ -211,13 +205,13 @@ where
     }
 }
 
-impl<B: AsRef<[u8]>> UnparsedPublicKey<B> {
+impl<B> UnparsedPublicKey<B> {
     /// Constructs a new `UnparsedPublicKey`.
     pub fn new(algorithm: &'static Algorithm, bytes: B) -> Self {
         Self { algorithm, bytes }
     }
 
-    /// TODO: doc
+    /// The algorithm for the public key.
     #[inline]
     pub fn algorithm(&self) -> &'static Algorithm {
         self.algorithm
@@ -244,46 +238,34 @@ impl<B: AsRef<[u8]>> UnparsedPublicKey<B> {
 /// details on how keys are to be encoded and what constitutes a valid key for
 /// that algorithm.
 ///
-/// `error_value` is the value to return if an error occurs before `kdf` is
-/// called, e.g. when decoding of the peer's public key fails or when the public
-/// key is otherwise invalid.
-///
 /// After the key agreement is done, `agree_ephemeral` calls `kdf` with the raw
 /// key material from the key agreement operation and then returns what `kdf`
 /// returns.
 #[inline]
-pub fn agree_ephemeral<B: AsRef<[u8]>, F, R, E>(
+pub fn agree_ephemeral<B: AsRef<[u8]>, R>(
     my_private_key: EphemeralPrivateKey,
     peer_public_key: &UnparsedPublicKey<B>,
-    error_value: E,
-    kdf: F,
-) -> Result<R, E>
-where
-    F: FnOnce(&[u8]) -> Result<R, E>,
-{
+    kdf: impl FnOnce(&[u8]) -> R,
+) -> Result<R, error::Unspecified> {
     let peer_public_key = UnparsedPublicKey {
         algorithm: peer_public_key.algorithm,
         bytes: peer_public_key.bytes.as_ref(),
     };
-    agree_ephemeral_(my_private_key, peer_public_key, error_value, kdf)
+    agree_ephemeral_(my_private_key, peer_public_key, kdf)
 }
 
-fn agree_ephemeral_<F, R, E>(
+fn agree_ephemeral_<R>(
     my_private_key: EphemeralPrivateKey,
     peer_public_key: UnparsedPublicKey<&[u8]>,
-    error_value: E,
-    kdf: F,
-) -> Result<R, E>
-where
-    F: FnOnce(&[u8]) -> Result<R, E>,
-{
+    kdf: impl FnOnce(&[u8]) -> R,
+) -> Result<R, error::Unspecified> {
     // NSA Guide Prerequisite 1.
     //
     // The domain parameters are hard-coded. This check verifies that the
     // peer's public key's domain parameters match the domain parameters of
     // this private key.
     if peer_public_key.algorithm != my_private_key.algorithm {
-        return Err(error_value);
+        return Err(error::Unspecified);
     }
 
     let alg = &my_private_key.algorithm;
@@ -309,12 +291,11 @@ where
         shared_key,
         &my_private_key.private_key,
         untrusted::Input::from(peer_public_key.bytes),
-    )
-    .map_err(|_| error_value)?;
+    )?;
 
     // NSA Guide Steps 5 and 6.
     //
     // Again, we have a pretty liberal interpretation of the NIST's spec's
     // "Destroy" that doesn't meet the NSA requirement to "zeroize."
-    kdf(shared_key)
+    Ok(kdf(shared_key))
 }

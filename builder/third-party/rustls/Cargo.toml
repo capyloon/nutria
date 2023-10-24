@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.61"
 name = "rustls"
-version = "0.21.7"
+version = "0.21.8"
 build = "build.rs"
 autobenches = false
 description = "Rustls is a modern TLS library written in Rust."
@@ -55,13 +55,13 @@ version = "0.4.4"
 optional = true
 
 [dependencies.ring]
-version = "0.16.20"
+version = "0.17"
 
 [dependencies.sct]
 version = "0.7.0"
 
 [dependencies.webpki]
-version = "0.101.2"
+version = "0.101.7"
 features = [
     "alloc",
     "std",

@@ -44,8 +44,8 @@ pub fn generate_private_scalar_bytes(
     // [NSA Suite B Implementer's Guide to NIST SP 800-56A] Appendix B.2,
     // "Key Pair Generation by Testing Candidates".
     //
-    // [NSA Suite B Implementer's Guide to ECDSA]: doc/ecdsa.pdf.
-    // [NSA Suite B Implementer's Guide to NIST SP 800-56A]: doc/ecdh.pdf.
+    // [NSA Suite B Implementer's Guide to ECDSA]: doc/ecdsa.pdf
+    // [NSA Suite B Implementer's Guide to NIST SP 800-56A]: doc/ecdh.pdf
 
     // TODO: The NSA guide also suggests, in appendix B.1, another mechanism
     // that would avoid the need to use `rng.fill()` more than once. It works
@@ -116,8 +116,8 @@ pub fn scalar_from_big_endian_bytes(
     // [NSA Suite B Implementer's Guide to NIST SP 800-56A] Appendix B.2,
     // "Key Pair Generation by Testing Candidates".
     //
-    // [NSA Suite B Implementer's Guide to ECDSA]: doc/ecdsa.pdf.
-    // [NSA Suite B Implementer's Guide to NIST SP 800-56A]: doc/ecdh.pdf.
+    // [NSA Suite B Implementer's Guide to ECDSA]: doc/ecdsa.pdf
+    // [NSA Suite B Implementer's Guide to NIST SP 800-56A]: doc/ecdh.pdf
     //
     // Steps 5, 6, and 7.
     //
@@ -140,7 +140,7 @@ pub fn public_from_private(
     let my_private_key = private_key_as_scalar(ops, my_private_key);
     let my_public_key = ops.point_mul_base(&my_private_key);
     public_out[0] = 4; // Uncompressed encoding.
-    let (x_out, y_out) = (&mut public_out[1..]).split_at_mut(elem_and_scalar_bytes);
+    let (x_out, y_out) = public_out[1..].split_at_mut(elem_and_scalar_bytes);
 
     // `big_endian_affine_from_jacobian` verifies that the point is not at
     // infinity and is on the curve.

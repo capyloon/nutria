@@ -112,7 +112,7 @@
 //!     assert!(db.verify_password("alice", "@74d7]404j|W}6u").is_ok());
 //! }
 
-use crate::{constant_time, digest, error, hmac, polyfill};
+use crate::{constant_time, digest, error, hmac};
 use core::num::NonZeroU32;
 
 /// A PBKDF2 algorithm.
@@ -160,7 +160,7 @@ pub fn derive(
     out: &mut [u8],
 ) {
     let digest_alg = algorithm.0.digest_algorithm();
-    let output_len = digest_alg.output_len;
+    let output_len = digest_alg.output_len();
 
     // This implementation's performance is asymptotically optimal as described
     // in https://jbp.io/2015/08/11/pbkdf2-performance-matters/. However, it
@@ -170,7 +170,7 @@ pub fn derive(
     let secret = hmac::Key::new(algorithm.0, secret);
 
     // Clear |out|.
-    polyfill::slice::fill(out, 0);
+    out.fill(0);
 
     let mut idx: u32 = 0;
 
@@ -189,9 +189,7 @@ fn derive_block(secret: &hmac::Key, iterations: NonZeroU32, salt: &[u8], idx: u3
 
     let mut remaining: u32 = iterations.into();
     loop {
-        for i in 0..out.len() {
-            out[i] ^= u.as_ref()[i];
-        }
+        out.iter_mut().zip(u.as_ref()).for_each(|(o, u)| *o ^= *u);
 
         if remaining == 1 {
             break;
@@ -237,7 +235,7 @@ pub fn verify(
 
     let mut derived_buf = [0u8; digest::MAX_OUTPUT_LEN];
 
-    let output_len = digest_alg.output_len;
+    let output_len = digest_alg.output_len();
     let secret = hmac::Key::new(algorithm.0, secret);
     let mut idx: u32 = 0;
 
@@ -247,11 +245,12 @@ pub fn verify(
         idx = idx.checked_add(1).expect("derived key too long");
 
         let derived_chunk = &mut derived_buf[..previously_derived_chunk.len()];
-        polyfill::slice::fill(derived_chunk, 0);
+        derived_chunk.fill(0);
 
         derive_block(&secret, iterations, salt, idx, derived_chunk);
 
         // XXX: This isn't fully constant-time-safe. TODO: Fix that.
+        #[allow(clippy::bool_to_int_with_if)]
         let current_block_matches =
             if constant_time::verify_slices_are_equal(derived_chunk, previously_derived_chunk)
                 .is_ok()

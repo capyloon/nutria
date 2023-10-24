@@ -191,23 +191,24 @@
 //! ```
 //!
 //! ```
-//! use ring::{rand, signature};
+//! # #[cfg(feature = "std")]
+//! use ring::{rand, rsa, signature};
 //!
 //! # #[cfg(feature = "std")]
 //! fn sign_and_verify_rsa(private_key_path: &std::path::Path,
 //!                        public_key_path: &std::path::Path)
 //!                        -> Result<(), MyError> {
-//! // Create an `RsaKeyPair` from the DER-encoded bytes. This example uses
+//! // Create an RSA keypair from the DER-encoded bytes. This example uses
 //! // a 2048-bit key, but larger keys are also supported.
 //! let private_key_der = read_file(private_key_path)?;
-//! let key_pair = signature::RsaKeyPair::from_der(&private_key_der)
+//! let key_pair = rsa::KeyPair::from_der(&private_key_der)
 //!     .map_err(|_| MyError::BadPrivateKey)?;
 //!
 //! // Sign the message "hello, world", using PKCS#1 v1.5 padding and the
 //! // SHA256 digest algorithm.
 //! const MESSAGE: &'static [u8] = b"hello, world";
 //! let rng = rand::SystemRandom::new();
-//! let mut signature = vec![0; key_pair.public_modulus_len()];
+//! let mut signature = vec![0; key_pair.public().modulus_len()];
 //! key_pair.sign(&signature::RSA_PKCS1_SHA256, &rng, MESSAGE, &mut signature)
 //!     .map_err(|_| MyError::OOM)?;
 //!
@@ -254,7 +255,7 @@
 //! # }
 //! ```
 
-use crate::{cpu, ec, error, sealed};
+use crate::{cpu, debug, ec, error, sealed};
 
 pub use crate::ec::{
     curve25519::ed25519::{
@@ -278,9 +279,10 @@ pub use crate::ec::{
 
 #[cfg(feature = "alloc")]
 pub use crate::rsa::{
-    signing::RsaKeyPair,
-    signing::RsaSubjectPublicKey,
-
+    padding::{
+        RsaEncoding, RSA_PKCS1_SHA256, RSA_PKCS1_SHA384, RSA_PKCS1_SHA512, RSA_PSS_SHA256,
+        RSA_PSS_SHA384, RSA_PSS_SHA512,
+    },
     verification::{
         RsaPublicKeyComponents, RSA_PKCS1_1024_8192_SHA1_FOR_LEGACY_USE_ONLY,
         RSA_PKCS1_1024_8192_SHA256_FOR_LEGACY_USE_ONLY,
@@ -289,22 +291,12 @@ pub use crate::rsa::{
         RSA_PKCS1_2048_8192_SHA384, RSA_PKCS1_2048_8192_SHA512, RSA_PKCS1_3072_8192_SHA384,
         RSA_PSS_2048_8192_SHA256, RSA_PSS_2048_8192_SHA384, RSA_PSS_2048_8192_SHA512,
     },
-
-    RsaEncoding,
     RsaParameters,
-
-    // `RSA_PKCS1_SHA1` is intentionally not exposed. At a minimum, we'd need
-    // to create test vectors for signing with it, which we don't currently
-    // have. But, it's a bad idea to use SHA-1 anyway, so perhaps we just won't
-    // ever expose it.
-    RSA_PKCS1_SHA256,
-    RSA_PKCS1_SHA384,
-    RSA_PKCS1_SHA512,
-
-    RSA_PSS_SHA256,
-    RSA_PSS_SHA384,
-    RSA_PSS_SHA512,
 };
+
+/// An RSA key pair, used for signing.
+#[cfg(feature = "alloc")]
+pub type RsaKeyPair = crate::rsa::KeyPair;
 
 /// A public key signature returned from a signing operation.
 #[derive(Clone, Copy)]
@@ -363,26 +355,34 @@ pub trait VerificationAlgorithm: core::fmt::Debug + Sync + sealed::Sealed {
 }
 
 /// An unparsed, possibly malformed, public key for signature verification.
-pub struct UnparsedPublicKey<B: AsRef<[u8]>> {
+#[derive(Clone, Copy)]
+pub struct UnparsedPublicKey<B> {
     algorithm: &'static dyn VerificationAlgorithm,
     bytes: B,
 }
 
-impl<B: Copy> Copy for UnparsedPublicKey<B> where B: AsRef<[u8]> {}
-
-impl<B: Clone> Clone for UnparsedPublicKey<B>
+impl<B> AsRef<[u8]> for UnparsedPublicKey<B>
 where
     B: AsRef<[u8]>,
 {
-    fn clone(&self) -> Self {
-        Self {
-            algorithm: self.algorithm,
-            bytes: self.bytes.clone(),
-        }
+    fn as_ref(&self) -> &[u8] {
+        self.bytes.as_ref()
     }
 }
 
-impl<B: AsRef<[u8]>> UnparsedPublicKey<B> {
+impl<B: core::fmt::Debug> core::fmt::Debug for UnparsedPublicKey<B>
+where
+    B: AsRef<[u8]>,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
+        f.debug_struct("UnparsedPublicKey")
+            .field("algorithm", &self.algorithm)
+            .field("bytes", &debug::HexStr(self.bytes.as_ref()))
+            .finish()
+    }
+}
+
+impl<B> UnparsedPublicKey<B> {
     /// Construct a new `UnparsedPublicKey`.
     ///
     /// No validation of `bytes` is done until `verify()` is called.
@@ -395,7 +395,10 @@ impl<B: AsRef<[u8]>> UnparsedPublicKey<B> {
     /// `message` using it.
     ///
     /// See the [crate::signature] module-level documentation for examples.
-    pub fn verify(&self, message: &[u8], signature: &[u8]) -> Result<(), error::Unspecified> {
+    pub fn verify(&self, message: &[u8], signature: &[u8]) -> Result<(), error::Unspecified>
+    where
+        B: AsRef<[u8]>,
+    {
         let _ = cpu::features();
         self.algorithm.verify(
             untrusted::Input::from(self.bytes.as_ref()),

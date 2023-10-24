@@ -15,11 +15,11 @@
 #ifndef RING_LIMBS_H
 #define RING_LIMBS_H
 
-#include <GFp/base.h>
+#include <ring-core/base.h>
 
 #include "../internal.h"
 
-typedef crypto_word Limb;
+typedef crypto_word_t Limb;
 
 #define LIMB_BITS CRYPTO_WORD_BITS
 #define LIMB_HIGH_BIT ((Limb)(1) << (LIMB_BITS - 1))
@@ -35,6 +35,6 @@ void LIMBS_add_mod(Limb r[], const Limb a[], const Limb b[], const Limb m[],
 void LIMBS_sub_mod(Limb r[], const Limb a[], const Limb b[], const Limb m[],
                    size_t num_limbs);
 void LIMBS_shl_mod(Limb r[], const Limb a[], const Limb m[], size_t num_limbs);
-Limb GFp_limbs_mul_add_limb(Limb r[], const Limb a[], Limb b, size_t num_limbs);
+Limb limbs_mul_add_limb(Limb r[], const Limb a[], Limb b, size_t num_limbs);
 
 #endif /* RING_LIMBS_H */

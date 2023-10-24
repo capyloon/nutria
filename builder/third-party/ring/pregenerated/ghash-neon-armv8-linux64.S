@@ -1,24 +1,18 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
+#include <ring-core/asm_base.h>
 
-#if !defined(OPENSSL_NO_ASM)
-#if defined(__aarch64__)
-#include <GFp/arm_arch.h>
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_AARCH64) && defined(__ELF__)
+#include <ring-core/arm_arch.h>
 
 .text
 
-.globl	GFp_gcm_init_neon
-.hidden	GFp_gcm_init_neon
-.type	GFp_gcm_init_neon,%function
+.globl	gcm_init_neon
+.hidden	gcm_init_neon
+.type	gcm_init_neon,%function
 .align	4
-GFp_gcm_init_neon:
+gcm_init_neon:
 	AARCH64_VALID_CALL_TARGET
 	// This function is adapted from gcm_init_v8. xC2 is t3.
 	ld1	{v17.2d}, [x1]			// load H
@@ -38,13 +32,13 @@ GFp_gcm_init_neon:
 	eor	v5.16b, v3.16b, v16.16b	// twisted H
 	st1	{v5.2d}, [x0]			// store Htable[0]
 	ret
-.size	GFp_gcm_init_neon,.-GFp_gcm_init_neon
+.size	gcm_init_neon,.-gcm_init_neon
 
-.globl	GFp_gcm_gmult_neon
-.hidden	GFp_gcm_gmult_neon
-.type	GFp_gcm_gmult_neon,%function
+.globl	gcm_gmult_neon
+.hidden	gcm_gmult_neon
+.type	gcm_gmult_neon,%function
 .align	4
-GFp_gcm_gmult_neon:
+gcm_gmult_neon:
 	AARCH64_VALID_CALL_TARGET
 	ld1	{v3.16b}, [x0]		// load Xi
 	ld1	{v5.1d}, [x1], #8		// load twisted H
@@ -58,13 +52,13 @@ GFp_gcm_gmult_neon:
 
 	mov	x3, #16
 	b	.Lgmult_neon
-.size	GFp_gcm_gmult_neon,.-GFp_gcm_gmult_neon
+.size	gcm_gmult_neon,.-gcm_gmult_neon
 
-.globl	GFp_gcm_ghash_neon
-.hidden	GFp_gcm_ghash_neon
-.type	GFp_gcm_ghash_neon,%function
+.globl	gcm_ghash_neon
+.hidden	gcm_ghash_neon
+.type	gcm_ghash_neon,%function
 .align	4
-GFp_gcm_ghash_neon:
+gcm_ghash_neon:
 	AARCH64_VALID_CALL_TARGET
 	ld1	{v0.16b}, [x0]		// load Xi
 	ld1	{v5.1d}, [x1], #8		// load twisted H
@@ -326,7 +320,7 @@ GFp_gcm_ghash_neon:
 	st1	{v0.16b}, [x0]
 
 	ret
-.size	GFp_gcm_ghash_neon,.-GFp_gcm_ghash_neon
+.size	gcm_ghash_neon,.-gcm_ghash_neon
 
 .section	.rodata
 .align	4
@@ -338,6 +332,4 @@ GFp_gcm_ghash_neon:
 .byte	71,72,65,83,72,32,102,111,114,32,65,82,77,118,56,44,32,100,101,114,105,118,101,100,32,102,114,111,109,32,65,82,77,118,52,32,118,101,114,115,105,111,110,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2
-#endif
-#endif  // !OPENSSL_NO_ASM
-.section	.note.GNU-stack,"",%progbits
+#endif  // !OPENSSL_NO_ASM && defined(OPENSSL_AARCH64) && defined(__ELF__)

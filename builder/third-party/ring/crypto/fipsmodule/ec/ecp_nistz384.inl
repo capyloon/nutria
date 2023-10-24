@@ -23,13 +23,13 @@
 
 #include "ecp_nistz.h"
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
 
 /* Point double: r = 2*a */
-void GFp_nistz384_point_double(P384_POINT *r, const P384_POINT *a) {
+static void nistz384_point_double(P384_POINT *r, const P384_POINT *a) {
   BN_ULONG S[P384_LIMBS];
   BN_ULONG M[P384_LIMBS];
   BN_ULONG Zsqr[P384_LIMBS];
@@ -74,8 +74,8 @@ void GFp_nistz384_point_double(P384_POINT *r, const P384_POINT *a) {
 }
 
 /* Point addition: r = a+b */
-void GFp_nistz384_point_add(P384_POINT *r, const P384_POINT *a,
-                            const P384_POINT *b) {
+static void nistz384_point_add(P384_POINT *r, const P384_POINT *a,
+                               const P384_POINT *b) {
   BN_ULONG U2[P384_LIMBS], S2[P384_LIMBS];
   BN_ULONG U1[P384_LIMBS], S1[P384_LIMBS];
   BN_ULONG Z1sqr[P384_LIMBS];
@@ -117,7 +117,7 @@ void GFp_nistz384_point_add(P384_POINT *r, const P384_POINT *a,
   BN_ULONG is_exceptional = is_equal(U1, U2) & ~in1infty & ~in2infty;
   if (is_exceptional) {
     if (is_equal(S1, S2)) {
-      GFp_nistz384_point_double(r, a);
+      nistz384_point_double(r, a);
     } else {
       limbs_zero(r->X, P384_LIMBS);
       limbs_zero(r->Y, P384_LIMBS);
@@ -157,32 +157,33 @@ void GFp_nistz384_point_add(P384_POINT *r, const P384_POINT *a,
   limbs_copy(r->Z, res_z, P384_LIMBS);
 }
 
-static void add_precomputed_w5(P384_POINT *r, crypto_word wvalue,
+static void add_precomputed_w5(P384_POINT *r, crypto_word_t wvalue,
                                const P384_POINT table[16]) {
-  crypto_word recoded_is_negative;
-  crypto_word recoded;
+  crypto_word_t recoded_is_negative;
+  crypto_word_t recoded;
   booth_recode(&recoded_is_negative, &recoded, wvalue, 5);
 
   alignas(64) P384_POINT h;
-  gfp_p384_point_select_w5(&h, table, recoded);
+  p384_point_select_w5(&h, table, recoded);
 
   alignas(64) BN_ULONG tmp[P384_LIMBS];
-  GFp_p384_elem_neg(tmp, h.Y);
+  p384_elem_neg(tmp, h.Y);
   copy_conditional(h.Y, tmp, recoded_is_negative);
 
-  GFp_nistz384_point_add(r, r, &h);
+  nistz384_point_add(r, r, &h);
 }
 
 /* r = p * p_scalar */
-void GFp_nistz384_point_mul(P384_POINT *r, const BN_ULONG p_scalar[P384_LIMBS],
-                            const BN_ULONG p_x[P384_LIMBS],
-                            const BN_ULONG p_y[P384_LIMBS]) {
+static void nistz384_point_mul(P384_POINT *r,
+                               const BN_ULONG p_scalar[P384_LIMBS],
+                               const Limb p_x[P384_LIMBS],
+                               const Limb p_y[P384_LIMBS]) {
   static const size_t kWindowSize = 5;
-  static const crypto_word kMask = (1 << (5 /* kWindowSize */ + 1)) - 1;
+  static const crypto_word_t kMask = (1 << (5 /* kWindowSize */ + 1)) - 1;
 
   uint8_t p_str[(P384_LIMBS * sizeof(Limb)) + 1];
-  gfp_little_endian_bytes_from_scalar(p_str, sizeof(p_str) / sizeof(p_str[0]),
-                                      p_scalar, P384_LIMBS);
+  little_endian_bytes_from_scalar(p_str, sizeof(p_str) / sizeof(p_str[0]),
+                                  p_scalar, P384_LIMBS);
 
   /* A |P384_POINT| is (3 * 48) = 144 bytes, and the 64-byte alignment should
   * add no more than 63 bytes of overhead. Thus, |table| should require
@@ -198,35 +199,35 @@ void GFp_nistz384_point_mul(P384_POINT *r, const BN_ULONG p_scalar[P384_LIMBS],
   limbs_copy(row[1 - 1].Y, p_y, P384_LIMBS);
   limbs_copy(row[1 - 1].Z, ONE, P384_LIMBS);
 
-  GFp_nistz384_point_double(&row[2 - 1], &row[1 - 1]);
-  GFp_nistz384_point_add(&row[3 - 1], &row[2 - 1], &row[1 - 1]);
-  GFp_nistz384_point_double(&row[4 - 1], &row[2 - 1]);
-  GFp_nistz384_point_double(&row[6 - 1], &row[3 - 1]);
-  GFp_nistz384_point_double(&row[8 - 1], &row[4 - 1]);
-  GFp_nistz384_point_double(&row[12 - 1], &row[6 - 1]);
-  GFp_nistz384_point_add(&row[5 - 1], &row[4 - 1], &row[1 - 1]);
-  GFp_nistz384_point_add(&row[7 - 1], &row[6 - 1], &row[1 - 1]);
-  GFp_nistz384_point_add(&row[9 - 1], &row[8 - 1], &row[1 - 1]);
-  GFp_nistz384_point_add(&row[13 - 1], &row[12 - 1], &row[1 - 1]);
-  GFp_nistz384_point_double(&row[14 - 1], &row[7 - 1]);
-  GFp_nistz384_point_double(&row[10 - 1], &row[5 - 1]);
-  GFp_nistz384_point_add(&row[15 - 1], &row[14 - 1], &row[1 - 1]);
-  GFp_nistz384_point_add(&row[11 - 1], &row[10 - 1], &row[1 - 1]);
-  GFp_nistz384_point_double(&row[16 - 1], &row[8 - 1]);
+  nistz384_point_double(&row[2 - 1], &row[1 - 1]);
+  nistz384_point_add(&row[3 - 1], &row[2 - 1], &row[1 - 1]);
+  nistz384_point_double(&row[4 - 1], &row[2 - 1]);
+  nistz384_point_double(&row[6 - 1], &row[3 - 1]);
+  nistz384_point_double(&row[8 - 1], &row[4 - 1]);
+  nistz384_point_double(&row[12 - 1], &row[6 - 1]);
+  nistz384_point_add(&row[5 - 1], &row[4 - 1], &row[1 - 1]);
+  nistz384_point_add(&row[7 - 1], &row[6 - 1], &row[1 - 1]);
+  nistz384_point_add(&row[9 - 1], &row[8 - 1], &row[1 - 1]);
+  nistz384_point_add(&row[13 - 1], &row[12 - 1], &row[1 - 1]);
+  nistz384_point_double(&row[14 - 1], &row[7 - 1]);
+  nistz384_point_double(&row[10 - 1], &row[5 - 1]);
+  nistz384_point_add(&row[15 - 1], &row[14 - 1], &row[1 - 1]);
+  nistz384_point_add(&row[11 - 1], &row[10 - 1], &row[1 - 1]);
+  nistz384_point_double(&row[16 - 1], &row[8 - 1]);
 
   static const size_t START_INDEX = 384 - 4;
   size_t index = START_INDEX;
 
   BN_ULONG recoded_is_negative;
-  crypto_word recoded;
+  crypto_word_t recoded;
 
-  crypto_word wvalue = p_str[(index - 1) / 8];
+  crypto_word_t wvalue = p_str[(index - 1) / 8];
   wvalue = (wvalue >> ((index - 1) % 8)) & kMask;
 
   booth_recode(&recoded_is_negative, &recoded, wvalue, 5);
   dev_assert_secret(!recoded_is_negative);
 
-  gfp_p384_point_select_w5(r, table, recoded);
+  p384_point_select_w5(r, table, recoded);
 
   while (index >= kWindowSize) {
     if (index != START_INDEX) {
@@ -239,11 +240,11 @@ void GFp_nistz384_point_mul(P384_POINT *r, const BN_ULONG p_scalar[P384_LIMBS],
 
     index -= kWindowSize;
 
-    GFp_nistz384_point_double(r, r);
-    GFp_nistz384_point_double(r, r);
-    GFp_nistz384_point_double(r, r);
-    GFp_nistz384_point_double(r, r);
-    GFp_nistz384_point_double(r, r);
+    nistz384_point_double(r, r);
+    nistz384_point_double(r, r);
+    nistz384_point_double(r, r);
+    nistz384_point_double(r, r);
+    nistz384_point_double(r, r);
   }
 
   /* Final window */
@@ -252,6 +253,48 @@ void GFp_nistz384_point_mul(P384_POINT *r, const BN_ULONG p_scalar[P384_LIMBS],
   add_precomputed_w5(r, wvalue, table);
 }
 
-#if defined(__GNUC__)
+void p384_point_double(Limb r[3][P384_LIMBS], const Limb a[3][P384_LIMBS])
+{
+  P384_POINT t;
+  limbs_copy(t.X, a[0], P384_LIMBS);
+  limbs_copy(t.Y, a[1], P384_LIMBS);
+  limbs_copy(t.Z, a[2], P384_LIMBS);
+  nistz384_point_double(&t, &t);
+  limbs_copy(r[0], t.X, P384_LIMBS);
+  limbs_copy(r[1], t.Y, P384_LIMBS);
+  limbs_copy(r[2], t.Z, P384_LIMBS);
+}
+
+void p384_point_add(Limb r[3][P384_LIMBS],
+                    const Limb a[3][P384_LIMBS],
+                    const Limb b[3][P384_LIMBS])
+{
+  P384_POINT t1;
+  limbs_copy(t1.X, a[0], P384_LIMBS);
+  limbs_copy(t1.Y, a[1], P384_LIMBS);
+  limbs_copy(t1.Z, a[2], P384_LIMBS);
+
+  P384_POINT t2;
+  limbs_copy(t2.X, b[0], P384_LIMBS);
+  limbs_copy(t2.Y, b[1], P384_LIMBS);
+  limbs_copy(t2.Z, b[2], P384_LIMBS);
+
+  nistz384_point_add(&t1, &t1, &t2);
+
+  limbs_copy(r[0], t1.X, P384_LIMBS);
+  limbs_copy(r[1], t1.Y, P384_LIMBS);
+  limbs_copy(r[2], t1.Z, P384_LIMBS);
+}
+
+void p384_point_mul(Limb r[3][P384_LIMBS], const BN_ULONG p_scalar[P384_LIMBS],
+                    const Limb p_x[P384_LIMBS], const Limb p_y[P384_LIMBS]) {
+  alignas(64) P384_POINT acc;
+  nistz384_point_mul(&acc, p_scalar, p_x, p_y);
+  limbs_copy(r[0], acc.X, P384_LIMBS);
+  limbs_copy(r[1], acc.Y, P384_LIMBS);
+  limbs_copy(r[2], acc.Z, P384_LIMBS);
+}
+
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
 #endif

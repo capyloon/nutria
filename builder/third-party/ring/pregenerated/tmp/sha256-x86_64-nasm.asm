@@ -1,32 +1,39 @@
 ; This file is generated from a similarly-named Perl script in the BoringSSL
 ; source tree. Do not edit by hand.
 
+%ifidn __OUTPUT_FORMAT__, win64
 default	rel
 %define XMMWORD
 %define YMMWORD
 %define ZMMWORD
+%define _CET_ENDBR
+
+%include "ring_core_generated/prefix_symbols_nasm.inc"
 section	.text code align=64
 
 
-EXTERN	GFp_ia32cap_P
-global	GFp_sha256_block_data_order
+EXTERN	OPENSSL_ia32cap_P
+global	sha256_block_data_order
 
 ALIGN	16
-GFp_sha256_block_data_order:
+sha256_block_data_order:
 	mov	QWORD[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_GFp_sha256_block_data_order:
+$L$SEH_begin_sha256_block_data_order:
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
 
 
 
-	lea	r11,[GFp_ia32cap_P]
+_CET_ENDBR
+	lea	r11,[OPENSSL_ia32cap_P]
 	mov	r9d,DWORD[r11]
 	mov	r10d,DWORD[4+r11]
 	mov	r11d,DWORD[8+r11]
+	test	r11d,536870912
+	jnz	NEAR $L$shaext_shortcut
 	and	r9d,1073741824
 	and	r10d,268435968
 	or	r10d,r9d
@@ -1739,9 +1746,10 @@ $L$rounds_16_xx:
 $L$epilogue:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
-	DB	0F3h,0C3h		;repret
+	ret
 
-$L$SEH_end_GFp_sha256_block_data_order:
+$L$SEH_end_sha256_block_data_order:
+section	.rdata rdata align=8
 ALIGN	64
 
 K256:
@@ -1784,18 +1792,254 @@ K256:
 	DD	0x03020100,0x0b0a0908,0xffffffff,0xffffffff
 	DD	0xffffffff,0xffffffff,0x03020100,0x0b0a0908
 	DD	0xffffffff,0xffffffff,0x03020100,0x0b0a0908
-DB	83,72,65,50,53,54,32,98,108,111,99,107,32,116,114,97
-DB	110,115,102,111,114,109,32,102,111,114,32,120,56,54,95,54
-DB	52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121
-DB	32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46
-DB	111,114,103,62,0
+	DB	83,72,65,50,53,54,32,98,108,111,99,107,32,116,114,97
+	DB	110,115,102,111,114,109,32,102,111,114,32,120,56,54,95,54
+	DB	52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121
+	DB	32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46
+	DB	111,114,103,62,0
+section	.text
+
 
 ALIGN	64
-GFp_sha256_block_data_order_ssse3:
+sha256_block_data_order_shaext:
 	mov	QWORD[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_GFp_sha256_block_data_order_ssse3:
+$L$SEH_begin_sha256_block_data_order_shaext:
+	mov	rdi,rcx
+	mov	rsi,rdx
+	mov	rdx,r8
+
+
+
+$L$shaext_shortcut:
+	lea	rsp,[((-88))+rsp]
+	movaps	XMMWORD[(-8-80)+rax],xmm6
+	movaps	XMMWORD[(-8-64)+rax],xmm7
+	movaps	XMMWORD[(-8-48)+rax],xmm8
+	movaps	XMMWORD[(-8-32)+rax],xmm9
+	movaps	XMMWORD[(-8-16)+rax],xmm10
+$L$prologue_shaext:
+	lea	rcx,[((K256+128))]
+	movdqu	xmm1,XMMWORD[rdi]
+	movdqu	xmm2,XMMWORD[16+rdi]
+	movdqa	xmm7,XMMWORD[((512-128))+rcx]
+
+	pshufd	xmm0,xmm1,0x1b
+	pshufd	xmm1,xmm1,0xb1
+	pshufd	xmm2,xmm2,0x1b
+	movdqa	xmm8,xmm7
+DB	102,15,58,15,202,8
+	punpcklqdq	xmm2,xmm0
+	jmp	NEAR $L$oop_shaext
+
+ALIGN	16
+$L$oop_shaext:
+	movdqu	xmm3,XMMWORD[rsi]
+	movdqu	xmm4,XMMWORD[16+rsi]
+	movdqu	xmm5,XMMWORD[32+rsi]
+DB	102,15,56,0,223
+	movdqu	xmm6,XMMWORD[48+rsi]
+
+	movdqa	xmm0,XMMWORD[((0-128))+rcx]
+	paddd	xmm0,xmm3
+DB	102,15,56,0,231
+	movdqa	xmm10,xmm2
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	nop
+	movdqa	xmm9,xmm1
+	DB	15,56,203,202
+
+	movdqa	xmm0,XMMWORD[((32-128))+rcx]
+	paddd	xmm0,xmm4
+DB	102,15,56,0,239
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	lea	rsi,[64+rsi]
+	DB	15,56,204,220
+	DB	15,56,203,202
+
+	movdqa	xmm0,XMMWORD[((64-128))+rcx]
+	paddd	xmm0,xmm5
+DB	102,15,56,0,247
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm6
+DB	102,15,58,15,253,4
+	nop
+	paddd	xmm3,xmm7
+	DB	15,56,204,229
+	DB	15,56,203,202
+
+	movdqa	xmm0,XMMWORD[((96-128))+rcx]
+	paddd	xmm0,xmm6
+	DB	15,56,205,222
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm3
+DB	102,15,58,15,254,4
+	nop
+	paddd	xmm4,xmm7
+	DB	15,56,204,238
+	DB	15,56,203,202
+	movdqa	xmm0,XMMWORD[((128-128))+rcx]
+	paddd	xmm0,xmm3
+	DB	15,56,205,227
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm4
+DB	102,15,58,15,251,4
+	nop
+	paddd	xmm5,xmm7
+	DB	15,56,204,243
+	DB	15,56,203,202
+	movdqa	xmm0,XMMWORD[((160-128))+rcx]
+	paddd	xmm0,xmm4
+	DB	15,56,205,236
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm5
+DB	102,15,58,15,252,4
+	nop
+	paddd	xmm6,xmm7
+	DB	15,56,204,220
+	DB	15,56,203,202
+	movdqa	xmm0,XMMWORD[((192-128))+rcx]
+	paddd	xmm0,xmm5
+	DB	15,56,205,245
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm6
+DB	102,15,58,15,253,4
+	nop
+	paddd	xmm3,xmm7
+	DB	15,56,204,229
+	DB	15,56,203,202
+	movdqa	xmm0,XMMWORD[((224-128))+rcx]
+	paddd	xmm0,xmm6
+	DB	15,56,205,222
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm3
+DB	102,15,58,15,254,4
+	nop
+	paddd	xmm4,xmm7
+	DB	15,56,204,238
+	DB	15,56,203,202
+	movdqa	xmm0,XMMWORD[((256-128))+rcx]
+	paddd	xmm0,xmm3
+	DB	15,56,205,227
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm4
+DB	102,15,58,15,251,4
+	nop
+	paddd	xmm5,xmm7
+	DB	15,56,204,243
+	DB	15,56,203,202
+	movdqa	xmm0,XMMWORD[((288-128))+rcx]
+	paddd	xmm0,xmm4
+	DB	15,56,205,236
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm5
+DB	102,15,58,15,252,4
+	nop
+	paddd	xmm6,xmm7
+	DB	15,56,204,220
+	DB	15,56,203,202
+	movdqa	xmm0,XMMWORD[((320-128))+rcx]
+	paddd	xmm0,xmm5
+	DB	15,56,205,245
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm6
+DB	102,15,58,15,253,4
+	nop
+	paddd	xmm3,xmm7
+	DB	15,56,204,229
+	DB	15,56,203,202
+	movdqa	xmm0,XMMWORD[((352-128))+rcx]
+	paddd	xmm0,xmm6
+	DB	15,56,205,222
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm3
+DB	102,15,58,15,254,4
+	nop
+	paddd	xmm4,xmm7
+	DB	15,56,204,238
+	DB	15,56,203,202
+	movdqa	xmm0,XMMWORD[((384-128))+rcx]
+	paddd	xmm0,xmm3
+	DB	15,56,205,227
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm4
+DB	102,15,58,15,251,4
+	nop
+	paddd	xmm5,xmm7
+	DB	15,56,204,243
+	DB	15,56,203,202
+	movdqa	xmm0,XMMWORD[((416-128))+rcx]
+	paddd	xmm0,xmm4
+	DB	15,56,205,236
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	movdqa	xmm7,xmm5
+DB	102,15,58,15,252,4
+	DB	15,56,203,202
+	paddd	xmm6,xmm7
+
+	movdqa	xmm0,XMMWORD[((448-128))+rcx]
+	paddd	xmm0,xmm5
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	DB	15,56,205,245
+	movdqa	xmm7,xmm8
+	DB	15,56,203,202
+
+	movdqa	xmm0,XMMWORD[((480-128))+rcx]
+	paddd	xmm0,xmm6
+	nop
+	DB	15,56,203,209
+	pshufd	xmm0,xmm0,0x0e
+	dec	rdx
+	nop
+	DB	15,56,203,202
+
+	paddd	xmm2,xmm10
+	paddd	xmm1,xmm9
+	jnz	NEAR $L$oop_shaext
+
+	pshufd	xmm2,xmm2,0xb1
+	pshufd	xmm7,xmm1,0x1b
+	pshufd	xmm1,xmm1,0xb1
+	punpckhqdq	xmm1,xmm2
+DB	102,15,58,15,215,8
+
+	movdqu	XMMWORD[rdi],xmm1
+	movdqu	XMMWORD[16+rdi],xmm2
+	movaps	xmm6,XMMWORD[((-8-80))+rax]
+	movaps	xmm7,XMMWORD[((-8-64))+rax]
+	movaps	xmm8,XMMWORD[((-8-48))+rax]
+	movaps	xmm9,XMMWORD[((-8-32))+rax]
+	movaps	xmm10,XMMWORD[((-8-16))+rax]
+	mov	rsp,rax
+$L$epilogue_shaext:
+	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
+	mov	rsi,QWORD[16+rsp]
+	ret
+
+$L$SEH_end_sha256_block_data_order_shaext:
+
+ALIGN	64
+sha256_block_data_order_ssse3:
+	mov	QWORD[8+rsp],rdi	;WIN64 prologue
+	mov	QWORD[16+rsp],rsi
+	mov	rax,rsp
+$L$SEH_begin_sha256_block_data_order_ssse3:
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -2918,16 +3162,16 @@ DB	102,15,58,15,249,4
 $L$epilogue_ssse3:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
-	DB	0F3h,0C3h		;repret
+	ret
 
-$L$SEH_end_GFp_sha256_block_data_order_ssse3:
+$L$SEH_end_sha256_block_data_order_ssse3:
 
 ALIGN	64
-GFp_sha256_block_data_order_avx:
+sha256_block_data_order_avx:
 	mov	QWORD[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_GFp_sha256_block_data_order_avx:
+$L$SEH_begin_sha256_block_data_order_avx:
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -4012,9 +4256,9 @@ $L$avx_00_47:
 $L$epilogue_avx:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
-	DB	0F3h,0C3h		;repret
+	ret
 
-$L$SEH_end_GFp_sha256_block_data_order_avx:
+$L$SEH_end_sha256_block_data_order_avx:
 EXTERN	__imp_RtlVirtualUnwind
 
 ALIGN	16
@@ -4109,30 +4353,72 @@ $L$in_prologue:
 	pop	rbx
 	pop	rdi
 	pop	rsi
-	DB	0F3h,0C3h		;repret
+	ret
+
+
+ALIGN	16
+shaext_handler:
+	push	rsi
+	push	rdi
+	push	rbx
+	push	rbp
+	push	r12
+	push	r13
+	push	r14
+	push	r15
+	pushfq
+	sub	rsp,64
+
+	mov	rax,QWORD[120+r8]
+	mov	rbx,QWORD[248+r8]
+
+	lea	r10,[$L$prologue_shaext]
+	cmp	rbx,r10
+	jb	NEAR $L$in_prologue
+
+	lea	r10,[$L$epilogue_shaext]
+	cmp	rbx,r10
+	jae	NEAR $L$in_prologue
+
+	lea	rsi,[((-8-80))+rax]
+	lea	rdi,[512+r8]
+	mov	ecx,10
+	DD	0xa548f3fc
+
+	jmp	NEAR $L$in_prologue
 
 section	.pdata rdata align=4
 ALIGN	4
-	DD	$L$SEH_begin_GFp_sha256_block_data_order wrt ..imagebase
-	DD	$L$SEH_end_GFp_sha256_block_data_order wrt ..imagebase
-	DD	$L$SEH_info_GFp_sha256_block_data_order wrt ..imagebase
-	DD	$L$SEH_begin_GFp_sha256_block_data_order_ssse3 wrt ..imagebase
-	DD	$L$SEH_end_GFp_sha256_block_data_order_ssse3 wrt ..imagebase
-	DD	$L$SEH_info_GFp_sha256_block_data_order_ssse3 wrt ..imagebase
-	DD	$L$SEH_begin_GFp_sha256_block_data_order_avx wrt ..imagebase
-	DD	$L$SEH_end_GFp_sha256_block_data_order_avx wrt ..imagebase
-	DD	$L$SEH_info_GFp_sha256_block_data_order_avx wrt ..imagebase
+	DD	$L$SEH_begin_sha256_block_data_order wrt ..imagebase
+	DD	$L$SEH_end_sha256_block_data_order wrt ..imagebase
+	DD	$L$SEH_info_sha256_block_data_order wrt ..imagebase
+	DD	$L$SEH_begin_sha256_block_data_order_shaext wrt ..imagebase
+	DD	$L$SEH_end_sha256_block_data_order_shaext wrt ..imagebase
+	DD	$L$SEH_info_sha256_block_data_order_shaext wrt ..imagebase
+	DD	$L$SEH_begin_sha256_block_data_order_ssse3 wrt ..imagebase
+	DD	$L$SEH_end_sha256_block_data_order_ssse3 wrt ..imagebase
+	DD	$L$SEH_info_sha256_block_data_order_ssse3 wrt ..imagebase
+	DD	$L$SEH_begin_sha256_block_data_order_avx wrt ..imagebase
+	DD	$L$SEH_end_sha256_block_data_order_avx wrt ..imagebase
+	DD	$L$SEH_info_sha256_block_data_order_avx wrt ..imagebase
 section	.xdata rdata align=8
 ALIGN	8
-$L$SEH_info_GFp_sha256_block_data_order:
-DB	9,0,0,0
+$L$SEH_info_sha256_block_data_order:
+	DB	9,0,0,0
 	DD	se_handler wrt ..imagebase
 	DD	$L$prologue wrt ..imagebase,$L$epilogue wrt ..imagebase
-$L$SEH_info_GFp_sha256_block_data_order_ssse3:
-DB	9,0,0,0
+$L$SEH_info_sha256_block_data_order_shaext:
+	DB	9,0,0,0
+	DD	shaext_handler wrt ..imagebase
+$L$SEH_info_sha256_block_data_order_ssse3:
+	DB	9,0,0,0
 	DD	se_handler wrt ..imagebase
 	DD	$L$prologue_ssse3 wrt ..imagebase,$L$epilogue_ssse3 wrt ..imagebase
-$L$SEH_info_GFp_sha256_block_data_order_avx:
-DB	9,0,0,0
+$L$SEH_info_sha256_block_data_order_avx:
+	DB	9,0,0,0
 	DD	se_handler wrt ..imagebase
 	DD	$L$prologue_avx wrt ..imagebase,$L$epilogue_avx wrt ..imagebase
+%else
+; Work around https://bugzilla.nasm.us/show_bug.cgi?id=3392738
+ret
+%endif

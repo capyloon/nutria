@@ -1,23 +1,18 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
+#include <ring-core/asm_base.h>
 
-#if !defined(OPENSSL_NO_ASM)
-#include <GFp/arm_arch.h>
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_AARCH64) && defined(__APPLE__)
+#include <ring-core/arm_arch.h>
 
 .text
 
-.globl	_GFp_gcm_init_neon
-.private_extern	_GFp_gcm_init_neon
+.globl	_gcm_init_neon
+.private_extern	_gcm_init_neon
 
 .align	4
-_GFp_gcm_init_neon:
+_gcm_init_neon:
 	AARCH64_VALID_CALL_TARGET
 	// This function is adapted from gcm_init_v8. xC2 is t3.
 	ld1	{v17.2d}, [x1]			// load H
@@ -39,11 +34,11 @@ _GFp_gcm_init_neon:
 	ret
 
 
-.globl	_GFp_gcm_gmult_neon
-.private_extern	_GFp_gcm_gmult_neon
+.globl	_gcm_gmult_neon
+.private_extern	_gcm_gmult_neon
 
 .align	4
-_GFp_gcm_gmult_neon:
+_gcm_gmult_neon:
 	AARCH64_VALID_CALL_TARGET
 	ld1	{v3.16b}, [x0]		// load Xi
 	ld1	{v5.1d}, [x1], #8		// load twisted H
@@ -59,11 +54,11 @@ _GFp_gcm_gmult_neon:
 	b	Lgmult_neon
 
 
-.globl	_GFp_gcm_ghash_neon
-.private_extern	_GFp_gcm_ghash_neon
+.globl	_gcm_ghash_neon
+.private_extern	_gcm_ghash_neon
 
 .align	4
-_GFp_gcm_ghash_neon:
+_gcm_ghash_neon:
 	AARCH64_VALID_CALL_TARGET
 	ld1	{v0.16b}, [x0]		// load Xi
 	ld1	{v5.1d}, [x1], #8		// load twisted H
@@ -337,4 +332,4 @@ Lmasks:
 .byte	71,72,65,83,72,32,102,111,114,32,65,82,77,118,56,44,32,100,101,114,105,118,101,100,32,102,114,111,109,32,65,82,77,118,52,32,118,101,114,115,105,111,110,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2
-#endif  // !OPENSSL_NO_ASM
+#endif  // !OPENSSL_NO_ASM && defined(OPENSSL_AARCH64) && defined(__APPLE__)

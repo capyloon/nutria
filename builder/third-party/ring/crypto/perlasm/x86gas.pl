@@ -170,8 +170,8 @@ sub ::file_end
 	    {	push(@out,"$non_lazy_ptr{$i}:\n.indirect_symbol\t$i\n.long\t0\n");   }
 	}
     }
-    if (0 && grep {/\b${nmdecor}GFp_ia32cap_P\b/i} @out) {
-	my $tmp=".comm\t${nmdecor}GFp_ia32cap_P,16";
+    if (0 && grep {/\b${nmdecor}OPENSSL_ia32cap_P\b/i} @out) {
+	my $tmp=".comm\t${nmdecor}OPENSSL_ia32cap_P,16";
 	if ($::macosx)	{ push (@out,"$tmp,2\n"); }
 	elsif ($::elf)	{ push (@out,"$tmp,4\n"); }
 	else		{ push (@out,"$tmp\n"); }
@@ -208,7 +208,7 @@ sub ::picmeup
 	    &::mov($dst,&::DWP("$indirect-$reflabel",$base));
 	    $non_lazy_ptr{"$nmdecor$sym"}=$indirect;
 	}
-	elsif ($sym eq "GFp_ia32cap_P" && $::elf>0)
+	elsif ($sym eq "OPENSSL_ia32cap_P" && $::elf>0)
 	{   &::lea($dst,&::DWP("$sym-$reflabel",$base));   }
 	else
 	{   &::lea($dst,&::DWP("_GLOBAL_OFFSET_TABLE_+[.-$reflabel]",
@@ -264,6 +264,14 @@ ___
 
 sub ::dataseg
 {   push(@out,".data\n");   }
+
+sub ::preprocessor_ifdef
+{ my($define)=@_;
+    push(@out,"#ifdef ${define}\n");
+}
+
+sub ::preprocessor_endif
+{ push(@out,"#endif\n");    }
 
 *::hidden = sub { push(@out,".hidden\t$nmdecor$_[0]\n"); } if ($::elf);
 

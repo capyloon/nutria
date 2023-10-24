@@ -1,23 +1,20 @@
-# This file is generated from a similarly-named Perl script in the BoringSSL
-# source tree. Do not edit by hand.
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
 
-#if defined(__has_feature)
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
-#endif
+#include <ring-core/asm_base.h>
 
-#if defined(__x86_64__) && !defined(OPENSSL_NO_ASM)
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && defined(__APPLE__)
 .text	
 
 
 
-.globl	_GFp_bn_mul_mont
-.private_extern _GFp_bn_mul_mont
+.globl	_bn_mul_mont
+.private_extern _bn_mul_mont
 
 .p2align	4
-_GFp_bn_mul_mont:
+_bn_mul_mont:
 
+_CET_ENDBR
 	movl	%r9d,%r9d
 	movq	%rsp,%rax
 
@@ -25,7 +22,8 @@ _GFp_bn_mul_mont:
 	jnz	L$mul_enter
 	cmpl	$8,%r9d
 	jb	L$mul_enter
-	movl	_GFp_ia32cap_P+8(%rip),%r11d
+	leaq	_OPENSSL_ia32cap_P(%rip),%r11
+	movl	8(%r11),%r11d
 	cmpq	%rsi,%rdx
 	jne	L$mul4x_enter
 	testl	$7,%r9d
@@ -263,7 +261,7 @@ L$copy:
 	leaq	(%rsi),%rsp
 
 L$mul_epilogue:
-	.byte	0xf3,0xc3
+	ret
 
 
 
@@ -697,7 +695,7 @@ L$copy4x:
 	leaq	(%rsi),%rsp
 
 L$mul4x_epilogue:
-	.byte	0xf3,0xc3
+	ret
 
 
 
@@ -784,12 +782,13 @@ L$sqr8x_body:
 	pxor	%xmm0,%xmm0
 .byte	102,72,15,110,207
 .byte	102,73,15,110,218
-	movl	_GFp_ia32cap_P+8(%rip),%eax
+	leaq	_OPENSSL_ia32cap_P(%rip),%rax
+	movl	8(%rax),%eax
 	andl	$0x80100,%eax
 	cmpl	$0x80100,%eax
 	jne	L$sqr8x_nox
 
-	call	_GFp_bn_sqrx8x_internal
+	call	_bn_sqrx8x_internal
 
 
 
@@ -803,7 +802,7 @@ L$sqr8x_body:
 
 .p2align	5
 L$sqr8x_nox:
-	call	_GFp_bn_sqr8x_internal
+	call	_bn_sqr8x_internal
 
 
 
@@ -887,7 +886,7 @@ L$sqr8x_cond_copy:
 	leaq	(%rsi),%rsp
 
 L$sqr8x_epilogue:
-	.byte	0xf3,0xc3
+	ret
 
 
 
@@ -1243,7 +1242,7 @@ L$mulx4x_cond_copy:
 	leaq	(%rsi),%rsp
 
 L$mulx4x_epilogue:
-	.byte	0xf3,0xc3
+	ret
 
 
 .byte	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105,112,108,105,99,97,116,105,111,110,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0

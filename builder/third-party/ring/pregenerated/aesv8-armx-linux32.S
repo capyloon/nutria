@@ -1,16 +1,10 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
+#include <ring-core/asm_base.h>
 
-#if !defined(OPENSSL_NO_ASM)
-#if defined(__arm__)
-#include <GFp/arm_arch.h>
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_ARM) && defined(__ELF__)
+#include <ring-core/arm_arch.h>
 
 #if __ARM_MAX_ARCH__>=7
 .text
@@ -26,11 +20,11 @@
 
 .text
 
-.globl	GFp_aes_hw_set_encrypt_key
-.hidden	GFp_aes_hw_set_encrypt_key
-.type	GFp_aes_hw_set_encrypt_key,%function
+.globl	aes_hw_set_encrypt_key
+.hidden	aes_hw_set_encrypt_key
+.type	aes_hw_set_encrypt_key,%function
 .align	5
-GFp_aes_hw_set_encrypt_key:
+aes_hw_set_encrypt_key:
 .Lenc_key:
 	mov	r3,#-1
 	cmp	r0,#0
@@ -161,12 +155,12 @@ GFp_aes_hw_set_encrypt_key:
 	mov	r0,r3			@ return value
 
 	bx	lr
-.size	GFp_aes_hw_set_encrypt_key,.-GFp_aes_hw_set_encrypt_key
-.globl	GFp_aes_hw_encrypt
-.hidden	GFp_aes_hw_encrypt
-.type	GFp_aes_hw_encrypt,%function
+.size	aes_hw_set_encrypt_key,.-aes_hw_set_encrypt_key
+.globl	aes_hw_encrypt
+.hidden	aes_hw_encrypt
+.type	aes_hw_encrypt,%function
 .align	5
-GFp_aes_hw_encrypt:
+aes_hw_encrypt:
 	AARCH64_VALID_CALL_TARGET
 	ldr	r3,[r2,#240]
 	vld1.32	{q0},[r2]!
@@ -192,43 +186,12 @@ GFp_aes_hw_encrypt:
 
 	vst1.8	{q2},[r1]
 	bx	lr
-.size	GFp_aes_hw_encrypt,.-GFp_aes_hw_encrypt
-.globl	GFp_aes_hw_decrypt
-.hidden	GFp_aes_hw_decrypt
-.type	GFp_aes_hw_decrypt,%function
+.size	aes_hw_encrypt,.-aes_hw_encrypt
+.globl	aes_hw_ctr32_encrypt_blocks
+.hidden	aes_hw_ctr32_encrypt_blocks
+.type	aes_hw_ctr32_encrypt_blocks,%function
 .align	5
-GFp_aes_hw_decrypt:
-	AARCH64_VALID_CALL_TARGET
-	ldr	r3,[r2,#240]
-	vld1.32	{q0},[r2]!
-	vld1.8	{q2},[r0]
-	sub	r3,r3,#2
-	vld1.32	{q1},[r2]!
-
-.Loop_dec:
-.byte	0x40,0x43,0xb0,0xf3	@ aesd q2,q0
-.byte	0xc4,0x43,0xb0,0xf3	@ aesimc q2,q2
-	vld1.32	{q0},[r2]!
-	subs	r3,r3,#2
-.byte	0x42,0x43,0xb0,0xf3	@ aesd q2,q1
-.byte	0xc4,0x43,0xb0,0xf3	@ aesimc q2,q2
-	vld1.32	{q1},[r2]!
-	bgt	.Loop_dec
-
-.byte	0x40,0x43,0xb0,0xf3	@ aesd q2,q0
-.byte	0xc4,0x43,0xb0,0xf3	@ aesimc q2,q2
-	vld1.32	{q0},[r2]
-.byte	0x42,0x43,0xb0,0xf3	@ aesd q2,q1
-	veor	q2,q2,q0
-
-	vst1.8	{q2},[r1]
-	bx	lr
-.size	GFp_aes_hw_decrypt,.-GFp_aes_hw_decrypt
-.globl	GFp_aes_hw_ctr32_encrypt_blocks
-.hidden	GFp_aes_hw_ctr32_encrypt_blocks
-.type	GFp_aes_hw_ctr32_encrypt_blocks,%function
-.align	5
-GFp_aes_hw_ctr32_encrypt_blocks:
+aes_hw_ctr32_encrypt_blocks:
 	mov	ip,sp
 	stmdb	sp!,{r4,r5,r6,r7,r8,r9,r10,lr}
 	vstmdb	sp!,{d8,d9,d10,d11,d12,d13,d14,d15}            @ ABI specification says so
@@ -424,8 +387,6 @@ GFp_aes_hw_ctr32_encrypt_blocks:
 .Lctr32_done:
 	vldmia	sp!,{d8,d9,d10,d11,d12,d13,d14,d15}
 	ldmia	sp!,{r4,r5,r6,r7,r8,r9,r10,pc}
-.size	GFp_aes_hw_ctr32_encrypt_blocks,.-GFp_aes_hw_ctr32_encrypt_blocks
+.size	aes_hw_ctr32_encrypt_blocks,.-aes_hw_ctr32_encrypt_blocks
 #endif
-#endif
-#endif  // !OPENSSL_NO_ASM
-.section	.note.GNU-stack,"",%progbits
+#endif  // !OPENSSL_NO_ASM && defined(OPENSSL_ARM) && defined(__ELF__)

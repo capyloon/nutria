@@ -33,6 +33,26 @@ sub ::AUTOLOAD
     &generic($opcode,@_) or die "undefined subroutine \&$AUTOLOAD";
 }
 
+# record_function_hit(int) writes a byte with value one to the given offset of
+# |BORINGSSL_function_hit|, but only if BORINGSSL_DISPATCH_TEST is defined.
+# This is used in impl_dispatch_test.cc to test whether the expected assembly
+# functions are triggered by high-level API calls.
+sub ::record_function_hit
+{ my($index)=@_;
+    &preprocessor_ifdef("BORINGSSL_DISPATCH_TEST");
+    &push("ebx");
+    &push("edx");
+    &call(&label("pic"));
+    &set_label("pic");
+    &blindpop("ebx");
+    &lea("ebx",&DWP("BORINGSSL_function_hit+$index"."-".&label("pic"),"ebx"));
+    &mov("edx", 1);
+    &movb(&BP(0, "ebx"), "dl");
+    &pop("edx");
+    &pop("ebx");
+    &preprocessor_endif();
+}
+
 sub ::emit
 { my $opcode=shift;
 
@@ -255,7 +275,7 @@ sub ::asciz
 
 sub ::asm_finish
 {   &file_end();
-    my $comment = "#";
+    my $comment = "//";
     $comment = ";" if ($win32);
     print <<___;
 $comment This file is generated from a similarly-named Perl script in the BoringSSL
@@ -264,22 +284,36 @@ $comment source tree. Do not edit by hand.
 ___
     if ($win32) {
         print <<___ unless $masm;
-%ifdef BORINGSSL_PREFIX
-%include "boringssl_prefix_symbols_nasm.inc"
-%endif
+\%include "ring_core_generated/prefix_symbols_nasm.inc"
+\%ifidn __OUTPUT_FORMAT__, win32
+___
+        print @out;
+        print <<___ unless $masm;
+\%else
+; Work around https://bugzilla.nasm.us/show_bug.cgi?id=3392738
+ret
+\%endif
 ___
     } else {
+        my $target;
+        if ($elf) {
+            $target = "defined(__ELF__)";
+        } elsif ($macosx) {
+            $target = "defined(__APPLE__)";
+        } else {
+            die "unknown target";
+        }
+
         print <<___;
-#if defined(__i386__)
-#if defined(BORINGSSL_PREFIX)
-#include <boringssl_prefix_symbols_asm.h>
-#endif
+#include <ring-core/asm_base.h>
+
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86) && $target
+___
+        print @out;
+        print <<___;
+#endif  // !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86) && $target
 ___
     }
-    print @out;
-    print "#endif\n" unless ($win32);
-    # See https://www.airs.com/blog/archives/518.
-    print ".section\t.note.GNU-stack,\"\",\@progbits\n" if ($elf);
 }
 
 sub ::asm_init

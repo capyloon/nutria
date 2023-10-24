@@ -1,13 +1,9 @@
-# This file is generated from a similarly-named Perl script in the BoringSSL
-# source tree. Do not edit by hand.
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
 
-#if defined(__has_feature)
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
-#endif
+#include <ring-core/asm_base.h>
 
-#if defined(__x86_64__) && !defined(OPENSSL_NO_ASM)
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && defined(__ELF__)
 .text	
 
 
@@ -108,7 +104,7 @@ _vpaes_encrypt_core:
 	movdqa	64(%r11,%r10,1),%xmm1
 	pxor	%xmm4,%xmm0
 .byte	102,15,56,0,193
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	_vpaes_encrypt_core,.-_vpaes_encrypt_core
 
@@ -283,7 +279,7 @@ _vpaes_encrypt_core_2x:
 	pxor	%xmm12,%xmm6
 .byte	102,15,56,0,193
 .byte	102,15,56,0,241
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	_vpaes_encrypt_core_2x,.-_vpaes_encrypt_core_2x
 
@@ -412,7 +408,7 @@ _vpaes_schedule_core:
 	pxor	%xmm5,%xmm5
 	pxor	%xmm6,%xmm6
 	pxor	%xmm7,%xmm7
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	_vpaes_schedule_core,.-_vpaes_schedule_core
 
@@ -490,7 +486,7 @@ _vpaes_schedule_low_round:
 
 	pxor	%xmm7,%xmm0
 	movdqa	%xmm0,%xmm7
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	_vpaes_schedule_round,.-_vpaes_schedule_round
 
@@ -516,7 +512,7 @@ _vpaes_schedule_transform:
 	movdqa	16(%r11),%xmm0
 .byte	102,15,56,0,193
 	pxor	%xmm2,%xmm0
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	_vpaes_schedule_transform,.-_vpaes_schedule_transform
 
@@ -566,19 +562,20 @@ _vpaes_schedule_mangle:
 	addq	$-16,%r8
 	andq	$0x30,%r8
 	movdqu	%xmm3,(%rdx)
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	_vpaes_schedule_mangle,.-_vpaes_schedule_mangle
 
 
 
 
-.globl	GFp_vpaes_set_encrypt_key
-.hidden GFp_vpaes_set_encrypt_key
-.type	GFp_vpaes_set_encrypt_key,@function
+.globl	vpaes_set_encrypt_key
+.hidden vpaes_set_encrypt_key
+.type	vpaes_set_encrypt_key,@function
 .align	16
-GFp_vpaes_set_encrypt_key:
+vpaes_set_encrypt_key:
 .cfi_startproc	
+_CET_ENDBR
 #ifdef BORINGSSL_DISPATCH_TEST
 .extern	BORINGSSL_function_hit
 .hidden BORINGSSL_function_hit
@@ -594,29 +591,36 @@ GFp_vpaes_set_encrypt_key:
 	movl	$0x30,%r8d
 	call	_vpaes_schedule_core
 	xorl	%eax,%eax
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_vpaes_set_encrypt_key,.-GFp_vpaes_set_encrypt_key
+.size	vpaes_set_encrypt_key,.-vpaes_set_encrypt_key
 
-.globl	GFp_vpaes_encrypt
-.hidden GFp_vpaes_encrypt
-.type	GFp_vpaes_encrypt,@function
+.globl	vpaes_encrypt
+.hidden vpaes_encrypt
+.type	vpaes_encrypt,@function
 .align	16
-GFp_vpaes_encrypt:
+vpaes_encrypt:
 .cfi_startproc	
+_CET_ENDBR
+#ifdef BORINGSSL_DISPATCH_TEST
+.extern	BORINGSSL_function_hit
+.hidden BORINGSSL_function_hit
+	movb	$1,BORINGSSL_function_hit+4(%rip)
+#endif
 	movdqu	(%rdi),%xmm0
 	call	_vpaes_preheat
 	call	_vpaes_encrypt_core
 	movdqu	%xmm0,(%rsi)
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_vpaes_encrypt,.-GFp_vpaes_encrypt
-.globl	GFp_vpaes_ctr32_encrypt_blocks
-.hidden GFp_vpaes_ctr32_encrypt_blocks
-.type	GFp_vpaes_ctr32_encrypt_blocks,@function
+.size	vpaes_encrypt,.-vpaes_encrypt
+.globl	vpaes_ctr32_encrypt_blocks
+.hidden vpaes_ctr32_encrypt_blocks
+.type	vpaes_ctr32_encrypt_blocks,@function
 .align	16
-GFp_vpaes_ctr32_encrypt_blocks:
+vpaes_ctr32_encrypt_blocks:
 .cfi_startproc	
+_CET_ENDBR
 
 	xchgq	%rcx,%rdx
 	testq	%rcx,%rcx
@@ -671,9 +675,9 @@ GFp_vpaes_ctr32_encrypt_blocks:
 
 .Lctr32_done:
 .Lctr32_abort:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_vpaes_ctr32_encrypt_blocks,.-GFp_vpaes_ctr32_encrypt_blocks
+.size	vpaes_ctr32_encrypt_blocks,.-vpaes_ctr32_encrypt_blocks
 
 
 
@@ -692,7 +696,7 @@ _vpaes_preheat:
 	movdqa	64(%r10),%xmm12
 	movdqa	80(%r10),%xmm15
 	movdqa	96(%r10),%xmm14
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	_vpaes_preheat,.-_vpaes_preheat
 
@@ -701,6 +705,7 @@ _vpaes_preheat:
 
 
 .type	_vpaes_consts,@object
+.section	.rodata
 .align	64
 _vpaes_consts:
 .Lk_inv:
@@ -769,5 +774,5 @@ _vpaes_consts:
 .byte	86,101,99,116,111,114,32,80,101,114,109,117,116,97,116,105,111,110,32,65,69,83,32,102,111,114,32,120,56,54,95,54,52,47,83,83,83,69,51,44,32,77,105,107,101,32,72,97,109,98,117,114,103,32,40,83,116,97,110,102,111,114,100,32,85,110,105,118,101,114,115,105,116,121,41,0
 .align	64
 .size	_vpaes_consts,.-_vpaes_consts
+.text	
 #endif
-.section	.note.GNU-stack,"",@progbits

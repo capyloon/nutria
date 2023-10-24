@@ -21,19 +21,26 @@ macro_rules! equivalent {
         let toml = $toml;
         let literal = $literal;
 
-        // In/out of Value is equivalent
-        println!("try_from");
-        assert_eq!(t!(Table::try_from(literal.clone())), toml);
-        println!("try_into");
-        assert_eq!(literal, t!(toml.clone().try_into()));
-
         // Through a string equivalent
         println!("to_string");
-        snapbox::assert_eq(t!(toml::to_string(&toml)), t!(toml::to_string(&literal)));
+        snapbox::assert_eq(t!(toml::to_string(&literal)), t!(toml::to_string(&toml)));
         println!("literal, from_str(toml)");
         assert_eq!(literal, t!(toml::from_str(&t!(toml::to_string(&toml)))));
-        println!("toml, from_str(toml)");
-        assert_eq!(toml, t!(toml::from_str(&t!(toml::to_string(&toml)))));
+        println!("toml, from_str(literal)");
+        assert_eq!(toml, t!(toml::from_str(&t!(toml::to_string(&literal)))));
+
+        // In/out of Value is equivalent
+        println!("Table::try_from(literal)");
+        assert_eq!(toml, t!(Table::try_from(literal.clone())));
+        println!("Value::try_from(literal)");
+        assert_eq!(
+            Value::Table(toml.clone()),
+            t!(Value::try_from(literal.clone()))
+        );
+        println!("toml.try_into()");
+        assert_eq!(literal, t!(toml.clone().try_into()));
+        println!("Value::Table(toml).try_into()");
+        assert_eq!(literal, t!(Value::Table(toml.clone()).try_into()));
     }};
 }
 
@@ -377,6 +384,106 @@ fn parse_enum_string() {
 }
 
 #[test]
+fn parse_tuple_variant() {
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    struct Document {
+        inner: Vec<Enum>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    enum Enum {
+        Int(i32, i32),
+        String(String, String),
+    }
+
+    let input = Document {
+        inner: vec![
+            Enum::Int(1, 1),
+            Enum::String("2".to_owned(), "2".to_owned()),
+        ],
+    };
+    let expected = "[[inner]]
+Int = [1, 1]
+
+[[inner]]
+String = [\"2\", \"2\"]
+";
+    let raw = toml::to_string(&input).unwrap();
+    snapbox::assert_eq(expected, raw);
+
+    equivalent! {
+        Document {
+            inner: vec![
+                Enum::Int(1, 1),
+                Enum::String("2".to_owned(), "2".to_owned()),
+            ],
+        },
+        map! {
+            inner: vec![
+                map! { Int: [1, 1] },
+                map! { String: ["2".to_owned(), "2".to_owned()] },
+            ]
+        },
+    }
+}
+
+#[test]
+fn parse_struct_variant() {
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    struct Document {
+        inner: Vec<Enum>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    enum Enum {
+        Int { first: i32, second: i32 },
+        String { first: String, second: String },
+    }
+
+    let input = Document {
+        inner: vec![
+            Enum::Int {
+                first: 1,
+                second: 1,
+            },
+            Enum::String {
+                first: "2".to_owned(),
+                second: "2".to_owned(),
+            },
+        ],
+    };
+    let expected = "[[inner]]
+
+[inner.Int]
+first = 1
+second = 1
+
+[[inner]]
+
+[inner.String]
+first = \"2\"
+second = \"2\"
+";
+    let raw = toml::to_string(&input).unwrap();
+    snapbox::assert_eq(expected, raw);
+
+    equivalent! {
+        Document {
+            inner: vec![
+                Enum::Int { first: 1, second: 1 },
+                Enum::String { first: "2".to_owned(), second: "2".to_owned() },
+            ],
+        },
+        map! {
+            inner: vec![
+                map! { Int: map! { first: 1, second: 1 } },
+                map! { String: map! { first: "2".to_owned(), second: "2".to_owned() } },
+            ]
+        },
+    }
+}
+
+#[test]
 #[cfg(feature = "preserve_order")]
 fn map_key_unit_variants() {
     #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
@@ -631,6 +738,25 @@ fn newtype_variant() {
             field: map! {
                 Variant: Value::Integer(21)
             }
+        },
+    }
+}
+
+#[test]
+fn newtype_key() {
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Serialize, Deserialize)]
+    struct NewType(String);
+
+    type CustomKeyMap = std::collections::BTreeMap<NewType, u32>;
+
+    equivalent! {
+        [
+            (NewType("x".to_owned()), 1),
+            (NewType("y".to_owned()), 2),
+        ].into_iter().collect::<CustomKeyMap>(),
+        map! {
+            x: Value::Integer(1),
+            y: Value::Integer(2)
         },
     }
 }

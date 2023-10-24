@@ -64,7 +64,7 @@ if ($flavour && $flavour ne "void") {
     ( $xlate="${dir}../../../perlasm/arm-xlate.pl" and -f $xlate) or
     die "can't locate arm-xlate.pl";
 
-    open OUT,"| \"$^X\" $xlate $flavour $output";
+    open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
     *STDOUT=*OUT;
 } else {
     open OUT,">$output";
@@ -97,7 +97,7 @@ $_n0="$num,#14*4";
 $_num="$num,#15*4";	$_bpend=$_num;
 
 $code=<<___;
-#include <GFp/arm_arch.h>
+#include <ring-core/arm_arch.h>
 
 @ Silence ARMv8 deprecated IT instruction warnings. This file is used by both
 @ ARMv7 and ARMv8 processors and does not use ARMv8 instructions.
@@ -112,18 +112,18 @@ $code=<<___;
 #endif
 
 #if __ARM_MAX_ARCH__>=7
-.extern GFp_armcap_P
-.hidden GFp_armcap_P
+.extern OPENSSL_armcap_P
+.hidden OPENSSL_armcap_P
 .align	5
 .LOPENSSL_armcap:
-.word	GFp_armcap_P-.Lbn_mul_mont
+.word	OPENSSL_armcap_P-.Lbn_mul_mont
 #endif
 
-.global	GFp_bn_mul_mont
-.type	GFp_bn_mul_mont,%function
+.global	bn_mul_mont
+.type	bn_mul_mont,%function
 
 .align	5
-GFp_bn_mul_mont:
+bn_mul_mont:
 .Lbn_mul_mont:
 	ldr	ip,[sp,#4]		@ load num
 	stmdb	sp!,{r0,r2}		@ sp points at argument block
@@ -294,7 +294,7 @@ GFp_bn_mul_mont:
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
 #endif
-.size	GFp_bn_mul_mont,.-GFp_bn_mul_mont
+.size	bn_mul_mont,.-bn_mul_mont
 ___
 {
 my ($A0,$A1,$A2,$A3)=map("d$_",(0..3));
@@ -758,4 +758,4 @@ foreach (split("\n",$code)) {
 	print $_,"\n";
 }
 
-close STDOUT or die "error closing STDOUT";
+close STDOUT or die "error closing STDOUT: $!";

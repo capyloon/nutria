@@ -135,10 +135,6 @@ pub static HMAC_SHA384: Algorithm = Algorithm(&digest::SHA384);
 /// HMAC using SHA-512.
 pub static HMAC_SHA512: Algorithm = Algorithm(&digest::SHA512);
 
-/// A deprecated alias for `Tag`.
-#[deprecated(note = "`Signature` was renamed to `Tag`. This alias will be removed soon.")]
-pub type Signature = Tag;
-
 /// An HMAC tag.
 ///
 /// For a given tag `t`, use `t.as_ref()` to get the tag value as a byte slice.
@@ -158,16 +154,6 @@ pub struct Key {
     inner: digest::BlockContext,
     outer: digest::BlockContext,
 }
-
-/// `hmac::SigningKey` was renamed to `hmac::Key`.
-#[deprecated(note = "Renamed to `hmac::Key`.")]
-pub type SigningKey = Key;
-
-/// `hmac::VerificationKey` was merged into `hmac::Key`.
-#[deprecated(
-    note = "The distinction between verification & signing keys was removed. Use `hmac::Key`."
-)]
-pub type VerificationKey = Key;
 
 impl core::fmt::Debug for Key {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
@@ -197,7 +183,7 @@ impl Key {
         F: FnOnce(&mut [u8]) -> Result<(), error::Unspecified>,
     {
         let mut key_bytes = [0; digest::MAX_OUTPUT_LEN];
-        let key_bytes = &mut key_bytes[..algorithm.0.output_len];
+        let key_bytes = &mut key_bytes[..algorithm.0.output_len()];
         fill(key_bytes)?;
         Ok(Self::new(algorithm, key_bytes))
     }
@@ -212,8 +198,8 @@ impl Key {
     /// `key_value` shouldn't be a password.
     ///
     /// As specified in RFC 2104, if `key_value` is shorter than the digest
-    /// algorithm's block length (as returned by `digest::Algorithm::block_len`,
-    /// not the digest length returned by `digest::Algorithm::output_len`) then
+    /// algorithm's block length (as returned by `digest::Algorithm::block_len()`,
+    /// not the digest length returned by `digest::Algorithm::output_len()`) then
     /// it will be padded with zeros. Similarly, if it is longer than the block
     /// length then it will be compressed using the digest algorithm.
     ///
@@ -228,8 +214,10 @@ impl Key {
             outer: digest::BlockContext::new(digest_alg),
         };
 
+        let block_len = digest_alg.block_len();
+
         let key_hash;
-        let key_value = if key_value.len() <= digest_alg.block_len {
+        let key_value = if key_value.len() <= block_len {
             key_value
         } else {
             key_hash = digest::digest(digest_alg, key_value);
@@ -239,7 +227,7 @@ impl Key {
         const IPAD: u8 = 0x36;
 
         let mut padded_key = [IPAD; digest::MAX_BLOCK_LEN];
-        let padded_key = &mut padded_key[..digest_alg.block_len];
+        let padded_key = &mut padded_key[..block_len];
 
         // If the key is shorter than one block then we're supposed to act like
         // it is padded with zero bytes up to the block length. `x ^ 0 == x` so
@@ -247,7 +235,7 @@ impl Key {
         for (padded_key, key_value) in padded_key.iter_mut().zip(key_value.iter()) {
             *padded_key ^= *key_value;
         }
-        key.inner.update(&padded_key);
+        key.inner.update(padded_key);
 
         const OPAD: u8 = 0x5C;
 
@@ -256,7 +244,7 @@ impl Key {
         for b in padded_key.iter_mut() {
             *b ^= IPAD ^ OPAD;
         }
-        key.outer.update(&padded_key);
+        key.outer.update(padded_key);
 
         key
     }
@@ -270,13 +258,13 @@ impl Key {
 
 impl hkdf::KeyType for Algorithm {
     fn len(&self) -> usize {
-        self.digest_algorithm().output_len
+        self.digest_algorithm().output_len()
     }
 }
 
 impl From<hkdf::Okm<'_, Algorithm>> for Key {
     fn from(okm: hkdf::Okm<Algorithm>) -> Self {
-        Key::construct(*okm.len(), |buf| okm.fill(buf)).unwrap()
+        Self::construct(*okm.len(), |buf| okm.fill(buf)).unwrap()
     }
 }
 
@@ -288,10 +276,6 @@ pub struct Context {
     inner: digest::Context,
     outer: digest::BlockContext,
 }
-
-/// `hmac::SigningContext` was renamed to `hmac::Context`.
-#[deprecated(note = "Renamed to `hmac::Context`.")]
-pub type SigningContext = Context;
 
 impl core::fmt::Debug for Context {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
@@ -327,8 +311,8 @@ impl Context {
     pub fn sign(self) -> Tag {
         let algorithm = self.inner.algorithm();
         let mut pending = [0u8; digest::MAX_BLOCK_LEN];
-        let pending = &mut pending[..algorithm.block_len];
-        let num_pending = algorithm.output_len;
+        let pending = &mut pending[..algorithm.block_len()];
+        let num_pending = algorithm.output_len();
         pending[..num_pending].copy_from_slice(self.inner.finish().as_ref());
         Tag(self.outer.finish(pending, num_pending))
     }

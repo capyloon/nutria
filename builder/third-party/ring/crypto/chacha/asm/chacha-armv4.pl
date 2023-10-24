@@ -44,7 +44,7 @@ if ($flavour && $flavour ne "void") {
     ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
     die "can't locate arm-xlate.pl";
 
-    open OUT,"| \"$^X\" $xlate $flavour $output";
+    open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
     *STDOUT=*OUT;
 } else {
     open OUT,">$output";
@@ -171,7 +171,7 @@ my @ret;
 }
 
 $code.=<<___;
-#include <GFp/arm_arch.h>
+#include <ring-core/arm_arch.h>
 
 @ Silence ARMv8 deprecated IT instruction warnings. This file is used by both
 @ ARMv7 and ARMv8 processors and does not use ARMv8 instructions.
@@ -197,18 +197,18 @@ $code.=<<___;
 .Lone:
 .long	1,0,0,0
 #if __ARM_MAX_ARCH__>=7
-.extern GFp_armcap_P
-.hidden GFp_armcap_P
+.extern OPENSSL_armcap_P
+.hidden OPENSSL_armcap_P
 .LOPENSSL_armcap:
-.word   GFp_armcap_P-.LChaCha20_ctr32
+.word   OPENSSL_armcap_P-.LChaCha20_ctr32
 #else
 .word	-1
 #endif
 
-.globl	GFp_ChaCha20_ctr32
-.type	GFp_ChaCha20_ctr32,%function
+.globl	ChaCha20_ctr32
+.type	ChaCha20_ctr32,%function
 .align	5
-GFp_ChaCha20_ctr32:
+ChaCha20_ctr32:
 .LChaCha20_ctr32:
 	ldr	r12,[sp,#0]		@ pull pointer to counter and nonce
 	stmdb	sp!,{r0-r2,r4-r11,lr}
@@ -630,7 +630,7 @@ $code.=<<___;
 	add	sp,sp,#4*(32+3)
 .Lno_data:
 	ldmia	sp!,{r4-r11,pc}
-.size	GFp_ChaCha20_ctr32,.-GFp_ChaCha20_ctr32
+.size	ChaCha20_ctr32,.-ChaCha20_ctr32
 ___
 
 {{{
@@ -1164,4 +1164,4 @@ foreach (split("\n",$code)) {
 
 	print $_,"\n";
 }
-close STDOUT or die "error closing STDOUT";
+close STDOUT or die "error closing STDOUT: $!";

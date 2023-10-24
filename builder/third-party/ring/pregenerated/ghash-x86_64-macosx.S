@@ -1,21 +1,19 @@
-# This file is generated from a similarly-named Perl script in the BoringSSL
-# source tree. Do not edit by hand.
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
 
-#if defined(__has_feature)
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
-#endif
+#include <ring-core/asm_base.h>
 
-#if defined(__x86_64__) && !defined(OPENSSL_NO_ASM)
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && defined(__APPLE__)
 .text	
 
-.globl	_GFp_gcm_init_clmul
-.private_extern _GFp_gcm_init_clmul
+.globl	_gcm_init_clmul
+.private_extern _gcm_init_clmul
 
 .p2align	4
-_GFp_gcm_init_clmul:
+_gcm_init_clmul:
 
+
+_CET_ENDBR
 L$_init_clmul:
 	movdqu	(%rsi),%xmm2
 	pshufd	$78,%xmm2,%xmm2
@@ -166,15 +164,17 @@ L$_init_clmul:
 	movdqu	%xmm0,64(%rdi)
 .byte	102,15,58,15,227,8
 	movdqu	%xmm4,80(%rdi)
-	.byte	0xf3,0xc3
+	ret
 
 
-.globl	_GFp_gcm_gmult_clmul
-.private_extern _GFp_gcm_gmult_clmul
+
+.globl	_gcm_gmult_clmul
+.private_extern _gcm_gmult_clmul
 
 .p2align	4
-_GFp_gcm_gmult_clmul:
+_gcm_gmult_clmul:
 
+_CET_ENDBR
 L$_gmult_clmul:
 	movdqu	(%rdi),%xmm0
 	movdqa	L$bswap_mask(%rip),%xmm5
@@ -220,15 +220,17 @@ L$_gmult_clmul:
 	pxor	%xmm1,%xmm0
 .byte	102,15,56,0,197
 	movdqu	%xmm0,(%rdi)
-	.byte	0xf3,0xc3
+	ret
 
 
-.globl	_GFp_gcm_ghash_clmul
-.private_extern _GFp_gcm_ghash_clmul
+.globl	_gcm_ghash_clmul
+.private_extern _gcm_ghash_clmul
 
 .p2align	5
-_GFp_gcm_ghash_clmul:
+_gcm_ghash_clmul:
 
+
+_CET_ENDBR
 L$_ghash_clmul:
 	movdqa	L$bswap_mask(%rip),%xmm10
 
@@ -241,7 +243,7 @@ L$_ghash_clmul:
 	jz	L$odd_tail
 
 	movdqu	16(%rsi),%xmm6
-	leaq	_GFp_ia32cap_P(%rip),%rax
+	leaq	_OPENSSL_ia32cap_P(%rip),%rax
 	movl	4(%rax),%eax
 	cmpq	$0x30,%rcx
 	jb	L$skip4x
@@ -607,15 +609,17 @@ L$odd_tail:
 L$done:
 .byte	102,65,15,56,0,194
 	movdqu	%xmm0,(%rdi)
-	.byte	0xf3,0xc3
+	ret
 
 
-.globl	_GFp_gcm_init_avx
-.private_extern _GFp_gcm_init_avx
+
+.globl	_gcm_init_avx
+.private_extern _gcm_init_avx
 
 .p2align	5
-_GFp_gcm_init_avx:
+_gcm_init_avx:
 
+_CET_ENDBR
 	vzeroupper
 
 	vmovdqu	(%rsi),%xmm2
@@ -717,15 +721,17 @@ L$init_start_avx:
 	vmovdqu	%xmm5,-16(%rdi)
 
 	vzeroupper
-	.byte	0xf3,0xc3
+	ret
 
 
-.globl	_GFp_gcm_ghash_avx
-.private_extern _GFp_gcm_ghash_avx
+
+.globl	_gcm_ghash_avx
+.private_extern _gcm_ghash_avx
 
 .p2align	5
-_GFp_gcm_ghash_avx:
+_gcm_ghash_avx:
 
+_CET_ENDBR
 	vzeroupper
 
 	vmovdqu	(%rdi),%xmm10
@@ -1096,9 +1102,11 @@ L$tail_no_xor_avx:
 	vpshufb	%xmm13,%xmm10,%xmm10
 	vmovdqu	%xmm10,(%rdi)
 	vzeroupper
-	.byte	0xf3,0xc3
+	ret
 
 
+
+.section	__DATA,__const
 .p2align	6
 L$bswap_mask:
 .byte	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
@@ -1110,4 +1118,5 @@ L$7_mask:
 
 .byte	71,72,65,83,72,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .p2align	6
+.text	
 #endif

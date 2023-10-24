@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.63.0"
 name = "reqwest"
-version = "0.11.20"
+version = "0.11.22"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 autotests = true
 description = "higher level HTTP client library"
@@ -357,7 +357,8 @@ optional = true
 default-features = false
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.trust-dns-resolver]
-version = "0.22"
+version = "0.23"
+features = ["tokio-runtime"]
 optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.webpki-roots]
@@ -444,6 +445,9 @@ features = ["serde-serialize"]
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-test]
 version = "0.3"
+
+[target."cfg(target_os = \"macos\")".dependencies.system-configuration]
+version = "0.5.1"
 
 [target."cfg(windows)".dependencies.winreg]
 version = "0.50.0"

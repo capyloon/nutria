@@ -1,18 +1,27 @@
 ; This file is generated from a similarly-named Perl script in the BoringSSL
 ; source tree. Do not edit by hand.
 
+%ifidn __OUTPUT_FORMAT__, win64
 default	rel
 %define XMMWORD
 %define YMMWORD
 %define ZMMWORD
+%define _CET_ENDBR
+
+%include "ring_core_generated/prefix_symbols_nasm.inc"
 section	.text code align=64
 
-EXTERN	GFp_ia32cap_P
-global	GFp_aes_hw_encrypt
+EXTERN	OPENSSL_ia32cap_P
+global	aes_hw_encrypt
 
 ALIGN	16
-GFp_aes_hw_encrypt:
+aes_hw_encrypt:
 
+_CET_ENDBR
+%ifdef BORINGSSL_DISPATCH_TEST
+EXTERN	BORINGSSL_function_hit
+	mov	BYTE[((BORINGSSL_function_hit+1))],1
+%endif
 	movups	xmm2,XMMWORD[rcx]
 	mov	eax,DWORD[240+r8]
 	movups	xmm0,XMMWORD[r8]
@@ -20,17 +29,17 @@ GFp_aes_hw_encrypt:
 	lea	r8,[32+r8]
 	xorps	xmm2,xmm0
 $L$oop_enc1_1:
-DB	102,15,56,220,209
+	DB	102,15,56,220,209
 	dec	eax
 	movups	xmm1,XMMWORD[r8]
 	lea	r8,[16+r8]
 	jnz	NEAR $L$oop_enc1_1
-DB	102,15,56,221,209
+	DB	102,15,56,221,209
 	pxor	xmm0,xmm0
 	pxor	xmm1,xmm1
 	movups	XMMWORD[rdx],xmm2
 	pxor	xmm2,xmm2
-	DB	0F3h,0C3h		;repret
+	ret
 
 
 
@@ -48,20 +57,20 @@ _aesni_encrypt2:
 	add	rax,16
 
 $L$enc_loop2:
-DB	102,15,56,220,209
-DB	102,15,56,220,217
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
 	movups	xmm1,XMMWORD[rax*1+rcx]
 	add	rax,32
-DB	102,15,56,220,208
-DB	102,15,56,220,216
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
 	movups	xmm0,XMMWORD[((-16))+rax*1+rcx]
 	jnz	NEAR $L$enc_loop2
 
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,221,208
-DB	102,15,56,221,216
-	DB	0F3h,0C3h		;repret
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,221,208
+	DB	102,15,56,221,216
+	ret
 
 
 
@@ -80,24 +89,24 @@ _aesni_encrypt3:
 	add	rax,16
 
 $L$enc_loop3:
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,220,225
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
 	movups	xmm1,XMMWORD[rax*1+rcx]
 	add	rax,32
-DB	102,15,56,220,208
-DB	102,15,56,220,216
-DB	102,15,56,220,224
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
+	DB	102,15,56,220,224
 	movups	xmm0,XMMWORD[((-16))+rax*1+rcx]
 	jnz	NEAR $L$enc_loop3
 
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,220,225
-DB	102,15,56,221,208
-DB	102,15,56,221,216
-DB	102,15,56,221,224
-	DB	0F3h,0C3h		;repret
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
+	DB	102,15,56,221,208
+	DB	102,15,56,221,216
+	DB	102,15,56,221,224
+	ret
 
 
 
@@ -114,32 +123,32 @@ _aesni_encrypt4:
 	movups	xmm0,XMMWORD[32+rcx]
 	lea	rcx,[32+rax*1+rcx]
 	neg	rax
-DB	0x0f,0x1f,0x00
+	DB	0x0f,0x1f,0x00
 	add	rax,16
 
 $L$enc_loop4:
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,220,225
-DB	102,15,56,220,233
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
 	movups	xmm1,XMMWORD[rax*1+rcx]
 	add	rax,32
-DB	102,15,56,220,208
-DB	102,15,56,220,216
-DB	102,15,56,220,224
-DB	102,15,56,220,232
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
+	DB	102,15,56,220,224
+	DB	102,15,56,220,232
 	movups	xmm0,XMMWORD[((-16))+rax*1+rcx]
 	jnz	NEAR $L$enc_loop4
 
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,220,225
-DB	102,15,56,220,233
-DB	102,15,56,221,208
-DB	102,15,56,221,216
-DB	102,15,56,221,224
-DB	102,15,56,221,232
-	DB	0F3h,0C3h		;repret
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
+	DB	102,15,56,221,208
+	DB	102,15,56,221,216
+	DB	102,15,56,221,224
+	DB	102,15,56,221,232
+	ret
 
 
 
@@ -152,50 +161,50 @@ _aesni_encrypt6:
 	xorps	xmm2,xmm0
 	pxor	xmm3,xmm0
 	pxor	xmm4,xmm0
-DB	102,15,56,220,209
+	DB	102,15,56,220,209
 	lea	rcx,[32+rax*1+rcx]
 	neg	rax
-DB	102,15,56,220,217
+	DB	102,15,56,220,217
 	pxor	xmm5,xmm0
 	pxor	xmm6,xmm0
-DB	102,15,56,220,225
+	DB	102,15,56,220,225
 	pxor	xmm7,xmm0
 	movups	xmm0,XMMWORD[rax*1+rcx]
 	add	rax,16
 	jmp	NEAR $L$enc_loop6_enter
 ALIGN	16
 $L$enc_loop6:
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,220,225
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
 $L$enc_loop6_enter:
-DB	102,15,56,220,233
-DB	102,15,56,220,241
-DB	102,15,56,220,249
+	DB	102,15,56,220,233
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
 	movups	xmm1,XMMWORD[rax*1+rcx]
 	add	rax,32
-DB	102,15,56,220,208
-DB	102,15,56,220,216
-DB	102,15,56,220,224
-DB	102,15,56,220,232
-DB	102,15,56,220,240
-DB	102,15,56,220,248
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
+	DB	102,15,56,220,224
+	DB	102,15,56,220,232
+	DB	102,15,56,220,240
+	DB	102,15,56,220,248
 	movups	xmm0,XMMWORD[((-16))+rax*1+rcx]
 	jnz	NEAR $L$enc_loop6
 
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,220,225
-DB	102,15,56,220,233
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-DB	102,15,56,221,208
-DB	102,15,56,221,216
-DB	102,15,56,221,224
-DB	102,15,56,221,232
-DB	102,15,56,221,240
-DB	102,15,56,221,248
-	DB	0F3h,0C3h		;repret
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
+	DB	102,15,56,221,208
+	DB	102,15,56,221,216
+	DB	102,15,56,221,224
+	DB	102,15,56,221,232
+	DB	102,15,56,221,240
+	DB	102,15,56,221,248
+	ret
 
 
 
@@ -212,66 +221,66 @@ _aesni_encrypt8:
 	pxor	xmm6,xmm0
 	lea	rcx,[32+rax*1+rcx]
 	neg	rax
-DB	102,15,56,220,209
+	DB	102,15,56,220,209
 	pxor	xmm7,xmm0
 	pxor	xmm8,xmm0
-DB	102,15,56,220,217
+	DB	102,15,56,220,217
 	pxor	xmm9,xmm0
 	movups	xmm0,XMMWORD[rax*1+rcx]
 	add	rax,16
 	jmp	NEAR $L$enc_loop8_inner
 ALIGN	16
 $L$enc_loop8:
-DB	102,15,56,220,209
-DB	102,15,56,220,217
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
 $L$enc_loop8_inner:
-DB	102,15,56,220,225
-DB	102,15,56,220,233
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-DB	102,68,15,56,220,193
-DB	102,68,15,56,220,201
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
+	DB	102,68,15,56,220,193
+	DB	102,68,15,56,220,201
 $L$enc_loop8_enter:
 	movups	xmm1,XMMWORD[rax*1+rcx]
 	add	rax,32
-DB	102,15,56,220,208
-DB	102,15,56,220,216
-DB	102,15,56,220,224
-DB	102,15,56,220,232
-DB	102,15,56,220,240
-DB	102,15,56,220,248
-DB	102,68,15,56,220,192
-DB	102,68,15,56,220,200
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
+	DB	102,15,56,220,224
+	DB	102,15,56,220,232
+	DB	102,15,56,220,240
+	DB	102,15,56,220,248
+	DB	102,68,15,56,220,192
+	DB	102,68,15,56,220,200
 	movups	xmm0,XMMWORD[((-16))+rax*1+rcx]
 	jnz	NEAR $L$enc_loop8
 
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,220,225
-DB	102,15,56,220,233
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-DB	102,68,15,56,220,193
-DB	102,68,15,56,220,201
-DB	102,15,56,221,208
-DB	102,15,56,221,216
-DB	102,15,56,221,224
-DB	102,15,56,221,232
-DB	102,15,56,221,240
-DB	102,15,56,221,248
-DB	102,68,15,56,221,192
-DB	102,68,15,56,221,200
-	DB	0F3h,0C3h		;repret
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
+	DB	102,68,15,56,220,193
+	DB	102,68,15,56,220,201
+	DB	102,15,56,221,208
+	DB	102,15,56,221,216
+	DB	102,15,56,221,224
+	DB	102,15,56,221,232
+	DB	102,15,56,221,240
+	DB	102,15,56,221,248
+	DB	102,68,15,56,221,192
+	DB	102,68,15,56,221,200
+	ret
 
 
-global	GFp_aes_hw_ctr32_encrypt_blocks
+global	aes_hw_ctr32_encrypt_blocks
 
 ALIGN	16
-GFp_aes_hw_ctr32_encrypt_blocks:
+aes_hw_ctr32_encrypt_blocks:
 	mov	QWORD[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_GFp_aes_hw_ctr32_encrypt_blocks:
+$L$SEH_begin_aes_hw_ctr32_encrypt_blocks:
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -280,6 +289,10 @@ $L$SEH_begin_GFp_aes_hw_ctr32_encrypt_blocks:
 
 
 
+_CET_ENDBR
+%ifdef BORINGSSL_DISPATCH_TEST
+	mov	BYTE[BORINGSSL_function_hit],1
+%endif
 	cmp	rdx,1
 	jne	NEAR $L$ctr32_bulk
 
@@ -293,12 +306,12 @@ $L$SEH_begin_GFp_aes_hw_ctr32_encrypt_blocks:
 	lea	rcx,[32+rcx]
 	xorps	xmm2,xmm0
 $L$oop_enc1_2:
-DB	102,15,56,220,209
+	DB	102,15,56,220,209
 	dec	edx
 	movups	xmm1,XMMWORD[rcx]
 	lea	rcx,[16+rcx]
 	jnz	NEAR $L$oop_enc1_2
-DB	102,15,56,221,209
+	DB	102,15,56,221,209
 	pxor	xmm0,xmm0
 	pxor	xmm1,xmm1
 	xorps	xmm2,xmm3
@@ -377,7 +390,7 @@ DB	102,15,58,34,232,3
 	lea	r9,[7+r8]
 	mov	DWORD[((96+12))+rsp],r10d
 	bswap	r9d
-	lea	r10,[GFp_ia32cap_P]
+	lea	r10,[OPENSSL_ia32cap_P]
 	mov	r10d,DWORD[4+r10]
 	xor	r9d,ebp
 	and	r10d,71303168
@@ -412,39 +425,39 @@ ALIGN	16
 $L$ctr32_loop6:
 	add	r8d,6
 	movups	xmm0,XMMWORD[((-48))+r10*1+rcx]
-DB	102,15,56,220,209
+	DB	102,15,56,220,209
 	mov	eax,r8d
 	xor	eax,ebp
-DB	102,15,56,220,217
-DB	0x0f,0x38,0xf1,0x44,0x24,12
+	DB	102,15,56,220,217
+	DB	0x0f,0x38,0xf1,0x44,0x24,12
 	lea	eax,[1+r8]
-DB	102,15,56,220,225
+	DB	102,15,56,220,225
 	xor	eax,ebp
-DB	0x0f,0x38,0xf1,0x44,0x24,28
-DB	102,15,56,220,233
+	DB	0x0f,0x38,0xf1,0x44,0x24,28
+	DB	102,15,56,220,233
 	lea	eax,[2+r8]
 	xor	eax,ebp
-DB	102,15,56,220,241
-DB	0x0f,0x38,0xf1,0x44,0x24,44
+	DB	102,15,56,220,241
+	DB	0x0f,0x38,0xf1,0x44,0x24,44
 	lea	eax,[3+r8]
-DB	102,15,56,220,249
+	DB	102,15,56,220,249
 	movups	xmm1,XMMWORD[((-32))+r10*1+rcx]
 	xor	eax,ebp
 
-DB	102,15,56,220,208
-DB	0x0f,0x38,0xf1,0x44,0x24,60
+	DB	102,15,56,220,208
+	DB	0x0f,0x38,0xf1,0x44,0x24,60
 	lea	eax,[4+r8]
-DB	102,15,56,220,216
+	DB	102,15,56,220,216
 	xor	eax,ebp
-DB	0x0f,0x38,0xf1,0x44,0x24,76
-DB	102,15,56,220,224
+	DB	0x0f,0x38,0xf1,0x44,0x24,76
+	DB	102,15,56,220,224
 	lea	eax,[5+r8]
 	xor	eax,ebp
-DB	102,15,56,220,232
-DB	0x0f,0x38,0xf1,0x44,0x24,92
+	DB	102,15,56,220,232
+	DB	0x0f,0x38,0xf1,0x44,0x24,92
 	mov	rax,r10
-DB	102,15,56,220,240
-DB	102,15,56,220,248
+	DB	102,15,56,220,240
+	DB	102,15,56,220,248
 	movups	xmm0,XMMWORD[((-16))+r10*1+rcx]
 
 	call	$L$enc_loop6
@@ -493,164 +506,164 @@ ALIGN	32
 $L$ctr32_loop8:
 	add	r8d,8
 	movdqa	xmm8,XMMWORD[96+rsp]
-DB	102,15,56,220,209
+	DB	102,15,56,220,209
 	mov	r9d,r8d
 	movdqa	xmm9,XMMWORD[112+rsp]
-DB	102,15,56,220,217
+	DB	102,15,56,220,217
 	bswap	r9d
 	movups	xmm0,XMMWORD[((32-128))+rcx]
-DB	102,15,56,220,225
+	DB	102,15,56,220,225
 	xor	r9d,ebp
 	nop
-DB	102,15,56,220,233
+	DB	102,15,56,220,233
 	mov	DWORD[((0+12))+rsp],r9d
 	lea	r9,[1+r8]
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-DB	102,68,15,56,220,193
-DB	102,68,15,56,220,201
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
+	DB	102,68,15,56,220,193
+	DB	102,68,15,56,220,201
 	movups	xmm1,XMMWORD[((48-128))+rcx]
 	bswap	r9d
-DB	102,15,56,220,208
-DB	102,15,56,220,216
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
 	xor	r9d,ebp
-DB	0x66,0x90
-DB	102,15,56,220,224
-DB	102,15,56,220,232
+	DB	0x66,0x90
+	DB	102,15,56,220,224
+	DB	102,15,56,220,232
 	mov	DWORD[((16+12))+rsp],r9d
 	lea	r9,[2+r8]
-DB	102,15,56,220,240
-DB	102,15,56,220,248
-DB	102,68,15,56,220,192
-DB	102,68,15,56,220,200
+	DB	102,15,56,220,240
+	DB	102,15,56,220,248
+	DB	102,68,15,56,220,192
+	DB	102,68,15,56,220,200
 	movups	xmm0,XMMWORD[((64-128))+rcx]
 	bswap	r9d
-DB	102,15,56,220,209
-DB	102,15,56,220,217
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
 	xor	r9d,ebp
-DB	0x66,0x90
-DB	102,15,56,220,225
-DB	102,15,56,220,233
+	DB	0x66,0x90
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
 	mov	DWORD[((32+12))+rsp],r9d
 	lea	r9,[3+r8]
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-DB	102,68,15,56,220,193
-DB	102,68,15,56,220,201
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
+	DB	102,68,15,56,220,193
+	DB	102,68,15,56,220,201
 	movups	xmm1,XMMWORD[((80-128))+rcx]
 	bswap	r9d
-DB	102,15,56,220,208
-DB	102,15,56,220,216
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
 	xor	r9d,ebp
-DB	0x66,0x90
-DB	102,15,56,220,224
-DB	102,15,56,220,232
+	DB	0x66,0x90
+	DB	102,15,56,220,224
+	DB	102,15,56,220,232
 	mov	DWORD[((48+12))+rsp],r9d
 	lea	r9,[4+r8]
-DB	102,15,56,220,240
-DB	102,15,56,220,248
-DB	102,68,15,56,220,192
-DB	102,68,15,56,220,200
+	DB	102,15,56,220,240
+	DB	102,15,56,220,248
+	DB	102,68,15,56,220,192
+	DB	102,68,15,56,220,200
 	movups	xmm0,XMMWORD[((96-128))+rcx]
 	bswap	r9d
-DB	102,15,56,220,209
-DB	102,15,56,220,217
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
 	xor	r9d,ebp
-DB	0x66,0x90
-DB	102,15,56,220,225
-DB	102,15,56,220,233
+	DB	0x66,0x90
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
 	mov	DWORD[((64+12))+rsp],r9d
 	lea	r9,[5+r8]
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-DB	102,68,15,56,220,193
-DB	102,68,15,56,220,201
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
+	DB	102,68,15,56,220,193
+	DB	102,68,15,56,220,201
 	movups	xmm1,XMMWORD[((112-128))+rcx]
 	bswap	r9d
-DB	102,15,56,220,208
-DB	102,15,56,220,216
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
 	xor	r9d,ebp
-DB	0x66,0x90
-DB	102,15,56,220,224
-DB	102,15,56,220,232
+	DB	0x66,0x90
+	DB	102,15,56,220,224
+	DB	102,15,56,220,232
 	mov	DWORD[((80+12))+rsp],r9d
 	lea	r9,[6+r8]
-DB	102,15,56,220,240
-DB	102,15,56,220,248
-DB	102,68,15,56,220,192
-DB	102,68,15,56,220,200
+	DB	102,15,56,220,240
+	DB	102,15,56,220,248
+	DB	102,68,15,56,220,192
+	DB	102,68,15,56,220,200
 	movups	xmm0,XMMWORD[((128-128))+rcx]
 	bswap	r9d
-DB	102,15,56,220,209
-DB	102,15,56,220,217
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
 	xor	r9d,ebp
-DB	0x66,0x90
-DB	102,15,56,220,225
-DB	102,15,56,220,233
+	DB	0x66,0x90
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
 	mov	DWORD[((96+12))+rsp],r9d
 	lea	r9,[7+r8]
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-DB	102,68,15,56,220,193
-DB	102,68,15,56,220,201
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
+	DB	102,68,15,56,220,193
+	DB	102,68,15,56,220,201
 	movups	xmm1,XMMWORD[((144-128))+rcx]
 	bswap	r9d
-DB	102,15,56,220,208
-DB	102,15,56,220,216
-DB	102,15,56,220,224
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
+	DB	102,15,56,220,224
 	xor	r9d,ebp
 	movdqu	xmm10,XMMWORD[rdi]
-DB	102,15,56,220,232
+	DB	102,15,56,220,232
 	mov	DWORD[((112+12))+rsp],r9d
 	cmp	eax,11
-DB	102,15,56,220,240
-DB	102,15,56,220,248
-DB	102,68,15,56,220,192
-DB	102,68,15,56,220,200
+	DB	102,15,56,220,240
+	DB	102,15,56,220,248
+	DB	102,68,15,56,220,192
+	DB	102,68,15,56,220,200
 	movups	xmm0,XMMWORD[((160-128))+rcx]
 
 	jb	NEAR $L$ctr32_enc_done
 
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,220,225
-DB	102,15,56,220,233
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-DB	102,68,15,56,220,193
-DB	102,68,15,56,220,201
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
+	DB	102,68,15,56,220,193
+	DB	102,68,15,56,220,201
 	movups	xmm1,XMMWORD[((176-128))+rcx]
 
-DB	102,15,56,220,208
-DB	102,15,56,220,216
-DB	102,15,56,220,224
-DB	102,15,56,220,232
-DB	102,15,56,220,240
-DB	102,15,56,220,248
-DB	102,68,15,56,220,192
-DB	102,68,15,56,220,200
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
+	DB	102,15,56,220,224
+	DB	102,15,56,220,232
+	DB	102,15,56,220,240
+	DB	102,15,56,220,248
+	DB	102,68,15,56,220,192
+	DB	102,68,15,56,220,200
 	movups	xmm0,XMMWORD[((192-128))+rcx]
 
 
 
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,220,225
-DB	102,15,56,220,233
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-DB	102,68,15,56,220,193
-DB	102,68,15,56,220,201
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
+	DB	102,68,15,56,220,193
+	DB	102,68,15,56,220,201
 	movups	xmm1,XMMWORD[((208-128))+rcx]
 
-DB	102,15,56,220,208
-DB	102,15,56,220,216
-DB	102,15,56,220,224
-DB	102,15,56,220,232
-DB	102,15,56,220,240
-DB	102,15,56,220,248
-DB	102,68,15,56,220,192
-DB	102,68,15,56,220,200
+	DB	102,15,56,220,208
+	DB	102,15,56,220,216
+	DB	102,15,56,220,224
+	DB	102,15,56,220,232
+	DB	102,15,56,220,240
+	DB	102,15,56,220,248
+	DB	102,68,15,56,220,192
+	DB	102,68,15,56,220,200
 	movups	xmm0,XMMWORD[((224-128))+rcx]
 	jmp	NEAR $L$ctr32_enc_done
 
@@ -666,36 +679,38 @@ $L$ctr32_enc_done:
 	pxor	xmm13,xmm0
 	movdqu	xmm15,XMMWORD[80+rdi]
 	pxor	xmm14,xmm0
+	prefetcht0	[448+rdi]
+	prefetcht0	[512+rdi]
 	pxor	xmm15,xmm0
-DB	102,15,56,220,209
-DB	102,15,56,220,217
-DB	102,15,56,220,225
-DB	102,15,56,220,233
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-DB	102,68,15,56,220,193
-DB	102,68,15,56,220,201
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
+	DB	102,15,56,220,241
+	DB	102,15,56,220,249
+	DB	102,68,15,56,220,193
+	DB	102,68,15,56,220,201
 	movdqu	xmm1,XMMWORD[96+rdi]
 	lea	rdi,[128+rdi]
 
-DB	102,65,15,56,221,210
+	DB	102,65,15,56,221,210
 	pxor	xmm1,xmm0
 	movdqu	xmm10,XMMWORD[((112-128))+rdi]
-DB	102,65,15,56,221,219
+	DB	102,65,15,56,221,219
 	pxor	xmm10,xmm0
 	movdqa	xmm11,XMMWORD[rsp]
-DB	102,65,15,56,221,228
-DB	102,65,15,56,221,237
+	DB	102,65,15,56,221,228
+	DB	102,65,15,56,221,237
 	movdqa	xmm12,XMMWORD[16+rsp]
 	movdqa	xmm13,XMMWORD[32+rsp]
-DB	102,65,15,56,221,246
-DB	102,65,15,56,221,255
+	DB	102,65,15,56,221,246
+	DB	102,65,15,56,221,255
 	movdqa	xmm14,XMMWORD[48+rsp]
 	movdqa	xmm15,XMMWORD[64+rsp]
-DB	102,68,15,56,221,193
+	DB	102,68,15,56,221,193
 	movdqa	xmm0,XMMWORD[80+rsp]
 	movups	xmm1,XMMWORD[((16-128))+rcx]
-DB	102,69,15,56,221,202
+	DB	102,69,15,56,221,202
 
 	movups	XMMWORD[rsi],xmm2
 	movdqa	xmm2,xmm11
@@ -734,19 +749,19 @@ $L$ctr32_tail:
 	pxor	xmm9,xmm9
 
 	movups	xmm0,XMMWORD[16+rcx]
-DB	102,15,56,220,209
-DB	102,15,56,220,217
+	DB	102,15,56,220,209
+	DB	102,15,56,220,217
 	lea	rcx,[((32-16))+rax*1+rcx]
 	neg	rax
-DB	102,15,56,220,225
+	DB	102,15,56,220,225
 	add	rax,16
 	movups	xmm10,XMMWORD[rdi]
-DB	102,15,56,220,233
-DB	102,15,56,220,241
+	DB	102,15,56,220,233
+	DB	102,15,56,220,241
 	movups	xmm11,XMMWORD[16+rdi]
 	movups	xmm12,XMMWORD[32+rdi]
-DB	102,15,56,220,249
-DB	102,68,15,56,220,193
+	DB	102,15,56,220,249
+	DB	102,68,15,56,220,193
 
 	call	$L$enc_loop8_enter
 
@@ -777,20 +792,20 @@ DB	102,68,15,56,220,193
 
 ALIGN	32
 $L$ctr32_loop4:
-DB	102,15,56,220,209
+	DB	102,15,56,220,209
 	lea	rcx,[16+rcx]
 	dec	eax
-DB	102,15,56,220,217
-DB	102,15,56,220,225
-DB	102,15,56,220,233
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
+	DB	102,15,56,220,233
 	movups	xmm1,XMMWORD[rcx]
 	jnz	NEAR $L$ctr32_loop4
-DB	102,15,56,221,209
-DB	102,15,56,221,217
+	DB	102,15,56,221,209
+	DB	102,15,56,221,217
 	movups	xmm10,XMMWORD[rdi]
 	movups	xmm11,XMMWORD[16+rdi]
-DB	102,15,56,221,225
-DB	102,15,56,221,233
+	DB	102,15,56,221,225
+	DB	102,15,56,221,233
 	movups	xmm12,XMMWORD[32+rdi]
 	movups	xmm13,XMMWORD[48+rdi]
 
@@ -806,16 +821,16 @@ DB	102,15,56,221,233
 
 ALIGN	32
 $L$ctr32_loop3:
-DB	102,15,56,220,209
+	DB	102,15,56,220,209
 	lea	rcx,[16+rcx]
 	dec	eax
-DB	102,15,56,220,217
-DB	102,15,56,220,225
+	DB	102,15,56,220,217
+	DB	102,15,56,220,225
 	movups	xmm1,XMMWORD[rcx]
 	jnz	NEAR $L$ctr32_loop3
-DB	102,15,56,221,209
-DB	102,15,56,221,217
-DB	102,15,56,221,225
+	DB	102,15,56,221,209
+	DB	102,15,56,221,217
+	DB	102,15,56,221,225
 
 	movups	xmm10,XMMWORD[rdi]
 	xorps	xmm2,xmm10
@@ -875,16 +890,20 @@ $L$ctr32_done:
 $L$ctr32_epilogue:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
-	DB	0F3h,0C3h		;repret
+	ret
 
-$L$SEH_end_GFp_aes_hw_ctr32_encrypt_blocks:
-global	GFp_aes_hw_set_encrypt_key
+$L$SEH_end_aes_hw_ctr32_encrypt_blocks:
+global	aes_hw_set_encrypt_key
 
 ALIGN	16
-GFp_aes_hw_set_encrypt_key:
+aes_hw_set_encrypt_key:
 __aesni_set_encrypt_key:
 
-DB	0x48,0x83,0xEC,0x08
+_CET_ENDBR
+%ifdef BORINGSSL_DISPATCH_TEST
+	mov	BYTE[((BORINGSSL_function_hit+3))],1
+%endif
+	DB	0x48,0x83,0xEC,0x08
 
 	mov	rax,-1
 	test	rcx,rcx
@@ -894,7 +913,7 @@ DB	0x48,0x83,0xEC,0x08
 
 	movups	xmm0,XMMWORD[rcx]
 	xorps	xmm4,xmm4
-	lea	r10,[GFp_ia32cap_P]
+	lea	r10,[OPENSSL_ia32cap_P]
 	mov	r10d,DWORD[4+r10]
 	and	r10d,268437504
 	lea	rax,[16+r8]
@@ -910,25 +929,25 @@ $L$10rounds:
 	je	NEAR $L$10rounds_alt
 
 	movups	XMMWORD[r8],xmm0
-DB	102,15,58,223,200,1
+	DB	102,15,58,223,200,1
 	call	$L$key_expansion_128_cold
-DB	102,15,58,223,200,2
+	DB	102,15,58,223,200,2
 	call	$L$key_expansion_128
-DB	102,15,58,223,200,4
+	DB	102,15,58,223,200,4
 	call	$L$key_expansion_128
-DB	102,15,58,223,200,8
+	DB	102,15,58,223,200,8
 	call	$L$key_expansion_128
-DB	102,15,58,223,200,16
+	DB	102,15,58,223,200,16
 	call	$L$key_expansion_128
-DB	102,15,58,223,200,32
+	DB	102,15,58,223,200,32
 	call	$L$key_expansion_128
-DB	102,15,58,223,200,64
+	DB	102,15,58,223,200,64
 	call	$L$key_expansion_128
-DB	102,15,58,223,200,128
+	DB	102,15,58,223,200,128
 	call	$L$key_expansion_128
-DB	102,15,58,223,200,27
+	DB	102,15,58,223,200,27
 	call	$L$key_expansion_128
-DB	102,15,58,223,200,54
+	DB	102,15,58,223,200,54
 	call	$L$key_expansion_128
 	movups	XMMWORD[rax],xmm0
 	mov	DWORD[80+rax],edx
@@ -947,7 +966,7 @@ $L$10rounds_alt:
 ALIGN	16
 $L$oop_key128:
 DB	102,15,56,0,197
-DB	102,15,56,221,196
+	DB	102,15,56,221,196
 	pslld	xmm4,1
 	lea	rax,[16+rax]
 
@@ -969,7 +988,7 @@ DB	102,15,56,221,196
 	movdqa	xmm4,XMMWORD[$L$key_rcon1b]
 
 DB	102,15,56,0,197
-DB	102,15,56,221,196
+	DB	102,15,56,221,196
 	pslld	xmm4,1
 
 	movdqa	xmm3,xmm2
@@ -985,7 +1004,7 @@ DB	102,15,56,221,196
 
 	movdqa	xmm2,xmm0
 DB	102,15,56,0,197
-DB	102,15,56,221,196
+	DB	102,15,56,221,196
 
 	movdqa	xmm3,xmm2
 	pslldq	xmm2,4
@@ -1014,31 +1033,31 @@ $L$14rounds:
 
 	movups	XMMWORD[r8],xmm0
 	movups	XMMWORD[16+r8],xmm2
-DB	102,15,58,223,202,1
+	DB	102,15,58,223,202,1
 	call	$L$key_expansion_256a_cold
-DB	102,15,58,223,200,1
+	DB	102,15,58,223,200,1
 	call	$L$key_expansion_256b
-DB	102,15,58,223,202,2
+	DB	102,15,58,223,202,2
 	call	$L$key_expansion_256a
-DB	102,15,58,223,200,2
+	DB	102,15,58,223,200,2
 	call	$L$key_expansion_256b
-DB	102,15,58,223,202,4
+	DB	102,15,58,223,202,4
 	call	$L$key_expansion_256a
-DB	102,15,58,223,200,4
+	DB	102,15,58,223,200,4
 	call	$L$key_expansion_256b
-DB	102,15,58,223,202,8
+	DB	102,15,58,223,202,8
 	call	$L$key_expansion_256a
-DB	102,15,58,223,200,8
+	DB	102,15,58,223,200,8
 	call	$L$key_expansion_256b
-DB	102,15,58,223,202,16
+	DB	102,15,58,223,202,16
 	call	$L$key_expansion_256a
-DB	102,15,58,223,200,16
+	DB	102,15,58,223,200,16
 	call	$L$key_expansion_256b
-DB	102,15,58,223,202,32
+	DB	102,15,58,223,202,32
 	call	$L$key_expansion_256a
-DB	102,15,58,223,200,32
+	DB	102,15,58,223,200,32
 	call	$L$key_expansion_256b
-DB	102,15,58,223,202,64
+	DB	102,15,58,223,202,64
 	call	$L$key_expansion_256a
 	movups	XMMWORD[rax],xmm0
 	mov	DWORD[16+rax],edx
@@ -1058,7 +1077,7 @@ $L$14rounds_alt:
 ALIGN	16
 $L$oop_key256:
 DB	102,15,56,0,213
-DB	102,15,56,221,212
+	DB	102,15,56,221,212
 
 	movdqa	xmm3,xmm0
 	pslldq	xmm0,4
@@ -1077,7 +1096,7 @@ DB	102,15,56,221,212
 
 	pshufd	xmm2,xmm0,0xff
 	pxor	xmm3,xmm3
-DB	102,15,56,221,211
+	DB	102,15,56,221,211
 
 	movdqa	xmm3,xmm1
 	pslldq	xmm1,4
@@ -1111,9 +1130,9 @@ $L$enc_key_ret:
 	pxor	xmm5,xmm5
 	add	rsp,8
 
-	DB	0F3h,0C3h		;repret
+	ret
 
-$L$SEH_end_GFp_set_encrypt_key:
+$L$SEH_end_set_encrypt_key:
 
 ALIGN	16
 $L$key_expansion_128:
@@ -1126,7 +1145,7 @@ $L$key_expansion_128_cold:
 	xorps	xmm0,xmm4
 	shufps	xmm1,xmm1,255
 	xorps	xmm0,xmm1
-	DB	0F3h,0C3h		;repret
+	ret
 
 ALIGN	16
 $L$key_expansion_192a:
@@ -1146,7 +1165,7 @@ $L$key_expansion_192b_warm:
 	pxor	xmm0,xmm1
 	pshufd	xmm3,xmm0,255
 	pxor	xmm2,xmm3
-	DB	0F3h,0C3h		;repret
+	ret
 
 ALIGN	16
 $L$key_expansion_192b:
@@ -1169,7 +1188,7 @@ $L$key_expansion_256a_cold:
 	xorps	xmm0,xmm4
 	shufps	xmm1,xmm1,255
 	xorps	xmm0,xmm1
-	DB	0F3h,0C3h		;repret
+	ret
 
 ALIGN	16
 $L$key_expansion_256b:
@@ -1182,18 +1201,19 @@ $L$key_expansion_256b:
 	xorps	xmm2,xmm4
 	shufps	xmm1,xmm1,170
 	xorps	xmm2,xmm1
-	DB	0F3h,0C3h		;repret
+	ret
 
 
+section	.rdata rdata align=8
 ALIGN	64
 $L$bswap_mask:
-DB	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
+	DB	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
 $L$increment32:
 	DD	6,6,6,0
 $L$increment64:
 	DD	1,0,0,0
 $L$increment1:
-DB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+	DB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
 $L$key_rotate:
 	DD	0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d
 $L$key_rotate192:
@@ -1203,11 +1223,13 @@ $L$key_rcon1:
 $L$key_rcon1b:
 	DD	0x1b,0x1b,0x1b,0x1b
 
-DB	65,69,83,32,102,111,114,32,73,110,116,101,108,32,65,69
-DB	83,45,78,73,44,32,67,82,89,80,84,79,71,65,77,83
-DB	32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115
-DB	115,108,46,111,114,103,62,0
+	DB	65,69,83,32,102,111,114,32,73,110,116,101,108,32,65,69
+	DB	83,45,78,73,44,32,67,82,89,80,84,79,71,65,77,83
+	DB	32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115
+	DB	115,108,46,111,114,103,62,0
 ALIGN	64
+section	.text
+
 EXTERN	__imp_RtlVirtualUnwind
 
 ALIGN	16
@@ -1289,23 +1311,27 @@ $L$common_seh_tail:
 	pop	rbx
 	pop	rdi
 	pop	rsi
-	DB	0F3h,0C3h		;repret
+	ret
 
 
 section	.pdata rdata align=4
 ALIGN	4
-	DD	$L$SEH_begin_GFp_aes_hw_ctr32_encrypt_blocks wrt ..imagebase
-	DD	$L$SEH_end_GFp_aes_hw_ctr32_encrypt_blocks wrt ..imagebase
-	DD	$L$SEH_info_GFp_ctr32 wrt ..imagebase
-	DD	GFp_aes_hw_set_encrypt_key wrt ..imagebase
-	DD	$L$SEH_end_GFp_set_encrypt_key wrt ..imagebase
-	DD	$L$SEH_info_GFp_key wrt ..imagebase
+	DD	$L$SEH_begin_aes_hw_ctr32_encrypt_blocks wrt ..imagebase
+	DD	$L$SEH_end_aes_hw_ctr32_encrypt_blocks wrt ..imagebase
+	DD	$L$SEH_info_ctr32 wrt ..imagebase
+	DD	aes_hw_set_encrypt_key wrt ..imagebase
+	DD	$L$SEH_end_set_encrypt_key wrt ..imagebase
+	DD	$L$SEH_info_key wrt ..imagebase
 section	.xdata rdata align=8
 ALIGN	8
-$L$SEH_info_GFp_ctr32:
-DB	9,0,0,0
+$L$SEH_info_ctr32:
+	DB	9,0,0,0
 	DD	ctr_xts_se_handler wrt ..imagebase
 	DD	$L$ctr32_body wrt ..imagebase,$L$ctr32_epilogue wrt ..imagebase
-$L$SEH_info_GFp_key:
-DB	0x01,0x04,0x01,0x00
-DB	0x04,0x02,0x00,0x00
+$L$SEH_info_key:
+	DB	0x01,0x04,0x01,0x00
+	DB	0x04,0x02,0x00,0x00
+%else
+; Work around https://bugzilla.nasm.us/show_bug.cgi?id=3392738
+ret
+%endif

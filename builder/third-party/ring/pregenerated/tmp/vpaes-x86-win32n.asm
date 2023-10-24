@@ -1,9 +1,8 @@
 ; This file is generated from a similarly-named Perl script in the BoringSSL
 ; source tree. Do not edit by hand.
 
-%ifdef BORINGSSL_PREFIX
-%include "boringssl_prefix_symbols_nasm.inc"
-%endif
+%include "ring_core_generated/prefix_symbols_nasm.inc"
+%ifidn __OUTPUT_FORMAT__, win32
 %ifidn __OUTPUT_FORMAT__,obj
 section	code	use32 class=code align=64
 %elifidn __OUTPUT_FORMAT__,win32
@@ -11,6 +10,9 @@ $@feat.00 equ 1
 section	.text	code align=64
 %else
 section	.text	code
+%endif
+%ifdef BORINGSSL_DISPATCH_TEST
+extern	_BORINGSSL_function_hit
 %endif
 align	64
 L$_vpaes_consts:
@@ -318,14 +320,26 @@ db	102,15,56,0,217
 	and	ecx,48
 	movdqu	[edx],xmm3
 	ret
-global	_GFp_vpaes_set_encrypt_key
+global	_vpaes_set_encrypt_key
 align	16
-_GFp_vpaes_set_encrypt_key:
-L$_GFp_vpaes_set_encrypt_key_begin:
+_vpaes_set_encrypt_key:
+L$_vpaes_set_encrypt_key_begin:
 	push	ebp
 	push	ebx
 	push	esi
 	push	edi
+%ifdef BORINGSSL_DISPATCH_TEST
+	push	ebx
+	push	edx
+	call	L$012pic
+L$012pic:
+	pop	ebx
+	lea	ebx,[(_BORINGSSL_function_hit+5-L$012pic)+ebx]
+	mov	edx,1
+	mov	BYTE [ebx],dl
+	pop	edx
+	pop	ebx
+%endif
 	mov	esi,DWORD [20+esp]
 	lea	ebx,[esp-56]
 	mov	eax,DWORD [24+esp]
@@ -339,9 +353,9 @@ L$_GFp_vpaes_set_encrypt_key_begin:
 	mov	DWORD [240+edx],ebx
 	mov	ecx,48
 	mov	edi,0
-	lea	ebp,[(L$_vpaes_consts+0x30-L$012pic_point)]
+	lea	ebp,[(L$_vpaes_consts+0x30-L$013pic_point)]
 	call	__vpaes_schedule_core
-L$012pic_point:
+L$013pic_point:
 	mov	esp,DWORD [48+esp]
 	xor	eax,eax
 	pop	edi
@@ -349,17 +363,29 @@ L$012pic_point:
 	pop	ebx
 	pop	ebp
 	ret
-global	_GFp_vpaes_encrypt
+global	_vpaes_encrypt
 align	16
-_GFp_vpaes_encrypt:
-L$_GFp_vpaes_encrypt_begin:
+_vpaes_encrypt:
+L$_vpaes_encrypt_begin:
 	push	ebp
 	push	ebx
 	push	esi
 	push	edi
-	lea	ebp,[(L$_vpaes_consts+0x30-L$013pic_point)]
+%ifdef BORINGSSL_DISPATCH_TEST
+	push	ebx
+	push	edx
+	call	L$014pic
+L$014pic:
+	pop	ebx
+	lea	ebx,[(_BORINGSSL_function_hit+4-L$014pic)+ebx]
+	mov	edx,1
+	mov	BYTE [ebx],dl
+	pop	edx
+	pop	ebx
+%endif
+	lea	ebp,[(L$_vpaes_consts+0x30-L$015pic_point)]
 	call	__vpaes_preheat
-L$013pic_point:
+L$015pic_point:
 	mov	esi,DWORD [20+esp]
 	lea	ebx,[esp-56]
 	mov	edi,DWORD [24+esp]
@@ -376,3 +402,7 @@ L$013pic_point:
 	pop	ebx
 	pop	ebp
 	ret
+%else
+; Work around https://bugzilla.nasm.us/show_bug.cgi?id=3392738
+ret
+%endif

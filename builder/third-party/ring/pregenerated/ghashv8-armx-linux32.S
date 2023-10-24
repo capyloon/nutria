@@ -1,26 +1,21 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
+#include <ring-core/asm_base.h>
 
-#if !defined(OPENSSL_NO_ASM)
-#if defined(__arm__)
-#include <GFp/arm_arch.h>
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_ARM) && defined(__ELF__)
+#include <ring-core/arm_arch.h>
 
+#if __ARM_MAX_ARCH__>=7
 .text
 .fpu	neon
 .code	32
 #undef	__thumb2__
-.globl	GFp_gcm_init_clmul
-.hidden	GFp_gcm_init_clmul
-.type	GFp_gcm_init_clmul,%function
+.globl	gcm_init_clmul
+.hidden	gcm_init_clmul
+.type	gcm_init_clmul,%function
 .align	4
-GFp_gcm_init_clmul:
+gcm_init_clmul:
 	AARCH64_VALID_CALL_TARGET
 	vld1.64	{q9},[r1]		@ load input H
 	vmov.i8	q11,#0xe1
@@ -64,15 +59,14 @@ GFp_gcm_init_clmul:
 	vext.8	q9,q14,q14,#8		@ Karatsuba pre-processing
 	veor	q9,q9,q14
 	vext.8	q13,q8,q9,#8		@ pack Karatsuba pre-processed
-	vst1.64	{q13,q14},[r0]		@ store Htable[1..2]
-
+	vst1.64	{q13,q14},[r0]!	@ store Htable[1..2]
 	bx	lr
-.size	GFp_gcm_init_clmul,.-GFp_gcm_init_clmul
-.globl	GFp_gcm_gmult_clmul
-.hidden	GFp_gcm_gmult_clmul
-.type	GFp_gcm_gmult_clmul,%function
+.size	gcm_init_clmul,.-gcm_init_clmul
+.globl	gcm_gmult_clmul
+.hidden	gcm_gmult_clmul
+.type	gcm_gmult_clmul,%function
 .align	4
-GFp_gcm_gmult_clmul:
+gcm_gmult_clmul:
 	AARCH64_VALID_CALL_TARGET
 	vld1.64	{q9},[r0]		@ load Xi
 	vmov.i8	q11,#0xe1
@@ -110,12 +104,12 @@ GFp_gcm_gmult_clmul:
 	vst1.64	{q0},[r0]		@ write out Xi
 
 	bx	lr
-.size	GFp_gcm_gmult_clmul,.-GFp_gcm_gmult_clmul
-.globl	GFp_gcm_ghash_clmul
-.hidden	GFp_gcm_ghash_clmul
-.type	GFp_gcm_ghash_clmul,%function
+.size	gcm_gmult_clmul,.-gcm_gmult_clmul
+.globl	gcm_ghash_clmul
+.hidden	gcm_ghash_clmul
+.type	gcm_ghash_clmul,%function
 .align	4
-GFp_gcm_ghash_clmul:
+gcm_ghash_clmul:
 	AARCH64_VALID_CALL_TARGET
 	vstmdb	sp!,{d8,d9,d10,d11,d12,d13,d14,d15}		@ 32-bit ABI says so
 	vld1.64	{q0},[r0]		@ load [rotated] Xi
@@ -244,10 +238,9 @@ GFp_gcm_ghash_clmul:
 
 	vldmia	sp!,{d8,d9,d10,d11,d12,d13,d14,d15}		@ 32-bit ABI says so
 	bx	lr
-.size	GFp_gcm_ghash_clmul,.-GFp_gcm_ghash_clmul
+.size	gcm_ghash_clmul,.-gcm_ghash_clmul
 .byte	71,72,65,83,72,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2
 #endif
-#endif  // !OPENSSL_NO_ASM
-.section	.note.GNU-stack,"",%progbits
+#endif  // !OPENSSL_NO_ASM && defined(OPENSSL_ARM) && defined(__ELF__)

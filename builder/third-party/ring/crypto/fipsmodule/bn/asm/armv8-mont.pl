@@ -48,14 +48,14 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../../perlasm/arm-xlate.pl" and -f $xlate) or
 die "can't locate arm-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 ($lo0,$hi0,$aj,$m0,$alo,$ahi,
  $lo1,$hi1,$nj,$m1,$nlo,$nhi,
  $ovf, $i,$j,$tp,$tj) = map("x$_",6..17,19..24);
 
-# int GFp_bn_mul_mont(
+# int bn_mul_mont(
 $rp="x0";	# BN_ULONG *rp,
 $ap="x1";	# const BN_ULONG *ap,
 $bp="x2";	# const BN_ULONG *bp,
@@ -64,14 +64,14 @@ $n0="x4";	# const BN_ULONG *n0,
 $num="x5";	# size_t num);
 
 $code.=<<___;
-#include <GFp/arm_arch.h>
+#include <ring-core/arm_arch.h>
 
 .text
 
-.globl	GFp_bn_mul_mont
-.type	GFp_bn_mul_mont,%function
+.globl	bn_mul_mont
+.type	bn_mul_mont,%function
 .align	5
-GFp_bn_mul_mont:
+bn_mul_mont:
 	AARCH64_SIGN_LINK_REGISTER
 	tst	$num,#7
 	b.eq	__bn_sqr8x_mont
@@ -272,7 +272,7 @@ GFp_bn_mul_mont:
 	ldr	x29,[sp],#64
 	AARCH64_VALIDATE_LINK_REGISTER
 	ret
-.size	GFp_bn_mul_mont,.-GFp_bn_mul_mont
+.size	bn_mul_mont,.-bn_mul_mont
 ___
 {
 ########################################################################
@@ -1520,4 +1520,4 @@ ___
 
 print $code;
 
-close STDOUT or die "error closing STDOUT";
+close STDOUT or die "error closing STDOUT: $!";

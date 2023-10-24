@@ -15,6 +15,7 @@
 //! Elliptic curve operations and schemes using Curve25519.
 
 pub mod ed25519;
+
 pub mod x25519;
 
 mod ops;

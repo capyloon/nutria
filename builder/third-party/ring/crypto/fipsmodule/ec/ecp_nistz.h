@@ -15,7 +15,7 @@
 #ifndef OPENSSL_HEADER_EC_ECP_NISTZ_H
 #define OPENSSL_HEADER_EC_ECP_NISTZ_H
 
-#include <GFp/base.h>
+#include <ring-core/base.h>
 
 #include "../../limbs/limbs.h"
 
@@ -114,7 +114,7 @@
 // is a prime that is much larger than 2^w. It also only holds when windows
 // are applied from most significant to least significant, doubling between each
 // window. It does not apply to more complex table strategies such as
-// |EC_GFp_nistz256_method|.
+// |EC_nistz256_method|.
 //
 // PROOF:
 //
@@ -246,16 +246,16 @@
 //   P-384: ...01110011; w = 2, 5, 6, 7 are okay
 //   P-256: ...01010001; w = 5, 7 are okay
 //   P-224: ...00111101; w = 3, 4, 5, 6 are okay
-static inline void booth_recode(crypto_word *is_negative, crypto_word *digit,
-                                crypto_word in, crypto_word w) {
+static inline void booth_recode(crypto_word_t *is_negative, crypto_word_t *digit,
+                                crypto_word_t in, crypto_word_t w) {
   debug_assert_nonsecret(w >= 2);
   debug_assert_nonsecret(w <= 7);
 
   // Set all bits of `s` to MSB(in), similar to |constant_time_msb_s|,
   // but 'in' seen as (`w+1`)-bit value.
-  crypto_word s = ~((in >> w) - 1);
-  crypto_word d;
-  d = ((crypto_word)1u << (w + 1)) - in - 1;
+  crypto_word_t s = ~((in >> w) - 1);
+  crypto_word_t d;
+  d = ((crypto_word_t)1u << (w + 1)) - in - 1;
   d = (d & s) | (in & ~s);
   d = (d >> 1) + (d & 1);
 
@@ -267,8 +267,8 @@ static inline void booth_recode(crypto_word *is_negative, crypto_word *digit,
 #pragma GCC diagnostic pop
 #endif
 
-void gfp_little_endian_bytes_from_scalar(uint8_t str[], size_t str_len,
-                                         const Limb scalar[],
-                                         size_t num_limbs);
+void little_endian_bytes_from_scalar(uint8_t str[], size_t str_len,
+                                     const Limb scalar[],
+                                     size_t num_limbs);
 
 #endif // OPENSSL_HEADER_EC_ECP_NISTZ_H

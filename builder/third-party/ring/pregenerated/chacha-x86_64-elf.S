@@ -1,18 +1,15 @@
-# This file is generated from a similarly-named Perl script in the BoringSSL
-# source tree. Do not edit by hand.
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
 
-#if defined(__has_feature)
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
-#endif
+#include <ring-core/asm_base.h>
 
-#if defined(__x86_64__) && !defined(OPENSSL_NO_ASM)
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && defined(__ELF__)
 .text	
 
-.extern	GFp_ia32cap_P
-.hidden GFp_ia32cap_P
+.extern	OPENSSL_ia32cap_P
+.hidden OPENSSL_ia32cap_P
 
+.section	.rodata
 .align	64
 .Lzero:
 .long	0,0,0,0
@@ -42,15 +39,17 @@
 .Lsixteen:
 .long	16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16
 .byte	67,104,97,67,104,97,50,48,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
-.globl	GFp_ChaCha20_ctr32
-.hidden GFp_ChaCha20_ctr32
-.type	GFp_ChaCha20_ctr32,@function
+.text	
+.globl	ChaCha20_ctr32
+.hidden ChaCha20_ctr32
+.type	ChaCha20_ctr32,@function
 .align	64
-GFp_ChaCha20_ctr32:
+ChaCha20_ctr32:
 .cfi_startproc	
+_CET_ENDBR
 	cmpq	$0,%rdx
 	je	.Lno_data
-	movq	GFp_ia32cap_P+4(%rip),%r10
+	movq	OPENSSL_ia32cap_P+4(%rip),%r10
 	testl	$512,%r10d
 	jnz	.LChaCha20_ssse3
 
@@ -328,9 +327,9 @@ GFp_ChaCha20_ctr32:
 	leaq	(%rsi),%rsp
 .cfi_adjust_cfa_offset	-136
 .Lno_data:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_ChaCha20_ctr32,.-GFp_ChaCha20_ctr32
+.size	ChaCha20_ctr32,.-ChaCha20_ctr32
 .type	ChaCha20_ssse3,@function
 .align	32
 ChaCha20_ssse3:
@@ -465,7 +464,7 @@ ChaCha20_ssse3:
 	leaq	(%r9),%rsp
 .cfi_def_cfa_register	rsp
 .Lssse3_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	ChaCha20_ssse3,.-ChaCha20_ssse3
 .type	ChaCha20_4x,@function
@@ -1017,7 +1016,7 @@ ChaCha20_4x:
 	leaq	(%r9),%rsp
 .cfi_def_cfa_register	rsp
 .L4x_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	ChaCha20_4x,.-ChaCha20_4x
 .type	ChaCha20_8x,@function
@@ -1623,8 +1622,7 @@ ChaCha20_8x:
 	leaq	(%r9),%rsp
 .cfi_def_cfa_register	rsp
 .L8x_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	ChaCha20_8x,.-ChaCha20_8x
 #endif
-.section	.note.GNU-stack,"",@progbits

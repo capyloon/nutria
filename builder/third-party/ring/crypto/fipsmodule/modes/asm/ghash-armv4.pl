@@ -91,7 +91,7 @@ if ($flavour && $flavour ne "void") {
     ( $xlate="${dir}../../../perlasm/arm-xlate.pl" and -f $xlate) or
     die "can't locate arm-xlate.pl";
 
-    open OUT,"| \"$^X\" $xlate $flavour $output";
+    open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
     *STDOUT=*OUT;
 } else {
     open OUT,">$output";
@@ -104,7 +104,7 @@ $inp="r2";
 $len="r3";
 
 $code=<<___;
-#include <GFp/arm_arch.h>
+#include <ring-core/arm_arch.h>
 
 @ Silence ARMv8 deprecated IT instruction warnings. This file is used by both
 @ ARMv7 and ARMv8 processors and does not use ARMv8 instructions. (ARMv8 PMULL
@@ -176,10 +176,10 @@ $code.=<<___;
 .arch	armv7-a
 .fpu	neon
 
-.global	GFp_gcm_init_neon
-.type	GFp_gcm_init_neon,%function
+.global	gcm_init_neon
+.type	gcm_init_neon,%function
 .align	4
-GFp_gcm_init_neon:
+gcm_init_neon:
 	vld1.64		$IN#hi,[r1]!		@ load H
 	vmov.i8		$t0,#0xe1
 	vld1.64		$IN#lo,[r1]
@@ -195,12 +195,12 @@ GFp_gcm_init_neon:
 	vstmia		r0,{$IN}
 
 	ret					@ bx lr
-.size	GFp_gcm_init_neon,.-GFp_gcm_init_neon
+.size	gcm_init_neon,.-gcm_init_neon
 
-.global	GFp_gcm_gmult_neon
-.type	GFp_gcm_gmult_neon,%function
+.global	gcm_gmult_neon
+.type	gcm_gmult_neon,%function
 .align	4
-GFp_gcm_gmult_neon:
+gcm_gmult_neon:
 	vld1.64		$IN#hi,[$Xi]!		@ load Xi
 	vld1.64		$IN#lo,[$Xi]!
 	vmov.i64	$k48,#0x0000ffffffffffff
@@ -213,12 +213,12 @@ GFp_gcm_gmult_neon:
 	veor		$Hhl,$Hlo,$Hhi		@ Karatsuba pre-processing
 	mov		$len,#16
 	b		.Lgmult_neon
-.size	GFp_gcm_gmult_neon,.-GFp_gcm_gmult_neon
+.size	gcm_gmult_neon,.-gcm_gmult_neon
 
-.global	GFp_gcm_ghash_neon
-.type	GFp_gcm_ghash_neon,%function
+.global	gcm_ghash_neon
+.type	gcm_ghash_neon,%function
 .align	4
-GFp_gcm_ghash_neon:
+gcm_ghash_neon:
 	vld1.64		$Xl#hi,[$Xi]!		@ load Xi
 	vld1.64		$Xl#lo,[$Xi]!
 	vmov.i64	$k48,#0x0000ffffffffffff
@@ -279,7 +279,7 @@ $code.=<<___;
 	vst1.64		$Xl#lo,[$Xi]
 
 	ret					@ bx lr
-.size	GFp_gcm_ghash_neon,.-GFp_gcm_ghash_neon
+.size	gcm_ghash_neon,.-gcm_ghash_neon
 #endif
 ___
 }
@@ -297,4 +297,4 @@ foreach (split("\n",$code)) {
 
 	print $_,"\n";
 }
-close STDOUT or die "error closing STDOUT"; # enforce flush
+close STDOUT or die "error closing STDOUT: $!"; # enforce flush

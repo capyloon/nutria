@@ -1,16 +1,10 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
+#include <ring-core/asm_base.h>
 
-#if !defined(OPENSSL_NO_ASM)
-#if defined(__arm__)
-#include <GFp/arm_arch.h>
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_ARM) && defined(__ELF__)
+#include <ring-core/arm_arch.h>
 
 @ Silence ARMv8 deprecated IT instruction warnings. This file is used by both
 @ ARMv7 and ARMv8 processors and does not use ARMv8 instructions.
@@ -26,18 +20,18 @@
 
 #if __ARM_MAX_ARCH__>=7
 
-.hidden	GFp_armcap_P
+.hidden	OPENSSL_armcap_P
 .align	5
 .LOPENSSL_armcap:
-.word	GFp_armcap_P-.Lbn_mul_mont
+.word	OPENSSL_armcap_P-.Lbn_mul_mont
 #endif
 
-.globl	GFp_bn_mul_mont
-.hidden	GFp_bn_mul_mont
-.type	GFp_bn_mul_mont,%function
+.globl	bn_mul_mont
+.hidden	bn_mul_mont
+.type	bn_mul_mont,%function
 
 .align	5
-GFp_bn_mul_mont:
+bn_mul_mont:
 .Lbn_mul_mont:
 	ldr	ip,[sp,#4]		@ load num
 	stmdb	sp!,{r0,r2}		@ sp points at argument block
@@ -208,7 +202,7 @@ GFp_bn_mul_mont:
 	moveq	pc,lr			@ be binary compatible with V4, yet
 .word	0xe12fff1e			@ interoperable with Thumb ISA:-)
 #endif
-.size	GFp_bn_mul_mont,.-GFp_bn_mul_mont
+.size	bn_mul_mont,.-bn_mul_mont
 #if __ARM_MAX_ARCH__>=7
 .arch	armv7-a
 .fpu	neon
@@ -966,6 +960,4 @@ bn_mul8x_mont_neon:
 #endif
 .byte	77,111,110,116,103,111,109,101,114,121,32,109,117,108,116,105,112,108,105,99,97,116,105,111,110,32,102,111,114,32,65,82,77,118,52,47,78,69,79,78,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
-#endif
-#endif  // !OPENSSL_NO_ASM
-.section	.note.GNU-stack,"",%progbits
+#endif  // !OPENSSL_NO_ASM && defined(OPENSSL_ARM) && defined(__ELF__)

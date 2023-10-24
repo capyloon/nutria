@@ -1,16 +1,10 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
+#include <ring-core/asm_base.h>
 
-#if !defined(OPENSSL_NO_ASM)
-#if defined(__aarch64__)
-// Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_AARCH64) && defined(__ELF__)
+// Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
 //
 // Licensed under the OpenSSL license (the "License").  You may not use
 // this file except in compliance with the License.  You can obtain a copy
@@ -38,6 +32,7 @@
 // Denver	2.01		10.5 (+26%)	6.70 (+8%)
 // X-Gene			20.0 (+100%)	12.8 (+300%(***))
 // Mongoose	2.36		13.0 (+50%)	8.36 (+33%)
+// Kryo		1.92		17.4 (+30%)	11.2 (+8%)
 //
 // (*)	Software SHA256 results are of lesser relevance, presented
 //	mostly for informational purposes.
@@ -46,30 +41,30 @@
 //	on Cortex-A53 (or by 4 cycles per round).
 // (***)	Super-impressive coefficients over gcc-generated code are
 //	indication of some compiler "pathology", most notably code
-//	generated with -mgeneral-regs-only is significanty faster
+//	generated with -mgeneral-regs-only is significantly faster
 //	and the gap is only 40-90%.
 
 #ifndef	__KERNEL__
-# include <GFp/arm_arch.h>
+# include <ring-core/arm_arch.h>
 #endif
 
 .text
 
 
-.hidden	GFp_armcap_P
-.globl	GFp_sha256_block_data_order
-.hidden	GFp_sha256_block_data_order
-.type	GFp_sha256_block_data_order,%function
+.hidden	OPENSSL_armcap_P
+.globl	sha256_block_data_order
+.hidden	sha256_block_data_order
+.type	sha256_block_data_order,%function
 .align	6
-GFp_sha256_block_data_order:
+sha256_block_data_order:
 	AARCH64_VALID_CALL_TARGET
 #ifndef	__KERNEL__
-#if __has_feature(hwaddress_sanitizer) && __clang_major__ >= 10
-	adrp	x16,:pg_hi21_nc:GFp_armcap_P
+#if defined(OPENSSL_HWASAN) && __clang_major__ >= 10
+	adrp	x16,:pg_hi21_nc:OPENSSL_armcap_P
 #else
-	adrp	x16,GFp_armcap_P
+	adrp	x16,OPENSSL_armcap_P
 #endif
-	ldr	w16,[x16,:lo12:GFp_armcap_P]
+	ldr	w16,[x16,:lo12:OPENSSL_armcap_P]
 	tst	w16,#ARMV8_SHA256
 	b.ne	.Lv8_entry
 #endif
@@ -98,7 +93,7 @@ GFp_sha256_block_data_order:
 	ldr	w19,[x30],#4			// *K++
 	eor	w28,w21,w22				// magic seed
 	str	x1,[x29,#112]
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w3,w3			// 0
 #endif
 	ror	w16,w24,#6
@@ -121,7 +116,7 @@ GFp_sha256_block_data_order:
 	add	w27,w27,w28			// h+=Maj(a,b,c)
 	ldr	w28,[x30],#4		// *K++, w19 in next round
 	//add	w27,w27,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w4,w4			// 1
 #endif
 	ldp	w5,w6,[x1],#2*4
@@ -146,7 +141,7 @@ GFp_sha256_block_data_order:
 	add	w26,w26,w19			// h+=Maj(a,b,c)
 	ldr	w19,[x30],#4		// *K++, w28 in next round
 	//add	w26,w26,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w5,w5			// 2
 #endif
 	add	w26,w26,w17			// h+=Sigma0(a)
@@ -170,7 +165,7 @@ GFp_sha256_block_data_order:
 	add	w25,w25,w28			// h+=Maj(a,b,c)
 	ldr	w28,[x30],#4		// *K++, w19 in next round
 	//add	w25,w25,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w6,w6			// 3
 #endif
 	ldp	w7,w8,[x1],#2*4
@@ -195,7 +190,7 @@ GFp_sha256_block_data_order:
 	add	w24,w24,w19			// h+=Maj(a,b,c)
 	ldr	w19,[x30],#4		// *K++, w28 in next round
 	//add	w24,w24,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w7,w7			// 4
 #endif
 	add	w24,w24,w17			// h+=Sigma0(a)
@@ -219,7 +214,7 @@ GFp_sha256_block_data_order:
 	add	w23,w23,w28			// h+=Maj(a,b,c)
 	ldr	w28,[x30],#4		// *K++, w19 in next round
 	//add	w23,w23,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w8,w8			// 5
 #endif
 	ldp	w9,w10,[x1],#2*4
@@ -244,7 +239,7 @@ GFp_sha256_block_data_order:
 	add	w22,w22,w19			// h+=Maj(a,b,c)
 	ldr	w19,[x30],#4		// *K++, w28 in next round
 	//add	w22,w22,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w9,w9			// 6
 #endif
 	add	w22,w22,w17			// h+=Sigma0(a)
@@ -268,7 +263,7 @@ GFp_sha256_block_data_order:
 	add	w21,w21,w28			// h+=Maj(a,b,c)
 	ldr	w28,[x30],#4		// *K++, w19 in next round
 	//add	w21,w21,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w10,w10			// 7
 #endif
 	ldp	w11,w12,[x1],#2*4
@@ -293,7 +288,7 @@ GFp_sha256_block_data_order:
 	add	w20,w20,w19			// h+=Maj(a,b,c)
 	ldr	w19,[x30],#4		// *K++, w28 in next round
 	//add	w20,w20,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w11,w11			// 8
 #endif
 	add	w20,w20,w17			// h+=Sigma0(a)
@@ -317,7 +312,7 @@ GFp_sha256_block_data_order:
 	add	w27,w27,w28			// h+=Maj(a,b,c)
 	ldr	w28,[x30],#4		// *K++, w19 in next round
 	//add	w27,w27,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w12,w12			// 9
 #endif
 	ldp	w13,w14,[x1],#2*4
@@ -342,7 +337,7 @@ GFp_sha256_block_data_order:
 	add	w26,w26,w19			// h+=Maj(a,b,c)
 	ldr	w19,[x30],#4		// *K++, w28 in next round
 	//add	w26,w26,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w13,w13			// 10
 #endif
 	add	w26,w26,w17			// h+=Sigma0(a)
@@ -366,7 +361,7 @@ GFp_sha256_block_data_order:
 	add	w25,w25,w28			// h+=Maj(a,b,c)
 	ldr	w28,[x30],#4		// *K++, w19 in next round
 	//add	w25,w25,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w14,w14			// 11
 #endif
 	ldp	w15,w0,[x1],#2*4
@@ -392,7 +387,7 @@ GFp_sha256_block_data_order:
 	add	w24,w24,w19			// h+=Maj(a,b,c)
 	ldr	w19,[x30],#4		// *K++, w28 in next round
 	//add	w24,w24,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w15,w15			// 12
 #endif
 	add	w24,w24,w17			// h+=Sigma0(a)
@@ -417,7 +412,7 @@ GFp_sha256_block_data_order:
 	add	w23,w23,w28			// h+=Maj(a,b,c)
 	ldr	w28,[x30],#4		// *K++, w19 in next round
 	//add	w23,w23,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w0,w0			// 13
 #endif
 	ldp	w1,w2,[x1]
@@ -443,7 +438,7 @@ GFp_sha256_block_data_order:
 	add	w22,w22,w19			// h+=Maj(a,b,c)
 	ldr	w19,[x30],#4		// *K++, w28 in next round
 	//add	w22,w22,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w1,w1			// 14
 #endif
 	ldr	w6,[sp,#12]
@@ -469,7 +464,7 @@ GFp_sha256_block_data_order:
 	add	w21,w21,w28			// h+=Maj(a,b,c)
 	ldr	w28,[x30],#4		// *K++, w19 in next round
 	//add	w21,w21,w17			// h+=Sigma0(a)
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	w2,w2			// 15
 #endif
 	ldr	w7,[sp,#0]
@@ -1036,7 +1031,7 @@ GFp_sha256_block_data_order:
 	ldp	x29,x30,[sp],#128
 	AARCH64_VALIDATE_LINK_REGISTER
 	ret
-.size	GFp_sha256_block_data_order,.-GFp_sha256_block_data_order
+.size	sha256_block_data_order,.-sha256_block_data_order
 
 .section	.rodata
 .align	6
@@ -1206,6 +1201,4 @@ sha256_block_armv8:
 	ret
 .size	sha256_block_armv8,.-sha256_block_armv8
 #endif
-#endif
-#endif  // !OPENSSL_NO_ASM
-.section	.note.GNU-stack,"",%progbits
+#endif  // !OPENSSL_NO_ASM && defined(OPENSSL_AARCH64) && defined(__ELF__)

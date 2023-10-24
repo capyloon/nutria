@@ -1,4 +1,4 @@
-// Copyright 2017 Brian Smith.
+// Copyright 2017-2023 Brian Smith.
 //
 // Permission to use, copy, modify, and/or distribute this software for any
 // purpose with or without fee is hereby granted, provided that the above
@@ -12,10 +12,18 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-#[macro_use]
-pub mod constant;
+mod constant;
 
 #[cfg(feature = "alloc")]
 pub mod bigint;
 
 pub mod montgomery;
+mod n0;
+
+#[cfg(feature = "alloc")]
+mod nonnegative;
+
+#[allow(dead_code)]
+const BIGINT_MODULUS_MAX_LIMBS: usize = 8192 / crate::limb::LIMB_BITS;
+
+pub use constant::limbs_from_hex;

@@ -18,9 +18,9 @@
 //! Limbs ordered least-significant-limb to most-significant-limb. The bits
 //! limbs use the native endianness.
 
-use crate::{c, error};
+use crate::{c, error, polyfill::ArrayFlatMap};
 
-#[cfg(feature = "alloc")]
+#[cfg(any(test, feature = "alloc"))]
 use crate::bits;
 
 #[cfg(feature = "alloc")]
@@ -56,7 +56,7 @@ pub const LIMB_BYTES: usize = (LIMB_BITS + 7) / 8;
 
 #[inline]
 pub fn limbs_equal_limbs_consttime(a: &[Limb], b: &[Limb]) -> LimbMask {
-    extern "C" {
+    prefixed_extern! {
         fn LIMBS_equal(a: *const Limb, b: *const Limb, num_limbs: c::size_t) -> LimbMask;
     }
 
@@ -86,13 +86,13 @@ pub fn limbs_are_zero_constant_time(limbs: &[Limb]) -> LimbMask {
     unsafe { LIMBS_are_zero(limbs.as_ptr(), limbs.len()) }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(test, feature = "alloc"))]
 #[inline]
 pub fn limbs_are_even_constant_time(limbs: &[Limb]) -> LimbMask {
     unsafe { LIMBS_are_even(limbs.as_ptr(), limbs.len()) }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(test, feature = "alloc"))]
 #[inline]
 pub fn limbs_equal_limb_constant_time(a: &[Limb], b: Limb) -> LimbMask {
     unsafe { LIMBS_equal_limb(a.as_ptr(), b, a.len()) }
@@ -105,7 +105,7 @@ pub fn limbs_equal_limb_constant_time(a: &[Limb], b: Limb) -> LimbMask {
 // with respect to `a.len()` or the value of the result or the value of the
 // most significant bit (It's 1, unless the input is zero, in which case it's
 // zero.)
-#[cfg(feature = "alloc")]
+#[cfg(any(test, feature = "alloc"))]
 pub fn limbs_minimal_bits(a: &[Limb]) -> bits::BitLength {
     for num_limbs in (1..=a.len()).rev() {
         let high_limb = a[num_limbs - 1];
@@ -156,7 +156,7 @@ pub fn parse_big_endian_in_range_partially_reduced_and_pad_consttime(
     parse_big_endian_and_pad_consttime(input, result)?;
     limbs_reduce_once_constant_time(result, m);
     if allow_zero != AllowZero::Yes {
-        if limbs_are_zero_constant_time(&result) != LimbMask::False {
+        if limbs_are_zero_constant_time(result) != LimbMask::False {
             return Err(error::Unspecified);
         }
     }
@@ -178,11 +178,11 @@ pub fn parse_big_endian_in_range_and_pad_consttime(
     result: &mut [Limb],
 ) -> Result<(), error::Unspecified> {
     parse_big_endian_and_pad_consttime(input, result)?;
-    if limbs_less_than_limbs_consttime(&result, max_exclusive) != LimbMask::True {
+    if limbs_less_than_limbs_consttime(result, max_exclusive) != LimbMask::True {
         return Err(error::Unspecified);
     }
     if allow_zero != AllowZero::Yes {
-        if limbs_are_zero_constant_time(&result) != LimbMask::False {
+        if limbs_are_zero_constant_time(result) != LimbMask::False {
             return Err(error::Unspecified);
         }
     }
@@ -218,9 +218,7 @@ pub fn parse_big_endian_and_pad_consttime(
         return Err(error::Unspecified);
     }
 
-    for r in &mut result[..] {
-        *r = 0;
-    }
+    result.fill(0);
 
     // XXX: Questionable as far as constant-timedness is concerned.
     // TODO: Improve this.
@@ -239,16 +237,20 @@ pub fn parse_big_endian_and_pad_consttime(
 }
 
 pub fn big_endian_from_limbs(limbs: &[Limb], out: &mut [u8]) {
-    let num_limbs = limbs.len();
-    let out_len = out.len();
-    assert_eq!(out_len, num_limbs * LIMB_BYTES);
-    for i in 0..num_limbs {
-        let mut limb = limbs[i];
-        for j in 0..LIMB_BYTES {
-            out[((num_limbs - i - 1) * LIMB_BYTES) + (LIMB_BYTES - j - 1)] = (limb & 0xff) as u8;
-            limb >>= 8;
-        }
-    }
+    let be_bytes = unstripped_be_bytes(limbs);
+    assert_eq!(out.len(), be_bytes.len());
+    out.iter_mut().zip(be_bytes).for_each(|(o, i)| {
+        *o = i;
+    });
+}
+
+/// Returns an iterator of the big-endian encoding of `limbs`.
+///
+/// The number of bytes returned will be a multiple of `LIMB_BYTES`
+/// and thus may be padded with leading zeros.
+pub fn unstripped_be_bytes(limbs: &[Limb]) -> impl ExactSizeIterator<Item = u8> + Clone + '_ {
+    // The unwrap is safe because a slice can never be larger than `usize` bytes.
+    ArrayFlatMap::new(limbs.iter().rev().copied(), Limb::to_be_bytes).unwrap()
 }
 
 #[cfg(feature = "alloc")]
@@ -278,7 +280,7 @@ pub fn fold_5_bit_windows<R, I: FnOnce(Window) -> R, F: Fn(R, Window) -> R>(
 
     const WINDOW_BITS: Wrapping<c::size_t> = Wrapping(5);
 
-    extern "C" {
+    prefixed_extern! {
         fn LIMBS_window5_split_window(
             lower_limb: Limb,
             higher_limb: Limb,
@@ -331,19 +333,39 @@ pub fn fold_5_bit_windows<R, I: FnOnce(Window) -> R, F: Fn(R, Window) -> R>(
         })
 }
 
-extern "C" {
-    #[cfg(feature = "alloc")]
-    fn LIMB_shr(a: Limb, shift: c::size_t) -> Limb;
+#[inline]
+pub(crate) fn limbs_add_assign_mod(a: &mut [Limb], b: &[Limb], m: &[Limb]) {
+    debug_assert_eq!(a.len(), m.len());
+    debug_assert_eq!(b.len(), m.len());
+    prefixed_extern! {
+        // `r` and `a` may alias.
+        fn LIMBS_add_mod(
+            r: *mut Limb,
+            a: *const Limb,
+            b: *const Limb,
+            m: *const Limb,
+            num_limbs: c::size_t,
+        );
+    }
+    unsafe { LIMBS_add_mod(a.as_mut_ptr(), a.as_ptr(), b.as_ptr(), m.as_ptr(), m.len()) }
+}
 
-    #[cfg(feature = "alloc")]
-    fn LIMBS_are_even(a: *const Limb, num_limbs: c::size_t) -> LimbMask;
+prefixed_extern! {
     fn LIMBS_are_zero(a: *const Limb, num_limbs: c::size_t) -> LimbMask;
-    #[cfg(feature = "alloc")]
-    fn LIMBS_equal_limb(a: *const Limb, b: Limb, num_limbs: c::size_t) -> LimbMask;
     fn LIMBS_less_than(a: *const Limb, b: *const Limb, num_limbs: c::size_t) -> LimbMask;
-    #[cfg(feature = "alloc")]
-    fn LIMBS_less_than_limb(a: *const Limb, b: Limb, num_limbs: c::size_t) -> LimbMask;
     fn LIMBS_reduce_once(r: *mut Limb, m: *const Limb, num_limbs: c::size_t);
+}
+
+#[cfg(any(test, feature = "alloc"))]
+prefixed_extern! {
+    fn LIMB_shr(a: Limb, shift: c::size_t) -> Limb;
+    fn LIMBS_are_even(a: *const Limb, num_limbs: c::size_t) -> LimbMask;
+    fn LIMBS_equal_limb(a: *const Limb, b: Limb, num_limbs: c::size_t) -> LimbMask;
+}
+
+#[cfg(feature = "alloc")]
+prefixed_extern! {
+    fn LIMBS_less_than_limb(a: *const Limb, b: Limb, num_limbs: c::size_t) -> LimbMask;
 }
 
 #[cfg(test)]

@@ -13,10 +13,16 @@
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 use ring::{
-    error,
+    error, rand,
     signature::{self, Ed25519KeyPair, KeyPair},
     test, test_file,
 };
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use wasm_bindgen_test::{wasm_bindgen_test as test, wasm_bindgen_test_configure};
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+wasm_bindgen_test_configure!(run_in_browser);
 
 /// Test vectors from BoringSSL.
 #[test]
@@ -112,22 +118,69 @@ fn test_ed25519_from_seed_and_public_key_misuse() {
     assert!(Ed25519KeyPair::from_seed_and_public_key(PUBLIC_KEY, PRIVATE_KEY).is_err());
 }
 
+enum FromPkcs8Variant {
+    Checked,
+    MaybeUnchecked,
+}
+
 #[test]
 fn test_ed25519_from_pkcs8_unchecked() {
+    test_ed25519_from_pkcs8_(
+        FromPkcs8Variant::MaybeUnchecked,
+        Ed25519KeyPair::from_pkcs8_maybe_unchecked,
+    )
+}
+
+#[test]
+fn test_ed25519_from_pkcs8() {
+    test_ed25519_from_pkcs8_(FromPkcs8Variant::Checked, Ed25519KeyPair::from_pkcs8)
+}
+
+fn test_ed25519_from_pkcs8_(
+    variant: FromPkcs8Variant,
+    f: impl Fn(&[u8]) -> Result<Ed25519KeyPair, error::KeyRejected>,
+) {
     // Just test that we can parse the input.
     test::run(
-        test_file!("ed25519_from_pkcs8_unchecked_tests.txt"),
+        test_file!("ed25519_from_pkcs8_tests.txt"),
         |section, test_case| {
             assert_eq!(section, "");
             let input = test_case.consume_bytes("Input");
-            let error = test_case.consume_optional_string("Error");
-
-            match (Ed25519KeyPair::from_pkcs8_maybe_unchecked(&input), error) {
-                (Ok(_), None) => (),
-                (Err(e), None) => panic!("Failed with error \"{}\", but expected to succeed", e),
-                (Ok(_), Some(e)) => panic!("Succeeded, but expected error \"{}\"", e),
-                (Err(actual), Some(expected)) => assert_eq!(actual.description_(), expected),
+            let expected_error = {
+                let expected_checked = test_case.consume_string("Result-Checked");
+                let expected_maybe_unchecked = test_case.consume_string("Result-Maybe-Unchecked");
+                let expected_result = match variant {
+                    FromPkcs8Variant::Checked => expected_checked,
+                    FromPkcs8Variant::MaybeUnchecked => expected_maybe_unchecked,
+                };
+                if expected_result == "OK" {
+                    None
+                } else {
+                    Some(expected_result)
+                }
             };
+            let expected_public = {
+                let expected_if_no_error = test_case.consume_optional_bytes("Public");
+                if expected_error.is_none() {
+                    Some(expected_if_no_error.unwrap())
+                } else {
+                    None
+                }
+            };
+
+            match f(&input) {
+                Ok(keypair) => {
+                    assert_eq!(expected_error, None);
+                    assert_eq!(
+                        expected_public.as_deref(),
+                        Some(keypair.public_key().as_ref())
+                    );
+                }
+                Err(actual_error) => {
+                    assert_eq!(expected_error, Some(format!("{}", actual_error)));
+                    assert_eq!(expected_public, None);
+                }
+            }
 
             Ok(())
         },
@@ -135,25 +188,17 @@ fn test_ed25519_from_pkcs8_unchecked() {
 }
 
 #[test]
-fn test_ed25519_from_pkcs8() {
-    // Just test that we can parse the input.
-    test::run(
-        test_file!("ed25519_from_pkcs8_tests.txt"),
-        |section, test_case| {
-            assert_eq!(section, "");
-            let input = test_case.consume_bytes("Input");
-            let error = test_case.consume_optional_string("Error");
+fn ed25519_test_generate_pkcs8() {
+    let rng = rand::SystemRandom::new();
+    let generated = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
+    let generated = generated.as_ref();
 
-            match (Ed25519KeyPair::from_pkcs8(&input), error) {
-                (Ok(_), None) => (),
-                (Err(e), None) => panic!("Failed with error \"{}\", but expected to succeed", e),
-                (Ok(_), Some(e)) => panic!("Succeeded, but expected error \"{}\"", e),
-                (Err(actual), Some(expected)) => assert_eq!(actual.description_(), expected),
-            };
+    let _ronudtripped = signature::Ed25519KeyPair::from_pkcs8(generated).unwrap();
 
-            Ok(())
-        },
-    );
+    // Regression test: Verify we're generating the correct encoding, as
+    // `Ed25519KeyPair::from_pkcs8` also accepts our old wrong encoding.
+    assert_eq!(generated.len(), 19 + 32 + 32);
+    assert_eq!(&generated[..2], &[0x30, 0x51]);
 }
 
 #[test]

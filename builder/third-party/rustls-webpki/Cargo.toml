@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.61"
 name = "rustls-webpki"
-version = "0.101.6"
+version = "0.101.7"
 include = [
     "Cargo.toml",
     "/LICENSE",
@@ -81,11 +81,11 @@ path = "benches/benchmark.rs"
 harness = false
 
 [dependencies.ring]
-version = "0.16.19"
+version = "0.17"
 default-features = false
 
 [dependencies.untrusted]
-version = "0.7.1"
+version = "0.9"
 
 [dev-dependencies.base64]
 version = "0.21"
@@ -97,7 +97,7 @@ version = "0.1.5"
 version = "1.17.2"
 
 [dev-dependencies.rcgen]
-version = "0.11.1"
+version = "0.11.3"
 default-features = false
 
 [dev-dependencies.serde]

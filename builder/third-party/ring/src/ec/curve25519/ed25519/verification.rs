@@ -16,7 +16,6 @@
 
 use super::{super::ops::*, eddsa_digest};
 use crate::{error, sealed, signature};
-use core::convert::TryInto;
 
 /// Parameters for EdDSA signing and verification.
 pub struct EdDSAParameters;
@@ -63,7 +62,7 @@ impl signature::VerificationAlgorithm for EdDSAParameters {
         let h = Scalar::from_sha512_digest_reduced(h_digest);
 
         let mut r = Point::new_at_infinity();
-        unsafe { GFp_x25519_ge_double_scalarmult_vartime(&mut r, &h, &a, &signature_s) };
+        unsafe { x25519_ge_double_scalarmult_vartime(&mut r, &h, &a, &signature_s) };
         let r_check = r.into_encoded_point();
         if *signature_r != r_check {
             return Err(error::Unspecified);
@@ -74,8 +73,8 @@ impl signature::VerificationAlgorithm for EdDSAParameters {
 
 impl sealed::Sealed for EdDSAParameters {}
 
-extern "C" {
-    fn GFp_x25519_ge_double_scalarmult_vartime(
+prefixed_extern! {
+    fn x25519_ge_double_scalarmult_vartime(
         r: &mut Point,
         a_coeff: &Scalar,
         a: &ExtPoint,

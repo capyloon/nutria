@@ -17,7 +17,7 @@
 
 pub use super::scalar::{MaskedScalar, Scalar, SCALAR_LEN};
 use crate::{
-    bssl, error,
+    bssl, c, cpu, error,
     limb::{Limb, LIMB_BITS},
 };
 use core::marker::PhantomData;
@@ -49,7 +49,7 @@ impl<E: Encoding> Elem<E> {
 impl Elem<T> {
     fn negate(&mut self) {
         unsafe {
-            GFp_x25519_fe_neg(self);
+            x25519_fe_neg(self);
         }
     }
 }
@@ -73,20 +73,32 @@ pub struct ExtPoint {
 }
 
 impl ExtPoint {
-    pub fn new_at_infinity() -> Self {
-        Self {
+    // Returns the result of multiplying the base point by the scalar in constant time.
+    pub(super) fn from_scalarmult_base_consttime(scalar: &Scalar, cpu: cpu::Features) -> Self {
+        let mut r = Self {
             x: Elem::zero(),
             y: Elem::zero(),
             z: Elem::zero(),
             t: Elem::zero(),
+        };
+        prefixed_extern! {
+            fn x25519_ge_scalarmult_base(h: &mut ExtPoint, a: &Scalar, has_fe25519_adx: c::int);
         }
+        unsafe {
+            x25519_ge_scalarmult_base(&mut r, scalar, has_fe25519_adx(cpu).into());
+        }
+        r
     }
 
     pub fn from_encoded_point_vartime(encoded: &EncodedPoint) -> Result<Self, error::Unspecified> {
-        let mut point = Self::new_at_infinity();
+        let mut point = Self {
+            x: Elem::zero(),
+            y: Elem::zero(),
+            z: Elem::zero(),
+            t: Elem::zero(),
+        };
 
-        Result::from(unsafe { GFp_x25519_ge_frombytes_vartime(&mut point, encoded) })
-            .map(|()| point)
+        Result::from(unsafe { x25519_ge_frombytes_vartime(&mut point, encoded) }).map(|()| point)
     }
 
     pub fn into_encoded_point(self) -> EncodedPoint {
@@ -126,16 +138,16 @@ fn encode_point(x: Elem<T>, y: Elem<T>, z: Elem<T>) -> EncodedPoint {
 
     let sign_bit: u8 = unsafe {
         let mut recip = Elem::zero();
-        GFp_x25519_fe_invert(&mut recip, &z);
+        x25519_fe_invert(&mut recip, &z);
 
         let mut x_over_z = Elem::zero();
-        GFp_x25519_fe_mul_ttt(&mut x_over_z, &x, &recip);
+        x25519_fe_mul_ttt(&mut x_over_z, &x, &recip);
 
         let mut y_over_z = Elem::zero();
-        GFp_x25519_fe_mul_ttt(&mut y_over_z, &y, &recip);
-        GFp_x25519_fe_tobytes(&mut bytes, &y_over_z);
+        x25519_fe_mul_ttt(&mut y_over_z, &y, &recip);
+        x25519_fe_tobytes(&mut bytes, &y_over_z);
 
-        GFp_x25519_fe_isnegative(&x_over_z)
+        x25519_fe_isnegative(&x_over_z)
     };
 
     // The preceding computations must execute in constant time, but this
@@ -145,11 +157,19 @@ fn encode_point(x: Elem<T>, y: Elem<T>, z: Elem<T>) -> EncodedPoint {
     bytes
 }
 
-extern "C" {
-    fn GFp_x25519_fe_invert(out: &mut Elem<T>, z: &Elem<T>);
-    fn GFp_x25519_fe_isnegative(elem: &Elem<T>) -> u8;
-    fn GFp_x25519_fe_mul_ttt(h: &mut Elem<T>, f: &Elem<T>, g: &Elem<T>);
-    fn GFp_x25519_fe_neg(f: &mut Elem<T>);
-    fn GFp_x25519_fe_tobytes(bytes: &mut EncodedPoint, elem: &Elem<T>);
-    fn GFp_x25519_ge_frombytes_vartime(h: &mut ExtPoint, s: &EncodedPoint) -> bssl::Result;
+#[inline]
+pub(super) fn has_fe25519_adx(cpu: cpu::Features) -> bool {
+    cfg!(all(target_arch = "x86_64", not(target_os = "windows")))
+        && cpu::intel::ADX.available(cpu)
+        && cpu::intel::BMI1.available(cpu)
+        && cpu::intel::BMI2.available(cpu)
+}
+
+prefixed_extern! {
+    fn x25519_fe_invert(out: &mut Elem<T>, z: &Elem<T>);
+    fn x25519_fe_isnegative(elem: &Elem<T>) -> u8;
+    fn x25519_fe_mul_ttt(h: &mut Elem<T>, f: &Elem<T>, g: &Elem<T>);
+    fn x25519_fe_neg(f: &mut Elem<T>);
+    fn x25519_fe_tobytes(bytes: &mut EncodedPoint, elem: &Elem<T>);
+    fn x25519_ge_frombytes_vartime(h: &mut ExtPoint, s: &EncodedPoint) -> bssl::Result;
 }

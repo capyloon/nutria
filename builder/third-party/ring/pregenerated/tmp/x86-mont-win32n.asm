@@ -1,9 +1,8 @@
 ; This file is generated from a similarly-named Perl script in the BoringSSL
 ; source tree. Do not edit by hand.
 
-%ifdef BORINGSSL_PREFIX
-%include "boringssl_prefix_symbols_nasm.inc"
-%endif
+%include "ring_core_generated/prefix_symbols_nasm.inc"
+%ifidn __OUTPUT_FORMAT__, win32
 %ifidn __OUTPUT_FORMAT__,obj
 section	code	use32 class=code align=64
 %elifidn __OUTPUT_FORMAT__,win32
@@ -12,11 +11,11 @@ section	.text	code align=64
 %else
 section	.text	code
 %endif
-;extern	_GFp_ia32cap_P
-global	_GFp_bn_mul_mont
+;extern	_OPENSSL_ia32cap_P
+global	_bn_mul_mont
 align	16
-_GFp_bn_mul_mont:
-L$_GFp_bn_mul_mont_begin:
+_bn_mul_mont:
+L$_bn_mul_mont_begin:
 	push	ebp
 	push	ebx
 	push	esi
@@ -67,7 +66,7 @@ L$001page_walk_done:
 	mov	DWORD [20+esp],esi
 	lea	ebx,[edi-3]
 	mov	DWORD [24+esp],edx
-	lea	eax,[_GFp_ia32cap_P]
+	lea	eax,[_OPENSSL_ia32cap_P]
 	bt	DWORD [eax],26
 	mov	eax,-1
 	movd	mm7,eax
@@ -224,4 +223,8 @@ db	54,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121
 db	32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46
 db	111,114,103,62,0
 segment	.bss
-common	_GFp_ia32cap_P 16
+common	_OPENSSL_ia32cap_P 16
+%else
+; Work around https://bugzilla.nasm.us/show_bug.cgi?id=3392738
+ret
+%endif

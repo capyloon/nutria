@@ -35,6 +35,8 @@ pub enum Tag {
     UTCTime = 0x17,
     GeneralizedTime = 0x18,
 
+    ContextSpecific1 = CONTEXT_SPECIFIC | 1,
+
     ContextSpecificConstructed0 = CONTEXT_SPECIFIC | CONSTRUCTED | 0,
     ContextSpecificConstructed1 = CONTEXT_SPECIFIC | CONSTRUCTED | 1,
     ContextSpecificConstructed3 = CONTEXT_SPECIFIC | CONSTRUCTED | 3,
@@ -101,10 +103,18 @@ pub fn read_tag_and_get_value<'a>(
     Ok((tag, inner))
 }
 
+#[inline]
 pub fn bit_string_with_no_unused_bits<'a>(
     input: &mut untrusted::Reader<'a>,
 ) -> Result<untrusted::Input<'a>, error::Unspecified> {
-    nested(input, Tag::BitString, error::Unspecified, |value| {
+    bit_string_tagged_with_no_unused_bits(Tag::BitString, input)
+}
+
+pub(crate) fn bit_string_tagged_with_no_unused_bits<'a>(
+    tag: Tag,
+    input: &mut untrusted::Reader<'a>,
+) -> Result<untrusted::Input<'a>, error::Unspecified> {
+    nested(input, tag, error::Unspecified, |value| {
         let unused_bits_at_end = value.read_byte().map_err(|_| error::Unspecified)?;
         if unused_bits_at_end != 0 {
             return Err(error::Unspecified);
@@ -128,73 +138,42 @@ where
     inner.read_all(error, decoder)
 }
 
-fn nonnegative_integer<'a>(
+pub(crate) fn nonnegative_integer<'a>(
     input: &mut untrusted::Reader<'a>,
-    min_value: u8,
 ) -> Result<untrusted::Input<'a>, error::Unspecified> {
-    // Verify that |input|, which has had any leading zero stripped off, is the
-    // encoding of a value of at least |min_value|.
-    fn check_minimum(input: untrusted::Input, min_value: u8) -> Result<(), error::Unspecified> {
-        input.read_all(error::Unspecified, |input| {
-            let first_byte = input.read_byte()?;
-            if input.at_end() && first_byte < min_value {
-                return Err(error::Unspecified);
-            }
-            let _ = input.read_bytes_to_end();
-            Ok(())
-        })
-    }
-
     let value = expect_tag_and_get_value(input, Tag::Integer)?;
-
-    value.read_all(error::Unspecified, |input| {
-        // Empty encodings are not allowed.
-        let first_byte = input.read_byte()?;
-
-        if first_byte == 0 {
-            if input.at_end() {
-                // |value| is the legal encoding of zero.
-                if min_value > 0 {
-                    return Err(error::Unspecified);
-                }
-                return Ok(value);
+    match value
+        .as_slice_less_safe()
+        .split_first()
+        .ok_or(error::Unspecified)?
+    {
+        // Zero or leading zero.
+        (0, rest) => {
+            match rest.first() {
+                // Zero.
+                None => Ok(value),
+                // Necessary leading zero.
+                Some(&second) if second & 0x80 == 0x80 => Ok(untrusted::Input::from(rest)),
+                // Unnecessary leading zero.
+                _ => Err(error::Unspecified),
             }
-
-            let r = input.read_bytes_to_end();
-            r.read_all(error::Unspecified, |input| {
-                let second_byte = input.read_byte()?;
-                if (second_byte & 0x80) == 0 {
-                    // A leading zero is only allowed when the value's high bit
-                    // is set.
-                    return Err(error::Unspecified);
-                }
-                let _ = input.read_bytes_to_end();
-                Ok(())
-            })?;
-            check_minimum(r, min_value)?;
-            return Ok(r);
         }
-
-        // Negative values are not allowed.
-        if (first_byte & 0x80) != 0 {
-            return Err(error::Unspecified);
-        }
-
-        let _ = input.read_bytes_to_end();
-        check_minimum(value, min_value)?;
-        Ok(value)
-    })
+        // Positive value with no leading zero.
+        (first, _) if first & 0x80 == 0 => Ok(value),
+        // Negative value.
+        (_, _) => Err(error::Unspecified),
+    }
 }
 
 /// Parse as integer with a value in the in the range [0, 255], returning its
 /// numeric value. This is typically used for parsing version numbers.
 #[inline]
 pub fn small_nonnegative_integer(input: &mut untrusted::Reader) -> Result<u8, error::Unspecified> {
-    let value = nonnegative_integer(input, 0)?;
-    value.read_all(error::Unspecified, |input| {
-        let r = input.read_byte()?;
-        Ok(r)
-    })
+    let value = nonnegative_integer(input)?;
+    match *value.as_slice_less_safe() {
+        [b] => Ok(b),
+        _ => Err(error::Unspecified),
+    }
 }
 
 /// Parses a positive DER integer, returning the big-endian-encoded value,
@@ -202,9 +181,8 @@ pub fn small_nonnegative_integer(input: &mut untrusted::Reader) -> Result<u8, er
 pub fn positive_integer<'a>(
     input: &mut untrusted::Reader<'a>,
 ) -> Result<Positive<'a>, error::Unspecified> {
-    Ok(Positive::new_non_empty_without_leading_zeros(
-        nonnegative_integer(input, 1)?,
-    ))
+    let value = nonnegative_integer(input)?;
+    Positive::from_be_bytes(value)
 }
 
 #[cfg(test)]
@@ -212,25 +190,16 @@ mod tests {
     use super::*;
     use crate::error;
 
-    fn with_good_i<F, R>(value: &[u8], f: F)
+    fn with_i<'a, F, R>(value: &'a [u8], f: F) -> Result<R, error::Unspecified>
     where
-        F: FnOnce(&mut untrusted::Reader) -> Result<R, error::Unspecified>,
+        F: FnOnce(&mut untrusted::Reader<'a>) -> Result<R, error::Unspecified>,
     {
-        let r = untrusted::Input::from(value).read_all(error::Unspecified, f);
-        assert!(r.is_ok());
-    }
-
-    fn with_bad_i<F, R>(value: &[u8], f: F)
-    where
-        F: FnOnce(&mut untrusted::Reader) -> Result<R, error::Unspecified>,
-    {
-        let r = untrusted::Input::from(value).read_all(error::Unspecified, f);
-        assert!(r.is_err());
+        untrusted::Input::from(value).read_all(error::Unspecified, f)
     }
 
     static ZERO_INTEGER: &[u8] = &[0x02, 0x01, 0x00];
 
-    static GOOD_POSITIVE_INTEGERS: &[(&[u8], u8)] = &[
+    static GOOD_POSITIVE_INTEGERS_SMALL: &[(&[u8], u8)] = &[
         (&[0x02, 0x01, 0x01], 0x01),
         (&[0x02, 0x01, 0x02], 0x02),
         (&[0x02, 0x01, 0x7e], 0x7e),
@@ -243,6 +212,19 @@ mod tests {
         (&[0x02, 0x02, 0x00, 0xff], 0xff),
     ];
 
+    static GOOD_POSITIVE_INTEGERS_LARGE: &[(&[u8], &[u8])] = &[
+        (&[0x02, 0x02, 0x01, 0x00], &[0x01, 0x00]),
+        (&[0x02, 0x02, 0x02, 0x01], &[0x02, 0x01]),
+        (&[0x02, 0x02, 0x7e, 0xfe], &[0x7e, 0xfe]),
+        (&[0x02, 0x02, 0x7f, 0xff], &[0x7f, 0xff]),
+        // Values that need to have an 0x00 prefix to disambiguate them from
+        // them from negative values.
+        (&[0x02, 0x03, 0x00, 0x80, 0x00], &[0x80, 0x00]),
+        (&[0x02, 0x03, 0x00, 0x81, 0x01], &[0x81, 0x01]),
+        (&[0x02, 0x03, 0x00, 0xfe, 0xfe], &[0xfe, 0xfe]),
+        (&[0x02, 0x03, 0x00, 0xff, 0xff], &[0xff, 0xff]),
+    ];
+
     static BAD_NONNEGATIVE_INTEGERS: &[&[u8]] = &[
         &[],           // At end of input
         &[0x02],       // Tag only
@@ -250,11 +232,13 @@ mod tests {
         // Length mismatch
         &[0x02, 0x00, 0x01],
         &[0x02, 0x01],
+        // Would be valid if leading zero is ignored when comparing length.
         &[0x02, 0x01, 0x00, 0x01],
         &[0x02, 0x01, 0x01, 0x00], // Would be valid if last byte is ignored.
         &[0x02, 0x02, 0x01],
-        // Negative values
+        // Values that are missing a necessary leading 0x00
         &[0x02, 0x01, 0x80],
+        &[0x02, 0x01, 0x81],
         &[0x02, 0x01, 0xfe],
         &[0x02, 0x01, 0xff],
         // Values that have an unnecessary leading 0x00
@@ -267,45 +251,44 @@ mod tests {
 
     #[test]
     fn test_small_nonnegative_integer() {
-        with_good_i(ZERO_INTEGER, |input| {
-            assert_eq!(small_nonnegative_integer(input)?, 0x00);
-            Ok(())
-        });
-        for &(test_in, test_out) in GOOD_POSITIVE_INTEGERS.iter() {
-            with_good_i(test_in, |input| {
+        let zero = (ZERO_INTEGER, 0x00);
+        for &(test_in, test_out) in
+            core::iter::once(&zero).chain(GOOD_POSITIVE_INTEGERS_SMALL.iter())
+        {
+            let result = with_i(test_in, |input| {
                 assert_eq!(small_nonnegative_integer(input)?, test_out);
                 Ok(())
             });
+            assert_eq!(result, Ok(()));
         }
-        for &test_in in BAD_NONNEGATIVE_INTEGERS.iter() {
-            with_bad_i(test_in, |input| {
-                let _ = small_nonnegative_integer(input)?;
-                Ok(())
-            });
+        for &test_in in BAD_NONNEGATIVE_INTEGERS
+            .iter()
+            .chain(GOOD_POSITIVE_INTEGERS_LARGE.iter().map(|(input, _)| input))
+        {
+            let result = with_i(test_in, small_nonnegative_integer);
+            assert_eq!(result, Err(error::Unspecified));
         }
     }
 
     #[test]
     fn test_positive_integer() {
-        with_bad_i(ZERO_INTEGER, |input| {
-            let _ = positive_integer(input)?;
-            Ok(())
-        });
-        for &(test_in, test_out) in GOOD_POSITIVE_INTEGERS.iter() {
-            with_good_i(test_in, |input| {
-                let test_out = [test_out];
+        for (test_in, test_out) in GOOD_POSITIVE_INTEGERS_SMALL
+            .iter()
+            .map(|(test_in, test_out)| (*test_in, core::slice::from_ref(test_out)))
+            .chain(GOOD_POSITIVE_INTEGERS_LARGE.iter().copied())
+        {
+            let result = with_i(test_in, |input| {
                 assert_eq!(
-                    positive_integer(input)?.big_endian_without_leading_zero_as_input(),
-                    untrusted::Input::from(&test_out[..])
+                    positive_integer(input)?.big_endian_without_leading_zero(),
+                    test_out
                 );
                 Ok(())
             });
+            assert_eq!(result, Ok(()))
         }
-        for &test_in in BAD_NONNEGATIVE_INTEGERS.iter() {
-            with_bad_i(test_in, |input| {
-                let _ = positive_integer(input)?;
-                Ok(())
-            });
+        for &test_in in core::iter::once(&ZERO_INTEGER).chain(BAD_NONNEGATIVE_INTEGERS.iter()) {
+            let result = with_i(test_in, positive_integer);
+            assert!(matches!(result, Err(error::Unspecified)));
         }
     }
 }

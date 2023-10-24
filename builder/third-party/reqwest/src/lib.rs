@@ -2,7 +2,7 @@
 #![deny(missing_debug_implementations)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(test, deny(warnings))]
-#![doc(html_root_url = "https://docs.rs/reqwest/0.11.20")]
+#![doc(html_root_url = "https://docs.rs/reqwest/0.11.22")]
 
 //! # reqwest
 //!
@@ -160,6 +160,12 @@
 //!   [`Identity`][Identity] type.
 //! - Various parts of TLS can also be configured or even disabled on the
 //!   `ClientBuilder`.
+//!
+//! ## WASM
+//! The Client implementation automatically switches to the WASM one when the target_arch is wasm32,
+//! the usage is basically the same as the async api. Some of the features are disabled in wasm
+//! : [`tls`](tls) [`cookie`](cookie) [`blocking`](blocking).
+//!
 //!
 //! ## Optional Features
 //!

@@ -1,21 +1,22 @@
-# This file is generated from a similarly-named Perl script in the BoringSSL
-# source tree. Do not edit by hand.
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
 
-#if defined(__has_feature)
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
-#endif
+#include <ring-core/asm_base.h>
 
-#if defined(__x86_64__) && !defined(OPENSSL_NO_ASM)
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && defined(__APPLE__)
 .text	
 
-.globl	_GFp_aes_hw_encrypt
-.private_extern _GFp_aes_hw_encrypt
+.globl	_aes_hw_encrypt
+.private_extern _aes_hw_encrypt
 
 .p2align	4
-_GFp_aes_hw_encrypt:
+_aes_hw_encrypt:
 
+_CET_ENDBR
+#ifdef BORINGSSL_DISPATCH_TEST
+
+	movb	$1,_BORINGSSL_function_hit+1(%rip)
+#endif
 	movups	(%rdi),%xmm2
 	movl	240(%rdx),%eax
 	movups	(%rdx),%xmm0
@@ -33,7 +34,7 @@ L$oop_enc1_1:
 	pxor	%xmm1,%xmm1
 	movups	%xmm2,(%rsi)
 	pxor	%xmm2,%xmm2
-	.byte	0xf3,0xc3
+	ret
 
 
 
@@ -64,7 +65,7 @@ L$enc_loop2:
 .byte	102,15,56,220,217
 .byte	102,15,56,221,208
 .byte	102,15,56,221,216
-	.byte	0xf3,0xc3
+	ret
 
 
 
@@ -100,7 +101,7 @@ L$enc_loop3:
 .byte	102,15,56,221,208
 .byte	102,15,56,221,216
 .byte	102,15,56,221,224
-	.byte	0xf3,0xc3
+	ret
 
 
 
@@ -142,7 +143,7 @@ L$enc_loop4:
 .byte	102,15,56,221,216
 .byte	102,15,56,221,224
 .byte	102,15,56,221,232
-	.byte	0xf3,0xc3
+	ret
 
 
 
@@ -198,7 +199,7 @@ L$enc_loop6_enter:
 .byte	102,15,56,221,232
 .byte	102,15,56,221,240
 .byte	102,15,56,221,248
-	.byte	0xf3,0xc3
+	ret
 
 
 
@@ -264,15 +265,19 @@ L$enc_loop8_enter:
 .byte	102,15,56,221,248
 .byte	102,68,15,56,221,192
 .byte	102,68,15,56,221,200
-	.byte	0xf3,0xc3
+	ret
 
 
-.globl	_GFp_aes_hw_ctr32_encrypt_blocks
-.private_extern _GFp_aes_hw_ctr32_encrypt_blocks
+.globl	_aes_hw_ctr32_encrypt_blocks
+.private_extern _aes_hw_ctr32_encrypt_blocks
 
 .p2align	4
-_GFp_aes_hw_ctr32_encrypt_blocks:
+_aes_hw_ctr32_encrypt_blocks:
 
+_CET_ENDBR
+#ifdef BORINGSSL_DISPATCH_TEST
+	movb	$1,_BORINGSSL_function_hit(%rip)
+#endif
 	cmpq	$1,%rdx
 	jne	L$ctr32_bulk
 
@@ -359,7 +364,7 @@ L$ctr32_bulk:
 	leaq	7(%r8),%r9
 	movl	%r10d,96+12(%rsp)
 	bswapl	%r9d
-	leaq	_GFp_ia32cap_P(%rip),%r10
+	leaq	_OPENSSL_ia32cap_P(%rip),%r10
 	movl	4(%r10),%r10d
 	xorl	%ebp,%r9d
 	andl	$71303168,%r10d
@@ -648,6 +653,8 @@ L$ctr32_enc_done:
 	pxor	%xmm0,%xmm13
 	movdqu	80(%rdi),%xmm15
 	pxor	%xmm0,%xmm14
+	prefetcht0	448(%rdi)
+	prefetcht0	512(%rdi)
 	pxor	%xmm0,%xmm15
 .byte	102,15,56,220,209
 .byte	102,15,56,220,217
@@ -845,16 +852,20 @@ L$ctr32_done:
 	leaq	(%r11),%rsp
 
 L$ctr32_epilogue:
-	.byte	0xf3,0xc3
+	ret
 
 
-.globl	_GFp_aes_hw_set_encrypt_key
-.private_extern _GFp_aes_hw_set_encrypt_key
+.globl	_aes_hw_set_encrypt_key
+.private_extern _aes_hw_set_encrypt_key
 
 .p2align	4
-_GFp_aes_hw_set_encrypt_key:
+_aes_hw_set_encrypt_key:
 __aesni_set_encrypt_key:
 
+_CET_ENDBR
+#ifdef BORINGSSL_DISPATCH_TEST
+	movb	$1,_BORINGSSL_function_hit+3(%rip)
+#endif
 .byte	0x48,0x83,0xEC,0x08
 
 	movq	$-1,%rax
@@ -865,7 +876,7 @@ __aesni_set_encrypt_key:
 
 	movups	(%rdi),%xmm0
 	xorps	%xmm4,%xmm4
-	leaq	_GFp_ia32cap_P(%rip),%r10
+	leaq	_OPENSSL_ia32cap_P(%rip),%r10
 	movl	4(%r10),%r10d
 	andl	$268437504,%r10d
 	leaq	16(%rdx),%rax
@@ -1082,9 +1093,9 @@ L$enc_key_ret:
 	pxor	%xmm5,%xmm5
 	addq	$8,%rsp
 
-	.byte	0xf3,0xc3
+	ret
 
-L$SEH_end_GFp_set_encrypt_key:
+L$SEH_end_set_encrypt_key:
 
 .p2align	4
 L$key_expansion_128:
@@ -1097,7 +1108,7 @@ L$key_expansion_128_cold:
 	xorps	%xmm4,%xmm0
 	shufps	$255,%xmm1,%xmm1
 	xorps	%xmm1,%xmm0
-	.byte	0xf3,0xc3
+	ret
 
 .p2align	4
 L$key_expansion_192a:
@@ -1117,7 +1128,7 @@ L$key_expansion_192b_warm:
 	pxor	%xmm1,%xmm0
 	pshufd	$255,%xmm0,%xmm3
 	pxor	%xmm3,%xmm2
-	.byte	0xf3,0xc3
+	ret
 
 .p2align	4
 L$key_expansion_192b:
@@ -1140,7 +1151,7 @@ L$key_expansion_256a_cold:
 	xorps	%xmm4,%xmm0
 	shufps	$255,%xmm1,%xmm1
 	xorps	%xmm1,%xmm0
-	.byte	0xf3,0xc3
+	ret
 
 .p2align	4
 L$key_expansion_256b:
@@ -1153,9 +1164,10 @@ L$key_expansion_256b:
 	xorps	%xmm4,%xmm2
 	shufps	$170,%xmm1,%xmm1
 	xorps	%xmm1,%xmm2
-	.byte	0xf3,0xc3
+	ret
 
 
+.section	__DATA,__const
 .p2align	6
 L$bswap_mask:
 .byte	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
@@ -1176,4 +1188,5 @@ L$key_rcon1b:
 
 .byte	65,69,83,32,102,111,114,32,73,110,116,101,108,32,65,69,83,45,78,73,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .p2align	6
+.text	
 #endif

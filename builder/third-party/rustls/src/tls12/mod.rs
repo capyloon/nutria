@@ -171,7 +171,7 @@ impl Tls12CipherSuite {
     }
 
     /// Which hash function to use with this suite.
-    pub fn hash_algorithm(&self) -> &'static ring::digest::Algorithm {
+    pub(crate) fn hash_algorithm(&self) -> &'static ring::digest::Algorithm {
         self.hmac_algorithm.digest_algorithm()
     }
 }
@@ -234,7 +234,6 @@ impl ConnectionSecrets {
                 label.as_bytes(),
                 seed.as_ref(),
             );
-            Ok(())
         })?;
 
         Ok(ret)
@@ -313,8 +312,7 @@ impl ConnectionSecrets {
         let len =
             (common.aead_algorithm.key_len() + suite.fixed_iv_len) * 2 + suite.explicit_nonce_len;
 
-        let mut out = Vec::new();
-        out.resize(len, 0u8);
+        let mut out = vec![0u8; len];
 
         // NOTE: opposite order to above for no good reason.
         // Don't design security protocols on drugs, kids.
@@ -341,8 +339,7 @@ impl ConnectionSecrets {
     }
 
     fn make_verify_data(&self, handshake_hash: &Digest, label: &[u8]) -> Vec<u8> {
-        let mut out = Vec::new();
-        out.resize(12, 0u8);
+        let mut out = vec![0u8; 12];
 
         prf::prf(
             &mut out,

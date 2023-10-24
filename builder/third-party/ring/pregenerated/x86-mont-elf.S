@@ -1,17 +1,16 @@
-# This file is generated from a similarly-named Perl script in the BoringSSL
-# source tree. Do not edit by hand.
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
 
-#if defined(__i386__)
-#if defined(BORINGSSL_PREFIX)
-#include <boringssl_prefix_symbols_asm.h>
-#endif
+#include <ring-core/asm_base.h>
+
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86) && defined(__ELF__)
 .text
-.globl	GFp_bn_mul_mont
-.hidden	GFp_bn_mul_mont
-.type	GFp_bn_mul_mont,@function
+.globl	bn_mul_mont
+.hidden	bn_mul_mont
+.type	bn_mul_mont,@function
 .align	16
-GFp_bn_mul_mont:
-.L_GFp_bn_mul_mont_begin:
+bn_mul_mont:
+.L_bn_mul_mont_begin:
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -65,7 +64,7 @@ GFp_bn_mul_mont:
 	call	.L002PIC_me_up
 .L002PIC_me_up:
 	popl	%eax
-	leal	GFp_ia32cap_P-.L002PIC_me_up(%eax),%eax
+	leal	OPENSSL_ia32cap_P-.L002PIC_me_up(%eax),%eax
 	btl	$26,(%eax)
 	movl	$-1,%eax
 	movd	%eax,%mm7
@@ -216,11 +215,10 @@ GFp_bn_mul_mont:
 	popl	%ebx
 	popl	%ebp
 	ret
-.size	GFp_bn_mul_mont,.-.L_GFp_bn_mul_mont_begin
+.size	bn_mul_mont,.-.L_bn_mul_mont_begin
 .byte	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105
 .byte	112,108,105,99,97,116,105,111,110,32,102,111,114,32,120,56
 .byte	54,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121
 .byte	32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46
 .byte	111,114,103,62,0
-#endif
-.section	.note.GNU-stack,"",@progbits
+#endif  // !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86) && defined(__ELF__)

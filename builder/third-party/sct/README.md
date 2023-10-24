@@ -1,11 +1,11 @@
 # SCT.rs
-SCT.rs is a certificate transparency SCT verifier in rust.
+SCT.rs is a certificate transparency SCT verifier in Rust.
 It uses [*ring*](https://github.com/briansmith/ring) for cryptography.
 
-[![Build Status](https://github.com/ctz/sct.rs/workflows/sct.rs/badge.svg)](https://github.com/ctz/sct.rs/actions)
-[![Coverage Status (codecov.io)](https://codecov.io/gh/ctz/sct.rs/branch/main/graph/badge.svg)](https://codecov.io/gh/ctz/sct.rs/)
-[![Documentation](https://docs.rs/sct/badge.svg)](https://docs.rs/sct/)
-[![Crates.io](https://img.shields.io/crates/v/sct.svg)](https://crates.io/crates/sct)
+[![Build Status](https://github.com/rustls/sct.rs/workflows/sct.rs/badge.svg)](https://github.com/rustls/sct.rs/actions)
+[![Coverage Status (codecov.io)](https://codecov.io/gh/rustls/sct.rs/branch/main/graph/badge.svg)](https://codecov.io/gh/rustls/sct.rs/)
+[![Documentation](https://docs.rs/sct/badge.svg)](https://docs.rs/sct)
+[![crates.io](https://img.shields.io/crates/v/sct.svg)](https://crates.io/crates/sct)
 
 # Status
 Ready for use:

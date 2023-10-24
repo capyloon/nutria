@@ -1,18 +1,15 @@
-# This file is generated from a similarly-named Perl script in the BoringSSL
-# source tree. Do not edit by hand.
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
 
-#if defined(__has_feature)
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
-#endif
+#include <ring-core/asm_base.h>
 
-#if defined(__x86_64__) && !defined(OPENSSL_NO_ASM)
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && defined(__ELF__)
 .text	
-.extern	GFp_ia32cap_P
-.hidden GFp_ia32cap_P
+.extern	OPENSSL_ia32cap_P
+.hidden OPENSSL_ia32cap_P
 
 
+.section	.rodata
 .align	64
 .Lpoly:
 .quad	0xffffffffffffffff, 0x00000000ffffffff, 0x0000000000000000, 0xffffffff00000001
@@ -31,62 +28,17 @@
 .quad	0xf3b9cac2fc632551, 0xbce6faada7179e84, 0xffffffffffffffff, 0xffffffff00000000
 .LordK:
 .quad	0xccd1c8aaee00bc4f
+.text	
 
 
 
-.globl	GFp_nistz256_add
-.hidden GFp_nistz256_add
-.type	GFp_nistz256_add,@function
+.globl	ecp_nistz256_neg
+.hidden ecp_nistz256_neg
+.type	ecp_nistz256_neg,@function
 .align	32
-GFp_nistz256_add:
-	pushq	%r12
-	pushq	%r13
-
-	movq	0(%rsi),%r8
-	xorq	%r13,%r13
-	movq	8(%rsi),%r9
-	movq	16(%rsi),%r10
-	movq	24(%rsi),%r11
-	leaq	.Lpoly(%rip),%rsi
-
-	addq	0(%rdx),%r8
-	adcq	8(%rdx),%r9
-	movq	%r8,%rax
-	adcq	16(%rdx),%r10
-	adcq	24(%rdx),%r11
-	movq	%r9,%rdx
-	adcq	$0,%r13
-
-	subq	0(%rsi),%r8
-	movq	%r10,%rcx
-	sbbq	8(%rsi),%r9
-	sbbq	16(%rsi),%r10
-	movq	%r11,%r12
-	sbbq	24(%rsi),%r11
-	sbbq	$0,%r13
-
-	cmovcq	%rax,%r8
-	cmovcq	%rdx,%r9
-	movq	%r8,0(%rdi)
-	cmovcq	%rcx,%r10
-	movq	%r9,8(%rdi)
-	cmovcq	%r12,%r11
-	movq	%r10,16(%rdi)
-	movq	%r11,24(%rdi)
-
-	popq	%r13
-	popq	%r12
-	.byte	0xf3,0xc3
-.size	GFp_nistz256_add,.-GFp_nistz256_add
-
-
-
-.globl	GFp_nistz256_neg
-.hidden GFp_nistz256_neg
-.type	GFp_nistz256_neg,@function
-.align	32
-GFp_nistz256_neg:
+ecp_nistz256_neg:
 .cfi_startproc	
+_CET_ENDBR
 	pushq	%r12
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%r12,-16
@@ -134,22 +86,23 @@ GFp_nistz256_neg:
 	leaq	16(%rsp),%rsp
 .cfi_adjust_cfa_offset	-16
 .Lneg_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_nistz256_neg,.-GFp_nistz256_neg
+.size	ecp_nistz256_neg,.-ecp_nistz256_neg
 
 
 
 
 
 
-.globl	GFp_p256_scalar_mul_mont
-.hidden GFp_p256_scalar_mul_mont
-.type	GFp_p256_scalar_mul_mont,@function
+.globl	ecp_nistz256_ord_mul_mont
+.hidden ecp_nistz256_ord_mul_mont
+.type	ecp_nistz256_ord_mul_mont,@function
 .align	32
-GFp_p256_scalar_mul_mont:
+ecp_nistz256_ord_mul_mont:
 .cfi_startproc	
-	leaq	GFp_ia32cap_P(%rip),%rcx
+_CET_ENDBR
+	leaq	OPENSSL_ia32cap_P(%rip),%rcx
 	movq	8(%rcx),%rcx
 	andl	$0x80100,%ecx
 	cmpl	$0x80100,%ecx
@@ -467,9 +420,9 @@ GFp_p256_scalar_mul_mont:
 	leaq	48(%rsp),%rsp
 .cfi_adjust_cfa_offset	-48
 .Lord_mul_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_p256_scalar_mul_mont,.-GFp_p256_scalar_mul_mont
+.size	ecp_nistz256_ord_mul_mont,.-ecp_nistz256_ord_mul_mont
 
 
 
@@ -477,13 +430,14 @@ GFp_p256_scalar_mul_mont:
 
 
 
-.globl	GFp_p256_scalar_sqr_rep_mont
-.hidden GFp_p256_scalar_sqr_rep_mont
-.type	GFp_p256_scalar_sqr_rep_mont,@function
+.globl	ecp_nistz256_ord_sqr_mont
+.hidden ecp_nistz256_ord_sqr_mont
+.type	ecp_nistz256_ord_sqr_mont,@function
 .align	32
-GFp_p256_scalar_sqr_rep_mont:
+ecp_nistz256_ord_sqr_mont:
 .cfi_startproc	
-	leaq	GFp_ia32cap_P(%rip),%rcx
+_CET_ENDBR
+	leaq	OPENSSL_ia32cap_P(%rip),%rcx
 	movq	8(%rcx),%rcx
 	andl	$0x80100,%ecx
 	cmpl	$0x80100,%ecx
@@ -771,9 +725,9 @@ GFp_p256_scalar_sqr_rep_mont:
 	leaq	48(%rsp),%rsp
 .cfi_adjust_cfa_offset	-48
 .Lord_sqr_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_p256_scalar_sqr_rep_mont,.-GFp_p256_scalar_sqr_rep_mont
+.size	ecp_nistz256_ord_sqr_mont,.-ecp_nistz256_ord_sqr_mont
 
 .type	ecp_nistz256_ord_mul_montx,@function
 .align	32
@@ -1013,7 +967,7 @@ ecp_nistz256_ord_mul_montx:
 	leaq	48(%rsp),%rsp
 .cfi_adjust_cfa_offset	-48
 .Lord_mulx_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	ecp_nistz256_ord_mul_montx,.-ecp_nistz256_ord_mul_montx
 
@@ -1227,7 +1181,7 @@ ecp_nistz256_ord_sqr_montx:
 	leaq	48(%rsp),%rsp
 .cfi_adjust_cfa_offset	-48
 .Lord_sqrx_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	ecp_nistz256_ord_sqr_montx,.-ecp_nistz256_ord_sqr_montx
 
@@ -1236,13 +1190,14 @@ ecp_nistz256_ord_sqr_montx:
 
 
 
-.globl	GFp_nistz256_mul_mont
-.hidden GFp_nistz256_mul_mont
-.type	GFp_nistz256_mul_mont,@function
+.globl	ecp_nistz256_mul_mont
+.hidden ecp_nistz256_mul_mont
+.type	ecp_nistz256_mul_mont,@function
 .align	32
-GFp_nistz256_mul_mont:
+ecp_nistz256_mul_mont:
 .cfi_startproc	
-	leaq	GFp_ia32cap_P(%rip),%rcx
+_CET_ENDBR
+	leaq	OPENSSL_ia32cap_P(%rip),%rcx
 	movq	8(%rcx),%rcx
 	andl	$0x80100,%ecx
 .Lmul_mont:
@@ -1304,9 +1259,9 @@ GFp_nistz256_mul_mont:
 	leaq	48(%rsp),%rsp
 .cfi_adjust_cfa_offset	-48
 .Lmul_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_nistz256_mul_mont,.-GFp_nistz256_mul_mont
+.size	ecp_nistz256_mul_mont,.-ecp_nistz256_mul_mont
 
 .type	__ecp_nistz256_mul_montq,@function
 .align	32
@@ -1522,7 +1477,7 @@ __ecp_nistz256_mul_montq:
 	movq	%r8,16(%rdi)
 	movq	%r9,24(%rdi)
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_mul_montq,.-__ecp_nistz256_mul_montq
 
@@ -1533,13 +1488,14 @@ __ecp_nistz256_mul_montq:
 
 
 
-.globl	GFp_nistz256_sqr_mont
-.hidden GFp_nistz256_sqr_mont
-.type	GFp_nistz256_sqr_mont,@function
+.globl	ecp_nistz256_sqr_mont
+.hidden ecp_nistz256_sqr_mont
+.type	ecp_nistz256_sqr_mont,@function
 .align	32
-GFp_nistz256_sqr_mont:
+ecp_nistz256_sqr_mont:
 .cfi_startproc	
-	leaq	GFp_ia32cap_P(%rip),%rcx
+_CET_ENDBR
+	leaq	OPENSSL_ia32cap_P(%rip),%rcx
 	movq	8(%rcx),%rcx
 	andl	$0x80100,%ecx
 	pushq	%rbp
@@ -1596,9 +1552,9 @@ GFp_nistz256_sqr_mont:
 	leaq	48(%rsp),%rsp
 .cfi_adjust_cfa_offset	-48
 .Lsqr_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_nistz256_sqr_mont,.-GFp_nistz256_sqr_mont
+.size	ecp_nistz256_sqr_mont,.-ecp_nistz256_sqr_mont
 
 .type	__ecp_nistz256_sqr_montq,@function
 .align	32
@@ -1760,7 +1716,7 @@ __ecp_nistz256_sqr_montq:
 	movq	%r14,16(%rdi)
 	movq	%r15,24(%rdi)
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_sqr_montq,.-__ecp_nistz256_sqr_montq
 .type	__ecp_nistz256_mul_montx,@function
@@ -1928,7 +1884,7 @@ __ecp_nistz256_mul_montx:
 	movq	%r8,16(%rdi)
 	movq	%r9,24(%rdi)
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_mul_montx,.-__ecp_nistz256_mul_montx
 
@@ -2058,18 +2014,19 @@ __ecp_nistz256_sqr_montx:
 	movq	%r14,16(%rdi)
 	movq	%r15,24(%rdi)
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_sqr_montx,.-__ecp_nistz256_sqr_montx
 
 
-.globl	GFp_nistz256_select_w5
-.hidden GFp_nistz256_select_w5
-.type	GFp_nistz256_select_w5,@function
+.globl	ecp_nistz256_select_w5
+.hidden ecp_nistz256_select_w5
+.type	ecp_nistz256_select_w5,@function
 .align	32
-GFp_nistz256_select_w5:
+ecp_nistz256_select_w5:
 .cfi_startproc	
-	leaq	GFp_ia32cap_P(%rip),%rax
+_CET_ENDBR
+	leaq	OPENSSL_ia32cap_P(%rip),%rax
 	movq	8(%rax),%rax
 	testl	$32,%eax
 	jnz	.Lavx2_select_w5
@@ -2123,20 +2080,21 @@ GFp_nistz256_select_w5:
 	movdqu	%xmm5,48(%rdi)
 	movdqu	%xmm6,64(%rdi)
 	movdqu	%xmm7,80(%rdi)
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.LSEH_end_GFp_nistz256_select_w5:
-.size	GFp_nistz256_select_w5,.-GFp_nistz256_select_w5
+.LSEH_end_ecp_nistz256_select_w5:
+.size	ecp_nistz256_select_w5,.-ecp_nistz256_select_w5
 
 
 
-.globl	GFp_nistz256_select_w7
-.hidden GFp_nistz256_select_w7
-.type	GFp_nistz256_select_w7,@function
+.globl	ecp_nistz256_select_w7
+.hidden ecp_nistz256_select_w7
+.type	ecp_nistz256_select_w7,@function
 .align	32
-GFp_nistz256_select_w7:
+ecp_nistz256_select_w7:
 .cfi_startproc	
-	leaq	GFp_ia32cap_P(%rip),%rax
+_CET_ENDBR
+	leaq	OPENSSL_ia32cap_P(%rip),%rax
 	movq	8(%rax),%rax
 	testl	$32,%eax
 	jnz	.Lavx2_select_w7
@@ -2179,15 +2137,15 @@ GFp_nistz256_select_w7:
 	movdqu	%xmm3,16(%rdi)
 	movdqu	%xmm4,32(%rdi)
 	movdqu	%xmm5,48(%rdi)
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.LSEH_end_GFp_nistz256_select_w7:
-.size	GFp_nistz256_select_w7,.-GFp_nistz256_select_w7
+.LSEH_end_ecp_nistz256_select_w7:
+.size	ecp_nistz256_select_w7,.-ecp_nistz256_select_w7
 
 
-.type	GFp_nistz256_avx2_select_w5,@function
+.type	ecp_nistz256_avx2_select_w5,@function
 .align	32
-GFp_nistz256_avx2_select_w5:
+ecp_nistz256_avx2_select_w5:
 .cfi_startproc	
 .Lavx2_select_w5:
 	vzeroupper
@@ -2242,20 +2200,19 @@ GFp_nistz256_avx2_select_w5:
 	vmovdqu	%ymm3,32(%rdi)
 	vmovdqu	%ymm4,64(%rdi)
 	vzeroupper
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.LSEH_end_GFp_nistz256_avx2_select_w5:
-.size	GFp_nistz256_avx2_select_w5,.-GFp_nistz256_avx2_select_w5
+.LSEH_end_ecp_nistz256_avx2_select_w5:
+.size	ecp_nistz256_avx2_select_w5,.-ecp_nistz256_avx2_select_w5
 
 
 
-.globl	GFp_nistz256_avx2_select_w7
-.hidden GFp_nistz256_avx2_select_w7
-.type	GFp_nistz256_avx2_select_w7,@function
+.type	ecp_nistz256_avx2_select_w7,@function
 .align	32
-GFp_nistz256_avx2_select_w7:
+ecp_nistz256_avx2_select_w7:
 .cfi_startproc	
 .Lavx2_select_w7:
+_CET_ENDBR
 	vzeroupper
 	vmovdqa	.LThree(%rip),%ymm0
 
@@ -2323,10 +2280,10 @@ GFp_nistz256_avx2_select_w7:
 	vmovdqu	%ymm2,0(%rdi)
 	vmovdqu	%ymm3,32(%rdi)
 	vzeroupper
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.LSEH_end_GFp_nistz256_avx2_select_w7:
-.size	GFp_nistz256_avx2_select_w7,.-GFp_nistz256_avx2_select_w7
+.LSEH_end_ecp_nistz256_avx2_select_w7:
+.size	ecp_nistz256_avx2_select_w7,.-ecp_nistz256_avx2_select_w7
 .type	__ecp_nistz256_add_toq,@function
 .align	32
 __ecp_nistz256_add_toq:
@@ -2357,7 +2314,7 @@ __ecp_nistz256_add_toq:
 	movq	%r8,16(%rdi)
 	movq	%r9,24(%rdi)
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_add_toq,.-__ecp_nistz256_add_toq
 
@@ -2390,7 +2347,7 @@ __ecp_nistz256_sub_fromq:
 	movq	%r8,16(%rdi)
 	movq	%r9,24(%rdi)
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_sub_fromq,.-__ecp_nistz256_sub_fromq
 
@@ -2419,7 +2376,7 @@ __ecp_nistz256_subq:
 	cmovnzq	%rcx,%r8
 	cmovnzq	%r10,%r9
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_subq,.-__ecp_nistz256_subq
 
@@ -2453,16 +2410,17 @@ __ecp_nistz256_mul_by_2q:
 	movq	%r8,16(%rdi)
 	movq	%r9,24(%rdi)
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_mul_by_2q,.-__ecp_nistz256_mul_by_2q
-.globl	GFp_nistz256_point_double
-.hidden GFp_nistz256_point_double
-.type	GFp_nistz256_point_double,@function
+.globl	ecp_nistz256_point_double
+.hidden ecp_nistz256_point_double
+.type	ecp_nistz256_point_double,@function
 .align	32
-GFp_nistz256_point_double:
+ecp_nistz256_point_double:
 .cfi_startproc	
-	leaq	GFp_ia32cap_P(%rip),%rcx
+_CET_ENDBR
+	leaq	OPENSSL_ia32cap_P(%rip),%rcx
 	movq	8(%rcx),%rcx
 	andl	$0x80100,%ecx
 	cmpl	$0x80100,%ecx
@@ -2687,16 +2645,17 @@ GFp_nistz256_point_double:
 	leaq	(%rsi),%rsp
 .cfi_def_cfa_register	%rsp
 .Lpoint_doubleq_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_nistz256_point_double,.-GFp_nistz256_point_double
-.globl	GFp_nistz256_point_add
-.hidden GFp_nistz256_point_add
-.type	GFp_nistz256_point_add,@function
+.size	ecp_nistz256_point_double,.-ecp_nistz256_point_double
+.globl	ecp_nistz256_point_add
+.hidden ecp_nistz256_point_add
+.type	ecp_nistz256_point_add,@function
 .align	32
-GFp_nistz256_point_add:
+ecp_nistz256_point_add:
 .cfi_startproc	
-	leaq	GFp_ia32cap_P(%rip),%rcx
+_CET_ENDBR
+	leaq	OPENSSL_ia32cap_P(%rip),%rcx
 	movq	8(%rcx),%rcx
 	andl	$0x80100,%ecx
 	cmpl	$0x80100,%ecx
@@ -3124,16 +3083,17 @@ GFp_nistz256_point_add:
 	leaq	(%rsi),%rsp
 .cfi_def_cfa_register	%rsp
 .Lpoint_addq_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_nistz256_point_add,.-GFp_nistz256_point_add
-.globl	GFp_nistz256_point_add_affine
-.hidden GFp_nistz256_point_add_affine
-.type	GFp_nistz256_point_add_affine,@function
+.size	ecp_nistz256_point_add,.-ecp_nistz256_point_add
+.globl	ecp_nistz256_point_add_affine
+.hidden ecp_nistz256_point_add_affine
+.type	ecp_nistz256_point_add_affine,@function
 .align	32
-GFp_nistz256_point_add_affine:
+ecp_nistz256_point_add_affine:
 .cfi_startproc	
-	leaq	GFp_ia32cap_P(%rip),%rcx
+_CET_ENDBR
+	leaq	OPENSSL_ia32cap_P(%rip),%rcx
 	movq	8(%rcx),%rcx
 	andl	$0x80100,%ecx
 	cmpl	$0x80100,%ecx
@@ -3458,9 +3418,9 @@ GFp_nistz256_point_add_affine:
 	leaq	(%rsi),%rsp
 .cfi_def_cfa_register	%rsp
 .Ladd_affineq_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_nistz256_point_add_affine,.-GFp_nistz256_point_add_affine
+.size	ecp_nistz256_point_add_affine,.-ecp_nistz256_point_add_affine
 .type	__ecp_nistz256_add_tox,@function
 .align	32
 __ecp_nistz256_add_tox:
@@ -3492,7 +3452,7 @@ __ecp_nistz256_add_tox:
 	movq	%r8,16(%rdi)
 	movq	%r9,24(%rdi)
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_add_tox,.-__ecp_nistz256_add_tox
 
@@ -3527,7 +3487,7 @@ __ecp_nistz256_sub_fromx:
 	movq	%r8,16(%rdi)
 	movq	%r9,24(%rdi)
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_sub_fromx,.-__ecp_nistz256_sub_fromx
 
@@ -3558,7 +3518,7 @@ __ecp_nistz256_subx:
 	cmovcq	%rcx,%r8
 	cmovcq	%r10,%r9
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_subx,.-__ecp_nistz256_subx
 
@@ -3593,12 +3553,12 @@ __ecp_nistz256_mul_by_2x:
 	movq	%r8,16(%rdi)
 	movq	%r9,24(%rdi)
 
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
 .size	__ecp_nistz256_mul_by_2x,.-__ecp_nistz256_mul_by_2x
-.type	GFp_nistz256_point_doublex,@function
+.type	ecp_nistz256_point_doublex,@function
 .align	32
-GFp_nistz256_point_doublex:
+ecp_nistz256_point_doublex:
 .cfi_startproc	
 .Lpoint_doublex:
 	pushq	%rbp
@@ -3821,12 +3781,12 @@ GFp_nistz256_point_doublex:
 	leaq	(%rsi),%rsp
 .cfi_def_cfa_register	%rsp
 .Lpoint_doublex_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_nistz256_point_doublex,.-GFp_nistz256_point_doublex
-.type	GFp_nistz256_point_addx,@function
+.size	ecp_nistz256_point_doublex,.-ecp_nistz256_point_doublex
+.type	ecp_nistz256_point_addx,@function
 .align	32
-GFp_nistz256_point_addx:
+ecp_nistz256_point_addx:
 .cfi_startproc	
 .Lpoint_addx:
 	pushq	%rbp
@@ -4252,12 +4212,12 @@ GFp_nistz256_point_addx:
 	leaq	(%rsi),%rsp
 .cfi_def_cfa_register	%rsp
 .Lpoint_addx_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_nistz256_point_addx,.-GFp_nistz256_point_addx
-.type	GFp_nistz256_point_add_affinex,@function
+.size	ecp_nistz256_point_addx,.-ecp_nistz256_point_addx
+.type	ecp_nistz256_point_add_affinex,@function
 .align	32
-GFp_nistz256_point_add_affinex:
+ecp_nistz256_point_add_affinex:
 .cfi_startproc	
 .Lpoint_add_affinex:
 	pushq	%rbp
@@ -4580,8 +4540,7 @@ GFp_nistz256_point_add_affinex:
 	leaq	(%rsi),%rsp
 .cfi_def_cfa_register	%rsp
 .Ladd_affinex_epilogue:
-	.byte	0xf3,0xc3
+	ret
 .cfi_endproc	
-.size	GFp_nistz256_point_add_affinex,.-GFp_nistz256_point_add_affinex
+.size	ecp_nistz256_point_add_affinex,.-ecp_nistz256_point_add_affinex
 #endif
-.section	.note.GNU-stack,"",@progbits

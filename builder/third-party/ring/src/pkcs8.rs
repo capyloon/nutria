@@ -14,14 +14,20 @@
 
 //! PKCS#8 is specified in [RFC 5958].
 //!
-//! [RFC 5958]: https://tools.ietf.org/html/rfc5958.
+//! [RFC 5958]: https://tools.ietf.org/html/rfc5958
 
 use crate::{ec, error, io::der};
 
+pub(crate) struct PublicKeyOptions {
+    /// Should the wrong public key ASN.1 tagging used by early implementations
+    /// of PKCS#8 v2 (including earlier versions of *ring*) be accepted?
+    pub accept_legacy_ed25519_public_key_tag: bool,
+}
+
 pub(crate) enum Version {
     V1Only,
-    V1OrV2,
-    V2Only,
+    V1OrV2(PublicKeyOptions),
+    V2Only(PublicKeyOptions),
 }
 
 /// A template for constructing PKCS#8 documents.
@@ -66,7 +72,7 @@ impl Template {
 ///
 /// PKCS#8 is specified in [RFC 5958].
 ///
-/// [RFC 5958]: https://tools.ietf.org/html/rfc5958.
+/// [RFC 5958]: https://tools.ietf.org/html/rfc5958
 pub(crate) fn unwrap_key<'a>(
     template: &Template,
     version: Version,
@@ -84,7 +90,7 @@ pub(crate) fn unwrap_key<'a>(
 ///
 /// PKCS#8 is specified in [RFC 5958].
 ///
-/// [RFC 5958]: https://tools.ietf.org/html/rfc5958.
+/// [RFC 5958]: https://tools.ietf.org/html/rfc5958
 pub(crate) fn unwrap_key_<'a>(
     alg_id: untrusted::Input,
     version: Version,
@@ -119,14 +125,14 @@ fn unwrap_key__<'a>(
 
     let actual_alg_id = der::expect_tag_and_get_value(input, der::Tag::Sequence)
         .map_err(|error::Unspecified| error::KeyRejected::invalid_encoding())?;
-    if actual_alg_id != alg_id {
+    if actual_alg_id.as_slice_less_safe() != alg_id.as_slice_less_safe() {
         return Err(error::KeyRejected::wrong_algorithm());
     }
 
-    let require_public_key = match (actual_version, version) {
-        (0, Version::V1Only) => false,
-        (0, Version::V1OrV2) => false,
-        (1, Version::V1OrV2) | (1, Version::V2Only) => true,
+    let public_key_options = match (actual_version, version) {
+        (0, Version::V1Only) => None,
+        (0, Version::V1OrV2(_)) => None,
+        (1, Version::V1OrV2(options)) | (1, Version::V2Only(options)) => Some(options),
         _ => {
             return Err(error::KeyRejected::version_not_supported());
         }
@@ -141,17 +147,25 @@ fn unwrap_key__<'a>(
             .map_err(|error::Unspecified| error::KeyRejected::invalid_encoding())?;
     }
 
-    let public_key = if require_public_key {
+    let public_key = if let Some(options) = public_key_options {
         if input.at_end() {
             return Err(error::KeyRejected::public_key_is_missing());
         }
-        let public_key = der::nested(
-            input,
-            der::Tag::ContextSpecificConstructed1,
-            error::Unspecified,
-            der::bit_string_with_no_unused_bits,
-        )
-        .map_err(|error::Unspecified| error::KeyRejected::invalid_encoding())?;
+
+        const INCORRECT_LEGACY: der::Tag = der::Tag::ContextSpecificConstructed1;
+        let result =
+            if options.accept_legacy_ed25519_public_key_tag && input.peek(INCORRECT_LEGACY as u8) {
+                der::nested(
+                    input,
+                    INCORRECT_LEGACY,
+                    error::Unspecified,
+                    der::bit_string_with_no_unused_bits,
+                )
+            } else {
+                der::bit_string_tagged_with_no_unused_bits(der::Tag::ContextSpecific1, input)
+            };
+        let public_key =
+            result.map_err(|error::Unspecified| error::KeyRejected::invalid_encoding())?;
         Some(public_key)
     } else {
         None
@@ -194,7 +208,7 @@ fn wrap_key_(template: &Template, private_key: &[u8], public_key: &[u8], bytes: 
         template.bytes.split_at(template.private_key_index);
     let private_key_end_index = template.private_key_index + private_key.len();
     bytes[..template.private_key_index].copy_from_slice(before_private_key);
-    bytes[template.private_key_index..private_key_end_index].copy_from_slice(&private_key);
+    bytes[template.private_key_index..private_key_end_index].copy_from_slice(private_key);
     bytes[private_key_end_index..(private_key_end_index + after_private_key.len())]
         .copy_from_slice(after_private_key);
     bytes[(private_key_end_index + after_private_key.len())..].copy_from_slice(public_key);

@@ -186,16 +186,12 @@ impl<'a> Sct<'a> {
         let inp = untrusted::Input::from(enc);
 
         inp.read_all(Error::MalformedSct, |rd| {
-            let version = rd
-                .read_byte()
-                .map_err(|_| Error::MalformedSct)?;
+            let version = rd.read_byte().map_err(|_| Error::MalformedSct)?;
             if version != 0 {
                 return Err(Error::UnsupportedSctVersion);
             }
 
-            let id = rd
-                .read_bytes(32)
-                .map_err(|_| Error::MalformedSct)?;
+            let id = rd.read_bytes(32).map_err(|_| Error::MalformedSct)?;
             let timestamp = rd
                 .read_bytes(8)
                 .map_err(|_| Error::MalformedSct)
@@ -243,7 +239,7 @@ impl<'a> Sct<'a> {
 /// Otherwise, it returns an `Error`.
 pub fn verify_sct(cert: &[u8], sct: &[u8], at_time: u64, logs: &[&Log]) -> Result<usize, Error> {
     let sct = Sct::parse(sct)?;
-    let i = lookup(logs, &sct.log_id)?;
+    let i = lookup(logs, sct.log_id)?;
     let log = logs[i];
     sct.verify(log.key, cert)?;
 

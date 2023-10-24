@@ -15,7 +15,7 @@
 use crate::der::Tag;
 use crate::signed_data::SignedData;
 use crate::x509::{remember_extension, set_extension_once, Extension};
-use crate::{der, Error};
+use crate::{der, public_values_eq, Error};
 
 /// An enumeration indicating whether a [`Cert`] is a leaf end-entity cert, or a linked
 /// list node from the CA `Cert` to a child `Cert` it issued.
@@ -70,7 +70,7 @@ impl<'a> Cert<'a> {
             // TODO: In mozilla::pkix, the comparison is done based on the
             // normalized value (ignoring whether or not there is an optional NULL
             // parameter for RSA-based algorithms), so this may be too strict.
-            if signature != signed_data.algorithm {
+            if !public_values_eq(signature, signed_data.algorithm) {
                 return Err(Error::SignatureAlgorithmMismatch);
             }
 

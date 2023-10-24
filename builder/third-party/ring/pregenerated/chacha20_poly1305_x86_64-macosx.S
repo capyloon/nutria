@@ -1,18 +1,15 @@
-# This file is generated from a similarly-named Perl script in the BoringSSL
-# source tree. Do not edit by hand.
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
 
-#if defined(__has_feature)
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
-#endif
+#include <ring-core/asm_base.h>
 
-#if defined(__x86_64__) && !defined(OPENSSL_NO_ASM)
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && defined(__APPLE__)
 .text	
 
 
 chacha20_poly1305_constants:
 
+.section	__DATA,__const
 .p2align	6
 L$chacha20_consts:
 .byte	'e','x','p','a','n','d',' ','3','2','-','b','y','t','e',' ','k'
@@ -50,6 +47,7 @@ L$and_masks:
 .byte	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x00,0x00
 .byte	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x00
 .byte	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
+.text	
 
 
 .p2align	6
@@ -105,7 +103,7 @@ L$poly_fast_tls_ad:
 	adcq	%r9,%r11
 	adcq	$0,%r12
 
-	.byte	0xf3,0xc3
+	ret
 L$hash_ad_loop:
 
 	cmpq	$16,%r8
@@ -214,16 +212,17 @@ L$hash_ad_tail_loop:
 
 
 L$hash_ad_done:
-	.byte	0xf3,0xc3
+	ret
 
 
 
-.globl	_GFp_chacha20_poly1305_open
-.private_extern _GFp_chacha20_poly1305_open
+.globl	_chacha20_poly1305_open
+.private_extern _chacha20_poly1305_open
 
 .p2align	6
-_GFp_chacha20_poly1305_open:
+_chacha20_poly1305_open:
 
+_CET_ENDBR
 	pushq	%rbp
 
 	pushq	%rbx
@@ -250,7 +249,7 @@ _GFp_chacha20_poly1305_open:
 	movq	%r8,0+0+32(%rbp)
 	movq	%rbx,8+0+32(%rbp)
 
-	movl	_GFp_ia32cap_P+8(%rip),%eax
+	movl	_OPENSSL_ia32cap_P+8(%rip),%eax
 	andl	$288,%eax
 	xorl	$288,%eax
 	jz	chacha20_poly1305_open_avx2
@@ -1848,7 +1847,7 @@ L$open_sse_finalize:
 
 	popq	%rbp
 
-	.byte	0xf3,0xc3
+	ret
 
 L$open_sse_128:
 
@@ -2088,12 +2087,14 @@ L$open_sse_128_xor_hash:
 
 
 
-.globl	_GFp_chacha20_poly1305_seal
-.private_extern _GFp_chacha20_poly1305_seal
+
+.globl	_chacha20_poly1305_seal
+.private_extern _chacha20_poly1305_seal
 
 .p2align	6
-_GFp_chacha20_poly1305_seal:
+_chacha20_poly1305_seal:
 
+_CET_ENDBR
 	pushq	%rbp
 
 	pushq	%rbx
@@ -2121,7 +2122,7 @@ _GFp_chacha20_poly1305_seal:
 	movq	%rbx,8+0+32(%rbp)
 	movq	%rdx,%rbx
 
-	movl	_GFp_ia32cap_P+8(%rip),%eax
+	movl	_OPENSSL_ia32cap_P+8(%rip),%eax
 	andl	$288,%eax
 	xorl	$288,%eax
 	jz	chacha20_poly1305_seal_avx2
@@ -3898,7 +3899,7 @@ L$do_length_block:
 
 	popq	%rbp
 
-	.byte	0xf3,0xc3
+	ret
 
 L$seal_sse_128:
 

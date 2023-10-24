@@ -17,7 +17,7 @@ use crate::der::Tag;
 use crate::signed_data::{self, SignedData};
 use crate::verify_cert::Budget;
 use crate::x509::{remember_extension, set_extension_once, Extension};
-use crate::{der, Error, SignatureAlgorithm, Time};
+use crate::{der, public_values_eq, Error, SignatureAlgorithm, Time};
 
 #[cfg(feature = "alloc")]
 use std::collections::HashMap;
@@ -155,7 +155,7 @@ impl<'a> BorrowedCertRevocationList<'a> {
             //   This field MUST contain the same algorithm identifier as the
             //   signatureAlgorithm field in the sequence CertificateList
             let signature = der::expect_tag_and_get_value(tbs_cert_list, Tag::Sequence)?;
-            if signature != signed_data.algorithm {
+            if !public_values_eq(signature, signed_data.algorithm) {
                 return Err(Error::SignatureAlgorithmMismatch);
             }
 

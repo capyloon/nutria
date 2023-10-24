@@ -1,23 +1,27 @@
 ; This file is generated from a similarly-named Perl script in the BoringSSL
 ; source tree. Do not edit by hand.
 
+%ifidn __OUTPUT_FORMAT__, win64
 default	rel
 %define XMMWORD
 %define YMMWORD
 %define ZMMWORD
+%define _CET_ENDBR
+
+%include "ring_core_generated/prefix_symbols_nasm.inc"
 section	.text code align=64
 
 
-EXTERN	GFp_ia32cap_P
+EXTERN	OPENSSL_ia32cap_P
 
-global	GFp_bn_mul_mont
+global	bn_mul_mont
 
 ALIGN	16
-GFp_bn_mul_mont:
+bn_mul_mont:
 	mov	QWORD[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_GFp_bn_mul_mont:
+$L$SEH_begin_bn_mul_mont:
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -27,6 +31,7 @@ $L$SEH_begin_GFp_bn_mul_mont:
 
 
 
+_CET_ENDBR
 	mov	r9d,r9d
 	mov	rax,rsp
 
@@ -34,7 +39,8 @@ $L$SEH_begin_GFp_bn_mul_mont:
 	jnz	NEAR $L$mul_enter
 	cmp	r9d,8
 	jb	NEAR $L$mul_enter
-	mov	r11d,DWORD[((GFp_ia32cap_P+8))]
+	lea	r11,[OPENSSL_ia32cap_P]
+	mov	r11d,DWORD[8+r11]
 	cmp	rdx,rsi
 	jne	NEAR $L$mul4x_enter
 	test	r9d,7
@@ -274,9 +280,9 @@ $L$copy:
 $L$mul_epilogue:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
-	DB	0F3h,0C3h		;repret
+	ret
 
-$L$SEH_end_GFp_bn_mul_mont:
+$L$SEH_end_bn_mul_mont:
 
 ALIGN	16
 bn_mul4x_mont:
@@ -722,11 +728,11 @@ $L$copy4x:
 $L$mul4x_epilogue:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
-	DB	0F3h,0C3h		;repret
+	ret
 
 $L$SEH_end_bn_mul4x_mont:
-EXTERN	GFp_bn_sqrx8x_internal
-EXTERN	GFp_bn_sqr8x_internal
+EXTERN	bn_sqrx8x_internal
+EXTERN	bn_sqr8x_internal
 
 
 ALIGN	32
@@ -821,12 +827,13 @@ DB	102,72,15,110,209
 	pxor	xmm0,xmm0
 DB	102,72,15,110,207
 DB	102,73,15,110,218
-	mov	eax,DWORD[((GFp_ia32cap_P+8))]
+	lea	rax,[OPENSSL_ia32cap_P]
+	mov	eax,DWORD[8+rax]
 	and	eax,0x80100
 	cmp	eax,0x80100
 	jne	NEAR $L$sqr8x_nox
 
-	call	GFp_bn_sqrx8x_internal
+	call	bn_sqrx8x_internal
 
 
 
@@ -840,7 +847,7 @@ DB	102,72,15,126,207
 
 ALIGN	32
 $L$sqr8x_nox:
-	call	GFp_bn_sqr8x_internal
+	call	bn_sqr8x_internal
 
 
 
@@ -926,7 +933,7 @@ $L$sqr8x_cond_copy:
 $L$sqr8x_epilogue:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
-	DB	0F3h,0C3h		;repret
+	ret
 
 $L$SEH_end_bn_sqr8x_mont:
 
@@ -1040,7 +1047,7 @@ $L$mulx4x_body:
 	mulx	r11,rax,QWORD[8+rcx]
 	adcx	r10,rax
 	adox	r11,r12
-DB	0xc4,0x62,0xfb,0xf6,0xa1,0x10,0x00,0x00,0x00
+	DB	0xc4,0x62,0xfb,0xf6,0xa1,0x10,0x00,0x00,0x00
 	mov	rdi,QWORD[48+rsp]
 	mov	QWORD[((-32))+rbx],r10
 	adcx	r11,rax
@@ -1065,7 +1072,7 @@ $L$mulx4x_1st:
 	mulx	rax,r12,QWORD[16+rsi]
 	adcx	r12,r14
 	mulx	r14,r13,QWORD[24+rsi]
-DB	0x67,0x67
+	DB	0x67,0x67
 	mov	rdx,r8
 	adcx	r13,rax
 	adcx	r14,rbp
@@ -1296,14 +1303,14 @@ $L$mulx4x_cond_copy:
 $L$mulx4x_epilogue:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
-	DB	0F3h,0C3h		;repret
+	ret
 
 $L$SEH_end_bn_mulx4x_mont:
-DB	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105
-DB	112,108,105,99,97,116,105,111,110,32,102,111,114,32,120,56
-DB	54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83
-DB	32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115
-DB	115,108,46,111,114,103,62,0
+	DB	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105
+	DB	112,108,105,99,97,116,105,111,110,32,102,111,114,32,120,56
+	DB	54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83
+	DB	32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115
+	DB	115,108,46,111,114,103,62,0
 ALIGN	16
 EXTERN	__imp_RtlVirtualUnwind
 
@@ -1434,14 +1441,14 @@ $L$common_seh_tail:
 	pop	rbx
 	pop	rdi
 	pop	rsi
-	DB	0F3h,0C3h		;repret
+	ret
 
 
 section	.pdata rdata align=4
 ALIGN	4
-	DD	$L$SEH_begin_GFp_bn_mul_mont wrt ..imagebase
-	DD	$L$SEH_end_GFp_bn_mul_mont wrt ..imagebase
-	DD	$L$SEH_info_GFp_bn_mul_mont wrt ..imagebase
+	DD	$L$SEH_begin_bn_mul_mont wrt ..imagebase
+	DD	$L$SEH_end_bn_mul_mont wrt ..imagebase
+	DD	$L$SEH_info_bn_mul_mont wrt ..imagebase
 
 	DD	$L$SEH_begin_bn_mul4x_mont wrt ..imagebase
 	DD	$L$SEH_end_bn_mul4x_mont wrt ..imagebase
@@ -1455,21 +1462,25 @@ ALIGN	4
 	DD	$L$SEH_info_bn_mulx4x_mont wrt ..imagebase
 section	.xdata rdata align=8
 ALIGN	8
-$L$SEH_info_GFp_bn_mul_mont:
-DB	9,0,0,0
+$L$SEH_info_bn_mul_mont:
+	DB	9,0,0,0
 	DD	mul_handler wrt ..imagebase
 	DD	$L$mul_body wrt ..imagebase,$L$mul_epilogue wrt ..imagebase
 $L$SEH_info_bn_mul4x_mont:
-DB	9,0,0,0
+	DB	9,0,0,0
 	DD	mul_handler wrt ..imagebase
 	DD	$L$mul4x_body wrt ..imagebase,$L$mul4x_epilogue wrt ..imagebase
 $L$SEH_info_bn_sqr8x_mont:
-DB	9,0,0,0
+	DB	9,0,0,0
 	DD	sqr_handler wrt ..imagebase
 	DD	$L$sqr8x_prologue wrt ..imagebase,$L$sqr8x_body wrt ..imagebase,$L$sqr8x_epilogue wrt ..imagebase
 ALIGN	8
 $L$SEH_info_bn_mulx4x_mont:
-DB	9,0,0,0
+	DB	9,0,0,0
 	DD	sqr_handler wrt ..imagebase
 	DD	$L$mulx4x_prologue wrt ..imagebase,$L$mulx4x_body wrt ..imagebase,$L$mulx4x_epilogue wrt ..imagebase
 ALIGN	8
+%else
+; Work around https://bugzilla.nasm.us/show_bug.cgi?id=3392738
+ret
+%endif

@@ -17,28 +17,18 @@
  * domain licensed but the standard ISC license is included above to keep
  * licensing simple. */
 
-#if defined(__has_feature)
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
-#endif
+#include <ring-core/asm_base.h>
 
-#if !defined(OPENSSL_NO_ASM) && defined(__arm__) && !defined(__APPLE__)
-
-#if defined(BORINGSSL_PREFIX)
-#include <boringssl_prefix_symbols_asm.h>
-#endif
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_ARM) && defined(__ELF__)
 
 .fpu neon
 .text
 .align 4
 
-.global GFp_x25519_NEON
-
-.hidden GFp_x25519_NEON
-.type GFp_x25519_NEON, %function
-GFp_x25519_NEON:
-
+.global x25519_NEON
+.hidden x25519_NEON
+.type x25519_NEON, %function
+x25519_NEON:
 vpush {q4,q5,q6,q7}
 mov r12,sp
 sub sp,sp,#736
@@ -2131,8 +2121,4 @@ mov sp,r12
 vpop {q4,q5,q6,q7}
 bx lr
 
-#endif  /* !OPENSSL_NO_ASM && __arm__ && !__APPLE__ */
-
-#if defined(__ELF__)
-.section	.note.GNU-stack,"",%progbits
-#endif
+#endif  /* !OPENSSL_NO_ASM && OPENSSL_ARM && __ELF__ */

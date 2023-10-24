@@ -18,7 +18,7 @@
 // http://cr.yp.to/papers.html#neoncrypto. Unrolled to 2 powers, i.e. 64 byte
 // block size
 
-#include <GFp/poly1305.h>
+#include <ring-core/poly1305.h>
 
 #include "internal.h"
 #include "../internal.h"
@@ -30,22 +30,6 @@
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 
 #include <emmintrin.h>
-
-static uint32_t load_u32_le(const uint8_t in[4]) {
-  uint32_t ret;
-  GFp_memcpy(&ret, in, 4);
-  return ret;
-}
-
-static uint64_t load_u64_le(const uint8_t in[8]) {
-  uint64_t ret;
-  GFp_memcpy(&ret, in, 8);
-  return ret;
-}
-
-static void store_u64_le(uint8_t out[8], uint64_t v) {
-  GFp_memcpy(out, &v, 8);
-}
 
 typedef __m128i xmmi;
 
@@ -96,8 +80,9 @@ typedef struct poly1305_state_internal_t {
 } poly1305_state_internal; /* 448 bytes total + 63 bytes for
                               alignment = 511 bytes raw */
 
-OPENSSL_STATIC_ASSERT(sizeof(poly1305_state_internal) <= sizeof(poly1305_state),
-     "poly1305_state isn't large enough to hold aligned poly1305_state_internal");
+OPENSSL_STATIC_ASSERT(
+    sizeof(struct poly1305_state_internal_t) + 63 <= sizeof(poly1305_state),
+    "poly1305_state isn't large enough to hold aligned poly1305_state_internal_t");
 
 static inline poly1305_state_internal *poly1305_aligned_state(
     poly1305_state *state) {
@@ -109,15 +94,15 @@ static inline size_t poly1305_min(size_t a, size_t b) {
   return (a < b) ? a : b;
 }
 
-void GFp_poly1305_init(poly1305_state *state, const uint8_t key[32]) {
+void CRYPTO_poly1305_init(poly1305_state *state, const uint8_t key[32]) {
   poly1305_state_internal *st = poly1305_aligned_state(state);
   poly1305_power *p;
   uint64_t r0, r1, r2;
   uint64_t t0, t1;
 
   // clamp key
-  t0 = load_u64_le(key + 0);
-  t1 = load_u64_le(key + 8);
+  t0 = CRYPTO_load_u64_le(key + 0);
+  t1 = CRYPTO_load_u64_le(key + 8);
   r0 = t0 & 0xffc0fffffff;
   t0 >>= 44;
   t0 |= t1 << 20;
@@ -135,10 +120,10 @@ void GFp_poly1305_init(poly1305_state *state, const uint8_t key[32]) {
   p->R22.d[3] = (uint32_t)(r2 >> 32);
 
   // store pad
-  p->R23.d[1] = load_u32_le(key + 16);
-  p->R23.d[3] = load_u32_le(key + 20);
-  p->R24.d[1] = load_u32_le(key + 24);
-  p->R24.d[3] = load_u32_le(key + 28);
+  p->R23.d[1] = CRYPTO_load_u32_le(key + 16);
+  p->R23.d[3] = CRYPTO_load_u32_le(key + 20);
+  p->R24.d[1] = CRYPTO_load_u32_le(key + 24);
+  p->R24.d[3] = CRYPTO_load_u32_le(key + 28);
 
   // H = 0
   st->H[0] = _mm_setzero_si128();
@@ -677,8 +662,8 @@ static size_t poly1305_combine(poly1305_state_internal *st, const uint8_t *m,
   return consumed;
 }
 
-void GFp_poly1305_update(poly1305_state *state, const uint8_t *m,
-                         size_t bytes) {
+void CRYPTO_poly1305_update(poly1305_state *state, const uint8_t *m,
+                            size_t bytes) {
   poly1305_state_internal *st = poly1305_aligned_state(state);
   size_t want;
 
@@ -695,7 +680,7 @@ void GFp_poly1305_update(poly1305_state *state, const uint8_t *m,
       bytes -= 32;
     } else {
       want = poly1305_min(32 - st->leftover, bytes);
-      GFp_memcpy(st->buffer + st->leftover, m, want);
+      OPENSSL_memcpy(st->buffer + st->leftover, m, want);
       bytes -= want;
       m += want;
       st->leftover += want;
@@ -711,7 +696,7 @@ void GFp_poly1305_update(poly1305_state *state, const uint8_t *m,
   // handle leftover
   if (st->leftover) {
     want = poly1305_min(64 - st->leftover, bytes);
-    GFp_memcpy(st->buffer + st->leftover, m, want);
+    OPENSSL_memcpy(st->buffer + st->leftover, m, want);
     bytes -= want;
     m += want;
     st->leftover += want;
@@ -731,12 +716,12 @@ void GFp_poly1305_update(poly1305_state *state, const uint8_t *m,
   }
 
   if (bytes) {
-    GFp_memcpy(st->buffer + st->leftover, m, bytes);
+    OPENSSL_memcpy(st->buffer + st->leftover, m, bytes);
     st->leftover += bytes;
   }
 }
 
-void GFp_poly1305_finish(poly1305_state *state, uint8_t mac[16]) {
+void CRYPTO_poly1305_finish(poly1305_state *state, uint8_t mac[16]) {
   poly1305_state_internal *st = poly1305_aligned_state(state);
   size_t leftover = st->leftover;
   uint8_t *m = st->buffer;
@@ -770,8 +755,8 @@ void GFp_poly1305_finish(poly1305_state *state, uint8_t mac[16]) {
   }
 
 poly1305_donna_atleast16bytes:
-  t0 = load_u64_le(m + 0);
-  t1 = load_u64_le(m + 8);
+  t0 = CRYPTO_load_u64_le(m + 0);
+  t1 = CRYPTO_load_u64_le(m + 8);
   h0 += t0 & 0xfffffffffff;
   t0 = shr128_pair(t1, t0, 44);
   h1 += t0 & 0xfffffffffff;
@@ -807,11 +792,11 @@ poly1305_donna_atmost15bytes:
   }
 
   m[leftover++] = 1;
-  GFp_memset(m + leftover, 0, 16 - leftover);
+  OPENSSL_memset(m + leftover, 0, 16 - leftover);
   leftover = 16;
 
-  t0 = load_u64_le(m + 0);
-  t1 = load_u64_le(m + 8);
+  t0 = CRYPTO_load_u64_le(m + 0);
+  t1 = CRYPTO_load_u64_le(m + 8);
   h0 += t0 & 0xfffffffffff;
   t0 = shr128_pair(t1, t0, 44);
   h1 += t0 & 0xfffffffffff;
@@ -857,8 +842,8 @@ poly1305_donna_finish:
   t1 = (t1 >> 24);
   h2 += (t1)+c;
 
-  store_u64_le(mac + 0, ((h0) | (h1 << 44)));
-  store_u64_le(mac + 8, ((h1 >> 20) | (h2 << 24)));
+  CRYPTO_store_u64_le(mac + 0, ((h0) | (h1 << 44)));
+  CRYPTO_store_u64_le(mac + 8, ((h1 >> 20) | (h2 << 24)));
 }
 
 #endif  // BORINGSSL_HAS_UINT128 && OPENSSL_X86_64

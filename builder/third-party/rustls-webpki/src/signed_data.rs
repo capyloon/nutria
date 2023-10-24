@@ -13,7 +13,7 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 use crate::verify_cert::Budget;
-use crate::{der, Error};
+use crate::{der, public_values_eq, Error};
 use ring::signature;
 
 #[cfg(feature = "alloc")]
@@ -377,7 +377,7 @@ struct AlgorithmIdentifier {
 
 impl AlgorithmIdentifier {
     fn matches_algorithm_id_value(&self, encoded: untrusted::Input) -> bool {
-        encoded == self.asn1_id_value
+        public_values_eq(encoded, self.asn1_id_value)
     }
 }
 
@@ -528,10 +528,12 @@ mod tests {
         let tsd = parse_test_signed_data(file_contents);
         let signature = untrusted::Input::from(&tsd.signature);
         assert_eq!(
-            Err(expected_error),
-            signature.read_all(Error::BadDer, |input| {
-                der::bit_string_with_no_unused_bits(input)
-            })
+            signature
+                .read_all(Error::BadDer, |input| {
+                    der::bit_string_with_no_unused_bits(input)
+                })
+                .unwrap_err(),
+            expected_error
         );
     }
 
@@ -549,10 +551,11 @@ mod tests {
         let tsd = parse_test_signed_data(file_contents);
         let spki = untrusted::Input::from(&tsd.spki);
         assert_eq!(
-            Err(expected_error),
             spki.read_all(Error::BadDer, |input| {
                 der::expect_tag_and_get_value(input, der::Tag::Sequence)
             })
+            .unwrap_err(),
+            expected_error,
         );
     }
 

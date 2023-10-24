@@ -123,7 +123,7 @@
 #ifndef OPENSSL_HEADER_BN_INTERNAL_H
 #define OPENSSL_HEADER_BN_INTERNAL_H
 
-#include <GFp/base.h>
+#include <ring-core/base.h>
 
 #if defined(OPENSSL_X86_64) && defined(_MSC_VER) && !defined(__clang__)
 #pragma warning(push, 3)
@@ -134,7 +134,7 @@
 
 #include "../../internal.h"
 
-typedef crypto_word BN_ULONG;
+typedef crypto_word_t BN_ULONG;
 
 #if defined(OPENSSL_64_BIT)
 
@@ -180,8 +180,8 @@ typedef crypto_word BN_ULONG;
 OPENSSL_STATIC_ASSERT(sizeof(int) == sizeof(size_t) ||
                       (sizeof(int) == 4 && sizeof(size_t) == 8),
                       "int and size_t ABI mismatch");
-void GFp_bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                     const BN_ULONG *np, const BN_ULONG *n0, size_t num);
+void bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
+                 const BN_ULONG *np, const BN_ULONG *n0, size_t num);
 
 static inline void bn_umult_lohi(BN_ULONG *low_out, BN_ULONG *high_out,
                                  BN_ULONG a, BN_ULONG b) {

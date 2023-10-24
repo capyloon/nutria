@@ -1,15 +1,10 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
+#include <ring-core/asm_base.h>
 
-#if !defined(OPENSSL_NO_ASM)
-#include <GFp/arm_arch.h>
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_AARCH64) && defined(__APPLE__)
+#include <ring-core/arm_arch.h>
 
 #if __ARM_MAX_ARCH__>=7
 .text
@@ -23,11 +18,11 @@ Lrcon:
 
 .text
 
-.globl	_GFp_aes_hw_set_encrypt_key
-.private_extern	_GFp_aes_hw_set_encrypt_key
+.globl	_aes_hw_set_encrypt_key
+.private_extern	_aes_hw_set_encrypt_key
 
 .align	5
-_GFp_aes_hw_set_encrypt_key:
+_aes_hw_set_encrypt_key:
 Lenc_key:
 	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	AARCH64_VALID_CALL_TARGET
@@ -160,11 +155,11 @@ Lenc_key_abort:
 	ldr	x29,[sp],#16
 	ret
 
-.globl	_GFp_aes_hw_encrypt
-.private_extern	_GFp_aes_hw_encrypt
+.globl	_aes_hw_encrypt
+.private_extern	_aes_hw_encrypt
 
 .align	5
-_GFp_aes_hw_encrypt:
+_aes_hw_encrypt:
 	AARCH64_VALID_CALL_TARGET
 	ldr	w3,[x2,#240]
 	ld1	{v0.4s},[x2],#16
@@ -191,42 +186,11 @@ Loop_enc:
 	st1	{v2.16b},[x1]
 	ret
 
-.globl	_GFp_aes_hw_decrypt
-.private_extern	_GFp_aes_hw_decrypt
+.globl	_aes_hw_ctr32_encrypt_blocks
+.private_extern	_aes_hw_ctr32_encrypt_blocks
 
 .align	5
-_GFp_aes_hw_decrypt:
-	AARCH64_VALID_CALL_TARGET
-	ldr	w3,[x2,#240]
-	ld1	{v0.4s},[x2],#16
-	ld1	{v2.16b},[x0]
-	sub	w3,w3,#2
-	ld1	{v1.4s},[x2],#16
-
-Loop_dec:
-	aesd	v2.16b,v0.16b
-	aesimc	v2.16b,v2.16b
-	ld1	{v0.4s},[x2],#16
-	subs	w3,w3,#2
-	aesd	v2.16b,v1.16b
-	aesimc	v2.16b,v2.16b
-	ld1	{v1.4s},[x2],#16
-	b.gt	Loop_dec
-
-	aesd	v2.16b,v0.16b
-	aesimc	v2.16b,v2.16b
-	ld1	{v0.4s},[x2]
-	aesd	v2.16b,v1.16b
-	eor	v2.16b,v2.16b,v0.16b
-
-	st1	{v2.16b},[x1]
-	ret
-
-.globl	_GFp_aes_hw_ctr32_encrypt_blocks
-.private_extern	_GFp_aes_hw_ctr32_encrypt_blocks
-
-.align	5
-_GFp_aes_hw_ctr32_encrypt_blocks:
+_aes_hw_ctr32_encrypt_blocks:
 	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	AARCH64_VALID_CALL_TARGET
 	stp	x29,x30,[sp,#-16]!
@@ -262,7 +226,7 @@ _GFp_aes_hw_ctr32_encrypt_blocks:
 	//
 	// [0] ARM-EPM-049219 v23 Cortex-A57 MPCore Software Developers Errata Notice
 	// [1] ARM-EPM-012079 v11.0 Cortex-A72 MPCore Software Developers Errata Notice
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev	w8, w8
 #endif
 	add	w10, w8, #1
@@ -424,4 +388,4 @@ Lctr32_done:
 	ret
 
 #endif
-#endif  // !OPENSSL_NO_ASM
+#endif  // !OPENSSL_NO_ASM && defined(OPENSSL_AARCH64) && defined(__APPLE__)

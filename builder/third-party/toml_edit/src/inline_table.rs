@@ -11,6 +11,8 @@ use crate::{InternalString, Item, KeyMut, RawString, Table, Value};
 pub struct InlineTable {
     // `preamble` represents whitespaces in an empty table
     preamble: RawString,
+    // Whether to hide an empty table
+    pub(crate) implicit: bool,
     // prefix before `{` and suffix after `}`
     decor: Decor,
     pub(crate) span: Option<std::ops::Range<usize>>,
@@ -55,10 +57,10 @@ impl InlineTable {
         values
     }
 
-    pub(crate) fn append_values<'s, 'c>(
+    pub(crate) fn append_values<'s>(
         &'s self,
         parent: &[&'s Key],
-        values: &'c mut Vec<(Vec<&'s Key>, &'s Value)>,
+        values: &mut Vec<(Vec<&'s Key>, &'s Value)>,
     ) {
         for value in self.items.values() {
             let mut path = parent.to_vec();
@@ -131,6 +133,32 @@ impl InlineTable {
                 _ => {}
             }
         }
+    }
+
+    /// If a table has no key/value pairs and implicit, it will not be displayed.
+    ///
+    /// # Examples
+    ///
+    /// ```notrust
+    /// [target."x86_64/windows.json".dependencies]
+    /// ```
+    ///
+    /// In the document above, tables `target` and `target."x86_64/windows.json"` are implicit.
+    ///
+    /// ```
+    /// use toml_edit::Document;
+    /// let mut doc = "[a]\n[a.b]\n".parse::<Document>().expect("invalid toml");
+    ///
+    /// doc["a"].as_table_mut().unwrap().set_implicit(true);
+    /// assert_eq!(doc.to_string(), "[a.b]\n");
+    /// ```
+    pub(crate) fn set_implicit(&mut self, implicit: bool) {
+        self.implicit = implicit;
+    }
+
+    /// If a table has no key/value pairs and implicit, it will not be displayed.
+    pub(crate) fn is_implicit(&self) -> bool {
+        self.implicit
     }
 
     /// Change this table's dotted status
@@ -439,7 +467,7 @@ fn decorate_inline_table(table: &mut InlineTable) {
     for (key_decor, value) in table
         .items
         .iter_mut()
-        .filter(|&(_, ref kv)| kv.value.is_value())
+        .filter(|(_, kv)| kv.value.is_value())
         .map(|(_, kv)| (&mut kv.key.decor, kv.value.as_value_mut().unwrap()))
     {
         key_decor.clear();
