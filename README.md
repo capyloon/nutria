@@ -64,7 +64,7 @@ SUBCOMMANDS:
 `jackady` also relies on some environment variables to be set to control its behavior:
 | Variable | Description | Default value |
 | ------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| NUTRIA_OUTPUT_ROOT | The path where build artifacts are created. | `./builder/output` |
+| NUTRIA_OUTPUT_ROOT | The path where build artefacts are created. | `./builder/output` |
 | NUTRIA_API_DAEMON_ROOT | The path to a checkout of the [`api-daemon` crate](https://github.com/capyloon/api-daemon). | |
 | NUTRIA_API_DAEMON_BINARY | The path to the `api-daemon` executable built for the desktop platform. | `./prebuilts/${HOST_TARGET}/api-daemon` |
 | NUTRIA_API_DAEMON_PORT | The port on which the api-daemon should run. | 80 but needs to be set to 8081 on desktop. |
