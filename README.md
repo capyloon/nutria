@@ -81,7 +81,7 @@ SUBCOMMANDS:
 
 ## The `clean` command
 
-This removes all build artifacts from the selected output directory. Note that this includes all data from development and production profiles.
+This removes all build artefacts from the selected output directory. Note that this includes all data from development and production profiles.
 
 ## The `deb` command
 
