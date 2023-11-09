@@ -510,3 +510,16 @@ pub unsafe fn sigtimedwait(set: &Sigset, timeout: Option<Timespec>) -> io::Resul
 pub fn linux_secure() -> bool {
     backend::param::auxv::linux_secure()
 }
+
+/// `brk(addr)`—Change the location of the “program break”.
+///
+/// # Safety
+///
+/// This is not identical to `brk` in libc. libc `brk` may have bookkeeping
+/// that needs to be kept up to date that this doesn't keep up to date, so
+/// don't use it unless you are implementing libc.
+#[cfg(linux_raw)]
+#[inline]
+pub unsafe fn brk(addr: *mut c_void) -> io::Result<*mut c_void> {
+    backend::runtime::syscalls::brk(addr)
+}

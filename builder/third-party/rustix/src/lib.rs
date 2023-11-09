@@ -94,7 +94,7 @@
 //! [I/O-safe]: https://github.com/rust-lang/rfcs/blob/master/text/3128-io-safety.md
 //! [`Result`]: https://doc.rust-lang.org/stable/std/result/enum.Result.html
 //! [`Arg`]: https://docs.rs/rustix/*/rustix/path/trait.Arg.html
-//! [support for externally defined flags]: https://docs.rs/bitflags/latest/bitflags/#externally-defined-flags
+//! [support for externally defined flags]: https://docs.rs/bitflags/*/bitflags/#externally-defined-flags
 
 #![deny(missing_docs)]
 #![allow(stable_features)]
@@ -120,8 +120,12 @@
 // It is common in Linux and libc APIs for types to vary between platforms.
 #![allow(clippy::useless_conversion)]
 // Redox and WASI have enough differences that it isn't worth precisely
-// conditionalizing all the `use`s for them.
-#![cfg_attr(any(target_os = "redox", target_os = "wasi"), allow(unused_imports))]
+// conditionalizing all the `use`s for them. Similar for if we don't have
+// "all-apis".
+#![cfg_attr(
+    any(target_os = "redox", target_os = "wasi", not(feature = "all-apis")),
+    allow(unused_imports)
+)]
 
 #[cfg(all(feature = "alloc", not(feature = "rustc-dep-of-std")))]
 extern crate alloc;
