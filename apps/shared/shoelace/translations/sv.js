@@ -1,8 +1,9 @@
-import "../chunks/chunk.BWLRNN6E.js";
+import "../chunks/chunk.NH3SRVOC.js";
+import "../chunks/chunk.QPSNFEB2.js";
 import {
   registerTranslation
-} from "../chunks/chunk.BDQVKHPN.js";
-import "../chunks/chunk.LKA3TPUC.js";
+} from "../chunks/chunk.O27EHOBW.js";
+import "../chunks/chunk.YZETUBD6.js";
 
 // src/translations/sv.ts
 var translation = {
@@ -12,8 +13,10 @@ var translation = {
   carousel: "Karusell",
   clearEntry: "\xC5terst\xE4ll val",
   close: "St\xE4ng",
+  copied: "Kopierade",
   copy: "Kopiera",
   currentValue: "Nuvarande v\xE4rde",
+  error: "Fel",
   goToSlide: (slide, count) => `G\xE5 till bild ${slide} av ${count}`,
   hidePassword: "D\xF6lj l\xF6senord",
   loading: "L\xE4ser in",

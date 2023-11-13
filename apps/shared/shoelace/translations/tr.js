@@ -1,8 +1,9 @@
-import "../chunks/chunk.BWLRNN6E.js";
+import "../chunks/chunk.NH3SRVOC.js";
+import "../chunks/chunk.QPSNFEB2.js";
 import {
   registerTranslation
-} from "../chunks/chunk.BDQVKHPN.js";
-import "../chunks/chunk.LKA3TPUC.js";
+} from "../chunks/chunk.O27EHOBW.js";
+import "../chunks/chunk.YZETUBD6.js";
 
 // src/translations/tr.ts
 var translation = {
@@ -12,8 +13,10 @@ var translation = {
   carousel: "Atl\u0131kar\u0131nca",
   clearEntry: "Giri\u015Fi sil",
   close: "Kapat",
+  copied: "Kopyaland\u0131",
   copy: "Kopya",
   currentValue: "Mevcut de\u011Fer",
+  error: "Hata",
   goToSlide: (slide, count) => `${count} slayttan ${slide} slayta gidin`,
   hidePassword: "\u015Eifreyi sakla",
   loading: "Y\xFCkleme",

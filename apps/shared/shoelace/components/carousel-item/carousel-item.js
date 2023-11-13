@@ -1,11 +1,12 @@
 import {
-  SlCarouselItem
-} from "../../chunks/chunk.TDICIOWC.js";
-import "../../chunks/chunk.NNN7KQVN.js";
-import "../../chunks/chunk.ROLL4627.js";
-import "../../chunks/chunk.BCEYT3RT.js";
-import "../../chunks/chunk.DUT32TWM.js";
-import "../../chunks/chunk.LKA3TPUC.js";
+  carousel_item_default
+} from "../../chunks/chunk.ZGGXSEU7.js";
+import "../../chunks/chunk.F4R62TH3.js";
+import "../../chunks/chunk.NT6GBT3X.js";
+import "../../chunks/chunk.URBIOJXY.js";
+import "../../chunks/chunk.M2U2QT2K.js";
+import "../../chunks/chunk.27ILGUWR.js";
+import "../../chunks/chunk.YZETUBD6.js";
 export {
-  SlCarouselItem as default
+  carousel_item_default as default
 };

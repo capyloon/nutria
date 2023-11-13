@@ -1,8 +1,9 @@
-import "../chunks/chunk.BWLRNN6E.js";
+import "../chunks/chunk.NH3SRVOC.js";
+import "../chunks/chunk.QPSNFEB2.js";
 import {
   registerTranslation
-} from "../chunks/chunk.BDQVKHPN.js";
-import "../chunks/chunk.LKA3TPUC.js";
+} from "../chunks/chunk.O27EHOBW.js";
+import "../chunks/chunk.YZETUBD6.js";
 
 // src/translations/hu.ts
 var translation = {
@@ -12,8 +13,10 @@ var translation = {
   carousel: "K\xF6rhinta",
   clearEntry: "Bejegyz\xE9s t\xF6rl\xE9se",
   close: "Bez\xE1r\xE1s",
+  copied: "M\xE1solva",
   copy: "M\xE1sol\xE1s",
   currentValue: "Aktu\xE1lis \xE9rt\xE9k",
+  error: "Hiba",
   goToSlide: (slide, count) => `Ugr\xE1s a ${count}/${slide}. di\xE1ra`,
   hidePassword: "Jelsz\xF3 elrejt\xE9se",
   loading: "Bet\xF6lt\xE9s",

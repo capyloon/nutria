@@ -1,8 +1,9 @@
-import "../chunks/chunk.BWLRNN6E.js";
+import "../chunks/chunk.NH3SRVOC.js";
+import "../chunks/chunk.QPSNFEB2.js";
 import {
   registerTranslation
-} from "../chunks/chunk.BDQVKHPN.js";
-import "../chunks/chunk.LKA3TPUC.js";
+} from "../chunks/chunk.O27EHOBW.js";
+import "../chunks/chunk.YZETUBD6.js";
 
 // src/translations/ja.ts
 var translation = {
@@ -12,8 +13,10 @@ var translation = {
   carousel: "\u30AB\u30EB\u30FC\u30BB\u30EB",
   clearEntry: "\u30AF\u30EA\u30A2\u30A8\u30F3\u30C8\u30EA",
   close: "\u9589\u3058\u308B",
+  copied: "\u30B3\u30D4\u30FC\u3055\u308C\u307E\u3057\u305F",
   copy: "\u30B3\u30D4\u30FC",
   currentValue: "\u73FE\u5728\u306E\u4FA1\u5024",
+  error: "\u30A8\u30E9\u30FC",
   goToSlide: (slide, count) => `${count} \u679A\u4E2D ${slide} \u679A\u306E\u30B9\u30E9\u30A4\u30C9\u306B\u79FB\u52D5`,
   hidePassword: "\u30D1\u30B9\u30EF\u30FC\u30C9\u3092\u96A0\u3059",
   loading: "\u8AAD\u307F\u8FBC\u307F\u4E2D",

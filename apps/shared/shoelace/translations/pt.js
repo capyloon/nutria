@@ -1,8 +1,9 @@
-import "../chunks/chunk.BWLRNN6E.js";
+import "../chunks/chunk.NH3SRVOC.js";
+import "../chunks/chunk.QPSNFEB2.js";
 import {
   registerTranslation
-} from "../chunks/chunk.BDQVKHPN.js";
-import "../chunks/chunk.LKA3TPUC.js";
+} from "../chunks/chunk.O27EHOBW.js";
+import "../chunks/chunk.YZETUBD6.js";
 
 // src/translations/pt.ts
 var translation = {
@@ -12,8 +13,10 @@ var translation = {
   carousel: "Carrossel",
   clearEntry: "Limpar entrada",
   close: "Fechar",
+  copied: "Copiado",
   copy: "Copiar",
   currentValue: "Valor atual",
+  error: "Erro",
   goToSlide: (slide, count) => `V\xE1 para o slide ${slide} de ${count}`,
   hidePassword: "Esconder a senha",
   loading: "Carregando",

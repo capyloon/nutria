@@ -1,28 +1,30 @@
 import {
-  SlTabGroup
-} from "../../chunks/chunk.GV7IHNLK.js";
-import "../../chunks/chunk.SXHKHWVK.js";
+  tab_group_default
+} from "../../chunks/chunk.3MK3XHG7.js";
+import "../../chunks/chunk.G4FTAQJB.js";
+import "../../chunks/chunk.5N5HUQFF.js";
 import "../../chunks/chunk.RK73WSZS.js";
-import "../../chunks/chunk.KRP3ULQL.js";
-import "../../chunks/chunk.UL4X2GHI.js";
-import "../../chunks/chunk.IJY6XTKC.js";
-import "../../chunks/chunk.V47DPYLL.js";
-import "../../chunks/chunk.BWLRNN6E.js";
-import "../../chunks/chunk.BDQVKHPN.js";
-import "../../chunks/chunk.ORW72H2K.js";
-import "../../chunks/chunk.UP75L23G.js";
-import "../../chunks/chunk.YIBH5YOR.js";
-import "../../chunks/chunk.G4WFMV2P.js";
-import "../../chunks/chunk.WJLRBAJH.js";
+import "../../chunks/chunk.B3SICWSY.js";
+import "../../chunks/chunk.FDFOFJDR.js";
+import "../../chunks/chunk.MKSGYDJ7.js";
+import "../../chunks/chunk.NH3SRVOC.js";
+import "../../chunks/chunk.QPSNFEB2.js";
+import "../../chunks/chunk.O27EHOBW.js";
+import "../../chunks/chunk.PNPJ7KDG.js";
+import "../../chunks/chunk.DOYC4G7X.js";
+import "../../chunks/chunk.JJNPZ52S.js";
+import "../../chunks/chunk.3KCPXO34.js";
+import "../../chunks/chunk.TDLFM7SW.js";
+import "../../chunks/chunk.24R5WE5A.js";
+import "../../chunks/chunk.ZL53POKZ.js";
 import "../../chunks/chunk.P7ZG6EMR.js";
-import "../../chunks/chunk.I33L3NO6.js";
-import "../../chunks/chunk.DAGT3MMF.js";
-import "../../chunks/chunk.VQ3XOPCT.js";
-import "../../chunks/chunk.ROLL4627.js";
+import "../../chunks/chunk.3TFKS637.js";
+import "../../chunks/chunk.XAOA43RZ.js";
+import "../../chunks/chunk.URBIOJXY.js";
 import "../../chunks/chunk.3Y6SB6QS.js";
-import "../../chunks/chunk.BCEYT3RT.js";
-import "../../chunks/chunk.DUT32TWM.js";
-import "../../chunks/chunk.LKA3TPUC.js";
+import "../../chunks/chunk.M2U2QT2K.js";
+import "../../chunks/chunk.27ILGUWR.js";
+import "../../chunks/chunk.YZETUBD6.js";
 export {
-  SlTabGroup as default
+  tab_group_default as default
 };

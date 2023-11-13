@@ -1,8 +1,9 @@
-import "../chunks/chunk.BWLRNN6E.js";
+import "../chunks/chunk.NH3SRVOC.js";
+import "../chunks/chunk.QPSNFEB2.js";
 import {
   registerTranslation
-} from "../chunks/chunk.BDQVKHPN.js";
-import "../chunks/chunk.LKA3TPUC.js";
+} from "../chunks/chunk.O27EHOBW.js";
+import "../chunks/chunk.YZETUBD6.js";
 
 // src/translations/fa.ts
 var translation = {
@@ -12,8 +13,10 @@ var translation = {
   carousel: "\u0686\u0631\u062E \u0641\u0644\u06A9",
   clearEntry: "\u067E\u0627\u06A9 \u06A9\u0631\u062F\u0646 \u0648\u0631\u0648\u062F\u06CC",
   close: "\u0628\u0633\u062A\u0646",
+  copied: "\u06A9\u067E\u06CC \u0634\u062F",
   copy: "\u0631\u0648\u0646\u0648\u0634\u062A",
   currentValue: "\u0645\u0642\u062F\u0627\u0631 \u0641\u0639\u0644\u06CC",
+  error: "\u062E\u0637\u0627",
   goToSlide: (slide, count) => `\u0631\u0641\u062A\u0646 \u0628\u0647 \u0627\u0633\u0644\u0627\u06CC\u062F ${slide} \u0627\u0632 ${count}`,
   hidePassword: "\u067E\u0646\u0647\u0627\u0646 \u06A9\u0631\u062F\u0646 \u0631\u0645\u0632",
   loading: "\u0628\u0627\u0631\u06AF\u0630\u0627\u0631\u06CC",
