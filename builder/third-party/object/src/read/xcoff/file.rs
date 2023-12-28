@@ -17,13 +17,19 @@ use super::{
 };
 
 /// A 32-bit XCOFF object file.
+///
+/// This is a file that starts with [`xcoff::FileHeader32`], and corresponds
+/// to [`crate::FileKind::Xcoff32`].
 pub type XcoffFile32<'data, R = &'data [u8]> = XcoffFile<'data, xcoff::FileHeader32, R>;
 /// A 64-bit XCOFF object file.
+///
+/// This is a file that starts with [`xcoff::FileHeader64`], and corresponds
+/// to [`crate::FileKind::Xcoff64`].
 pub type XcoffFile64<'data, R = &'data [u8]> = XcoffFile<'data, xcoff::FileHeader64, R>;
 
 /// A partially parsed XCOFF file.
 ///
-/// Most of the functionality of this type is provided by the `Object` trait implementation.
+/// Most functionality is provided by the [`Object`] trait implementation.
 #[derive(Debug)]
 pub struct XcoffFile<'data, Xcoff, R = &'data [u8]>
 where
@@ -183,9 +189,8 @@ where
 
     fn symbols(&'file self) -> XcoffSymbolIterator<'data, 'file, Xcoff, R> {
         XcoffSymbolIterator {
-            symbols: &self.symbols,
-            index: 0,
             file: self,
+            symbols: self.symbols.iter(),
         }
     }
 
@@ -197,9 +202,7 @@ where
         // TODO: return the symbols in the STYP_LOADER section.
         XcoffSymbolIterator {
             file: self,
-            symbols: &self.symbols,
-            // Hack: don't return any.
-            index: self.symbols.len(),
+            symbols: self.symbols.iter_none(),
         }
     }
 
@@ -241,7 +244,7 @@ where
     }
 }
 
-/// A trait for generic access to `FileHeader32` and `FileHeader64`.
+/// A trait for generic access to [`xcoff::FileHeader32`] and [`xcoff::FileHeader64`].
 #[allow(missing_docs)]
 pub trait FileHeader: Debug + Pod {
     type Word: Into<u64>;
@@ -407,10 +410,12 @@ impl FileHeader for xcoff::FileHeader64 {
     }
 }
 
+/// A trait for generic access to [`xcoff::AuxHeader32`] and [`xcoff::AuxHeader64`].
 #[allow(missing_docs)]
 pub trait AuxHeader: Debug + Pod {
     type Word: Into<u64>;
 
+    fn o_mflag(&self) -> u16;
     fn o_vstamp(&self) -> u16;
     fn o_tsize(&self) -> Self::Word;
     fn o_dsize(&self) -> Self::Word;
@@ -425,19 +430,29 @@ pub trait AuxHeader: Debug + Pod {
     fn o_sntoc(&self) -> u16;
     fn o_snloader(&self) -> u16;
     fn o_snbss(&self) -> u16;
-    fn o_sntdata(&self) -> u16;
-    fn o_sntbss(&self) -> u16;
     fn o_algntext(&self) -> u16;
     fn o_algndata(&self) -> u16;
+    fn o_modtype(&self) -> u16;
+    fn o_cpuflag(&self) -> u8;
+    fn o_cputype(&self) -> u8;
     fn o_maxstack(&self) -> Self::Word;
     fn o_maxdata(&self) -> Self::Word;
+    fn o_debugger(&self) -> u32;
     fn o_textpsize(&self) -> u8;
     fn o_datapsize(&self) -> u8;
     fn o_stackpsize(&self) -> u8;
+    fn o_flags(&self) -> u8;
+    fn o_sntdata(&self) -> u16;
+    fn o_sntbss(&self) -> u16;
+    fn o_x64flags(&self) -> Option<u16>;
 }
 
 impl AuxHeader for xcoff::AuxHeader32 {
     type Word = u32;
+
+    fn o_mflag(&self) -> u16 {
+        self.o_mflag.get(BE)
+    }
 
     fn o_vstamp(&self) -> u16 {
         self.o_vstamp.get(BE)
@@ -495,14 +510,6 @@ impl AuxHeader for xcoff::AuxHeader32 {
         self.o_snbss.get(BE)
     }
 
-    fn o_sntdata(&self) -> u16 {
-        self.o_sntdata.get(BE)
-    }
-
-    fn o_sntbss(&self) -> u16 {
-        self.o_sntbss.get(BE)
-    }
-
     fn o_algntext(&self) -> u16 {
         self.o_algntext.get(BE)
     }
@@ -511,12 +518,28 @@ impl AuxHeader for xcoff::AuxHeader32 {
         self.o_algndata.get(BE)
     }
 
+    fn o_modtype(&self) -> u16 {
+        self.o_modtype.get(BE)
+    }
+
+    fn o_cpuflag(&self) -> u8 {
+        self.o_cpuflag
+    }
+
+    fn o_cputype(&self) -> u8 {
+        self.o_cputype
+    }
+
     fn o_maxstack(&self) -> Self::Word {
         self.o_maxstack.get(BE)
     }
 
     fn o_maxdata(&self) -> Self::Word {
         self.o_maxdata.get(BE)
+    }
+
+    fn o_debugger(&self) -> u32 {
+        self.o_debugger.get(BE)
     }
 
     fn o_textpsize(&self) -> u8 {
@@ -529,12 +552,32 @@ impl AuxHeader for xcoff::AuxHeader32 {
 
     fn o_stackpsize(&self) -> u8 {
         self.o_stackpsize
+    }
+
+    fn o_flags(&self) -> u8 {
+        self.o_flags
+    }
+
+    fn o_sntdata(&self) -> u16 {
+        self.o_sntdata.get(BE)
+    }
+
+    fn o_sntbss(&self) -> u16 {
+        self.o_sntbss.get(BE)
+    }
+
+    fn o_x64flags(&self) -> Option<u16> {
+        None
     }
 }
 
 impl AuxHeader for xcoff::AuxHeader64 {
     type Word = u64;
 
+    fn o_mflag(&self) -> u16 {
+        self.o_mflag.get(BE)
+    }
+
     fn o_vstamp(&self) -> u16 {
         self.o_vstamp.get(BE)
     }
@@ -591,14 +634,6 @@ impl AuxHeader for xcoff::AuxHeader64 {
         self.o_snbss.get(BE)
     }
 
-    fn o_sntdata(&self) -> u16 {
-        self.o_sntdata.get(BE)
-    }
-
-    fn o_sntbss(&self) -> u16 {
-        self.o_sntbss.get(BE)
-    }
-
     fn o_algntext(&self) -> u16 {
         self.o_algntext.get(BE)
     }
@@ -607,12 +642,28 @@ impl AuxHeader for xcoff::AuxHeader64 {
         self.o_algndata.get(BE)
     }
 
+    fn o_modtype(&self) -> u16 {
+        self.o_modtype.get(BE)
+    }
+
+    fn o_cpuflag(&self) -> u8 {
+        self.o_cpuflag
+    }
+
+    fn o_cputype(&self) -> u8 {
+        self.o_cputype
+    }
+
     fn o_maxstack(&self) -> Self::Word {
         self.o_maxstack.get(BE)
     }
 
     fn o_maxdata(&self) -> Self::Word {
         self.o_maxdata.get(BE)
+    }
+
+    fn o_debugger(&self) -> u32 {
+        self.o_debugger.get(BE)
     }
 
     fn o_textpsize(&self) -> u8 {
@@ -625,5 +676,21 @@ impl AuxHeader for xcoff::AuxHeader64 {
 
     fn o_stackpsize(&self) -> u8 {
         self.o_stackpsize
+    }
+
+    fn o_flags(&self) -> u8 {
+        self.o_flags
+    }
+
+    fn o_sntdata(&self) -> u16 {
+        self.o_sntdata.get(BE)
+    }
+
+    fn o_sntbss(&self) -> u16 {
+        self.o_sntbss.get(BE)
+    }
+
+    fn o_x64flags(&self) -> Option<u16> {
+        Some(self.o_x64flags.get(BE))
     }
 }

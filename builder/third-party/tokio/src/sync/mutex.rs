@@ -103,7 +103,7 @@ use std::{fmt, mem, ptr};
 ///    threads.
 /// 2. Each spawned task obtains a lock and releases it on every iteration.
 /// 3. Mutation of the data protected by the Mutex is done by de-referencing
-///    the obtained lock as seen on lines 12 and 19.
+///    the obtained lock as seen on lines 13 and 20.
 ///
 /// Tokio's Mutex works in a simple FIFO (first in, first out) style where all
 /// calls to [`lock`] complete in the order they were performed. In that way the
@@ -340,6 +340,7 @@ impl<T: ?Sized> Mutex<T> {
             let location = std::panic::Location::caller();
 
             tracing::trace_span!(
+                parent: None,
                 "runtime.resource",
                 concrete_type = "Mutex",
                 kind = "Sync",
@@ -371,6 +372,11 @@ impl<T: ?Sized> Mutex<T> {
 
     /// Creates a new lock in an unlocked state ready for use.
     ///
+    /// When using the `tracing` [unstable feature], a `Mutex` created with
+    /// `const_new` will not be instrumented. As such, it will not be visible
+    /// in [`tokio-console`]. Instead, [`Mutex::new`] should be used to create
+    /// an instrumented object if that is needed.
+    ///
     /// # Examples
     ///
     /// ```
@@ -378,6 +384,9 @@ impl<T: ?Sized> Mutex<T> {
     ///
     /// static LOCK: Mutex<i32> = Mutex::const_new(5);
     /// ```
+    ///
+    /// [`tokio-console`]: https://github.com/tokio-rs/console
+    /// [unstable feature]: crate#unstable-features
     #[cfg(not(all(loom, test)))]
     pub const fn const_new(t: T) -> Self
     where
@@ -394,6 +403,10 @@ impl<T: ?Sized> Mutex<T> {
     /// Locks this mutex, causing the current task to yield until the lock has
     /// been acquired.  When the lock has been acquired, function returns a
     /// [`MutexGuard`].
+    ///
+    /// If the mutex is available to be acquired immediately, then this call
+    /// will typically not yield to the runtime. However, this is not guaranteed
+    /// under all circumstances.
     ///
     /// # Cancel safety
     ///
@@ -562,6 +575,10 @@ impl<T: ?Sized> Mutex<T> {
     /// been acquired. When the lock has been acquired, this returns an
     /// [`OwnedMutexGuard`].
     ///
+    /// If the mutex is available to be acquired immediately, then this call
+    /// will typically not yield to the runtime. However, this is not guaranteed
+    /// under all circumstances.
+    ///
     /// This method is identical to [`Mutex::lock`], except that the returned
     /// guard references the `Mutex` with an [`Arc`] rather than by borrowing
     /// it. Therefore, the `Mutex` must be wrapped in an `Arc` to call this
@@ -656,7 +673,7 @@ impl<T: ?Sized> Mutex<T> {
     /// ```
     pub fn try_lock(&self) -> Result<MutexGuard<'_, T>, TryLockError> {
         match self.s.try_acquire(1) {
-            Ok(_) => {
+            Ok(()) => {
                 let guard = MutexGuard {
                     lock: self,
                     #[cfg(all(tokio_unstable, feature = "tracing"))]
@@ -727,7 +744,7 @@ impl<T: ?Sized> Mutex<T> {
     /// # }
     pub fn try_lock_owned(self: Arc<Self>) -> Result<OwnedMutexGuard<T>, TryLockError> {
         match self.s.try_acquire(1) {
-            Ok(_) => {
+            Ok(()) => {
                 let guard = OwnedMutexGuard {
                     #[cfg(all(tokio_unstable, feature = "tracing"))]
                     resource_span: self.resource_span.clone(),
@@ -846,6 +863,7 @@ impl<'a, T: ?Sized> MutexGuard<'a, T> {
     #[inline]
     pub fn map<U, F>(mut this: Self, f: F) -> MappedMutexGuard<'a, U>
     where
+        U: ?Sized,
         F: FnOnce(&mut T) -> &mut U,
     {
         let data = f(&mut *this) as *mut U;
@@ -894,6 +912,7 @@ impl<'a, T: ?Sized> MutexGuard<'a, T> {
     #[inline]
     pub fn try_map<U, F>(mut this: Self, f: F) -> Result<MappedMutexGuard<'a, U>, Self>
     where
+        U: ?Sized,
         F: FnOnce(&mut T) -> Option<&mut U>,
     {
         let data = match f(&mut *this) {
@@ -1026,6 +1045,7 @@ impl<T: ?Sized> OwnedMutexGuard<T> {
     #[inline]
     pub fn map<U, F>(mut this: Self, f: F) -> OwnedMappedMutexGuard<T, U>
     where
+        U: ?Sized,
         F: FnOnce(&mut T) -> &mut U,
     {
         let data = f(&mut *this) as *mut U;
@@ -1074,6 +1094,7 @@ impl<T: ?Sized> OwnedMutexGuard<T> {
     #[inline]
     pub fn try_map<U, F>(mut this: Self, f: F) -> Result<OwnedMappedMutexGuard<T, U>, Self>
     where
+        U: ?Sized,
         F: FnOnce(&mut T) -> Option<&mut U>,
     {
         let data = match f(&mut *this) {

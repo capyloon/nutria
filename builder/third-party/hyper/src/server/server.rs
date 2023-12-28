@@ -1,8 +1,11 @@
 use std::error::Error as StdError;
 use std::fmt;
+use std::future::Future;
+use std::marker::Unpin;
 #[cfg(feature = "tcp")]
 use std::net::{SocketAddr, TcpListener as StdTcpListener};
-
+use std::pin::Pin;
+use std::task::{Context, Poll};
 #[cfg(feature = "tcp")]
 use std::time::Duration;
 
@@ -17,7 +20,6 @@ use super::tcp::AddrIncoming;
 use crate::body::{Body, HttpBody};
 use crate::common::exec::Exec;
 use crate::common::exec::{ConnStreamExec, NewSvcExec};
-use crate::common::{task, Future, Pin, Poll, Unpin};
 // Renamed `Http` as `Http_` for now so that people upgrading don't see an
 // error that `hyper::server::Http` is private...
 use super::conn::{Connection, Http as Http_, UpgradeableConnection};
@@ -162,7 +164,7 @@ where
 
     fn poll_next_(
         self: Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<crate::Result<Connecting<IO, S::Future, E>>>> {
         let me = self.project();
         match ready!(me.make_service.poll_ready_ref(cx)) {
@@ -188,7 +190,7 @@ where
 
     pub(super) fn poll_watch<W>(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
+        cx: &mut Context<'_>,
         watcher: &W,
     ) -> Poll<crate::Result<()>>
     where
@@ -221,7 +223,7 @@ where
 {
     type Output = crate::Result<()>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.poll_watch(cx, &NoopWatcher)
     }
 }
@@ -629,6 +631,14 @@ impl<E> Builder<AddrIncoming, E> {
         self.incoming.set_sleep_on_errors(val);
         self
     }
+
+    /// Returns the local address that the server will be bound to.
+    ///
+    /// This might be useful when knowing the address is required before calling `Builder::serve`,
+    /// but the address is not otherwise available (for e.g. when binding to port 0).
+    pub fn local_addr(&self) -> SocketAddr {
+        self.incoming.local_addr()
+    }
 }
 
 // Used by `Server` to optionally watch a `Connection` future.
@@ -667,13 +677,17 @@ where
 // used by exec.rs
 pub(crate) mod new_svc {
     use std::error::Error as StdError;
+    use std::future::Future;
+    use std::marker::Unpin;
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+
     use tokio::io::{AsyncRead, AsyncWrite};
     use tracing::debug;
 
     use super::{Connecting, Watcher};
     use crate::body::{Body, HttpBody};
     use crate::common::exec::ConnStreamExec;
-    use crate::common::{task, Future, Pin, Poll, Unpin};
     use crate::service::HttpService;
     use pin_project_lite::pin_project;
 
@@ -734,7 +748,7 @@ pub(crate) mod new_svc {
     {
         type Output = ();
 
-        fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
             // If it weren't for needing to name this type so the `Send` bounds
             // could be projected to the `Serve` executor, this could just be
             // an `async fn`, and much safer. Woe is me.
@@ -802,7 +816,7 @@ where
 {
     type Output = Result<Connection<I, S, E>, FE>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut me = self.project();
         let service = ready!(me.future.poll(cx))?;
         let io = Option::take(&mut me.io).expect("polled after complete");

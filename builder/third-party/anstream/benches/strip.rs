@@ -63,7 +63,7 @@ fn strip(c: &mut Criterion) {
         });
         group.bench_function("strip_ansi_escapes", |b| {
             b.iter(|| {
-                let stripped = strip_ansi_escapes::strip(content).unwrap();
+                let stripped = strip_ansi_escapes::strip(content);
 
                 black_box(stripped)
             })

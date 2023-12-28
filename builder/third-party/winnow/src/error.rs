@@ -4,12 +4,12 @@
 //! - Accumulate more [context][Parser::context] as the error goes up the parser chain
 //! - Distinguish between [recoverable errors,
 //!   unrecoverable errors, and more data is needed][ErrMode]
-//! - Have a very low overhead, as errors are often discarded by the calling parser (examples: `many0`, `alt`)
+//! - Have a very low overhead, as errors are often discarded by the calling parser (examples: `repeat`, `alt`)
 //! - Can be modified according to the user's needs, because some languages need a lot more information
 //! - Help thread-through the [stream][crate::stream]
 //!
 //! To abstract these needs away from the user, generally `winnow` parsers use the [`PResult`]
-//! alias, rather than [`Result`][std::result::Result].  [`Parser::parse`] is a top-level operation
+//! alias, rather than [`Result`].  [`Parser::parse`] is a top-level operation
 //! that can help convert to a `Result` for integrating with your application's error reporting.
 //!
 //! Error types include:
@@ -30,26 +30,29 @@ use crate::stream::Stream;
 #[allow(unused_imports)] // Here for intra-doc links
 use crate::Parser;
 
-/// Holds the result of [`Parser`]
+/// For use with [`Parser::parse_peek`] which allows the input stream to be threaded through a
+/// parser.
 ///
 /// - `Ok((I, O))` is the remaining [input][crate::stream] and the parsed value
 /// - [`Err(ErrMode<E>)`][ErrMode] is the error along with how to respond to it
 ///
 /// By default, the error type (`E`) is [`InputError`]
 ///
-/// [`Parser::parse`] is a top-level operation that can help convert to a `Result` for integrating
-/// with your application's error reporting.
+/// When integrating into the result of the application, see
+/// - [`Parser::parse`]
+/// - [`ErrMode::into_inner`]
 pub type IResult<I, O, E = InputError<I>> = PResult<(I, O), E>;
 
-/// Holds the result of [`Parser`]
+/// For use with [`Parser::parse_next`]
 ///
 /// - `Ok(O)` is the parsed value
 /// - [`Err(ErrMode<E>)`][ErrMode] is the error along with how to respond to it
 ///
-/// By default, the error type (`E`) is [`ErrorKind`].
+/// By default, the error type (`E`) is [`ContextError`].
 ///
-/// [`Parser::parse`] is a top-level operation that can help convert to a `Result` for integrating
-/// with your application's error reporting.
+/// When integrating into the result of the application, see
+/// - [`Parser::parse`]
+/// - [`ErrMode::into_inner`]
 pub type PResult<O, E = ContextError> = Result<O, ErrMode<E>>;
 
 /// Contains information on needed data if a parser returned `Incomplete`
@@ -97,7 +100,7 @@ pub enum ErrMode<E> {
     ///
     /// More data needs to be buffered before retrying the parse.
     ///
-    /// This must only be set when the [`Stream`][crate::stream::Stream] is [partial][`crate::stream::StreamIsPartial`], like with
+    /// This must only be set when the [`Stream`] is [partial][`crate::stream::StreamIsPartial`], like with
     /// [`Partial`][crate::Partial]
     ///
     /// Convert this into an `Backtrack` with [`Parser::complete_err`]
@@ -106,7 +109,7 @@ pub enum ErrMode<E> {
     ///
     /// For example, a parser for json values might include a
     /// [`dec_uint`][crate::ascii::dec_uint] as one case in an [`alt`][crate::combinator::alt]
-    /// combiantor.  If it fails, the next case should be tried.
+    /// combinator. If it fails, the next case should be tried.
     Backtrack(E),
     /// The parser had an unrecoverable error.
     ///
@@ -877,7 +880,7 @@ where
 #[cfg(feature = "std")]
 impl<I, C> TreeError<I, C>
 where
-    I: Clone + std::fmt::Display,
+    I: Clone + crate::lib::std::fmt::Display,
     C: fmt::Display,
 {
     fn write(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
@@ -1179,6 +1182,9 @@ impl<I, E> ParseError<I, E> {
     }
 
     /// The location in [`ParseError::input`] where parsing failed
+    ///
+    /// **Note:** This is an offset, not an index, and may point to the end of input
+    /// (`input.len()`) on eof errors.
     #[inline]
     pub fn offset(&self) -> usize {
         self.offset
@@ -1219,21 +1225,21 @@ where
 
             writeln!(f, "parse error at line {}, column {}", line_num, col_num)?;
             //   |
-            for _ in 0..=gutter {
+            for _ in 0..gutter {
                 write!(f, " ")?;
             }
-            writeln!(f, "|")?;
+            writeln!(f, " |")?;
 
             // 1 | 00:32:00.a999999
             write!(f, "{} | ", line_num)?;
             writeln!(f, "{}", String::from_utf8_lossy(content))?;
 
             //   |          ^
-            for _ in 0..=gutter {
+            for _ in 0..gutter {
                 write!(f, " ")?;
             }
-            write!(f, "|")?;
-            for _ in 0..=col_idx {
+            write!(f, " | ")?;
+            for _ in 0..col_idx {
                 write!(f, " ")?;
             }
             // The span will be empty at eof, so we need to make sure we always print at least
@@ -1246,7 +1252,7 @@ where
         } else {
             let content = input;
             writeln!(f, "{}", String::from_utf8_lossy(content))?;
-            for _ in 0..=span_start {
+            for _ in 0..span_start {
                 write!(f, " ")?;
             }
             // The span will be empty at eof, so we need to make sure we always print at least
@@ -1284,15 +1290,35 @@ fn translate_position(input: &[u8], index: usize) -> (usize, usize) {
         None => 0,
     };
     let line = input[0..line_start].iter().filter(|b| **b == b'\n').count();
-    let line = line;
 
     // HACK: This treats byte offset and column offsets the same
-    let column = std::str::from_utf8(&input[line_start..=index])
+    let column = crate::lib::std::str::from_utf8(&input[line_start..=index])
         .map(|s| s.chars().count() - 1)
         .unwrap_or_else(|_| index - line_start);
     let column = column + column_offset;
 
     (line, column)
+}
+
+#[cfg(test)]
+#[cfg(feature = "std")]
+mod test_parse_error {
+    use super::*;
+
+    #[test]
+    fn single_line() {
+        let mut input = "0xZ123";
+        let start = input.checkpoint();
+        let _ = input.next_token().unwrap();
+        let _ = input.next_token().unwrap();
+        let inner = InputError::new(input, ErrorKind::Slice);
+        let error = ParseError::new(input, start, inner);
+        let expected = "\
+0xZ123
+  ^
+slice error starting at: Z123";
+        assert_eq!(error.to_string(), expected);
+    }
 }
 
 #[cfg(test)]

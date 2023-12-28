@@ -10,10 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
-rust-version = "1.62.1"
+edition = "2021"
+rust-version = "1.63"
 name = "indicatif"
-version = "0.17.6"
+version = "0.17.7"
 exclude = ["screenshots/*"]
 description = "A progress bar and cli reporting library for Rust"
 documentation = "https://docs.rs/indicatif"

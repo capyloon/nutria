@@ -3,6 +3,17 @@
 [![crates.io](https://img.shields.io/crates/v/brotli-decompressor.svg)](https://crates.io/crates/brotli-decompressor)
 [![Build Status](https://travis-ci.org/dropbox/rust-brotli-decompressor.svg?branch=master)](https://travis-ci.org/dropbox/rust-brotli-decompressor)
 
+## What's new in version 2.5.0
+* If you call write with extra bytes it will only return the bytes consumed
+* Further calls to write will return Ok(0)
+
+## What's new in version 2.4.0
+* If you call read until the file is ended, it will return 0 bytes.
+* Further calls to read will error if there are extra unconsumed bytes in the file.
+
+## What's new in version 2.3.5
+* Fix bug in BrotliFillBitWindow
+
 ## What's new in version 2.3.4
 * Check for fully consumed buffers in the decompressor reader/writer.
 

@@ -8,6 +8,7 @@ use backend::util::{ident_ty, ShortHash};
 use backend::Diagnostic;
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::ToTokens;
+use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream, Result as SynResult};
 use syn::spanned::Spanned;
 use syn::{ItemFn, Lit, MacroDelimiter, ReturnType};
@@ -143,14 +144,13 @@ macro_rules! methods {
         fn $name(&self) -> Option<(&str, Span)> {
             self.attrs
                 .iter()
-                .filter_map(|a| match &a.1 {
+                .find_map(|a| match &a.1 {
                     BindgenAttr::$variant(_, s, span) => {
                         a.0.set(true);
                         Some((&s[..], *span))
                     }
                     _ => None,
                 })
-                .next()
         }
     };
 
@@ -158,14 +158,13 @@ macro_rules! methods {
         fn $name(&self) -> Option<(&[String], &[Span])> {
             self.attrs
                 .iter()
-                .filter_map(|a| match &a.1 {
+                .find_map(|a| match &a.1 {
                     BindgenAttr::$variant(_, ss, spans) => {
                         a.0.set(true);
                         Some((&ss[..], &spans[..]))
                     }
                     _ => None,
                 })
-                .next()
         }
     };
 
@@ -174,14 +173,13 @@ macro_rules! methods {
         fn $name(&self) -> Option<&$($other)*> {
             self.attrs
                 .iter()
-                .filter_map(|a| match &a.1 {
+                .find_map(|a| match &a.1 {
                     BindgenAttr::$variant(_, s) => {
                         a.0.set(true);
                         Some(s)
                     }
                     _ => None,
                 })
-                .next()
         }
     };
 
@@ -190,14 +188,13 @@ macro_rules! methods {
         fn $name(&self) -> Option<&$($other)*> {
             self.attrs
                 .iter()
-                .filter_map(|a| match &a.1 {
+                .find_map(|a| match &a.1 {
                     BindgenAttr::$variant(s) => {
                         a.0.set(true);
                         Some(s)
                     }
                     _ => None,
                 })
-                .next()
         }
     };
 }
@@ -424,7 +421,7 @@ impl<'a> ConvertToAst<(&ast::Program, BindgenAttrs)> for &'a mut syn::ItemStruct
                 _ => continue,
             }
             let (js_field_name, member) = match &field.ident {
-                Some(ident) => (ident.to_string(), syn::Member::Named(ident.clone())),
+                Some(ident) => (ident.unraw().to_string(), syn::Member::Named(ident.clone())),
                 None => (i.to_string(), syn::Member::Unnamed(i.into())),
             };
 
@@ -1355,14 +1352,13 @@ impl<'a> MacroParse<(&'a mut TokenStream, BindgenAttrs)> for syn::ItemEnum {
         values.sort();
         let hole = values
             .windows(2)
-            .filter_map(|window| {
+            .find_map(|window| {
                 if window[0] + 1 != window[1] {
                     Some(window[0] + 1)
                 } else {
                     None
                 }
             })
-            .next()
             .unwrap_or(*values.last().unwrap() + 1);
         for value in values {
             assert!(hole != value);

@@ -307,7 +307,7 @@ pub(super) fn create(
             remotes: remotes.into_boxed_slice(),
             inject,
             idle,
-            owned: OwnedTasks::new(),
+            owned: OwnedTasks::new(num_cores),
             synced: Mutex::new(Synced {
                 assigned_cores: (0..num_workers).map(|_| None).collect(),
                 shutdown_cores: Vec::with_capacity(num_cores),
@@ -563,7 +563,7 @@ impl Worker {
                     let maybe_task = cx.shared().next_remote_task_synced(&mut synced);
                     (maybe_task, core)
                 } else {
-                    // block the thread to wait for a core to be assinged to us
+                    // block the thread to wait for a core to be assigned to us
                     self.wait_for_core(cx, synced)?
                 }
             }
@@ -801,7 +801,7 @@ impl Worker {
         // safety: passing in the correct `inject::Synced`.
         let mut tasks = unsafe { cx.shared().inject.pop_n(&mut synced.inject, n) };
 
-        // Pop the first task to return immedietly
+        // Pop the first task to return immediately
         let ret = tasks.next();
 
         // Push the rest of the on the run queue
@@ -1460,7 +1460,9 @@ impl Shared {
     }
 
     pub(super) fn shutdown_core(&self, handle: &Handle, mut core: Box<Core>) {
-        self.owned.close_and_shutdown_all();
+        // Start from a random inner list
+        let start = core.rand.fastrand_n(self.owned.get_shard_size() as u32);
+        self.owned.close_and_shutdown_all(start as usize);
 
         core.stats.submit(&self.worker_metrics[core.index]);
 

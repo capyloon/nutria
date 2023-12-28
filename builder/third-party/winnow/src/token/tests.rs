@@ -3,7 +3,7 @@ use super::*;
 #[cfg(feature = "std")]
 use proptest::prelude::*;
 
-use crate::binary::length_data;
+use crate::ascii::Caseless;
 use crate::combinator::delimited;
 use crate::error::ErrMode;
 use crate::error::ErrorKind;
@@ -183,7 +183,7 @@ fn partial_is_a() {
 #[test]
 fn partial_is_not() {
     fn a_or_b(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
-        take_till1(['a', 'b']).parse_peek(i)
+        take_till(1.., ['a', 'b']).parse_peek(i)
     }
 
     let a = Partial::new(&b"cdab"[..]);
@@ -365,7 +365,7 @@ fn partial_take_while_m_n() {
 #[test]
 fn partial_take_till0() {
     fn f(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
-        take_till0(AsChar::is_alpha).parse_peek(i)
+        take_till(0.., AsChar::is_alpha).parse_peek(i)
     }
     let a = &b""[..];
     let b = &b"abcd"[..];
@@ -387,7 +387,7 @@ fn partial_take_till0() {
 #[test]
 fn partial_take_till1() {
     fn f(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
-        take_till1(AsChar::is_alpha).parse_peek(i)
+        take_till(1.., AsChar::is_alpha).parse_peek(i)
     }
     let a = &b""[..];
     let b = &b"abcd"[..];
@@ -447,7 +447,7 @@ fn partial_take_while_utf8() {
 #[test]
 fn partial_take_till0_utf8() {
     fn f(i: Partial<&str>) -> IResult<Partial<&str>, &str> {
-        take_till0(|c| c == '點').parse_peek(i)
+        take_till(0.., |c| c == '點').parse_peek(i)
     }
 
     assert_eq!(
@@ -465,7 +465,7 @@ fn partial_take_till0_utf8() {
     );
 
     fn g(i: Partial<&str>) -> IResult<Partial<&str>, &str> {
-        take_till0(|c| c != '點').parse_peek(i)
+        take_till(0.., |c| c != '點').parse_peek(i)
     }
 
     assert_eq!(
@@ -569,57 +569,11 @@ fn partial_recognize_take_while0() {
     );
 }
 
-#[test]
-fn partial_length_bytes() {
-    use crate::binary::le_u8;
-
-    fn x(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
-        length_data(le_u8).parse_peek(i)
-    }
-    assert_eq!(
-        x(Partial::new(b"\x02..>>")),
-        Ok((Partial::new(&b">>"[..]), &b".."[..]))
-    );
-    assert_eq!(
-        x(Partial::new(b"\x02..")),
-        Ok((Partial::new(&[][..]), &b".."[..]))
-    );
-    assert_eq!(
-        x(Partial::new(b"\x02.")),
-        Err(ErrMode::Incomplete(Needed::new(1)))
-    );
-    assert_eq!(
-        x(Partial::new(b"\x02")),
-        Err(ErrMode::Incomplete(Needed::new(2)))
-    );
-
-    fn y(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
-        let (i, _) = "magic".parse_peek(i)?;
-        length_data(le_u8).parse_peek(i)
-    }
-    assert_eq!(
-        y(Partial::new(b"magic\x02..>>")),
-        Ok((Partial::new(&b">>"[..]), &b".."[..]))
-    );
-    assert_eq!(
-        y(Partial::new(b"magic\x02..")),
-        Ok((Partial::new(&[][..]), &b".."[..]))
-    );
-    assert_eq!(
-        y(Partial::new(b"magic\x02.")),
-        Err(ErrMode::Incomplete(Needed::new(1)))
-    );
-    assert_eq!(
-        y(Partial::new(b"magic\x02")),
-        Err(ErrMode::Incomplete(Needed::new(2)))
-    );
-}
-
 #[cfg(feature = "alloc")]
 #[test]
 fn partial_case_insensitive() {
     fn test(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
-        tag_no_case("ABcd").parse_peek(i)
+        tag(Caseless("ABcd")).parse_peek(i)
     }
     assert_eq!(
         test(Partial::new(&b"aBCdefgh"[..])),
@@ -653,7 +607,7 @@ fn partial_case_insensitive() {
     );
 
     fn test2(i: Partial<&str>) -> IResult<Partial<&str>, &str> {
-        tag_no_case("ABcd").parse_peek(i)
+        tag(Caseless("ABcd")).parse_peek(i)
     }
     assert_eq!(
         test2(Partial::new("aBCdefgh")),

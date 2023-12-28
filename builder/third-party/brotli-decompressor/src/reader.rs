@@ -3,7 +3,7 @@ use std::io::{self, Error, ErrorKind, Read};
 #[cfg(feature="std")]
 pub use alloc_stdlib::StandardAlloc;
 #[cfg(all(feature="unsafe",feature="std"))]
-pub use alloc_stdlib::HeapAllocUninitialized;
+pub use alloc_stdlib::HeapAlloc;
 pub use huffman::{HuffmanCode, HuffmanTreeGroup};
 pub use state::BrotliState;
 // use io_wrappers::write_all;
@@ -132,31 +132,33 @@ impl<R: Read> Decompressor<R> {
 
 #[cfg(all(feature="unsafe", feature="std"))]
 pub struct Decompressor<R: Read>(DecompressorCustomAlloc<R,
-                                                         <HeapAllocUninitialized<u8>
+                                                         <HeapAlloc<u8>
                                                           as Allocator<u8>>::AllocatedMemory,
-                                                         HeapAllocUninitialized<u8>,
-                                                         HeapAllocUninitialized<u32>,
-                                                         HeapAllocUninitialized<HuffmanCode> >);
+                                                         HeapAlloc<u8>,
+                                                         HeapAlloc<u32>,
+                                                         HeapAlloc<HuffmanCode> >);
 
 
 #[cfg(all(feature="unsafe", feature="std"))]
 impl<R: Read> Decompressor<R> {
   pub fn new(r: R, buffer_size: usize) -> Self {
-     let dict = <HeapAllocUninitialized<u8> as Allocator<u8>>::AllocatedMemory::default();
+     let dict = <HeapAlloc<u8> as Allocator<u8>>::AllocatedMemory::default();
      Self::new_with_custom_dictionary(r, buffer_size, dict)
   }
-  pub fn new_with_custom_dictionary(r: R, buffer_size: usize, dict: <HeapAllocUninitialized<u8>
+  pub fn new_with_custom_dictionary(r: R, buffer_size: usize, dict: <HeapAlloc<u8>
                                                  as Allocator<u8>>::AllocatedMemory) -> Self {
-    let mut alloc_u8 = unsafe { HeapAllocUninitialized::<u8>::new() };
+    let mut alloc_u8 = HeapAlloc::<u8>::new(0);
     let buffer = alloc_u8.alloc_cell(if buffer_size == 0 {4096} else {buffer_size});
-    let alloc_u32 = unsafe { HeapAllocUninitialized::<u32>::new() };
-    let alloc_hc = unsafe { HeapAllocUninitialized::<HuffmanCode>::new() };
+    let alloc_u32 = HeapAlloc::<u32>::new(0);
+    let alloc_hc = HeapAlloc::<HuffmanCode>::new(HuffmanCode{
+        bits:0, value: 0,
+    });
     Decompressor::<R>(DecompressorCustomAlloc::<R,
-                                                <HeapAllocUninitialized<u8>
+                                                <HeapAlloc<u8>
                                                  as Allocator<u8>>::AllocatedMemory,
-                                                HeapAllocUninitialized<u8>,
-                                                HeapAllocUninitialized<u32>,
-                                                HeapAllocUninitialized<HuffmanCode> >
+                                                HeapAlloc<u8>,
+                                                HeapAlloc<u32>,
+                                                HeapAlloc<HuffmanCode> >
       ::new_with_custom_dictionary(r, buffer, alloc_u8, alloc_u32, alloc_hc, dict))
   }
 
@@ -193,6 +195,7 @@ pub struct DecompressorCustomIo<ErrType,
   input: R,
   error_if_invalid_data: Option<ErrType>,
   state: BrotliState<AllocU8, AllocU32, AllocHC>,
+  done: bool,
 }
 
 impl<ErrType,
@@ -225,6 +228,7 @@ impl<ErrType,
                                      alloc_hc,
                                      dict),
             error_if_invalid_data : Some(invalid_data_error_type),
+            done: false,
         }
     }
 
@@ -244,6 +248,7 @@ impl<ErrType,
           input_len: _il,
           error_if_invalid_data:_eiid,
           input,
+          done: _done,
         } =>{
           input
         }
@@ -275,6 +280,22 @@ impl<ErrType,
                                                                                      AllocU8,
                                                                                      AllocU32,
                                                                                      AllocHC> {
+  /// This variant of read will return Ok(number of bytes read) until the file
+  /// Is completed at which point it will return Ok(0).
+  /// However if there are additional unconsumed bytes in the buffer, it will
+  /// return Err(InvalidData) at that point. Otherwise it will keep returning
+  /// Ok(0).
+  ///
+  /// # Arguments
+  ///
+  /// * `buf` - The buffer to read into
+  ///
+  /// # Errors
+  ///
+  /// Returns Ok(0) if the file has been fully decompressed.
+  /// If the file has been fully decompressed but there are additional
+  /// non-brotli bytes in the buffer, then return an InvalidData error.
+  /// Also upstream errors from the reader are returned.
   fn read(&mut self, buf: &mut [u8]) -> Result<usize, ErrType > {
     let mut output_offset : usize = 0;
     let mut avail_out = buf.len() - output_offset;
@@ -312,9 +333,13 @@ impl<ErrType,
           break;
         },
         BrotliResult::ResultSuccess => {
-            if self.input_len != self.input_offset {
-                // Did not consume entire input; report error.
-                return self.error_if_invalid_data.take().map(|e| Err(e)).unwrap_or(Ok(output_offset));
+            if output_offset == 0 {
+                if !self.done {
+                    self.done = true;
+                } else if self.input_len != self.input_offset {
+                    // Did not consume entire input; report error.
+                    return self.error_if_invalid_data.take().map(|e| Err(e)).unwrap_or(Ok(output_offset));
+                }
             }
             return Ok(output_offset);
         }
@@ -332,8 +357,66 @@ fn test_no_vanishing_bytes() {
 
     // Output from this command:
     let compressed_with_extra = b"\x8f\x02\x80\x68\x65\x6c\x6c\x6f\x0a\x03\x67\x6f\x6f\x64\x62\x79\x65\x0a";
+    // Make sure that read_to_string returns the data.
     let cursor = std::io::Cursor::new(compressed_with_extra);
     let mut reader = super::Decompressor::new(cursor, 8000);
-    assert_eq!(std::io::read_to_string(&mut reader).unwrap_err().kind(), io::ErrorKind::InvalidData);
+    assert_eq!(std::io::read_to_string(&mut reader).unwrap(), "hello\n");
+
+    // However you can call read extra times to make sure there's no data.
+    let cursor = std::io::Cursor::new(compressed_with_extra);
+    let mut reader = super::Decompressor::new(cursor, 8000);
+    let mut data = std::vec::Vec::<u8>::default();
+    loop {
+        let mut buf = [0u8;5];
+        let offset = reader.read(&mut buf).unwrap();
+        if offset == 0 {
+            break;
+        }
+        data.extend_from_slice(&buf[..offset]);
+    }
+    assert_eq!(
+        &data,
+        &['h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, '\n' as u8]);
+
+    // But calling read, one last time, results in an error because there
+    // were leftover bytes in the buffer.
+    let mut buf = [0u8;5];
+    assert_eq!(reader.read(&mut buf).unwrap_err().kind(),
+               io::ErrorKind::InvalidData);
+    data.clear();
+
+
+}
+
+#[cfg(feature="std")]
+#[test]
+fn test_repeated_read_returns_zero() {
+    use std::string::ToString;
+
+    // Output from this command:
+    let compressed_without_extra = b"\x8f\x02\x80\x68\x65\x6c\x6c\x6f\x0a\x03";
+    // Make sure that read_to_string returns the data.
+    let cursor = std::io::Cursor::new(compressed_without_extra);
+    let mut reader = super::Decompressor::new(cursor, 8000);
+    assert_eq!(std::io::read_to_string(&mut reader).unwrap(), "hello\n");
+
+    // However you can call read extra times to make sure there's no data.
+    let cursor = std::io::Cursor::new(compressed_without_extra);
+    let mut reader = super::Decompressor::new(cursor, 8000);
+    let mut data = std::vec::Vec::<u8>::default();
+    loop {
+        let mut buf = [0u8;5];
+        let offset = reader.read(&mut buf).unwrap();
+        if offset == 0 {
+            break;
+        }
+        data.extend_from_slice(&buf[..offset]);
+    }
+    assert_eq!(&data, &['h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, '\n' as u8]);
+    let mut buf = [0u8;5];
+    assert_eq!(reader.read(&mut buf).unwrap(), 0);
+    data.clear();
+
+
 }
 

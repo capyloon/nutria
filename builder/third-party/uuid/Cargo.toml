@@ -11,8 +11,9 @@
 
 [package]
 edition = "2018"
+rust-version = "1.60.0"
 name = "uuid"
-version = "1.4.1"
+version = "1.6.1"
 authors = [
     "Ashley Mannix<ashleymannix@live.com.au>",
     "Christopher Armstrong",
@@ -88,6 +89,11 @@ package = "atomic"
 version = "0.10.3"
 optional = true
 
+[dependencies.bytemuck]
+version = "1.14.0"
+features = ["derive"]
+optional = true
+
 [dependencies.getrandom]
 version = "0.2"
 optional = true
@@ -120,7 +126,7 @@ version = "2"
 optional = true
 
 [dependencies.uuid-macro-internal]
-version = "1.4.1"
+version = "1.6.1"
 optional = true
 package = "uuid-macro-internal"
 

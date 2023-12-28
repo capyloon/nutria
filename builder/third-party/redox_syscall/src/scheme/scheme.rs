@@ -1,17 +1,20 @@
 use core::{mem, slice};
 
+use crate::CallerCtx;
+use crate::OpenResult;
 use crate::data::*;
 use crate::error::*;
 use crate::flag::*;
 use crate::number::*;
-use crate::scheme::str_from_raw_parts;
+use crate::scheme::*;
 
 pub trait Scheme {
     fn handle(&self, packet: &mut Packet) {
         let res = match packet.a {
             SYS_OPEN => if let Some(path) = unsafe { str_from_raw_parts(packet.b as *const u8, packet.c) } {
-                self.open(path, packet.d, packet.uid, packet.gid)
-            } else {
+                convert_in_scheme_handle(packet, self.xopen(path, packet.d, &CallerCtx::from_packet(&packet)))
+            }
+            else {
                 Err(Error::new(EINVAL))
             },
             SYS_RMDIR => if let Some(path) = unsafe { str_from_raw_parts(packet.b as *const u8, packet.c) } {
@@ -25,7 +28,7 @@ pub trait Scheme {
                 Err(Error::new(EINVAL))
             },
 
-            SYS_DUP => self.dup(packet.b, unsafe { slice::from_raw_parts(packet.c as *const u8, packet.d) }),
+            SYS_DUP => convert_in_scheme_handle(packet, self.xdup(packet.b, unsafe { slice::from_raw_parts(packet.c as *const u8, packet.d) }, &CallerCtx::from_packet(&packet))),
             SYS_READ => self.read(packet.b, unsafe { slice::from_raw_parts_mut(packet.c as *mut u8, packet.d) }),
             SYS_WRITE => self.write(packet.b, unsafe { slice::from_raw_parts(packet.c as *const u8, packet.d) }),
             SYS_LSEEK => self.seek(packet.b, packet.c as isize, packet.d).map(|o| o as usize),
@@ -33,18 +36,6 @@ pub trait Scheme {
             SYS_FCHOWN => self.fchown(packet.b, packet.c as u32, packet.d as u32),
             SYS_FCNTL => self.fcntl(packet.b, packet.c, packet.d),
             SYS_FEVENT => self.fevent(packet.b, EventFlags::from_bits_truncate(packet.c)).map(|f| f.bits()),
-            SYS_FMAP_OLD => if packet.d >= mem::size_of::<OldMap>() {
-                self.fmap_old(packet.b, unsafe { &*(packet.c as *const OldMap) })
-            } else {
-                Err(Error::new(EFAULT))
-            },
-            SYS_FMAP => if packet.d >= mem::size_of::<Map>() {
-                self.fmap(packet.b, unsafe { &*(packet.c as *const Map) })
-            } else {
-                Err(Error::new(EFAULT))
-            },
-            SYS_FUNMAP_OLD => self.funmap_old(packet.b),
-            SYS_FUNMAP => self.funmap(packet.b, packet.c),
             SYS_FPATH => self.fpath(packet.b, unsafe { slice::from_raw_parts_mut(packet.c as *mut u8, packet.d) }),
             SYS_FRENAME => if let Some(path) = unsafe { str_from_raw_parts(packet.c as *const u8, packet.d) } {
                 self.frename(packet.b, path, packet.uid, packet.gid)
@@ -69,6 +60,10 @@ pub trait Scheme {
                 Err(Error::new(EFAULT))
             },
             SYS_CLOSE => self.close(packet.b),
+
+            KSMSG_MMAP_PREP => self.mmap_prep(packet.b, u64::from(packet.uid) | (u64::from(packet.gid) << 32), packet.c, MapFlags::from_bits_truncate(packet.d)),
+            KSMSG_MUNMAP => self.munmap(packet.b, u64::from(packet.uid) | (u64::from(packet.gid) << 32), packet.c, MunmapFlags::from_bits_truncate(packet.d)),
+
             _ => Err(Error::new(ENOSYS))
         };
 
@@ -80,6 +75,10 @@ pub trait Scheme {
     #[allow(unused_variables)]
     fn open(&self, path: &str, flags: usize, uid: u32, gid: u32) -> Result<usize> {
         Err(Error::new(ENOENT))
+    }
+    #[allow(unused_variables)]
+    fn xopen(&self, path: &str, flags: usize, ctx: &CallerCtx) -> Result<OpenResult> {
+        convert_to_this_scheme(self.open(path, flags, ctx.uid, ctx.gid))
     }
 
     #[allow(unused_variables)]
@@ -101,6 +100,11 @@ pub trait Scheme {
     #[allow(unused_variables)]
     fn dup(&self, old_id: usize, buf: &[u8]) -> Result<usize> {
         Err(Error::new(EBADF))
+    }
+
+    #[allow(unused_variables)]
+    fn xdup(&self, old_id: usize, buf: &[u8], ctx: &CallerCtx) -> Result<OpenResult> {
+        convert_to_this_scheme(self.dup(old_id, buf))
     }
 
     #[allow(unused_variables)]
@@ -136,32 +140,6 @@ pub trait Scheme {
     #[allow(unused_variables)]
     fn fevent(&self, id: usize, flags: EventFlags) -> Result<EventFlags> {
         Err(Error::new(EBADF))
-    }
-
-    #[allow(unused_variables)]
-    fn fmap_old(&self, id: usize, map: &OldMap) -> Result<usize> {
-        Err(Error::new(EBADF))
-    }
-    #[allow(unused_variables)]
-    fn fmap(&self, id: usize, map: &Map) -> Result<usize> {
-        if map.flags.contains(MapFlags::MAP_FIXED) {
-            return Err(Error::new(EINVAL));
-        }
-        self.fmap_old(id, &OldMap {
-            offset: map.offset,
-            size: map.size,
-            flags: map.flags,
-        })
-    }
-
-    #[allow(unused_variables)]
-    fn funmap_old(&self, address: usize) -> Result<usize> {
-        Ok(0)
-    }
-
-    #[allow(unused_variables)]
-    fn funmap(&self, address: usize, length: usize) -> Result<usize> {
-        Ok(0)
     }
 
     #[allow(unused_variables)]
@@ -202,5 +180,15 @@ pub trait Scheme {
     #[allow(unused_variables)]
     fn close(&self, id: usize) -> Result<usize> {
         Err(Error::new(EBADF))
+    }
+
+    #[allow(unused_variables)]
+    fn mmap_prep(&self, id: usize, offset: u64, size: usize, flags: MapFlags) -> Result<usize> {
+        Err(Error::new(EOPNOTSUPP))
+    }
+
+    #[allow(unused_variables)]
+    fn munmap(&self, id: usize, offset: u64, size: usize, flags: MunmapFlags) -> Result<usize> {
+        Err(Error::new(EOPNOTSUPP))
     }
 }

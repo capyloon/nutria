@@ -11,9 +11,9 @@
 
 [package]
 edition = "2018"
-rust-version = "1.38"
+rust-version = "1.61"
 name = "crossbeam-deque"
-version = "0.8.3"
+version = "0.8.4"
 description = "Concurrent work-stealing deque"
 homepage = "https://github.com/crossbeam-rs/crossbeam/tree/master/crossbeam-deque"
 readme = "README.md"
@@ -35,12 +35,12 @@ repository = "https://github.com/crossbeam-rs/crossbeam"
 version = "1"
 
 [dependencies.crossbeam-epoch]
-version = "0.9"
+version = "0.9.16"
 optional = true
 default-features = false
 
 [dependencies.crossbeam-utils]
-version = "0.8"
+version = "0.8.17"
 optional = true
 default-features = false
 

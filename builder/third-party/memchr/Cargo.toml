@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.61"
 name = "memchr"
-version = "2.6.3"
+version = "2.6.4"
 authors = [
     "Andrew Gallant <jamslam@gmail.com>",
     "bluss",
@@ -26,16 +26,19 @@ exclude = [
     "/scripts",
     "/tmp",
 ]
-description = "Safe interface to memchr."
+description = """
+Provides extremely fast (uses SIMD on x86_64, aarch64 and wasm32) routines for
+1, 2 or 3 byte search and single substring search.
+"""
 homepage = "https://github.com/BurntSushi/memchr"
 documentation = "https://docs.rs/memchr/"
 readme = "README.md"
 keywords = [
     "memchr",
-    "char",
-    "scan",
-    "strchr",
-    "string",
+    "memmem",
+    "substring",
+    "find",
+    "search",
 ]
 license = "Unlicense OR MIT"
 repository = "https://github.com/BurntSushi/memchr"

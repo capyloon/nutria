@@ -11,7 +11,7 @@
 
 [package]
 name = "try-lock"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 description = "A lightweight atomic lock."
 homepage = "https://github.com/seanmonstar/try-lock"

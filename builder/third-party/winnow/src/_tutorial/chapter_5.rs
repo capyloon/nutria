@@ -136,18 +136,18 @@
 //! # }
 //! ```
 //!
-//! You'll notice that the above allows trailing `,` when we intended to not support that.  We can
-//! easily fix this by using [`separated0`]:
+//! You'll notice that the above allows trailing `,` when we intended to not support that. We can
+//! easily fix this by using [`separated`]:
 //! ```rust
 //! # use winnow::prelude::*;
 //! # use winnow::token::take_while;
 //! # use winnow::combinator::dispatch;
 //! # use winnow::token::take;
 //! # use winnow::combinator::fail;
-//! use winnow::combinator::separated0;
+//! use winnow::combinator::separated;
 //!
 //! fn parse_list(input: &mut &str) -> PResult<Vec<usize>> {
-//!     separated0(parse_digits, ",").parse_next(input)
+//!     separated(0.., parse_digits, ",").parse_next(input)
 //! }
 //!
 //! // ...
@@ -200,7 +200,7 @@
 //! ```
 //!
 //! If you look closely at [`repeat`], it isn't collecting directly into a [`Vec`] but
-//! [`Accumulate`] to gather the results.  This let's us make more complex parsers than we did in
+//! [`Accumulate`] to gather the results. This lets us make more complex parsers than we did in
 //! [`chapter_2`] by accumulating the results into a `()` and [`recognize`][Parser::recognize]-ing the captured input:
 //! ```rust
 //! # use winnow::prelude::*;
@@ -208,14 +208,14 @@
 //! # use winnow::combinator::dispatch;
 //! # use winnow::token::take;
 //! # use winnow::combinator::fail;
-//! # use winnow::combinator::separated0;
+//! # use winnow::combinator::separated;
 //! #
 //! fn recognize_list<'s>(input: &mut &'s str) -> PResult<&'s str> {
 //!     parse_list.recognize().parse_next(input)
 //! }
 //!
 //! fn parse_list(input: &mut &str) -> PResult<()> {
-//!     separated0(parse_digits, ",").parse_next(input)
+//!     separated(0.., parse_digits, ",").parse_next(input)
 //! }
 //!
 //! # fn parse_digits(input: &mut &str) -> PResult<usize> {
@@ -272,7 +272,7 @@ use super::chapter_2;
 use super::chapter_3;
 use crate::combinator;
 use crate::combinator::repeat;
-use crate::combinator::separated0;
+use crate::combinator::separated;
 use crate::stream::Accumulate;
 use crate::Parser;
 use std::vec::Vec;

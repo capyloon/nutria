@@ -5,11 +5,12 @@ pub struct Reset;
 impl Reset {
     /// Render the ANSI code
     #[inline]
-    pub fn render(self) -> impl core::fmt::Display {
+    pub fn render(self) -> impl core::fmt::Display + Copy + Clone {
         ResetDisplay
     }
 }
 
+#[derive(Copy, Clone, Default, Debug)]
 struct ResetDisplay;
 
 impl core::fmt::Display for ResetDisplay {

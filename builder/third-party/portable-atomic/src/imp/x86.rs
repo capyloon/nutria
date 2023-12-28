@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // Atomic operations implementation on x86/x86_64.
 //
 // This module provides atomic operations not supported by LLVM or optimizes
@@ -10,11 +12,9 @@
 // - x86 and amd64 instruction reference https://www.felixcloutier.com/x86
 //
 // Generated asm:
-// - x86_64 https://godbolt.org/z/8fve4YP1G
+// - x86_64 https://godbolt.org/z/d17eTs5Ec
 
-#[cfg(not(portable_atomic_no_asm))]
-use core::arch::asm;
-use core::sync::atomic::Ordering;
+use core::{arch::asm, sync::atomic::Ordering};
 
 use super::core_atomic::{
     AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicIsize, AtomicU16, AtomicU32, AtomicU64,
@@ -35,7 +35,7 @@ macro_rules! ptr_modifier {
 }
 
 macro_rules! atomic_int {
-    ($atomic_type:ident, $int_type:ident, $ptr_size:tt) => {
+    ($atomic_type:ident, $ptr_size:tt) => {
         impl $atomic_type {
             #[inline]
             pub(crate) fn not(&self, _order: Ordering) {
@@ -74,24 +74,24 @@ macro_rules! atomic_int {
     };
 }
 
-atomic_int!(AtomicI8, i8, "byte");
-atomic_int!(AtomicU8, u8, "byte");
-atomic_int!(AtomicI16, i16, "word");
-atomic_int!(AtomicU16, u16, "word");
-atomic_int!(AtomicI32, i32, "dword");
-atomic_int!(AtomicU32, u32, "dword");
+atomic_int!(AtomicI8, "byte");
+atomic_int!(AtomicU8, "byte");
+atomic_int!(AtomicI16, "word");
+atomic_int!(AtomicU16, "word");
+atomic_int!(AtomicI32, "dword");
+atomic_int!(AtomicU32, "dword");
 #[cfg(target_arch = "x86_64")]
-atomic_int!(AtomicI64, i64, "qword");
+atomic_int!(AtomicI64, "qword");
 #[cfg(target_arch = "x86_64")]
-atomic_int!(AtomicU64, u64, "qword");
+atomic_int!(AtomicU64, "qword");
 #[cfg(target_pointer_width = "32")]
-atomic_int!(AtomicIsize, isize, "dword");
+atomic_int!(AtomicIsize, "dword");
 #[cfg(target_pointer_width = "32")]
-atomic_int!(AtomicUsize, usize, "dword");
+atomic_int!(AtomicUsize, "dword");
 #[cfg(target_pointer_width = "64")]
-atomic_int!(AtomicIsize, isize, "qword");
+atomic_int!(AtomicIsize, "qword");
 #[cfg(target_pointer_width = "64")]
-atomic_int!(AtomicUsize, usize, "qword");
+atomic_int!(AtomicUsize, "qword");
 
 #[cfg(target_arch = "x86")]
 impl AtomicI64 {
@@ -127,8 +127,6 @@ macro_rules! atomic_bit_opts {
         impl_default_bit_opts!($atomic_type, $int_type);
         #[cfg(not(portable_atomic_llvm_16))]
         impl $atomic_type {
-            // `<integer>::BITS` is not available on old nightly.
-            const BITS: u32 = (core::mem::size_of::<$int_type>() * 8) as u32;
             #[inline]
             pub(crate) fn bit_set(&self, bit: u32, _order: Ordering) -> bool {
                 let dst = self.as_ptr();
@@ -145,7 +143,7 @@ macro_rules! atomic_bit_opts {
                         concat!("lock bts ", $ptr_size, " ptr [{dst", ptr_modifier!(), "}], {bit", $val_modifier, "}"),
                         "setb {r}",
                         dst = in(reg) dst,
-                        bit = in(reg) (bit & (Self::BITS - 1)) as $int_type,
+                        bit = in(reg) (bit & ($int_type::BITS - 1)) as $int_type,
                         r = out(reg_byte) r,
                         // Do not use `preserves_flags` because BTS modifies the CF flag.
                         options(nostack),
@@ -169,7 +167,7 @@ macro_rules! atomic_bit_opts {
                         concat!("lock btr ", $ptr_size, " ptr [{dst", ptr_modifier!(), "}], {bit", $val_modifier, "}"),
                         "setb {r}",
                         dst = in(reg) dst,
-                        bit = in(reg) (bit & (Self::BITS - 1)) as $int_type,
+                        bit = in(reg) (bit & ($int_type::BITS - 1)) as $int_type,
                         r = out(reg_byte) r,
                         // Do not use `preserves_flags` because BTR modifies the CF flag.
                         options(nostack),
@@ -193,7 +191,7 @@ macro_rules! atomic_bit_opts {
                         concat!("lock btc ", $ptr_size, " ptr [{dst", ptr_modifier!(), "}], {bit", $val_modifier, "}"),
                         "setb {r}",
                         dst = in(reg) dst,
-                        bit = in(reg) (bit & (Self::BITS - 1)) as $int_type,
+                        bit = in(reg) (bit & ($int_type::BITS - 1)) as $int_type,
                         r = out(reg_byte) r,
                         // Do not use `preserves_flags` because BTC modifies the CF flag.
                         options(nostack),

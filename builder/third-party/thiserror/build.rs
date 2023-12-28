@@ -1,3 +1,5 @@
+#![allow(clippy::needless_raw_string_hashes)]
+
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -36,6 +38,8 @@ const PROBE: &str = r#"
 "#;
 
 fn main() {
+    println!("cargo:rerun-if-env-changed=RUSTC_BOOTSTRAP");
+
     match compile_probe() {
         Some(status) if status.success() => println!("cargo:rustc-cfg=error_generic_member_access"),
         _ => {}

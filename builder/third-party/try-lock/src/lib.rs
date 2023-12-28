@@ -1,4 +1,3 @@
-#![doc(html_root_url = "https://docs.rs/try-lock/0.2.3")]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![deny(warnings)]
@@ -69,7 +68,7 @@ pub struct TryLock<T> {
 impl<T> TryLock<T> {
     /// Create a `TryLock` around the value.
     #[inline]
-    pub fn new(val: T) -> TryLock<T> {
+    pub const fn new(val: T) -> TryLock<T> {
         TryLock {
             is_locked: AtomicBool::new(false),
             value: UnsafeCell::new(val),
@@ -179,15 +178,7 @@ impl<T> TryLock<T> {
     #[inline]
     pub fn into_inner(self) -> T {
         debug_assert!(!self.is_locked.load(Ordering::Relaxed), "TryLock was mem::forgotten");
-        // Since the compiler can statically determine this is the only owner,
-        // it's safe to take the value out. In fact, in newer versions of Rust,
-        // `UnsafeCell::into_inner` has been marked safe.
-        //
-        // To support older version (1.21), the unsafe block is still here.
-        #[allow(unused_unsafe)]
-        unsafe {
-            self.value.into_inner()
-        }
+        self.value.into_inner()
     }
 }
 

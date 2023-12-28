@@ -12,16 +12,10 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-use super::{
-    super::{
-        montgomery::{Unencoded, R, RR},
-        n0::N0,
-    },
-    BoxedLimbs, Elem, Nonnegative, One, PublicModulus, SlightlySmallerModulus, SmallerModulus,
-    Width,
-};
+use super::{BoxedLimbs, Elem, PublicModulus, Unencoded, N0};
 use crate::{
-    bits, cpu, error,
+    bits::BitLength,
+    cpu, error,
     limb::{self, Limb, LimbMask, LIMB_BITS},
     polyfill::LeadingZerosStripped,
 };
@@ -40,7 +34,7 @@ pub const MODULUS_MAX_LIMBS: usize = super::super::BIGINT_MODULUS_MAX_LIMBS;
 /// for efficient Montgomery multiplication modulo *m*. The value must be odd
 /// and larger than 2. The larger-than-1 requirement is imposed, at least, by
 /// the modular inversion code.
-pub struct Modulus<M> {
+pub struct OwnedModulus<M> {
     limbs: BoxedLimbs<M>, // Also `value >= 3`.
 
     // n0 * N == -1 (mod r).
@@ -80,65 +74,28 @@ pub struct Modulus<M> {
     // calculations instead of double-precision `u64` calculations.
     n0: N0,
 
-    oneRR: One<M, RR>,
+    len_bits: BitLength,
 
     cpu_features: cpu::Features,
 }
 
-impl<M: PublicModulus> Clone for Modulus<M> {
+impl<M: PublicModulus> Clone for OwnedModulus<M> {
     fn clone(&self) -> Self {
         Self {
             limbs: self.limbs.clone(),
-            n0: self.n0.clone(),
-            oneRR: self.oneRR.clone(),
+            n0: self.n0,
+            len_bits: self.len_bits,
             cpu_features: self.cpu_features,
         }
     }
 }
 
-impl<M: PublicModulus> core::fmt::Debug for Modulus<M> {
-    fn fmt(&self, fmt: &mut ::core::fmt::Formatter) -> Result<(), ::core::fmt::Error> {
-        fmt.debug_struct("Modulus")
-            // TODO: Print modulus value.
-            .finish()
-    }
-}
-
-impl<M> Modulus<M> {
-    pub(crate) fn from_be_bytes_with_bit_length(
+impl<M> OwnedModulus<M> {
+    pub(crate) fn from_be_bytes(
         input: untrusted::Input,
         cpu_features: cpu::Features,
-    ) -> Result<(Self, bits::BitLength), error::KeyRejected> {
-        let limbs = BoxedLimbs::positive_minimal_width_from_be_bytes(input)?;
-        Self::from_boxed_limbs(limbs, cpu_features)
-    }
-
-    pub(crate) fn from_nonnegative_with_bit_length(
-        n: Nonnegative,
-        cpu_features: cpu::Features,
-    ) -> Result<(Self, bits::BitLength), error::KeyRejected> {
-        let limbs = BoxedLimbs::new_unchecked(n.into_limbs());
-        Self::from_boxed_limbs(limbs, cpu_features)
-    }
-
-    pub(crate) fn from_elem<L>(
-        elem: Elem<L, Unencoded>,
-        cpu_features: cpu::Features,
-    ) -> Result<Self, error::KeyRejected>
-    where
-        M: SlightlySmallerModulus<L>,
-    {
-        let (m, _bits) = Self::from_boxed_limbs(
-            BoxedLimbs::minimal_width_from_unpadded(&elem.limbs),
-            cpu_features,
-        )?;
-        Ok(m)
-    }
-
-    fn from_boxed_limbs(
-        n: BoxedLimbs<M>,
-        cpu_features: cpu::Features,
-    ) -> Result<(Self, bits::BitLength), error::KeyRejected> {
+    ) -> Result<Self, error::KeyRejected> {
+        let n = BoxedLimbs::positive_minimal_width_from_be_bytes(input)?;
         if n.len() > MODULUS_MAX_LIMBS {
             return Err(error::KeyRejected::too_large());
         }
@@ -169,114 +126,102 @@ impl<M> Modulus<M> {
                 debug_assert_eq!(LIMB_BITS, 32);
                 n_mod_r |= u64::from(n[1]) << 32;
             }
-            N0::from(unsafe { bn_neg_inv_mod_r_u64(n_mod_r) })
+            N0::precalculated(unsafe { bn_neg_inv_mod_r_u64(n_mod_r) })
         };
 
-        let bits = limb::limbs_minimal_bits(&n);
-        let oneRR = {
-            let partial = PartialModulus {
-                limbs: &n,
-                n0: n0.clone(),
-                m: PhantomData,
-                cpu_features,
-            };
+        let len_bits = limb::limbs_minimal_bits(&n);
 
-            One::newRR(&partial, bits)
-        };
-
-        Ok((
-            Self {
-                limbs: n,
-                n0,
-                oneRR,
-                cpu_features,
-            },
-            bits,
-        ))
+        Ok(Self {
+            limbs: n,
+            n0,
+            len_bits,
+            cpu_features,
+        })
     }
 
-    #[inline]
-    pub(super) fn cpu_features(&self) -> cpu::Features {
-        self.cpu_features
-    }
-
-    #[inline]
-    pub(super) fn limbs(&self) -> &[Limb] {
-        &self.limbs
-    }
-
-    #[inline]
-    pub(super) fn n0(&self) -> &N0 {
-        &self.n0
-    }
-
-    #[inline]
-    pub(super) fn width(&self) -> Width<M> {
-        self.limbs.width()
-    }
-
-    pub(super) fn zero<E>(&self) -> Elem<M, E> {
-        Elem {
-            limbs: BoxedLimbs::zero(self.width()),
-            encoding: PhantomData,
+    pub fn verify_less_than<L>(&self, l: &Modulus<L>) -> Result<(), error::Unspecified> {
+        if self.len_bits() > l.len_bits()
+            || (self.limbs.len() == l.limbs().len()
+                && limb::limbs_less_than_limbs_consttime(&self.limbs, l.limbs()) != LimbMask::True)
+        {
+            return Err(error::Unspecified);
         }
+        Ok(())
     }
 
-    // TODO: Get rid of this
-    pub(super) fn one(&self) -> Elem<M, Unencoded> {
-        let mut r = self.zero();
-        r.limbs[0] = 1;
-        r
-    }
-
-    pub fn oneRR(&self) -> &One<M, RR> {
-        &self.oneRR
-    }
-
-    pub fn to_elem<L>(&self, l: &Modulus<L>) -> Elem<L, Unencoded>
-    where
-        M: SmallerModulus<L>,
-    {
-        // TODO: Encode this assertion into the `where` above.
-        assert_eq!(self.width().num_limbs, l.width().num_limbs);
-        Elem {
-            limbs: BoxedLimbs::new_unchecked(self.limbs.clone().into_limbs()),
+    pub fn to_elem<L>(&self, l: &Modulus<L>) -> Result<Elem<L, Unencoded>, error::Unspecified> {
+        self.verify_less_than(l)?;
+        let mut limbs = BoxedLimbs::zero(l.limbs.len());
+        limbs[..self.limbs.len()].copy_from_slice(&self.limbs);
+        Ok(Elem {
+            limbs,
             encoding: PhantomData,
-        }
+        })
     }
-
-    pub(crate) fn as_partial(&self) -> PartialModulus<M> {
-        PartialModulus {
+    pub fn modulus(&self) -> Modulus<M> {
+        Modulus {
             limbs: &self.limbs,
-            n0: self.n0.clone(),
+            n0: self.n0,
+            len_bits: self.len_bits,
             m: PhantomData,
             cpu_features: self.cpu_features,
         }
     }
+
+    pub fn len_bits(&self) -> BitLength {
+        self.len_bits
+    }
 }
 
-impl<M: PublicModulus> Modulus<M> {
+impl<M: PublicModulus> OwnedModulus<M> {
     pub fn be_bytes(&self) -> LeadingZerosStripped<impl ExactSizeIterator<Item = u8> + Clone + '_> {
         LeadingZerosStripped::new(limb::unstripped_be_bytes(&self.limbs))
     }
 }
 
-pub(crate) struct PartialModulus<'a, M> {
+pub struct Modulus<'a, M> {
     limbs: &'a [Limb],
     n0: N0,
+    len_bits: BitLength,
     m: PhantomData<M>,
     cpu_features: cpu::Features,
 }
 
-impl<M> PartialModulus<'_, M> {
+impl<M> Modulus<'_, M> {
+    pub(super) fn oneR(&self, out: &mut [Limb]) {
+        assert_eq!(self.limbs.len(), out.len());
+
+        let r = self.limbs.len() * LIMB_BITS;
+
+        // out = 2**r - m where m = self.
+        limb::limbs_negative_odd(out, self.limbs);
+
+        let lg_m = self.len_bits().as_usize_bits();
+        let leading_zero_bits_in_m = r - lg_m;
+
+        // When m's length is a multiple of LIMB_BITS, which is the case we
+        // most want to optimize for, then we already have
+        // out == 2**r - m == 2**r (mod m).
+        if leading_zero_bits_in_m != 0 {
+            debug_assert!(leading_zero_bits_in_m < LIMB_BITS);
+            // Correct out to 2**(lg m) (mod m). `limbs_negative_odd` flipped
+            // all the leading zero bits to ones. Flip them back.
+            *out.last_mut().unwrap() &= (!0) >> leading_zero_bits_in_m;
+
+            // Now we have out == 2**(lg m) (mod m). Keep doubling until we get
+            // to 2**r (mod m).
+            for _ in 0..leading_zero_bits_in_m {
+                limb::limbs_double_mod(out, self.limbs)
+            }
+        }
+
+        // Now out == 2**r (mod m) == 1*R.
+    }
+
     // TODO: XXX Avoid duplication with `Modulus`.
-    pub(super) fn zero(&self) -> Elem<M, R> {
-        let width = Width {
-            num_limbs: self.limbs.len(),
-            m: PhantomData,
-        };
+    pub(super) fn zero<E>(&self) -> Elem<M, E> {
         Elem {
-            limbs: BoxedLimbs::zero(width),
+            limbs: BoxedLimbs::zero(self.limbs.len()),
             encoding: PhantomData,
         }
     }
@@ -291,8 +236,12 @@ impl<M> PartialModulus<'_, M> {
         &self.n0
     }
 
+    pub fn len_bits(&self) -> BitLength {
+        self.len_bits
+    }
+
     #[inline]
-    pub fn cpu_features(&self) -> cpu::Features {
+    pub(crate) fn cpu_features(&self) -> cpu::Features {
         self.cpu_features
     }
 }

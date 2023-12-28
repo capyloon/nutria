@@ -10,10 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
-rust-version = "1.38"
+edition = "2021"
+rust-version = "1.61"
 name = "crossbeam-epoch"
-version = "0.9.15"
+version = "0.9.17"
 description = "Epoch-based garbage collection"
 homepage = "https://github.com/crossbeam-rs/crossbeam/tree/master/crossbeam-epoch"
 readme = "README.md"
@@ -35,21 +35,11 @@ repository = "https://github.com/crossbeam-rs/crossbeam"
 version = "1"
 
 [dependencies.crossbeam-utils]
-version = "0.8.5"
-default-features = false
-
-[dependencies.memoffset]
-version = "0.9"
-
-[dependencies.scopeguard]
-version = "1.1"
+version = "0.8.18"
 default-features = false
 
 [dev-dependencies.rand]
 version = "0.8"
-
-[dev-dependencies.rustversion]
-version = "1"
 
 [build-dependencies.autocfg]
 version = "1"
@@ -68,6 +58,6 @@ std = [
 ]
 
 [target."cfg(crossbeam_loom)".dependencies.loom-crate]
-version = "0.5"
+version = "0.7.1"
 optional = true
 package = "loom"

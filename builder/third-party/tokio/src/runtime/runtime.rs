@@ -260,6 +260,7 @@ impl Runtime {
     ///     println!("now running on a worker thread");
     /// });
     /// # }
+    /// ```
     #[track_caller]
     pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
     where
@@ -449,7 +450,7 @@ impl Runtime {
     /// }
     /// ```
     pub fn shutdown_background(self) {
-        self.shutdown_timeout(Duration::from_nanos(0))
+        self.shutdown_timeout(Duration::from_nanos(0));
     }
 }
 
@@ -478,6 +479,10 @@ impl Drop for Runtime {
         }
     }
 }
+
+impl std::panic::UnwindSafe for Runtime {}
+
+impl std::panic::RefUnwindSafe for Runtime {}
 
 cfg_metrics! {
     impl Runtime {

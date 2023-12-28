@@ -9,11 +9,11 @@ use crate::read::{
 
 use super::{CoffFile, CoffHeader};
 
-/// An iterator over the relocations in a `CoffBigSection`.
+/// An iterator for the relocations in a [`CoffBigSection`](super::CoffBigSection).
 pub type CoffBigRelocationIterator<'data, 'file, R = &'data [u8]> =
     CoffRelocationIterator<'data, 'file, R, pe::AnonObjectHeaderBigobj>;
 
-/// An iterator over the relocations in a `CoffSection`.
+/// An iterator for the relocations in a [`CoffSection`](super::CoffSection).
 pub struct CoffRelocationIterator<
     'data,
     'file,
@@ -40,15 +40,17 @@ impl<'data, 'file, R: ReadRef<'data>, Coff: CoffHeader> Iterator
                     pe::IMAGE_REL_ARM_SECREL => (RelocationKind::SectionOffset, 32, 0),
                     typ => (RelocationKind::Coff(typ), 0, 0),
                 },
-                pe::IMAGE_FILE_MACHINE_ARM64 => match relocation.typ.get(LE) {
-                    pe::IMAGE_REL_ARM64_ADDR32 => (RelocationKind::Absolute, 32, 0),
-                    pe::IMAGE_REL_ARM64_ADDR32NB => (RelocationKind::ImageOffset, 32, 0),
-                    pe::IMAGE_REL_ARM64_SECREL => (RelocationKind::SectionOffset, 32, 0),
-                    pe::IMAGE_REL_ARM64_SECTION => (RelocationKind::SectionIndex, 16, 0),
-                    pe::IMAGE_REL_ARM64_ADDR64 => (RelocationKind::Absolute, 64, 0),
-                    pe::IMAGE_REL_ARM64_REL32 => (RelocationKind::Relative, 32, -4),
-                    typ => (RelocationKind::Coff(typ), 0, 0),
-                },
+                pe::IMAGE_FILE_MACHINE_ARM64 | pe::IMAGE_FILE_MACHINE_ARM64EC => {
+                    match relocation.typ.get(LE) {
+                        pe::IMAGE_REL_ARM64_ADDR32 => (RelocationKind::Absolute, 32, 0),
+                        pe::IMAGE_REL_ARM64_ADDR32NB => (RelocationKind::ImageOffset, 32, 0),
+                        pe::IMAGE_REL_ARM64_SECREL => (RelocationKind::SectionOffset, 32, 0),
+                        pe::IMAGE_REL_ARM64_SECTION => (RelocationKind::SectionIndex, 16, 0),
+                        pe::IMAGE_REL_ARM64_ADDR64 => (RelocationKind::Absolute, 64, 0),
+                        pe::IMAGE_REL_ARM64_REL32 => (RelocationKind::Relative, 32, -4),
+                        typ => (RelocationKind::Coff(typ), 0, 0),
+                    }
+                }
                 pe::IMAGE_FILE_MACHINE_I386 => match relocation.typ.get(LE) {
                     pe::IMAGE_REL_I386_DIR16 => (RelocationKind::Absolute, 16, 0),
                     pe::IMAGE_REL_I386_REL16 => (RelocationKind::Relative, 16, 0),

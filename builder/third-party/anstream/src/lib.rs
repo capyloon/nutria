@@ -35,25 +35,23 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub mod adapter;
+pub mod stream;
+
 mod buffer;
 #[macro_use]
 mod macros;
 mod auto;
-mod is_terminal;
-mod lockable;
-mod raw;
+mod fmt;
 mod strip;
 #[cfg(all(windows, feature = "wincon"))]
 mod wincon;
 
 pub use auto::AutoStream;
-pub use is_terminal::IsTerminal;
-pub use lockable::Lockable;
-pub use raw::RawStream;
 pub use strip::StripStream;
 #[cfg(all(windows, feature = "wincon"))]
 pub use wincon::WinconStream;
 
+#[allow(deprecated)]
 pub use buffer::Buffer;
 
 /// Create an ANSI escape code compatible stdout

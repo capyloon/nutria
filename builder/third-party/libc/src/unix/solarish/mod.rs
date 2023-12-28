@@ -2588,6 +2588,9 @@ const _CMSG_DATA_ALIGNMENT: usize = ::mem::size_of::<::c_int>();
 
 const NEWDEV: ::c_int = 1;
 
+// sys/sendfile.h
+pub const SFV_FD_SELF: ::c_int = -2;
+
 const_fn! {
     {const} fn _CMSG_HDR_ALIGN(p: usize) -> usize {
         (p + _CMSG_HDR_ALIGNMENT - 1) & !(_CMSG_HDR_ALIGNMENT - 1)
@@ -2753,7 +2756,7 @@ extern "C" {
         host: *mut ::c_char,
         hostlen: ::socklen_t,
         serv: *mut ::c_char,
-        sevlen: ::socklen_t,
+        servlen: ::socklen_t,
         flags: ::c_int,
     ) -> ::c_int;
     pub fn setpwent();
@@ -3203,9 +3206,9 @@ extern "C" {
 
     pub fn sync();
 
-    fn __major(version: ::c_int, devnum: ::dev_t) -> ::major_t;
-    fn __minor(version: ::c_int, devnum: ::dev_t) -> ::minor_t;
-    fn __makedev(version: ::c_int, majdev: ::major_t, mindev: ::minor_t) -> ::dev_t;
+    pub fn __major(version: ::c_int, devnum: ::dev_t) -> ::major_t;
+    pub fn __minor(version: ::c_int, devnum: ::dev_t) -> ::minor_t;
+    pub fn __makedev(version: ::c_int, majdev: ::major_t, mindev: ::minor_t) -> ::dev_t;
 }
 
 #[link(name = "sendfile")]

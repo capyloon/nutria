@@ -39,7 +39,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.4.1"
+//! version = "1.6.1"
 //! features = [
 //!     "v4",                # Lets you generate random UUIDs
 //!     "fast-rng",          # Use a faster (but still sufficiently random) RNG
@@ -80,6 +80,9 @@
 //! * `v3` - Version 3 UUIDs based on the MD5 hash of some data.
 //! * `v4` - Version 4 UUIDs with random data.
 //! * `v5` - Version 5 UUIDs based on the SHA1 hash of some data.
+//! * `v6` - Version 6 UUIDs using a timestamp and monotonic counter.
+//! * `v7` - Version 7 UUIDs using a Unix timestamp.
+//! * `v8` - Version 8 UUIDs using user-defined data.
 //!
 //! Versions that are in draft are also supported. See the _unstable features_ section for details.
 //!
@@ -108,15 +111,13 @@
 //! * `fast-rng` - uses a faster algorithm for generating random UUIDs.
 //!   This feature requires more dependencies to compile, but is just as suitable for
 //!   UUIDs as the default algorithm.
+//! * `bytemuck` - adds a `Pod` trait implementation to `Uuid` for byte manipulation
 //!
 //! # Unstable features
 //!
 //! Some features are unstable. They may be incomplete or depend on other
 //! unstable libraries. These include:
 //!
-//! * `v6` - Version 6 UUIDs using a timestamp and monotonic counter.
-//! * `v7` - Version 7 UUIDs using a Unix timestamp.
-//! * `v8` - Version 8 UUIDs using user-defined data.
 //! * `zerocopy` - adds support for zero-copy deserialization using the
 //!   `zerocopy` library.
 //! * `borsh` - adds the ability to serialize and deserialize a UUID using
@@ -140,7 +141,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.4.1"
+//! version = "1.6.1"
 //! features = [
 //!     "v4",
 //!     "v7",
@@ -155,7 +156,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.4.1"
+//! version = "1.6.1"
 //! default-features = false
 //! ```
 //!
@@ -213,7 +214,7 @@
 #![doc(
     html_logo_url = "https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png",
     html_favicon_url = "https://www.rust-lang.org/favicon.ico",
-    html_root_url = "https://docs.rs/uuid/1.4.1"
+    html_root_url = "https://docs.rs/uuid/1.6.1"
 )]
 
 #[cfg(any(feature = "std", test))]
@@ -250,11 +251,11 @@ mod v3;
 mod v4;
 #[cfg(feature = "v5")]
 mod v5;
-#[cfg(all(uuid_unstable, feature = "v6"))]
+#[cfg(feature = "v6")]
 mod v6;
-#[cfg(all(uuid_unstable, feature = "v7"))]
+#[cfg(feature = "v7")]
 mod v7;
-#[cfg(all(uuid_unstable, feature = "v8"))]
+#[cfg(feature = "v8")]
 mod v8;
 
 #[cfg(feature = "md5")]
@@ -311,16 +312,12 @@ pub enum Version {
     /// Version 5: SHA-1 hash.
     Sha1 = 5,
     /// Version 6: Sortable Timestamp and node ID.
-    #[cfg(uuid_unstable)]
     SortMac = 6,
     /// Version 7: Timestamp and random.
-    #[cfg(uuid_unstable)]
     SortRand = 7,
     /// Version 8: Custom.
-    #[cfg(uuid_unstable)]
     Custom = 8,
     /// The "max" (all ones) UUID.
-    #[cfg(uuid_unstable)]
     Max = 0xff,
 }
 
@@ -447,6 +444,10 @@ pub enum Variant {
     derive(borsh::BorshDeserialize, borsh::BorshSerialize)
 )]
 #[repr(transparent)]
+#[cfg_attr(
+    feature = "bytemuck",
+    derive(bytemuck::Zeroable, bytemuck::Pod, bytemuck::TransparentWrapper)
+)]
 pub struct Uuid(Bytes);
 
 impl Uuid {
@@ -570,13 +571,9 @@ impl Uuid {
             3 => Some(Version::Md5),
             4 => Some(Version::Random),
             5 => Some(Version::Sha1),
-            #[cfg(uuid_unstable)]
             6 => Some(Version::SortMac),
-            #[cfg(uuid_unstable)]
             7 => Some(Version::SortRand),
-            #[cfg(uuid_unstable)]
             8 => Some(Version::Custom),
-            #[cfg(uuid_unstable)]
             0xf => Some(Version::Max),
             _ => None,
         }
@@ -846,7 +843,6 @@ impl Uuid {
     }
 
     /// Tests if the UUID is max (all ones).
-    #[cfg(uuid_unstable)]
     pub const fn is_max(&self) -> bool {
         self.as_u128() == u128::MAX
     }
@@ -906,13 +902,11 @@ impl Uuid {
 
                 Some(Timestamp::from_rfc4122(ticks, counter))
             }
-            #[cfg(uuid_unstable)]
             Some(Version::SortMac) => {
                 let (ticks, counter) = timestamp::decode_sorted_rfc4122_timestamp(self);
 
                 Some(Timestamp::from_rfc4122(ticks, counter))
             }
-            #[cfg(uuid_unstable)]
             Some(Version::SortRand) => {
                 let millis = timestamp::decode_unix_timestamp_millis(self);
 
@@ -942,6 +936,22 @@ impl AsRef<[u8]> for Uuid {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         &self.0
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<Uuid> for std::vec::Vec<u8> {
+    fn from(value: Uuid) -> Self {
+        value.0.to_vec()
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::convert::TryFrom<std::vec::Vec<u8>> for Uuid {
+    type Error = Error;
+
+    fn try_from(value: std::vec::Vec<u8>) -> Result<Self, Self::Error> {
+        Uuid::from_slice(&value)
     }
 }
 
@@ -1163,7 +1173,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(uuid_unstable)]
     #[cfg_attr(
         all(
             target_arch = "wasm32",
@@ -1742,6 +1751,31 @@ mod tests {
         assert_eq!(ur.len(), 16);
         assert!(!ub.iter().all(|&b| b == 0));
         assert!(!ur.iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    #[cfg_attr(
+        all(
+            target_arch = "wasm32",
+            target_vendor = "unknown",
+            target_os = "unknown"
+        ),
+        wasm_bindgen_test
+    )]
+    fn test_convert_vec() {
+        use crate::std::{convert::TryInto, vec::Vec};
+
+        let u = new();
+        let ub = u.as_ref();
+
+        let v: Vec<u8> = u.into();
+
+        assert_eq!(&v, ub);
+
+        let uv: Uuid = v.try_into().unwrap();
+
+        assert_eq!(uv, u);
     }
 
     #[test]

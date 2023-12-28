@@ -2,7 +2,6 @@
 
 [![crates.io](https://img.shields.io/crates/v/env_logger.svg)](https://crates.io/crates/env_logger)
 [![Documentation](https://docs.rs/env_logger/badge.svg)](https://docs.rs/env_logger)
-[![Documentation](https://img.shields.io/badge/docs-main-blue.svg)](https://env-logger-rs.github.io/env_logger/env_logger/index.html)
 
 Implements a logger that can be configured via environment variables.
 
@@ -16,17 +15,14 @@ Implements a logger that can be configured via environment variables.
 
 It must be added along with `log` to the project dependencies:
 
-```toml
-[dependencies]
-log = "0.4.0"
-env_logger = "0.9.0"
+```console
+$ cargo add log env_logger
 ```
 
 `env_logger` must be initialized as early as possible in the project. After it's initialized, you can use the `log` macros to do actual logging.
 
 ```rust
-#[macro_use]
-extern crate log;
+use log::info;
 
 fn main() {
     env_logger::init();
@@ -75,7 +71,7 @@ There is also a pseudo logging level, `off`, which may be specified to disable
 all logging for a given module or for the entire application. As with the
 logging levels, the letter case is not significant.
 
-`env_logger` can be configured in other ways besides an environment variable. See [the examples](https://github.com/env-logger-rs/env_logger/tree/main/examples) for more approaches.
+`env_logger` can be configured in other ways besides an environment variable. See [the examples](https://github.com/rust-cli/env_logger/tree/main/examples) for more approaches.
 
 ### In tests
 
@@ -86,13 +82,10 @@ Tests can use the `env_logger` crate to see log messages generated during that t
 log = "0.4.0"
 
 [dev-dependencies]
-env_logger = "0.9.0"
+env_logger = "0.10.0"
 ```
 
 ```rust
-#[macro_use]
-extern crate log;
-
 fn add_one(num: i32) -> i32 {
     info!("add_one called with {}", num);
     num + 1
@@ -101,6 +94,7 @@ fn add_one(num: i32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use log::info;
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();

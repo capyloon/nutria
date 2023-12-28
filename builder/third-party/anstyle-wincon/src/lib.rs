@@ -1,6 +1,6 @@
 //! Styling legacy Windows terminals
 //!
-//! See [`Console`]
+//! See [`WinconStream`]
 //!
 //! This fills a similar role as [`winapi-util`](https://crates.io/crates/winapi-util) does for
 //! [`termcolor`](https://crates.io/crates/termcolor) with the differences
@@ -10,12 +10,9 @@
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-mod console;
-mod lockable;
+pub mod ansi;
 mod stream;
 #[cfg(windows)]
 pub mod windows;
 
-pub use console::Console;
-pub use lockable::Lockable;
 pub use stream::WinconStream;

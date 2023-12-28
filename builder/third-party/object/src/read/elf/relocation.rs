@@ -91,14 +91,14 @@ impl<'data, Elf: FileHeader> Iterator for ElfRelaIterator<'data, Elf> {
     }
 }
 
-/// An iterator over the dynamic relocations for an `ElfFile32`.
+/// An iterator for the dynamic relocations in an [`ElfFile32`](super::ElfFile32).
 pub type ElfDynamicRelocationIterator32<'data, 'file, Endian = Endianness, R = &'data [u8]> =
     ElfDynamicRelocationIterator<'data, 'file, elf::FileHeader32<Endian>, R>;
-/// An iterator over the dynamic relocations for an `ElfFile64`.
+/// An iterator for the dynamic relocations in an [`ElfFile64`](super::ElfFile64).
 pub type ElfDynamicRelocationIterator64<'data, 'file, Endian = Endianness, R = &'data [u8]> =
     ElfDynamicRelocationIterator<'data, 'file, elf::FileHeader64<Endian>, R>;
 
-/// An iterator over the dynamic relocations for an `ElfFile`.
+/// An iterator for the dynamic relocations in an [`ElfFile`].
 pub struct ElfDynamicRelocationIterator<'data, 'file, Elf, R = &'data [u8]>
 where
     Elf: FileHeader,
@@ -164,14 +164,14 @@ where
     }
 }
 
-/// An iterator over the relocations for an `ElfSection32`.
+/// An iterator for the relocations for an [`ElfSection32`](super::ElfSection32).
 pub type ElfSectionRelocationIterator32<'data, 'file, Endian = Endianness, R = &'data [u8]> =
     ElfSectionRelocationIterator<'data, 'file, elf::FileHeader32<Endian>, R>;
-/// An iterator over the relocations for an `ElfSection64`.
+/// An iterator for the relocations for an [`ElfSection64`](super::ElfSection64).
 pub type ElfSectionRelocationIterator64<'data, 'file, Endian = Endianness, R = &'data [u8]> =
     ElfSectionRelocationIterator<'data, 'file, elf::FileHeader64<Endian>, R>;
 
-/// An iterator over the relocations for an `ElfSection`.
+/// An iterator for the relocations for an [`ElfSection`](super::ElfSection).
 pub struct ElfSectionRelocationIterator<'data, 'file, Elf, R = &'data [u8]>
 where
     Elf: FileHeader,
@@ -319,6 +319,7 @@ fn parse_relocation<Elf: FileHeader>(
             elf::R_LARCH_32 => (RelocationKind::Absolute, 32),
             elf::R_LARCH_64 => (RelocationKind::Absolute, 64),
             elf::R_LARCH_32_PCREL => (RelocationKind::Relative, 32),
+            elf::R_LARCH_64_PCREL => (RelocationKind::Relative, 64),
             elf::R_LARCH_B16 => {
                 encoding = RelocationEncoding::LoongArchBranch;
                 (RelocationKind::Relative, 16)
@@ -404,6 +405,57 @@ fn parse_relocation<Elf: FileHeader>(
             elf::R_SBF_64_32 => (RelocationKind::Absolute, 32),
             r_type => (RelocationKind::Elf(r_type), 0),
         },
+        elf::EM_SHARC => match reloc.r_type(endian, false) {
+            elf::R_SHARC_ADDR24_V3 => {
+                encoding = RelocationEncoding::SharcTypeA;
+                (RelocationKind::Absolute, 24)
+            }
+            elf::R_SHARC_ADDR32_V3 => {
+                encoding = RelocationEncoding::SharcTypeA;
+                (RelocationKind::Absolute, 32)
+            }
+            elf::R_SHARC_ADDR_VAR_V3 => {
+                encoding = RelocationEncoding::Generic;
+                (RelocationKind::Absolute, 32)
+            }
+            elf::R_SHARC_PCRSHORT_V3 => {
+                encoding = RelocationEncoding::SharcTypeA;
+                (RelocationKind::Relative, 6)
+            }
+            elf::R_SHARC_PCRLONG_V3 => {
+                encoding = RelocationEncoding::SharcTypeA;
+                (RelocationKind::Relative, 24)
+            }
+            elf::R_SHARC_DATA6_V3 => {
+                encoding = RelocationEncoding::SharcTypeA;
+                (RelocationKind::Absolute, 6)
+            }
+            elf::R_SHARC_DATA16_V3 => {
+                encoding = RelocationEncoding::SharcTypeA;
+                (RelocationKind::Absolute, 16)
+            }
+            elf::R_SHARC_DATA6_VISA_V3 => {
+                encoding = RelocationEncoding::SharcTypeB;
+                (RelocationKind::Absolute, 6)
+            }
+            elf::R_SHARC_DATA7_VISA_V3 => {
+                encoding = RelocationEncoding::SharcTypeB;
+                (RelocationKind::Absolute, 7)
+            }
+            elf::R_SHARC_DATA16_VISA_V3 => {
+                encoding = RelocationEncoding::SharcTypeB;
+                (RelocationKind::Absolute, 16)
+            }
+            elf::R_SHARC_PCR6_VISA_V3 => {
+                encoding = RelocationEncoding::SharcTypeB;
+                (RelocationKind::Relative, 16)
+            }
+            elf::R_SHARC_ADDR_VAR16_V3 => {
+                encoding = RelocationEncoding::Generic;
+                (RelocationKind::Absolute, 16)
+            }
+            r_type => (RelocationKind::Elf(r_type), 0),
+        },
         elf::EM_SPARC | elf::EM_SPARC32PLUS | elf::EM_SPARCV9 => {
             match reloc.r_type(endian, false) {
                 elf::R_SPARC_32 | elf::R_SPARC_UA32 => (RelocationKind::Absolute, 32),
@@ -434,7 +486,7 @@ fn parse_relocation<Elf: FileHeader>(
     }
 }
 
-/// A trait for generic access to `Rel32` and `Rel64`.
+/// A trait for generic access to [`elf::Rel32`] and [`elf::Rel64`].
 #[allow(missing_docs)]
 pub trait Rel: Debug + Pod + Clone {
     type Word: Into<u64>;
@@ -499,7 +551,7 @@ impl<Endian: endian::Endian> Rel for elf::Rel64<Endian> {
     }
 }
 
-/// A trait for generic access to `Rela32` and `Rela64`.
+/// A trait for generic access to [`elf::Rela32`] and [`elf::Rela64`].
 #[allow(missing_docs)]
 pub trait Rela: Debug + Pod + Clone {
     type Word: Into<u64>;

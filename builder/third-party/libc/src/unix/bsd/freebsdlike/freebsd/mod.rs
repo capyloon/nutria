@@ -48,6 +48,8 @@ pub type cpusetid_t = ::c_int;
 
 pub type sctp_assoc_t = u32;
 
+pub type eventfd_t = u64;
+
 #[cfg_attr(feature = "extra_traits", derive(Debug, Hash, PartialEq, Eq))]
 #[repr(u32)]
 pub enum devstat_support_flags {
@@ -365,9 +367,13 @@ s! {
     }
 
     pub struct cpuset_t {
-        #[cfg(target_pointer_width = "64")]
+        #[cfg(all(freebsd14, target_pointer_width = "64"))]
+        __bits: [::c_long; 16],
+        #[cfg(all(freebsd14, target_pointer_width = "32"))]
+        __bits: [::c_long; 32],
+        #[cfg(all(not(freebsd14), target_pointer_width = "64"))]
         __bits: [::c_long; 4],
-        #[cfg(target_pointer_width = "32")]
+        #[cfg(all(not(freebsd14), target_pointer_width = "32"))]
         __bits: [::c_long; 8],
     }
 
@@ -967,6 +973,8 @@ s! {
         pub ifc_len: ::c_int,
         #[cfg(libc_union)]
         pub ifc_ifcu: __c_anonymous_ifc_ifcu,
+        #[cfg(not(libc_union))]
+        pub ifc_ifcu: *mut ifreq,
     }
 
     pub struct au_mask_t {
@@ -996,6 +1004,8 @@ s! {
         pub pcbcnt: u32,
     }
 
+    // Note: this structure will change in a backwards-incompatible way in
+    // FreeBSD 15.
     pub struct tcp_info {
         pub tcpi_state: u8,
         pub __tcpi_ca_state: u8,
@@ -1053,7 +1063,21 @@ s! {
         #[cfg(freebsd14)]
         pub __tcpi_received_ce_bytes: u32,
         #[cfg(freebsd14)]
-        pub __tcpi_pad: [u32; 19],
+        pub tcpi_total_tlp: u32,
+        #[cfg(freebsd14)]
+        pub tcpi_total_tlp_bytes: u64,
+        #[cfg(freebsd14)]
+        pub tcpi_snd_una: u32,
+        #[cfg(freebsd14)]
+        pub tcpi_snd_max: u32,
+        #[cfg(freebsd14)]
+        pub tcpi_rcv_numsacks: u32,
+        #[cfg(freebsd14)]
+        pub tcpi_rcv_adv: u32,
+        #[cfg(freebsd14)]
+        pub tcpi_dupacks: u32,
+        #[cfg(freebsd14)]
+        pub __tcpi_pad: [u32; 10],
         #[cfg(not(freebsd14))]
         pub __tcpi_pad: [u32; 26],
     }
@@ -2597,7 +2621,13 @@ pub const DEVSTAT_N_TRANS_FLAGS: ::c_int = 4;
 pub const DEVSTAT_NAME_LEN: ::c_int = 16;
 
 // sys/cpuset.h
-pub const CPU_SETSIZE: ::c_int = 256;
+cfg_if! {
+    if #[cfg(freebsd14)] {
+        pub const CPU_SETSIZE: ::c_int = 1024;
+    } else {
+        pub const CPU_SETSIZE: ::c_int = 256;
+    }
+}
 
 pub const SIGEV_THREAD_ID: ::c_int = 4;
 
@@ -2664,7 +2694,9 @@ pub const Q_SETQUOTA: ::c_int = 0x800;
 pub const MAP_GUARD: ::c_int = 0x00002000;
 pub const MAP_EXCL: ::c_int = 0x00004000;
 pub const MAP_PREFAULT_READ: ::c_int = 0x00040000;
-pub const MAP_ALIGNED_SUPER: ::c_int = 1 << 24;
+pub const MAP_ALIGNMENT_SHIFT: ::c_int = 24;
+pub const MAP_ALIGNMENT_MASK: ::c_int = 0xff << MAP_ALIGNMENT_SHIFT;
+pub const MAP_ALIGNED_SUPER: ::c_int = 1 << MAP_ALIGNMENT_SHIFT;
 
 pub const POSIX_FADV_NORMAL: ::c_int = 0;
 pub const POSIX_FADV_RANDOM: ::c_int = 1;
@@ -3168,6 +3200,7 @@ pub const IFF_LOOPBACK: ::c_int = 0x8;
 /// (i) is a point-to-point link
 pub const IFF_POINTOPOINT: ::c_int = 0x10;
 /// (i) calls if_input in net epoch
+#[deprecated(since = "0.2.149", note = "Removed in FreeBSD 14")]
 pub const IFF_KNOWSEPOCH: ::c_int = 0x20;
 /// (d) resources allocated
 pub const IFF_RUNNING: ::c_int = 0x40;
@@ -3215,6 +3248,7 @@ pub const IFF_DYING: ::c_int = 0x200000;
 /// (n) interface is being renamed
 pub const IFF_RENAMING: ::c_int = 0x400000;
 /// interface is not part of any groups
+#[deprecated(since = "0.2.149", note = "Removed in FreeBSD 14")]
 pub const IFF_NOGROUP: ::c_int = 0x800000;
 
 /// link invalid/unknown
@@ -3857,6 +3891,7 @@ pub const RFMEM: ::c_int = 32;
 pub const RFNOWAIT: ::c_int = 64;
 pub const RFCFDG: ::c_int = 4096;
 pub const RFTHREAD: ::c_int = 8192;
+pub const RFSIGSHARE: ::c_int = 16384;
 pub const RFLINUXTHPN: ::c_int = 65536;
 pub const RFTSIGZMB: ::c_int = 524288;
 pub const RFSPAWN: ::c_int = 2147483648;
@@ -4693,6 +4728,11 @@ pub const RB_POWERCYCLE: ::c_int = 0x400000;
 pub const RB_PROBE: ::c_int = 0x10000000;
 pub const RB_MULTIPLE: ::c_int = 0x20000000;
 
+// sys/timerfd.h
+
+pub const TFD_NONBLOCK: ::c_int = ::O_NONBLOCK;
+pub const TFD_CLOEXEC: ::c_int = O_CLOEXEC;
+
 cfg_if! {
     if #[cfg(libc_const_extern_fn)] {
         pub const fn MAP_ALIGNED(a: ::c_int) -> ::c_int {
@@ -4819,6 +4859,14 @@ f! {
             0
         };
         ::mem::size_of::<sockcred2>() + ::mem::size_of::<::gid_t>() * ngrps
+    }
+
+    pub fn PROT_MAX(x: ::c_int) -> ::c_int {
+        x << 16
+    }
+
+    pub fn PROT_MAX_EXTRACT(x: ::c_int) -> ::c_int {
+        (x >> 16) & (::PROT_READ | ::PROT_WRITE | ::PROT_EXEC)
     }
 }
 
@@ -5338,6 +5386,8 @@ extern "C" {
     pub fn setaudit(auditinfo: *const auditinfo_t) -> ::c_int;
 
     pub fn eventfd(init: ::c_uint, flags: ::c_int) -> ::c_int;
+    pub fn eventfd_read(fd: ::c_int, value: *mut eventfd_t) -> ::c_int;
+    pub fn eventfd_write(fd: ::c_int, value: eventfd_t) -> ::c_int;
 
     pub fn fdatasync(fd: ::c_int) -> ::c_int;
 
@@ -5406,6 +5456,17 @@ extern "C" {
         infotype: *mut ::c_uint,
         flags: *mut ::c_int,
     ) -> ::ssize_t;
+
+    pub fn timerfd_create(clockid: ::c_int, flags: ::c_int) -> ::c_int;
+    pub fn timerfd_gettime(fd: ::c_int, curr_value: *mut itimerspec) -> ::c_int;
+    pub fn timerfd_settime(
+        fd: ::c_int,
+        flags: ::c_int,
+        new_value: *const itimerspec,
+        old_value: *mut itimerspec,
+    ) -> ::c_int;
+    pub fn closefrom(lowfd: ::c_int);
+    pub fn close_range(lowfd: ::c_uint, highfd: ::c_uint, flags: ::c_int) -> ::c_int;
 }
 
 #[link(name = "memstat")]

@@ -10,7 +10,7 @@ type __pthread_spin_t = __cpu_simple_lock_nv_t;
 pub type vm_size_t = ::uintptr_t; // FIXME: deprecated since long time
 pub type lwpid_t = ::c_uint;
 pub type shmatt_t = ::c_uint;
-pub type cpuid_t = u64;
+pub type cpuid_t = ::c_ulong;
 pub type cpuset_t = _cpuset;
 pub type pthread_spin_t = ::c_uchar;
 pub type timer_t = ::c_int;
@@ -58,6 +58,39 @@ cfg_if! {
 impl siginfo_t {
     pub unsafe fn si_addr(&self) -> *mut ::c_void {
         self.si_addr
+    }
+
+    pub unsafe fn si_code(&self) -> ::c_int {
+        self.si_code
+    }
+
+    pub unsafe fn si_errno(&self) -> ::c_int {
+        self.si_errno
+    }
+
+    pub unsafe fn si_pid(&self) -> ::pid_t {
+        #[repr(C)]
+        struct siginfo_timer {
+            _si_signo: ::c_int,
+            _si_errno: ::c_int,
+            _si_code: ::c_int,
+            __pad1: ::c_int,
+            _pid: ::pid_t,
+        }
+        (*(self as *const siginfo_t as *const siginfo_timer))._pid
+    }
+
+    pub unsafe fn si_uid(&self) -> ::uid_t {
+        #[repr(C)]
+        struct siginfo_timer {
+            _si_signo: ::c_int,
+            _si_errno: ::c_int,
+            _si_code: ::c_int,
+            __pad1: ::c_int,
+            _pid: ::pid_t,
+            _uid: ::uid_t,
+        }
+        (*(self as *const siginfo_t as *const siginfo_timer))._uid
     }
 
     pub unsafe fn si_value(&self) -> ::sigval {
@@ -1527,6 +1560,7 @@ pub const SOCK_FLAGS_MASK: ::c_int = 0xf0000000;
 
 pub const SO_SNDTIMEO: ::c_int = 0x100b;
 pub const SO_RCVTIMEO: ::c_int = 0x100c;
+pub const SO_NOSIGPIPE: ::c_int = 0x0800;
 pub const SO_ACCEPTFILTER: ::c_int = 0x1000;
 pub const SO_TIMESTAMP: ::c_int = 0x2000;
 pub const SO_OVERFLOWED: ::c_int = 0x1009;
@@ -1667,6 +1701,7 @@ pub const O_DSYNC: ::c_int = 0x10000;
 pub const MAP_RENAME: ::c_int = 0x20;
 pub const MAP_NORESERVE: ::c_int = 0x40;
 pub const MAP_HASSEMAPHORE: ::c_int = 0x200;
+pub const MAP_TRYFIXED: ::c_int = 0x400;
 pub const MAP_WIRED: ::c_int = 0x800;
 pub const MAP_STACK: ::c_int = 0x2000;
 // map alignment aliases for MAP_ALIGNED
@@ -1852,6 +1887,9 @@ pub const MNT_NODEVMTIME: ::c_int = 0x40000000;
 pub const MNT_SOFTDEP: ::c_int = 0x80000000;
 pub const MNT_POSIX1EACLS: ::c_int = 0x00000800;
 pub const MNT_ACLS: ::c_int = MNT_POSIX1EACLS;
+pub const MNT_WAIT: ::c_int = 1;
+pub const MNT_NOWAIT: ::c_int = 2;
+pub const MNT_LAZY: ::c_int = 3;
 
 //<sys/timex.h>
 pub const NTP_API: ::c_int = 4;
@@ -2359,33 +2397,6 @@ pub const LSZOMB: ::c_int = 5;
 pub const LSONPROC: ::c_int = 7;
 pub const LSSUSPENDED: ::c_int = 8;
 
-pub const _REG_RDI: ::c_int = 0;
-pub const _REG_RSI: ::c_int = 1;
-pub const _REG_RDX: ::c_int = 2;
-pub const _REG_RCX: ::c_int = 3;
-pub const _REG_R8: ::c_int = 4;
-pub const _REG_R9: ::c_int = 5;
-pub const _REG_R10: ::c_int = 6;
-pub const _REG_R11: ::c_int = 7;
-pub const _REG_R12: ::c_int = 8;
-pub const _REG_R13: ::c_int = 9;
-pub const _REG_R14: ::c_int = 10;
-pub const _REG_R15: ::c_int = 11;
-pub const _REG_RBP: ::c_int = 12;
-pub const _REG_RBX: ::c_int = 13;
-pub const _REG_RAX: ::c_int = 14;
-pub const _REG_GS: ::c_int = 15;
-pub const _REG_FS: ::c_int = 16;
-pub const _REG_ES: ::c_int = 17;
-pub const _REG_DS: ::c_int = 18;
-pub const _REG_TRAPNO: ::c_int = 19;
-pub const _REG_ERR: ::c_int = 20;
-pub const _REG_RIP: ::c_int = 21;
-pub const _REG_CS: ::c_int = 22;
-pub const _REG_RFLAGS: ::c_int = 23;
-pub const _REG_RSP: ::c_int = 24;
-pub const _REG_SS: ::c_int = 25;
-
 // sys/xattr.h
 pub const XATTR_CREATE: ::c_int = 0x01;
 pub const XATTR_REPLACE: ::c_int = 0x02;
@@ -2396,6 +2407,20 @@ pub const EXTATTR_NAMESPACE_EMPTY: ::c_int = 0;
 pub const GRND_NONBLOCK: ::c_uint = 0x1;
 pub const GRND_RANDOM: ::c_uint = 0x2;
 pub const GRND_INSECURE: ::c_uint = 0x4;
+
+// sys/reboot.h
+pub const RB_ASKNAME: ::c_int = 0x000000001;
+pub const RB_SINGLE: ::c_int = 0x000000002;
+pub const RB_NOSYNC: ::c_int = 0x000000004;
+pub const RB_HALT: ::c_int = 0x000000008;
+pub const RB_INITNAME: ::c_int = 0x000000010;
+pub const RB_KDB: ::c_int = 0x000000040;
+pub const RB_RDONLY: ::c_int = 0x000000080;
+pub const RB_DUMP: ::c_int = 0x000000100;
+pub const RB_MINIROOT: ::c_int = 0x000000200;
+pub const RB_STRING: ::c_int = 0x000000400;
+pub const RB_POWERDOWN: ::c_int = RB_HALT | 0x000000800;
+pub const RB_USERCONF: ::c_int = 0x000001000;
 
 cfg_if! {
 
@@ -2529,12 +2554,6 @@ extern "C" {
     pub fn fchflags(fd: ::c_int, flags: ::c_ulong) -> ::c_int;
     pub fn lchflags(path: *const ::c_char, flags: ::c_ulong) -> ::c_int;
 
-    pub fn execvpe(
-        file: *const ::c_char,
-        argv: *const *const ::c_char,
-        envp: *const *const ::c_char,
-    ) -> ::c_int;
-
     pub fn extattr_list_fd(
         fd: ::c_int,
         attrnamespace: ::c_int,
@@ -2643,7 +2662,7 @@ extern "C" {
         host: *mut ::c_char,
         hostlen: ::socklen_t,
         serv: *mut ::c_char,
-        sevlen: ::socklen_t,
+        servlen: ::socklen_t,
         flags: ::c_int,
     ) -> ::c_int;
     pub fn mprotect(addr: *mut ::c_void, len: ::size_t, prot: ::c_int) -> ::c_int;
@@ -2727,6 +2746,7 @@ extern "C" {
         attr: *const ::pthread_attr_t,
         guardsize: *mut ::size_t,
     ) -> ::c_int;
+    pub fn pthread_attr_setguardsize(attr: *mut ::pthread_attr_t, guardsize: ::size_t) -> ::c_int;
     pub fn pthread_attr_getstack(
         attr: *const ::pthread_attr_t,
         stackaddr: *mut *mut ::c_void,
@@ -2952,6 +2972,8 @@ extern "C" {
         newfd: ::c_int,
     ) -> ::c_int;
     pub fn getrandom(buf: *mut ::c_void, buflen: ::size_t, flags: ::c_uint) -> ::ssize_t;
+
+    pub fn reboot(mode: ::c_int, bootstr: *mut ::c_char) -> ::c_int;
 }
 
 #[link(name = "rt")]
@@ -3153,6 +3175,38 @@ extern "C" {
     pub fn kinfo_getvmmap(pid: ::pid_t, cntp: *mut ::size_t) -> *mut kinfo_vmentry;
 }
 
+#[link(name = "execinfo")]
+extern "C" {
+    pub fn backtrace(addrlist: *mut *mut ::c_void, len: ::size_t) -> ::size_t;
+    pub fn backtrace_symbols(addrlist: *const *mut ::c_void, len: ::size_t) -> *mut *mut ::c_char;
+    pub fn backtrace_symbols_fd(
+        addrlist: *const *mut ::c_void,
+        len: ::size_t,
+        fd: ::c_int,
+    ) -> ::c_int;
+    pub fn backtrace_symbols_fmt(
+        addrlist: *const *mut ::c_void,
+        len: ::size_t,
+        fmt: *const ::c_char,
+    ) -> *mut *mut ::c_char;
+    pub fn backtrace_symbols_fd_fmt(
+        addrlist: *const *mut ::c_void,
+        len: ::size_t,
+        fd: ::c_int,
+        fmt: *const ::c_char,
+    ) -> ::c_int;
+}
+
+cfg_if! {
+    if #[cfg(libc_union)] {
+        extern {
+            // these functions use statvfs:
+            pub fn getmntinfo(mntbufp: *mut *mut ::statvfs, flags: ::c_int) -> ::c_int;
+            pub fn getvfsstat(buf: *mut statvfs, bufsize: ::size_t, flags: ::c_int) -> ::c_int;
+        }
+    }
+}
+
 cfg_if! {
     if #[cfg(target_arch = "aarch64")] {
         mod aarch64;
@@ -3172,6 +3226,12 @@ cfg_if! {
     } else if #[cfg(target_arch = "x86")] {
         mod x86;
         pub use self::x86::*;
+    } else if #[cfg(target_arch = "mips")] {
+        mod mips;
+        pub use self::mips::*;
+    } else if #[cfg(target_arch = "riscv64")] {
+        mod riscv64;
+        pub use self::riscv64::*;
     } else {
         // Unknown target_arch
     }

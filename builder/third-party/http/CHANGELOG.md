@@ -1,3 +1,12 @@
+# 0.2.11 (November 13, 2023)
+
+* Fix MIRI error in `header::Iter`.
+
+# 0.2.10 (November 10, 2023)
+
+* Fix parsing of `Authority` to handle square brackets in incorrect order.
+* Fix `HeaderMap::with_capacity()` to handle arithmetic overflow.
+
 # 0.2.9 (February 17, 2023)
 
 * Add `HeaderName` constants for `cache-status` and `cdn-cache-control`.

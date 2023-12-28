@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "http-body"
-version = "0.4.5"
+version = "0.4.6"
 authors = [
     "Carl Lerche <me@carllerche.com>",
     "Lucio Franco <luciofranco14@gmail.com>",

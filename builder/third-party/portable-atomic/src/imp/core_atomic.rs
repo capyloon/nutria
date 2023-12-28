@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // Wrap the standard library's atomic types in newtype.
 //
 // This is not a reexport, because we want to backport changes like
@@ -9,25 +11,25 @@ use core::{cell::UnsafeCell, marker::PhantomData, sync::atomic::Ordering};
 // Rust, we implement RefUnwindSafe when "std" feature is enabled.
 // However, on pre-1.56 Rust, the standard library's atomic types implement
 // RefUnwindSafe when "linked to std", and that's behavior that our other atomic
-// implementations can't emulate, so use PhantomData<NoRefUnwindSafe> to match
+// implementations can't emulate, so use PhantomData<NotRefUnwindSafe> to match
 // conditions where our other atomic implementations implement RefUnwindSafe.
 // If we do not do this, for example, downstream that is only tested on x86_64
 // may incorrectly assume that AtomicU64 always implements RefUnwindSafe even on
 // older rustc, and may be broken on platforms where std AtomicU64 is not available.
-struct NoRefUnwindSafe(UnsafeCell<()>);
+struct NotRefUnwindSafe(UnsafeCell<()>);
 // SAFETY: this is a marker type and we'll never access the value.
-unsafe impl Sync for NoRefUnwindSafe {}
+unsafe impl Sync for NotRefUnwindSafe {}
 
 #[repr(transparent)]
 pub(crate) struct AtomicPtr<T> {
     inner: core::sync::atomic::AtomicPtr<T>,
-    // Prevent RefUnwindSafe from being propagated from the std atomic type.
-    _marker: PhantomData<NoRefUnwindSafe>,
+    // Prevent RefUnwindSafe from being propagated from the std atomic type. See NotRefUnwindSafe for more.
+    _not_ref_unwind_safe: PhantomData<NotRefUnwindSafe>,
 }
 impl<T> AtomicPtr<T> {
     #[inline]
     pub(crate) const fn new(v: *mut T) -> Self {
-        Self { inner: core::sync::atomic::AtomicPtr::new(v), _marker: PhantomData }
+        Self { inner: core::sync::atomic::AtomicPtr::new(v), _not_ref_unwind_safe: PhantomData }
     }
     #[inline]
     pub(crate) fn is_lock_free() -> bool {
@@ -126,8 +128,8 @@ macro_rules! atomic_int {
         #[repr(transparent)]
         pub(crate) struct $atomic_type {
             inner: core::sync::atomic::$atomic_type,
-            // Prevent RefUnwindSafe from being propagated from the std atomic type.
-            _marker: PhantomData<NoRefUnwindSafe>,
+            // Prevent RefUnwindSafe from being propagated from the std atomic type. See NotRefUnwindSafe for more.
+            _not_ref_unwind_safe: PhantomData<NotRefUnwindSafe>,
         }
         #[cfg_attr(
             portable_atomic_no_cfg_target_has_atomic,
@@ -138,7 +140,7 @@ macro_rules! atomic_int {
         #[cfg(not(all(
             any(target_arch = "x86", target_arch = "x86_64"),
             not(any(miri, portable_atomic_sanitize_thread)),
-            any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
+            not(portable_atomic_no_asm),
         )))]
         #[cfg_attr(
             portable_atomic_no_cfg_target_has_atomic,
@@ -149,7 +151,10 @@ macro_rules! atomic_int {
         impl $atomic_type {
             #[inline]
             pub(crate) const fn new(v: $int_type) -> Self {
-                Self { inner: core::sync::atomic::$atomic_type::new(v), _marker: PhantomData }
+                Self {
+                    inner: core::sync::atomic::$atomic_type::new(v),
+                    _not_ref_unwind_safe: PhantomData,
+                }
             }
             #[inline]
             pub(crate) fn is_lock_free() -> bool {
@@ -157,7 +162,12 @@ macro_rules! atomic_int {
             }
             #[inline]
             pub(crate) const fn is_always_lock_free() -> bool {
-                true
+                // ESP-IDF targets' 64-bit atomics are not lock-free.
+                // https://github.com/rust-lang/rust/pull/115577#issuecomment-1732259297
+                cfg!(not(all(
+                    any(target_arch = "riscv32", target_arch = "xtensa"),
+                    target_os = "espidf",
+                ))) | (core::mem::size_of::<$int_type>() < 8)
             }
             #[inline]
             pub(crate) fn get_mut(&mut self) -> &mut $int_type {
@@ -363,13 +373,12 @@ macro_rules! atomic_int {
             #[inline]
             #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
             pub(crate) fn fetch_not(&self, order: Ordering) -> $int_type {
-                const NOT_MASK: $int_type = (0 as $int_type).wrapping_sub(1);
-                self.fetch_xor(NOT_MASK, order)
+                self.fetch_xor(!0, order)
             }
             #[cfg(not(all(
                 any(target_arch = "x86", target_arch = "x86_64"),
                 not(any(miri, portable_atomic_sanitize_thread)),
-                any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
+                not(portable_atomic_no_asm),
             )))]
             #[inline]
             #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
@@ -384,7 +393,7 @@ macro_rules! atomic_int {
             #[cfg(not(all(
                 any(target_arch = "x86", target_arch = "x86_64"),
                 not(any(miri, portable_atomic_sanitize_thread)),
-                any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
+                not(portable_atomic_no_asm),
             )))]
             #[inline]
             #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces

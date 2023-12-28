@@ -264,21 +264,6 @@ pub unsafe fn physmap(physical_address: usize, size: usize, flags: PhysmapFlags)
     syscall3(SYS_PHYSMAP, physical_address, size, flags.bits())
 }
 
-/// Unmap previously mapped physical memory
-///
-/// # Errors
-///
-/// * `EPERM` - `uid != 0`
-/// * `EFAULT` - `virtual_address` has not been mapped
-pub unsafe fn physunmap(virtual_address: usize) -> Result<usize> {
-    syscall1(SYS_PHYSUNMAP, virtual_address)
-}
-
-/// Create a pair of file descriptors referencing the read and write ends of a pipe
-pub fn pipe2(fds: &mut [usize; 2], flags: usize) -> Result<usize> {
-    unsafe { syscall2(SYS_PIPE2, fds.as_ptr() as usize, flags) }
-}
-
 /// Read from a file descriptor into a buffer
 pub fn read(fd: usize, buf: &mut [u8]) -> Result<usize> {
     unsafe { syscall3(SYS_READ, fd, buf.as_mut_ptr() as usize, buf.len()) }

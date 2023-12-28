@@ -15,6 +15,8 @@ sed 's/trait Scheme/trait SchemeBlock/' scheme.rs \
 | sed 's/\.map(|o| o as usize)/.map(|o| o.map(|o| o as usize))/' \
 | sed 's/Ok(0)/Ok(Some(0))/g' \
 | sed 's/Result<\([^>]\+\)>/Result<Option<\1>>/g' \
+| sed 's/convert_to_this_scheme/convert_to_this_scheme_block/g' \
+| sed 's/convert_in_scheme_handle/convert_in_scheme_handle_block/g' \
 > scheme_block.rs
 
 echo "Generating SchemeBlockMut from SchemeBlock"

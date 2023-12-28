@@ -19,6 +19,8 @@ use super::{FileHeader, XcoffFile};
 /// A table of symbol entries in an XCOFF file.
 ///
 /// Also includes the string table used for the symbol names.
+///
+/// Returned by [`FileHeader::symbols`].
 #[derive(Debug)]
 pub struct SymbolTable<'data, Xcoff, R = &'data [u8]>
 where
@@ -80,6 +82,30 @@ where
         })
     }
 
+    /// Return the string table used for the symbol names.
+    #[inline]
+    pub fn strings(&self) -> StringTable<'data, R> {
+        self.strings
+    }
+
+    /// Iterate over the symbols.
+    #[inline]
+    pub fn iter<'table>(&'table self) -> SymbolIterator<'data, 'table, Xcoff, R> {
+        SymbolIterator {
+            symbols: self,
+            index: 0,
+        }
+    }
+
+    /// Empty symbol iterator.
+    #[inline]
+    pub(super) fn iter_none<'table>(&'table self) -> SymbolIterator<'data, 'table, Xcoff, R> {
+        SymbolIterator {
+            symbols: self,
+            index: self.symbols.len(),
+        }
+    }
+
     /// Return the symbol entry at the given index and offset.
     pub fn get<T: Pod>(&self, index: usize, offset: usize) -> Result<&'data T> {
         let entry = index
@@ -134,21 +160,47 @@ where
     }
 }
 
-/// A symbol table of an `XcoffFile32`.
+/// An iterator for symbol entries in an XCOFF file.
+///
+/// Yields the index and symbol structure for each symbol.
+#[derive(Debug)]
+pub struct SymbolIterator<'data, 'table, Xcoff, R = &'data [u8]>
+where
+    Xcoff: FileHeader,
+    R: ReadRef<'data>,
+{
+    symbols: &'table SymbolTable<'data, Xcoff, R>,
+    index: usize,
+}
+
+impl<'data, 'table, Xcoff: FileHeader, R: ReadRef<'data>> Iterator
+    for SymbolIterator<'data, 'table, Xcoff, R>
+{
+    type Item = (SymbolIndex, &'data Xcoff::Symbol);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.index;
+        let symbol = self.symbols.symbol(index).ok()?;
+        self.index += 1 + symbol.n_numaux() as usize;
+        Some((SymbolIndex(index), symbol))
+    }
+}
+
+/// A symbol table in an [`XcoffFile32`](super::XcoffFile32).
 pub type XcoffSymbolTable32<'data, 'file, R = &'data [u8]> =
     XcoffSymbolTable<'data, 'file, xcoff::FileHeader32, R>;
-/// A symbol table of an `XcoffFile64`.
+/// A symbol table in an [`XcoffFile64`](super::XcoffFile64).
 pub type XcoffSymbolTable64<'data, 'file, R = &'data [u8]> =
     XcoffSymbolTable<'data, 'file, xcoff::FileHeader64, R>;
 
-/// A symbol table of an `XcoffFile`.
+/// A symbol table in an [`XcoffFile`].
 #[derive(Debug, Clone, Copy)]
 pub struct XcoffSymbolTable<'data, 'file, Xcoff, R = &'data [u8]>
 where
     Xcoff: FileHeader,
     R: ReadRef<'data>,
 {
-    pub(crate) file: &'file XcoffFile<'data, Xcoff, R>,
+    pub(super) file: &'file XcoffFile<'data, Xcoff, R>,
     pub(super) symbols: &'file SymbolTable<'data, Xcoff, R>,
 }
 
@@ -166,8 +218,7 @@ impl<'data, 'file, Xcoff: FileHeader, R: ReadRef<'data>> ObjectSymbolTable<'data
     fn symbols(&self) -> Self::SymbolIterator {
         XcoffSymbolIterator {
             file: self.file,
-            symbols: self.symbols,
-            index: 0,
+            symbols: self.symbols.iter(),
         }
     }
 
@@ -182,22 +233,21 @@ impl<'data, 'file, Xcoff: FileHeader, R: ReadRef<'data>> ObjectSymbolTable<'data
     }
 }
 
-/// An iterator over the symbols of an `XcoffFile32`.
+/// An iterator for the symbols in an [`XcoffFile32`](super::XcoffFile32).
 pub type XcoffSymbolIterator32<'data, 'file, R = &'data [u8]> =
     XcoffSymbolIterator<'data, 'file, xcoff::FileHeader32, R>;
-/// An iterator over the symbols of an `XcoffFile64`.
+/// An iterator for the symbols in an [`XcoffFile64`](super::XcoffFile64).
 pub type XcoffSymbolIterator64<'data, 'file, R = &'data [u8]> =
     XcoffSymbolIterator<'data, 'file, xcoff::FileHeader64, R>;
 
-/// An iterator over the symbols of an `XcoffFile`.
+/// An iterator for the symbols in an [`XcoffFile`].
 pub struct XcoffSymbolIterator<'data, 'file, Xcoff, R = &'data [u8]>
 where
     Xcoff: FileHeader,
     R: ReadRef<'data>,
 {
-    pub(crate) file: &'file XcoffFile<'data, Xcoff, R>,
-    pub(super) symbols: &'file SymbolTable<'data, Xcoff, R>,
-    pub(super) index: usize,
+    pub(super) file: &'file XcoffFile<'data, Xcoff, R>,
+    pub(super) symbols: SymbolIterator<'data, 'file, Xcoff, R>,
 }
 
 impl<'data, 'file, Xcoff: FileHeader, R: ReadRef<'data>> fmt::Debug
@@ -214,34 +264,33 @@ impl<'data, 'file, Xcoff: FileHeader, R: ReadRef<'data>> Iterator
     type Item = XcoffSymbol<'data, 'file, Xcoff, R>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let index = self.index;
-        let symbol = self.symbols.symbol(index).ok()?;
-        // TODO: skip over the auxiliary symbols for now.
-        self.index += 1 + symbol.n_numaux() as usize;
+        let (index, symbol) = self.symbols.next()?;
         Some(XcoffSymbol {
             file: self.file,
-            symbols: self.symbols,
-            index: SymbolIndex(index),
+            symbols: self.symbols.symbols,
+            index,
             symbol,
         })
     }
 }
 
-/// A symbol of an `XcoffFile32`.
+/// A symbol in an [`XcoffFile32`](super::XcoffFile32).
 pub type XcoffSymbol32<'data, 'file, R = &'data [u8]> =
     XcoffSymbol<'data, 'file, xcoff::FileHeader32, R>;
-/// A symbol of an `XcoffFile64`.
+/// A symbol in an [`XcoffFile64`](super::XcoffFile64).
 pub type XcoffSymbol64<'data, 'file, R = &'data [u8]> =
     XcoffSymbol<'data, 'file, xcoff::FileHeader64, R>;
 
-/// A symbol of an `XcoffFile`.
+/// A symbol in an [`XcoffFile`].
+///
+/// Most functionality is provided by the [`ObjectSymbol`] trait implementation.
 #[derive(Debug, Clone, Copy)]
 pub struct XcoffSymbol<'data, 'file, Xcoff, R = &'data [u8]>
 where
     Xcoff: FileHeader,
     R: ReadRef<'data>,
 {
-    pub(crate) file: &'file XcoffFile<'data, Xcoff, R>,
+    pub(super) file: &'file XcoffFile<'data, Xcoff, R>,
     pub(super) symbols: &'file SymbolTable<'data, Xcoff, R>,
     pub(super) index: SymbolIndex,
     pub(super) symbol: &'data Xcoff::Symbol,
@@ -303,7 +352,7 @@ impl<'data, 'file, Xcoff: FileHeader, R: ReadRef<'data>> ObjectSymbol<'data>
                 .symbols
                 .aux_csect(self.index.0, self.symbol.n_numaux() as usize)
             {
-                let sym_type = aux_csect.sym_type() & 0x07;
+                let sym_type = aux_csect.sym_type();
                 if sym_type == xcoff::XTY_SD || sym_type == xcoff::XTY_CM {
                     return aux_csect.x_scnlen();
                 }
@@ -319,7 +368,7 @@ impl<'data, 'file, Xcoff: FileHeader, R: ReadRef<'data>> ObjectSymbol<'data>
                 .symbols
                 .aux_csect(self.index.0, self.symbol.n_numaux() as usize)
             {
-                let sym_type = aux_csect.sym_type() & 0x07;
+                let sym_type = aux_csect.sym_type();
                 if sym_type == xcoff::XTY_SD || sym_type == xcoff::XTY_CM {
                     return match aux_csect.x_smclas() {
                         xcoff::XMC_PR | xcoff::XMC_GL => SymbolKind::Text,
@@ -366,16 +415,16 @@ impl<'data, 'file, Xcoff: FileHeader, R: ReadRef<'data>> ObjectSymbol<'data>
     /// Return true if the symbol is a definition of a function or data object.
     #[inline]
     fn is_definition(&self) -> bool {
+        if self.symbol.n_scnum() <= 0 {
+            return false;
+        }
         if self.symbol.has_aux_csect() {
             if let Ok(aux_csect) = self
                 .symbols
                 .aux_csect(self.index.0, self.symbol.n_numaux() as usize)
             {
-                let smclas = aux_csect.x_smclas();
-                self.symbol.n_scnum() != xcoff::N_UNDEF
-                    && (smclas == xcoff::XMC_PR
-                        || smclas == xcoff::XMC_RW
-                        || smclas == xcoff::XMC_RO)
+                let sym_type = aux_csect.sym_type();
+                sym_type == xcoff::XTY_SD || sym_type == xcoff::XTY_LD || sym_type == xcoff::XTY_CM
             } else {
                 false
             }
@@ -399,7 +448,7 @@ impl<'data, 'file, Xcoff: FileHeader, R: ReadRef<'data>> ObjectSymbol<'data>
             SymbolScope::Unknown
         } else {
             match self.symbol.n_sclass() {
-                xcoff::C_EXT | xcoff::C_WEAKEXT | xcoff::C_HIDEXT => {
+                xcoff::C_EXT | xcoff::C_WEAKEXT => {
                     let visibility = self.symbol.n_type() & xcoff::SYM_V_MASK;
                     if visibility == xcoff::SYM_V_HIDDEN {
                         SymbolScope::Linkage
@@ -438,7 +487,7 @@ impl<'data, 'file, Xcoff: FileHeader, R: ReadRef<'data>> ObjectSymbol<'data>
             {
                 x_smtyp = aux_csect.x_smtyp();
                 x_smclas = aux_csect.x_smclas();
-                if x_smtyp == xcoff::XTY_LD {
+                if aux_csect.sym_type() == xcoff::XTY_LD {
                     containing_csect = Some(SymbolIndex(aux_csect.x_scnlen() as usize))
                 }
             }
@@ -452,7 +501,7 @@ impl<'data, 'file, Xcoff: FileHeader, R: ReadRef<'data>> ObjectSymbol<'data>
     }
 }
 
-/// A trait for generic access to `Symbol32` and `Symbol64`.
+/// A trait for generic access to [`xcoff::Symbol32`] and [`xcoff::Symbol64`].
 #[allow(missing_docs)]
 pub trait Symbol: Debug + Pod {
     type Word: Into<u64>;
@@ -463,6 +512,7 @@ pub trait Symbol: Debug + Pod {
     fn n_sclass(&self) -> u8;
     fn n_numaux(&self) -> u8;
 
+    fn name_offset(&self) -> Option<u32>;
     fn name<'data, R: ReadRef<'data>>(
         &'data self,
         strings: StringTable<'data, R>,
@@ -515,6 +565,10 @@ impl Symbol for xcoff::Symbol64 {
         self.n_numaux
     }
 
+    fn name_offset(&self) -> Option<u32> {
+        Some(self.n_offset.get(BE))
+    }
+
     /// Parse the symbol name for XCOFF64.
     fn name<'data, R: ReadRef<'data>>(
         &'data self,
@@ -549,14 +603,22 @@ impl Symbol for xcoff::Symbol32 {
         self.n_numaux
     }
 
+    fn name_offset(&self) -> Option<u32> {
+        if self.n_name[0] == 0 {
+            let offset = u32::from_be_bytes(self.n_name[4..8].try_into().unwrap());
+            Some(offset)
+        } else {
+            None
+        }
+    }
+
     /// Parse the symbol name for XCOFF32.
     fn name<'data, R: ReadRef<'data>>(
         &'data self,
         strings: StringTable<'data, R>,
     ) -> Result<&'data [u8]> {
-        if self.n_name[0] == 0 {
+        if let Some(offset) = self.name_offset() {
             // If the name starts with 0 then the last 4 bytes are a string table offset.
-            let offset = u32::from_be_bytes(self.n_name[4..8].try_into().unwrap());
             strings
                 .get(offset)
                 .read_error("Invalid XCOFF symbol name offset")
@@ -570,27 +632,35 @@ impl Symbol for xcoff::Symbol32 {
     }
 }
 
-/// A trait for generic access to `FileAux32` and `FileAux64`.
+/// A trait for generic access to [`xcoff::FileAux32`] and [`xcoff::FileAux64`].
 #[allow(missing_docs)]
 pub trait FileAux: Debug + Pod {
     fn x_fname(&self) -> &[u8; 8];
     fn x_ftype(&self) -> u8;
     fn x_auxtype(&self) -> Option<u8>;
 
+    fn name_offset(&self) -> Option<u32> {
+        let x_fname = self.x_fname();
+        if x_fname[0] == 0 {
+            Some(u32::from_be_bytes(x_fname[4..8].try_into().unwrap()))
+        } else {
+            None
+        }
+    }
+
     /// Parse the x_fname field, which may be an inline string or a string table offset.
     fn fname<'data, R: ReadRef<'data>>(
         &'data self,
         strings: StringTable<'data, R>,
     ) -> Result<&'data [u8]> {
-        let x_fname = self.x_fname();
-        if x_fname[0] == 0 {
+        if let Some(offset) = self.name_offset() {
             // If the name starts with 0 then the last 4 bytes are a string table offset.
-            let offset = u32::from_be_bytes(x_fname[4..8].try_into().unwrap());
             strings
                 .get(offset)
                 .read_error("Invalid XCOFF symbol name offset")
         } else {
             // The name is inline and padded with nulls.
+            let x_fname = self.x_fname();
             Ok(match memchr::memchr(b'\0', x_fname) {
                 Some(end) => &x_fname[..end],
                 None => x_fname,
@@ -627,7 +697,7 @@ impl FileAux for xcoff::FileAux32 {
     }
 }
 
-/// A trait for generic access to `CsectAux32` and `CsectAux64`.
+/// A trait for generic access to [`xcoff::CsectAux32`] and [`xcoff::CsectAux64`].
 #[allow(missing_docs)]
 pub trait CsectAux: Debug + Pod {
     fn x_scnlen(&self) -> u64;
@@ -635,8 +705,13 @@ pub trait CsectAux: Debug + Pod {
     fn x_snhash(&self) -> u16;
     fn x_smtyp(&self) -> u8;
     fn x_smclas(&self) -> u8;
+    fn x_stab(&self) -> Option<u32>;
+    fn x_snstab(&self) -> Option<u16>;
     fn x_auxtype(&self) -> Option<u8>;
 
+    fn alignment(&self) -> u8 {
+        self.x_smtyp() >> 3
+    }
     fn sym_type(&self) -> u8 {
         self.x_smtyp() & 0x07
     }
@@ -663,6 +738,14 @@ impl CsectAux for xcoff::CsectAux64 {
         self.x_smclas
     }
 
+    fn x_stab(&self) -> Option<u32> {
+        None
+    }
+
+    fn x_snstab(&self) -> Option<u16> {
+        None
+    }
+
     fn x_auxtype(&self) -> Option<u8> {
         Some(self.x_auxtype)
     }
@@ -687,6 +770,14 @@ impl CsectAux for xcoff::CsectAux32 {
 
     fn x_smclas(&self) -> u8 {
         self.x_smclas
+    }
+
+    fn x_stab(&self) -> Option<u32> {
+        Some(self.x_stab.get(BE))
+    }
+
+    fn x_snstab(&self) -> Option<u16> {
+        Some(self.x_snstab.get(BE))
     }
 
     fn x_auxtype(&self) -> Option<u8> {

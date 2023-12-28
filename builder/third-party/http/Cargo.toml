@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.49.0"
 name = "http"
-version = "0.2.9"
+version = "0.2.11"
 authors = [
     "Alex Crichton <alex@alexcrichton.com>",
     "Carl Lerche <me@carllerche.com>",

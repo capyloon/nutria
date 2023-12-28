@@ -122,6 +122,7 @@ fn internal_interval_at(
         let location = location.expect("should have location if tracing");
 
         tracing::trace_span!(
+            parent: None,
             "runtime.resource",
             concrete_type = "Interval",
             kind = "timer",
@@ -140,7 +141,7 @@ fn internal_interval_at(
     Interval {
         delay,
         period,
-        missed_tick_behavior: Default::default(),
+        missed_tick_behavior: MissedTickBehavior::default(),
         #[cfg(all(tokio_unstable, feature = "tracing"))]
         resource_span,
     }

@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.67"
 name = "toml_edit"
-version = "0.20.4"
+version = "0.21.0"
 authors = [
     "Andronik Ordian <write@reusable.software>",
     "Ed Page <eopage@gmail.com>",
@@ -29,6 +29,7 @@ include = [
     "examples/**/*",
     "tests/**/*",
 ]
+autotests = false
 description = "Yet another format-preserving TOML parser."
 readme = "README.md"
 keywords = [
@@ -92,18 +93,35 @@ search = "<!-- next-url -->"
 [[example]]
 name = "visit"
 test = true
+required-features = [
+    "parse",
+    "display",
+]
+
+[[test]]
+name = "testsuite"
+required-features = [
+    "parse",
+    "display",
+]
 
 [[test]]
 name = "decoder_compliance"
 harness = false
+required-features = ["parse"]
 
 [[test]]
 name = "encoder_compliance"
 harness = false
+required-features = [
+    "parse",
+    "display",
+]
 
 [[test]]
 name = "invalid"
 harness = false
+required-features = ["parse"]
 
 [dependencies.indexmap]
 version = "2.0.0"
@@ -128,6 +146,7 @@ version = "0.6.5"
 
 [dependencies.winnow]
 version = "0.5.0"
+optional = true
 
 [dev-dependencies.libtest-mimic]
 version = "0.6.0"
@@ -146,7 +165,12 @@ version = "1.4.0"
 version = "0.4.8"
 
 [features]
-default = []
+default = [
+    "parse",
+    "display",
+]
+display = []
+parse = ["dep:winnow"]
 perf = ["dep:kstring"]
 serde = [
     "dep:serde",

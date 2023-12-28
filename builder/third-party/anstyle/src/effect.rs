@@ -156,7 +156,7 @@ impl Effects {
 
     /// Render the ANSI code
     #[inline]
-    pub fn render(self) -> impl core::fmt::Display {
+    pub fn render(self) -> impl core::fmt::Display + Copy + Clone {
         EffectsDisplay(self)
     }
 
@@ -307,6 +307,7 @@ pub(crate) const METADATA: [Metadata; 12] = [
     },
 ];
 
+#[derive(Copy, Clone, Default, Debug)]
 struct EffectsDisplay(Effects);
 
 impl core::fmt::Display for EffectsDisplay {

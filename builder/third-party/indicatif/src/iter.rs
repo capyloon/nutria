@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::io::{self, IoSliceMut};
 use std::iter::FusedIterator;
 #[cfg(feature = "tokio")]
@@ -335,7 +334,7 @@ mod test {
 
     #[test]
     fn it_can_wrap_an_iterator() {
-        let v = vec![1, 2, 3];
+        let v = [1, 2, 3];
         let wrap = |it: ProgressBarIter<_>| {
             assert_eq!(it.map(|x| x * 2).collect::<Vec<_>>(), vec![2, 4, 6]);
         };

@@ -228,7 +228,7 @@ impl Handle {
     /// When this is used on a `current_thread` runtime, only the
     /// [`Runtime::block_on`] method can drive the IO and timer drivers, but the
     /// `Handle::block_on` method cannot drive them. This means that, when using
-    /// this method on a current_thread runtime, anything that relies on IO or
+    /// this method on a `current_thread` runtime, anything that relies on IO or
     /// timers will not work unless there is another thread currently calling
     /// [`Runtime::block_on`] on the same runtime.
     ///
@@ -487,7 +487,7 @@ cfg_taskdump! {
         /// `.cargo/config.toml`:
         /// ```text
         /// [build]
-        /// rustflags = ["--cfg tokio_unstable", "--cfg tokio_taskdump"]
+        /// rustflags = ["--cfg", "tokio_unstable", "--cfg", "tokio_taskdump"]
         /// ```
         ///
         /// [cargo-config]:
@@ -542,6 +542,14 @@ cfg_taskdump! {
                 #[cfg(all(tokio_unstable, feature = "rt-multi-thread", not(target_os = "wasi")))]
                 scheduler::Handle::MultiThreadAlt(_) => panic!("task dump not implemented for this runtime flavor"),
             }
+        }
+
+        /// Produces `true` if the current task is being traced for a dump;
+        /// otherwise false. This function is only public for integration
+        /// testing purposes. Do not rely on it.
+        #[doc(hidden)]
+        pub fn is_tracing() -> bool {
+            super::task::trace::Context::is_tracing()
         }
     }
 
@@ -604,20 +612,19 @@ enum TryCurrentErrorKind {
 
 impl fmt::Debug for TryCurrentErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use TryCurrentErrorKind::*;
         match self {
-            NoContext => f.write_str("NoContext"),
-            ThreadLocalDestroyed => f.write_str("ThreadLocalDestroyed"),
+            TryCurrentErrorKind::NoContext => f.write_str("NoContext"),
+            TryCurrentErrorKind::ThreadLocalDestroyed => f.write_str("ThreadLocalDestroyed"),
         }
     }
 }
 
 impl fmt::Display for TryCurrentError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use TryCurrentErrorKind::*;
+        use TryCurrentErrorKind as E;
         match self.kind {
-            NoContext => f.write_str(CONTEXT_MISSING_ERROR),
-            ThreadLocalDestroyed => f.write_str(THREAD_LOCAL_DESTROYED_ERROR),
+            E::NoContext => f.write_str(CONTEXT_MISSING_ERROR),
+            E::ThreadLocalDestroyed => f.write_str(THREAD_LOCAL_DESTROYED_ERROR),
         }
     }
 }

@@ -25,7 +25,7 @@ use core::ops;
 #[cfg(feature="std")]
 pub use alloc_stdlib::StandardAlloc;
 #[cfg(all(feature="unsafe",feature="std"))]
-pub use alloc_stdlib::HeapAllocUninitialized;
+pub use alloc_stdlib::HeapAlloc;
 #[macro_use]
 mod memory;
 pub mod dictionary;
@@ -143,9 +143,9 @@ pub fn BrotliDecompress<InputType, OutputType>(r: &mut InputType,
                               w,
                               &mut input_buffer[..],
                               &mut output_buffer[..],
-                              unsafe { HeapAllocUninitialized::<u8>::new() },
-                              unsafe { HeapAllocUninitialized::<u32>::new() },
-                              unsafe { HeapAllocUninitialized::<HuffmanCode>::new() })
+                              HeapAlloc::<u8>::new(0),
+                              HeapAlloc::<u32>::new(0),
+                              HeapAlloc::<HuffmanCode>::new(HuffmanCode{ bits:2, value: 1}))
 }
 
 

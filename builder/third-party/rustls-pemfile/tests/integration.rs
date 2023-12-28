@@ -109,3 +109,35 @@ fn parse_in_order() {
     assert!(matches!(items[7], rustls_pemfile::Item::PKCS8Key(_)));
     assert!(matches!(items[8], rustls_pemfile::Item::Crl(_)));
 }
+
+#[test]
+fn different_line_endings() {
+    let data = include_bytes!("data/mixed-line-endings.crt");
+
+    // Ensure non-LF line endings are not lost by mistake, causing the test
+    // to silently regress.
+    let mut contained_unix_ending = false;
+    let mut contained_other_ending = false;
+    for byte in data.iter().copied() {
+        if contained_other_ending && contained_unix_ending {
+            break;
+        }
+
+        if byte == b'\n' {
+            contained_unix_ending = true;
+        } else if byte == b'\r' {
+            contained_other_ending = true;
+        }
+    }
+    assert!(contained_unix_ending);
+    assert!(contained_other_ending);
+
+    let mut reader = BufReader::new(&data[..]);
+
+    let items = rustls_pemfile::read_all(&mut reader).unwrap();
+
+    assert_eq!(items.len(), 4);
+    for cert in items {
+        assert!(matches!(cert, rustls_pemfile::Item::X509Certificate(_)));
+    }
+}

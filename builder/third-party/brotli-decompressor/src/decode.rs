@@ -2005,13 +2005,11 @@ pub fn ReadDistanceInternal<AllocU8: alloc::Allocator<u8>,
       } else {
         bits = bit_reader::BrotliReadBits(&mut s.br, nbits, input);
       }
-      offset = ((2 + (distval & 1)) << nbits) - 4;
-      s.distance_code = s.num_direct_distance_codes as i32 +
-                        ((offset + bits as i32) << s.distance_postfix_bits) +
-                        postfix;
+      offset = (((distval & 1).wrapping_add(2)) << nbits).wrapping_sub(4);
+      s.distance_code = ((offset + bits as i32) << s.distance_postfix_bits).wrapping_add(postfix).wrapping_add(s.num_direct_distance_codes as i32);
     }
   }
-  s.distance_code = s.distance_code - NUM_DISTANCE_SHORT_CODES as i32 + 1;
+  s.distance_code = s.distance_code.wrapping_sub(NUM_DISTANCE_SHORT_CODES as i32).wrapping_add(1);
   fast_mut!((s.block_type_length_state.block_length)[2]) -= 1;
   true
 }

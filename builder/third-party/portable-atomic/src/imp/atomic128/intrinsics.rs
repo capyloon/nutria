@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // Atomic{I,U}128 implementation without inline assembly.
 //
 // Note: This module is currently only enabled on Miri and ThreadSanitizer which
@@ -10,9 +12,7 @@
 // implementation with inline assembly.
 //
 // Note:
-// - This currently always needs nightly compilers. On x86_64, the stabilization
-//   of `core::arch::x86_64::cmpxchg16b` has been recently merged to stdarch:
-//   https://github.com/rust-lang/stdarch/pull/1358
+// - This currently needs Rust 1.70 on x86_64, otherwise nightly compilers.
 // - On powerpc64, this requires LLVM 15+ and pwr8+ (quadword-atomics LLVM target feature):
 //   https://github.com/llvm/llvm-project/commit/549e118e93c666914a1045fde38a2cac33e1e445
 // - On aarch64 big-endian, LLVM (as of 17) generates broken code. (wrong result in stress test)
@@ -22,7 +22,7 @@
 //   https://github.com/llvm/llvm-project/blob/llvmorg-17.0.0-rc2/llvm/test/CodeGen/SystemZ/atomicrmw-ops-i128.ll
 //   https://reviews.llvm.org/D146425
 // - On powerpc64, LLVM (as of 17) doesn't support 128-bit atomic min/max:
-//   https://godbolt.org/z/3rebKcbdf
+//   https://github.com/llvm/llvm-project/issues/68390
 // - On powerpc64le, LLVM (as of 17) generates broken code. (wrong result from fetch_add)
 //
 // Refs: https://github.com/rust-lang/rust/blob/1.70.0/library/core/src/sync/atomic.rs
@@ -134,7 +134,9 @@ unsafe fn atomic_compare_exchange(
             let prev = unsafe { core::arch::x86_64::cmpxchg16b(dst, old, new, success, failure) };
             (prev, prev == old)
         }
-        #[cfg(portable_atomic_no_cmpxchg16b_intrinsic_stronger_failure_ordering)]
+        // The stronger failure ordering in cmpxchg16b_intrinsic is actually supported
+        // before stabilization, but we do not have a specific cfg for it.
+        #[cfg(portable_atomic_unstable_cmpxchg16b_intrinsic)]
         let success = crate::utils::upgrade_success_ordering(success, failure);
         #[cfg(target_feature = "cmpxchg16b")]
         // SAFETY: the caller must guarantee that `dst` is valid for both writes and
@@ -379,6 +381,7 @@ unsafe fn atomic_xor(dst: *mut u128, val: u128, order: Ordering) -> u128 {
 #[inline]
 #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
 unsafe fn atomic_max(dst: *mut u128, val: u128, order: Ordering) -> i128 {
+    #[allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)]
     // SAFETY: the caller must uphold the safety contract.
     unsafe {
         match order {
@@ -396,6 +399,7 @@ unsafe fn atomic_max(dst: *mut u128, val: u128, order: Ordering) -> i128 {
 #[inline]
 #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
 unsafe fn atomic_min(dst: *mut u128, val: u128, order: Ordering) -> i128 {
+    #[allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)]
     // SAFETY: the caller must uphold the safety contract.
     unsafe {
         match order {
@@ -448,7 +452,7 @@ unsafe fn atomic_umin(dst: *mut u128, val: u128, order: Ordering) -> u128 {
 #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
 unsafe fn atomic_not(dst: *mut u128, order: Ordering) -> u128 {
     // SAFETY: the caller must uphold the safety contract.
-    unsafe { atomic_xor(dst, u128::MAX, order) }
+    unsafe { atomic_xor(dst, !0, order) }
 }
 
 #[cfg(not(any(target_arch = "x86_64", target_arch = "s390x")))]

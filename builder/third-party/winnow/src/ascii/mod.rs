@@ -15,11 +15,40 @@ use crate::error::{ErrMode, ErrorKind, Needed};
 use crate::stream::{AsBStr, AsChar, ParseSlice, Stream, StreamIsPartial};
 use crate::stream::{Compare, CompareResult};
 use crate::token::one_of;
-use crate::token::take_till0;
+use crate::token::take_till;
 use crate::token::take_while;
 use crate::trace::trace;
 use crate::PResult;
 use crate::Parser;
+
+/// Mark a value as case-insensitive for ASCII characters
+///
+/// # Example
+/// ```rust
+/// # use winnow::prelude::*;
+/// # use winnow::{error::ErrMode, error::{InputError, ErrorKind}};
+/// # use winnow::ascii::Caseless;
+///
+/// fn parser<'s>(s: &mut &'s str) -> PResult<&'s str, InputError<&'s str>> {
+///   Caseless("hello").parse_next(s)
+/// }
+///
+/// assert_eq!(parser.parse_peek("Hello, World!"), Ok((", World!", "Hello")));
+/// assert_eq!(parser.parse_peek("hello, World!"), Ok((", World!", "hello")));
+/// assert_eq!(parser.parse_peek("HeLlo, World!"), Ok((", World!", "HeLlo")));
+/// assert_eq!(parser.parse_peek("Some"), Err(ErrMode::Backtrack(InputError::new("Some", ErrorKind::Tag))));
+/// assert_eq!(parser.parse_peek(""), Err(ErrMode::Backtrack(InputError::new("", ErrorKind::Tag))));
+/// ```
+#[derive(Copy, Clone, Debug)]
+pub struct Caseless<T>(pub T);
+
+impl Caseless<&str> {
+    /// Get the byte-representation of this case-insensitive value
+    #[inline(always)]
+    pub fn as_bytes(&self) -> Caseless<&[u8]> {
+        Caseless(self.0.as_bytes())
+    }
+}
 
 /// Recognizes the string `"\r\n"`.
 ///
@@ -123,7 +152,7 @@ where
     I: Compare<&'static str>,
     <I as Stream>::Token: AsChar + Clone,
 {
-    let res = take_till0(('\r', '\n')).parse_next(input)?;
+    let res = take_till(0.., ('\r', '\n')).parse_next(input)?;
     if input.compare("\r") == CompareResult::Ok {
         let comp = input.compare("\r\n");
         match comp {
@@ -423,7 +452,7 @@ where
 ///
 /// ## Parsing an integer
 ///
-/// You can use `digit1` in combination with [`Parser::try_map`][crate::Parser::try_map] to parse an integer:
+/// You can use `digit1` in combination with [`Parser::try_map`] to parse an integer:
 ///
 /// ```
 /// # use winnow::prelude::*;
@@ -965,6 +994,7 @@ impl Uint for u128 {
     }
 }
 
+/// Deprecated since v0.5.17
 impl Uint for i8 {
     fn checked_mul(self, by: u8, _: sealed::SealedMarker) -> Option<Self> {
         self.checked_mul(by as Self)
@@ -974,6 +1004,7 @@ impl Uint for i8 {
     }
 }
 
+/// Deprecated since v0.5.17
 impl Uint for i16 {
     fn checked_mul(self, by: u8, _: sealed::SealedMarker) -> Option<Self> {
         self.checked_mul(by as Self)
@@ -983,6 +1014,7 @@ impl Uint for i16 {
     }
 }
 
+/// Deprecated since v0.5.17
 impl Uint for i32 {
     fn checked_mul(self, by: u8, _: sealed::SealedMarker) -> Option<Self> {
         self.checked_mul(by as Self)
@@ -992,6 +1024,7 @@ impl Uint for i32 {
     }
 }
 
+/// Deprecated since v0.5.17
 impl Uint for i64 {
     fn checked_mul(self, by: u8, _: sealed::SealedMarker) -> Option<Self> {
         self.checked_mul(by as Self)
@@ -1001,6 +1034,7 @@ impl Uint for i64 {
     }
 }
 
+/// Deprecated since v0.5.17
 impl Uint for i128 {
     fn checked_mul(self, by: u8, _: sealed::SealedMarker) -> Option<Self> {
         self.checked_mul(by as Self)
@@ -1318,6 +1352,7 @@ where
 }
 
 #[allow(clippy::trait_duplication_in_bounds)] // HACK: clippy 1.64.0 bug
+#[allow(deprecated)]
 fn recognize_float_or_exceptions<I, E: ParserError<I>>(
     input: &mut I,
 ) -> PResult<<I as Stream>::Slice, E>

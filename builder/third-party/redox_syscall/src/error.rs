@@ -176,8 +176,9 @@ pub const EKEYREVOKED: i32 = 128; /* Key has been revoked */
 pub const EKEYREJECTED: i32 = 129; /* Key was rejected by service */
 pub const EOWNERDEAD: i32 = 130; /* Owner died */
 pub const ENOTRECOVERABLE: i32 = 131; /* State not recoverable */
+pub const ESKMSG: i32 = 132; /* Scheme-kernel message code */
 
-pub static STR_ERROR: [&'static str; 132] = ["Success",
+pub static STR_ERROR: [&'static str; 133] = ["Success",
                                              "Operation not permitted",
                                              "No such file or directory",
                                              "No such process",
@@ -308,4 +309,5 @@ pub static STR_ERROR: [&'static str; 132] = ["Success",
                                              "Key has been revoked",
                                              "Key was rejected by service",
                                              "Owner died",
-                                             "State not recoverable"];
+                                             "State not recoverable",
+                                             "Scheme-kernel message code"];

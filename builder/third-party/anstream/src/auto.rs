@@ -1,8 +1,7 @@
+use crate::stream::AsLockedWrite;
+use crate::stream::RawStream;
 #[cfg(feature = "auto")]
 use crate::ColorChoice;
-use crate::IsTerminal;
-use crate::Lockable;
-use crate::RawStream;
 use crate::StripStream;
 #[cfg(all(windows, feature = "wincon"))]
 use crate::WinconStream;
@@ -102,9 +101,8 @@ where
     fn wincon(raw: S) -> Result<Self, S> {
         #[cfg(all(windows, feature = "wincon"))]
         {
-            let console = anstyle_wincon::Console::new(raw)?;
             Ok(Self {
-                inner: StreamInner::Wincon(WinconStream::new(console)),
+                inner: StreamInner::Wincon(WinconStream::new(raw)),
             })
         }
         #[cfg(not(all(windows, feature = "wincon")))]
@@ -120,18 +118,31 @@ where
             StreamInner::PassThrough(w) => w,
             StreamInner::Strip(w) => w.into_inner(),
             #[cfg(all(windows, feature = "wincon"))]
-            StreamInner::Wincon(w) => w.into_inner().into_inner(),
+            StreamInner::Wincon(w) => w.into_inner(),
         }
     }
 
     #[inline]
-    #[cfg(feature = "auto")]
     pub fn is_terminal(&self) -> bool {
         match &self.inner {
             StreamInner::PassThrough(w) => w.is_terminal(),
             StreamInner::Strip(w) => w.is_terminal(),
             #[cfg(all(windows, feature = "wincon"))]
             StreamInner::Wincon(_) => true, // its only ever a terminal
+        }
+    }
+
+    /// Prefer [`AutoStream::choice`]
+    ///
+    /// This doesn't report what is requested but what is currently active.
+    #[inline]
+    #[cfg(feature = "auto")]
+    pub fn current_choice(&self) -> ColorChoice {
+        match &self.inner {
+            StreamInner::PassThrough(_) => ColorChoice::AlwaysAnsi,
+            StreamInner::Strip(_) => ColorChoice::Never,
+            #[cfg(all(windows, feature = "wincon"))]
+            StreamInner::Wincon(_) => ColorChoice::Always,
         }
     }
 }
@@ -161,17 +172,6 @@ fn choice(raw: &dyn RawStream) -> ColorChoice {
     }
 }
 
-#[cfg(feature = "auto")]
-impl<S> IsTerminal for AutoStream<S>
-where
-    S: RawStream,
-{
-    #[inline]
-    fn is_terminal(&self) -> bool {
-        self.is_terminal()
-    }
-}
-
 impl AutoStream<std::io::Stdout> {
     /// Get exclusive access to the `AutoStream`
     ///
@@ -179,7 +179,7 @@ impl AutoStream<std::io::Stdout> {
     /// - Faster performance when writing in a loop
     /// - Avoid other threads interleaving output with the current thread
     #[inline]
-    pub fn lock(self) -> <Self as Lockable>::Locked {
+    pub fn lock(self) -> AutoStream<std::io::StdoutLock<'static>> {
         let inner = match self.inner {
             StreamInner::PassThrough(w) => StreamInner::PassThrough(w.lock()),
             StreamInner::Strip(w) => StreamInner::Strip(w.lock()),
@@ -197,7 +197,7 @@ impl AutoStream<std::io::Stderr> {
     /// - Faster performance when writing in a loop
     /// - Avoid other threads interleaving output with the current thread
     #[inline]
-    pub fn lock(self) -> <Self as Lockable>::Locked {
+    pub fn lock(self) -> AutoStream<std::io::StderrLock<'static>> {
         let inner = match self.inner {
             StreamInner::PassThrough(w) => StreamInner::PassThrough(w.lock()),
             StreamInner::Strip(w) => StreamInner::Strip(w.lock()),
@@ -210,59 +210,54 @@ impl AutoStream<std::io::Stderr> {
 
 impl<S> std::io::Write for AutoStream<S>
 where
-    S: RawStream,
+    S: RawStream + AsLockedWrite,
 {
+    // Must forward all calls to ensure locking happens appropriately
     #[inline]
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         match &mut self.inner {
-            StreamInner::PassThrough(w) => w.write(buf),
+            StreamInner::PassThrough(w) => w.as_locked_write().write(buf),
             StreamInner::Strip(w) => w.write(buf),
             #[cfg(all(windows, feature = "wincon"))]
             StreamInner::Wincon(w) => w.write(buf),
         }
     }
-
+    #[inline]
+    fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
+        match &mut self.inner {
+            StreamInner::PassThrough(w) => w.as_locked_write().write_vectored(bufs),
+            StreamInner::Strip(w) => w.write_vectored(bufs),
+            #[cfg(all(windows, feature = "wincon"))]
+            StreamInner::Wincon(w) => w.write_vectored(bufs),
+        }
+    }
+    // is_write_vectored: nightly only
     #[inline]
     fn flush(&mut self) -> std::io::Result<()> {
         match &mut self.inner {
-            StreamInner::PassThrough(w) => w.flush(),
+            StreamInner::PassThrough(w) => w.as_locked_write().flush(),
             StreamInner::Strip(w) => w.flush(),
             #[cfg(all(windows, feature = "wincon"))]
             StreamInner::Wincon(w) => w.flush(),
         }
     }
-
-    // Provide explicit implementations of trait methods
-    // - To reduce bookkeeping
-    // - Avoid acquiring / releasing locks in a loop
-
     #[inline]
     fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
         match &mut self.inner {
-            StreamInner::PassThrough(w) => w.write_all(buf),
+            StreamInner::PassThrough(w) => w.as_locked_write().write_all(buf),
             StreamInner::Strip(w) => w.write_all(buf),
             #[cfg(all(windows, feature = "wincon"))]
             StreamInner::Wincon(w) => w.write_all(buf),
         }
     }
-
-    // Not bothering with `write_fmt` as it just calls `write_all`
-}
-
-impl Lockable for AutoStream<std::io::Stdout> {
-    type Locked = AutoStream<<std::io::Stdout as Lockable>::Locked>;
-
+    // write_all_vectored: nightly only
     #[inline]
-    fn lock(self) -> Self::Locked {
-        self.lock()
-    }
-}
-
-impl Lockable for AutoStream<std::io::Stderr> {
-    type Locked = AutoStream<<std::io::Stderr as Lockable>::Locked>;
-
-    #[inline]
-    fn lock(self) -> Self::Locked {
-        self.lock()
+    fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::io::Result<()> {
+        match &mut self.inner {
+            StreamInner::PassThrough(w) => w.as_locked_write().write_fmt(args),
+            StreamInner::Strip(w) => w.write_fmt(args),
+            #[cfg(all(windows, feature = "wincon"))]
+            StreamInner::Wincon(w) => w.write_fmt(args),
+        }
     }
 }

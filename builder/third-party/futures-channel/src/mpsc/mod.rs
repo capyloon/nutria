@@ -119,12 +119,12 @@ impl<T> Unpin for BoundedSenderInner<T> {}
 
 /// The transmission end of a bounded mpsc channel.
 ///
-/// This value is created by the [`channel`](channel) function.
+/// This value is created by the [`channel`] function.
 pub struct Sender<T>(Option<BoundedSenderInner<T>>);
 
 /// The transmission end of an unbounded mpsc channel.
 ///
-/// This value is created by the [`unbounded`](unbounded) function.
+/// This value is created by the [`unbounded`] function.
 pub struct UnboundedSender<T>(Option<UnboundedSenderInner<T>>);
 
 trait AssertKinds: Send + Sync + Clone {}
@@ -132,14 +132,14 @@ impl AssertKinds for UnboundedSender<u32> {}
 
 /// The receiving end of a bounded mpsc channel.
 ///
-/// This value is created by the [`channel`](channel) function.
+/// This value is created by the [`channel`] function.
 pub struct Receiver<T> {
     inner: Option<Arc<BoundedInner<T>>>,
 }
 
 /// The receiving end of an unbounded mpsc channel.
 ///
-/// This value is created by the [`unbounded`](unbounded) function.
+/// This value is created by the [`unbounded`] function.
 pub struct UnboundedReceiver<T> {
     inner: Option<Arc<UnboundedInner<T>>>,
 }
@@ -343,9 +343,8 @@ impl SenderTask {
 /// guaranteed slot in the channel capacity, and on top of that there are
 /// `buffer` "first come, first serve" slots available to all senders.
 ///
-/// The [`Receiver`](Receiver) returned implements the
-/// [`Stream`](futures_core::stream::Stream) trait, while [`Sender`](Sender) implements
-/// `Sink`.
+/// The [`Receiver`] returned implements the [`Stream`] trait, while [`Sender`]
+/// implements `Sink`.
 pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     // Check that the requested buffer size does not exceed the maximum buffer
     // size permitted by the system.
@@ -841,6 +840,20 @@ impl<T> UnboundedSender<T> {
 
         let ptr = self.0.as_ref().map(|inner| inner.ptr());
         ptr.hash(hasher);
+    }
+
+    /// Return the number of messages in the queue or 0 if channel is disconnected.
+    pub fn len(&self) -> usize {
+        if let Some(sender) = &self.0 {
+            decode_state(sender.inner.state.load(SeqCst)).num_messages
+        } else {
+            0
+        }
+    }
+
+    /// Return false is channel has no queued messages, true otherwise.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 

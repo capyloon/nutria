@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // Atomic{I,U}128 implementation on s390x.
 //
 // s390x supports 128-bit atomic load/store/cmpxchg:
@@ -17,9 +19,9 @@
 // - atomic-maybe-uninit https://github.com/taiki-e/atomic-maybe-uninit
 //
 // Generated asm:
-// - s390x https://godbolt.org/z/q4cvbaEYh
-// - s390x (z196) https://godbolt.org/z/Tj3vonsoW
-// - s390x (z15) https://godbolt.org/z/Pz5sq8fTz
+// - s390x https://godbolt.org/z/b11znnEh4
+// - s390x (z196) https://godbolt.org/z/s5n9PGcv6
+// - s390x (z15) https://godbolt.org/z/Wf49h7bPf
 
 include!("macros.rs");
 
@@ -229,7 +231,7 @@ unsafe fn atomic_swap(dst: *mut u128, val: u128, _order: Ordering) -> u128 {
 /// `$op` can use the following registers:
 /// - val_hi/val_lo pair: val argument (read-only for `$op`)
 /// - r0/r1 pair: previous value loaded (read-only for `$op`)
-/// - r12/r13 pair: new value that will to stored
+/// - r12/r13 pair: new value that will be stored
 // We could use atomic_update here, but using an inline assembly allows omitting
 // the comparison of results and the storing/comparing of condition flags.
 macro_rules! atomic_rmw_cas_3 {
@@ -270,7 +272,7 @@ macro_rules! atomic_rmw_cas_3 {
 ///
 /// `$op` can use the following registers:
 /// - r0/r1 pair: previous value loaded (read-only for `$op`)
-/// - r12/r13 pair: new value that will to stored
+/// - r12/r13 pair: new value that will be stored
 // We could use atomic_update here, but using an inline assembly allows omitting
 // the comparison of results and the storing/comparing of condition flags.
 macro_rules! atomic_rmw_cas_2 {

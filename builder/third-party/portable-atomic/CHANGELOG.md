@@ -10,6 +10,46 @@ Note: In this file, do not use the hard wrap in the middle of a sentence for com
 
 ## [Unreleased]
 
+## [1.6.0] - 2023-12-06
+
+- Add `cfg_{has,no}_atomic_{8,16,32,64,128,ptr}` macros to enable code when the corresponding atomic implementation is available/unavailable.
+
+- Add `cfg_{has,no}_atomic_cas` macros to enable code when atomic CAS/RMW implementation is available/unavailable.
+
+- Improve support for RISC-V targets without atomic CAS.
+
+## [1.5.1] - 2023-10-29
+
+- Fix bug in `i{8,16}` `fetch_{or,xor}` on RISC-V without A-extension where `unsafe-assume-single-core` and `force-amo` are enabled.
+
+- Optimize `swap` for targets that do not have native atomic CAS instructions.
+
+## [1.5.0] - 2023-10-23
+
+**Note:** This release has been yanked due to a bug fixed in 1.5.1.
+
+- Add `from_ptr`.
+
+- Add `force-amo` feature (`portable_atomic_force_amo` cfg) for single-core RISC-V without A-extension. ([#124](https://github.com/taiki-e/portable-atomic/pull/124))
+
+- Support run-time detection on AArch64 on pre-1.61 rustc. ([#98](https://github.com/taiki-e/portable-atomic/pull/98))
+
+  This also solves [a compatibility issue with rustc_codegen_cranelift](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1400).
+
+- Support run-time detection of FEAT_LSE2. ([#126](https://github.com/taiki-e/portable-atomic/pull/126))
+
+- Support run-time detection of FEAT_LSE on AArch64 NetBSD. ([#66](https://github.com/taiki-e/portable-atomic/pull/66))
+
+- Acknowledge ESP-IDF targets' 64-bit atomics are not lock-free. See [#122](https://github.com/taiki-e/portable-atomic/issues/122) for more.
+
+- Optimize 128-bit weak CAS on powerpc64.
+
+- Optimize interrupt disable on no-std pre-v6 ARM where `unsafe-assume-single-core` and `disable-fiq` are enabled. ([771c45d](https://github.com/taiki-e/portable-atomic/commit/771c45da2d2afc4f83df033dd4bdf3f976d14a74))
+
+- Improve detection of Apple hardware. ([5c3a43b](https://github.com/taiki-e/portable-atomic/commit/5c3a43b53f1c4188f9dd597599633bc1a315bf44))
+
+- Improve compatibility with the future version of Miri.
+
 ## [1.4.3] - 2023-08-25
 
 - Optimize AArch64 128-bit atomic store/swap/fetch_and/fetch_or when the `lse128` target feature is enabled at compile-time. ([#68](https://github.com/taiki-e/portable-atomic/pull/68))
@@ -81,7 +121,7 @@ Note: In this file, do not use the hard wrap in the middle of a sentence for com
   - Optimize x86_64 128-bit outline-atomics. This improves performance by up to 15% in concurrent RMW/store for cases where the `cmpxchg16b` target feature is not available at compile-time. ([40c4cd4](https://github.com/taiki-e/portable-atomic/commit/40c4cd4f682f1cb153f18d4d6a88795bafaf5667))
   - Optimize x86_64 128-bit load that uses cmpxchg16b. ([40c4cd4](https://github.com/taiki-e/portable-atomic/commit/40c4cd4f682f1cb153f18d4d6a88795bafaf5667))
   - Optimize aarch64 128-bit load that uses FEAT_LSE. ([40c4cd4](https://github.com/taiki-e/portable-atomic/commit/40c4cd4f682f1cb153f18d4d6a88795bafaf5667))
-  - Optimize pre-ARMv6 Linux/Android atomics. ([efacc89](https://github.com/taiki-e/portable-atomic/commit/efacc89c210d7a34ef5e879821112189da5d1901))
+  - Optimize pre-ARMv6 Linux/Android 64-bit atomics. ([efacc89](https://github.com/taiki-e/portable-atomic/commit/efacc89c210d7a34ef5e879821112189da5d1901))
   - Support outline-atomics for powerpc64 128-bit atomics. This is currently disabled by default, and can be enabled by `--cfg portable_atomic_outline_atomics`. ([#90](https://github.com/taiki-e/portable-atomic/pull/90))
   - Optimize aarch64 outline-atomics on linux-musl. On linux-musl, outline-atomics is enabled by default only when dynamic linking is enabled. When static linking is enabled, this can be enabled by `--cfg portable_atomic_outline_atomics`. See the [`atomic128` module's readme](https://github.com/taiki-e/portable-atomic/blob/HEAD/src/imp/atomic128/README.md#run-time-feature-detection) for more. ([8418235](https://github.com/taiki-e/portable-atomic/commit/84182354e4a149074e28bda4683d538e5fb617ce), [31d0862](https://github.com/taiki-e/portable-atomic/commit/31d08623d4e21af207ff2343f5553b9b5a030452))
 
@@ -362,7 +402,10 @@ The latest version of portable-atomic is 1.x. This release makes portable-atomic
 
 Initial release
 
-[Unreleased]: https://github.com/taiki-e/portable-atomic/compare/v1.4.3...HEAD
+[Unreleased]: https://github.com/taiki-e/portable-atomic/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/taiki-e/portable-atomic/compare/v1.5.1...v1.6.0
+[1.5.1]: https://github.com/taiki-e/portable-atomic/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/taiki-e/portable-atomic/compare/v1.4.3...v1.5.0
 [1.4.3]: https://github.com/taiki-e/portable-atomic/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/taiki-e/portable-atomic/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/taiki-e/portable-atomic/compare/v1.4.0...v1.4.1

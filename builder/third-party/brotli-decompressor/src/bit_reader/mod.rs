@@ -134,22 +134,18 @@ pub const BROTLI_ALIGNED_READ: u8 = 0;
 #[inline(always)]
 pub fn BrotliFillBitWindow(br: &mut BrotliBitReader, n_bits: u32, input: &[u8]) {
   if ::core::mem::size_of::<reg_t>() == 8 {
-    if (n_bits <= 8) {
-      if (BROTLI_ALIGNED_READ == 0 && br.bit_pos_ >= 56) {
-        br.val_ >>= 56;
-        br.bit_pos_ ^= 56;  // here same as -= 56 because of the if condition
-        br.val_ |= BrotliLoad64LE(input, br.next_in) << 8;
-        br.avail_in -= 7;
-        br.next_in += 7;
-      }
-    } else if (BROTLI_ALIGNED_READ == 0 && n_bits <= 16) {
-      if (br.bit_pos_ >= 48) {
-        br.val_ >>= 48;
-        br.bit_pos_ ^= 48;  // here same as -= 48 because of the if condition
-        br.val_ |= BrotliLoad64LE(input, br.next_in) << 16;
-        br.avail_in -= 6;
-        br.next_in += 6;
-      }
+    if (n_bits <= 8 && BROTLI_ALIGNED_READ == 0 && br.bit_pos_ >= 56) {
+      br.val_ >>= 56;
+      br.bit_pos_ ^= 56;  // here same as -= 56 because of the if condition
+      br.val_ |= BrotliLoad64LE(input, br.next_in) << 8;
+      br.avail_in -= 7;
+      br.next_in += 7;
+    } else if (BROTLI_ALIGNED_READ == 0 && n_bits <= 16 && br.bit_pos_ >= 48) {
+      br.val_ >>= 48;
+      br.bit_pos_ ^= 48;  // here same as -= 48 because of the if condition
+      br.val_ |= BrotliLoad64LE(input, br.next_in) << 16;
+      br.avail_in -= 6;
+      br.next_in += 6;
     } else if br.bit_pos_ >= 32 {
       br.val_ >>= 32;
       br.bit_pos_ ^= 32;  /* here same as -= 32 because of the if condition */
@@ -572,16 +568,9 @@ mod tests {
       };
       let ret = BrotliReadBits(&mut bit_reader, 8, &data[..]);
       assert_eq!(ret, 0x83);
-      if super::BROTLI_ALIGNED_READ == 0 {
-        assert_eq!(bit_reader.bit_pos_, 41);
-        assert_eq!(bit_reader.avail_in, 29);
-        assert_eq!(bit_reader.next_in, 3);
-
-      } else {
-        assert_eq!(bit_reader.bit_pos_, 9);
-        assert_eq!(bit_reader.avail_in, 25);
-        assert_eq!(bit_reader.next_in, 7);
-      }
+      assert_eq!(bit_reader.bit_pos_, 9);
+      assert_eq!(bit_reader.avail_in, 25);
+      assert_eq!(bit_reader.next_in, 7);
     }
     {
       let data: [u8; 28] = [0xba, 0xaa, 0xaa, 0xad, 0x74, 0x40, 0x8e, 0xee, 0xd2, 0x38, 0xf1,

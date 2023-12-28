@@ -1,7 +1,24 @@
 #[cfg(feature = "std")]
 use proptest::prelude::*;
 
+use crate::{
+    combinator::{separated, separated_pair},
+    PResult, Parser,
+};
+
 use super::*;
+
+#[cfg(feature = "std")]
+#[test]
+fn test_fxhashmap_compiles() {
+    let input = "a=b";
+    fn pair(i: &mut &str) -> PResult<(char, char)> {
+        let out = separated_pair('a', '=', 'b').parse_next(i)?;
+        Ok(out)
+    }
+
+    let _: rustc_hash::FxHashMap<char, char> = separated(0.., pair, ',').parse(input).unwrap();
+}
 
 #[test]
 fn test_offset_u8() {
@@ -113,4 +130,19 @@ fn test_partial_complete() {
 
     i.restore_partial(incomplete_state);
     assert!(i.is_partial(), "incomplete stream state should be restored");
+}
+
+#[test]
+fn test_custom_slice() {
+    type Token = usize;
+    type TokenSlice<'i> = &'i [Token];
+
+    let mut tokens: TokenSlice<'_> = &[1, 2, 3, 4];
+
+    let input = &mut tokens;
+    let start = input.checkpoint();
+    let _ = input.next_token();
+    let _ = input.next_token();
+    let offset = input.offset_from(&start);
+    assert_eq!(offset, 2);
 }

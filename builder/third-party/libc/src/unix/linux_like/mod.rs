@@ -6,13 +6,9 @@ pub type timer_t = *mut ::c_void;
 pub type key_t = ::c_int;
 pub type id_t = ::c_uint;
 
-#[cfg_attr(feature = "extra_traits", derive(Debug))]
-pub enum timezone {}
-impl ::Copy for timezone {}
-impl ::Clone for timezone {
-    fn clone(&self) -> timezone {
-        *self
-    }
+missing! {
+    #[cfg_attr(feature = "extra_traits", derive(Debug))]
+    pub enum timezone {}
 }
 
 s! {
@@ -1783,10 +1779,10 @@ extern "C" {
 
 // LFS64 extensions
 //
-// * musl has 64-bit versions only so aliases the LFS64 symbols to the standard ones
+// * musl and Emscripten has 64-bit versions only so aliases the LFS64 symbols to the standard ones
 // * ulibc doesn't have preadv64/pwritev64
 cfg_if! {
-    if #[cfg(not(target_env = "musl"))] {
+    if #[cfg(not(any(target_env = "musl", target_os = "emscripten")))] {
         extern "C" {
             pub fn fstatfs64(fd: ::c_int, buf: *mut statfs64) -> ::c_int;
             pub fn statvfs64(path: *const ::c_char, buf: *mut statvfs64) -> ::c_int;
@@ -1844,7 +1840,7 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(not(any(target_env = "uclibc", target_env = "musl")))] {
+    if #[cfg(not(any(target_env = "uclibc", target_env = "musl", target_os = "emscripten")))] {
         extern "C" {
             pub fn preadv64(
                 fd: ::c_int,

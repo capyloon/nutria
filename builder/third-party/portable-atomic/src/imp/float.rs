@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // AtomicF{32,64} implementation based on AtomicU{32,64}.
 //
 // This module provides atomic float implementations using atomic integer.
@@ -18,10 +20,7 @@ use core::{cell::UnsafeCell, sync::atomic::Ordering};
 
 macro_rules! atomic_float {
     (
-        $atomic_type:ident,
-        $float_type:ident,
-        $atomic_int_type:ident,
-        $int_type:ident,
+        $atomic_type:ident, $float_type:ident, $atomic_int_type:ident, $int_type:ident,
         $align:literal
     ) => {
         #[repr(C, align($align))]

@@ -921,10 +921,14 @@ impl ser::Serializer for ValueSerializer {
     }
 
     fn serialize_f32(self, value: f32) -> Result<Value, crate::ser::Error> {
-        self.serialize_f64(value.into())
+        self.serialize_f64(value as f64)
     }
 
-    fn serialize_f64(self, value: f64) -> Result<Value, crate::ser::Error> {
+    fn serialize_f64(self, mut value: f64) -> Result<Value, crate::ser::Error> {
+        // Discard sign of NaN. See ValueSerializer::serialize_f64.
+        if value.is_nan() {
+            value = value.copysign(1.0);
+        }
         Ok(Value::Float(value))
     }
 

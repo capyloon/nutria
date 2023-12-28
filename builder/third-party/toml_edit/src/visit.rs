@@ -43,6 +43,7 @@
 //! This visitor stores every string in the document.
 //!
 //! ```
+//! # #[cfg(feature = "parse")] {
 //! # use toml_edit::*;
 //! use toml_edit::visit::*;
 //!
@@ -67,10 +68,11 @@
 //! visitor.visit_document(&document);
 //!
 //! assert_eq!(visitor.strings, vec!["sky-castle", "surrounds-you"]);
+//! # }
 //! ```
 //!
 //! For a more complex example where the visitor has internal state, see `examples/visit.rs`
-//! [on GitHub](https://github.com/ordian/toml_edit/blob/master/examples/visit.rs).
+//! [on GitHub](https://github.com/toml-rs/toml/blob/main/crates/toml_edit/examples/visit.rs).
 
 use crate::{
     Array, ArrayOfTables, Datetime, Document, Formatted, InlineTable, Item, Table, TableLike, Value,

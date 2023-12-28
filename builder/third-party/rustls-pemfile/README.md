@@ -9,6 +9,8 @@ poor and doing so doesn't address a meaningful threat model.
 [![Documentation](https://docs.rs/rustls-pemfile/badge.svg)](https://docs.rs/rustls-pemfile/)
 
 # Release history
+- 1.0.4 (2023-11-09)
+  * Enable parsing PEM files with items that have non-UNIX line endings.
 - 1.0.3 (2023-06-28)
   * Add certificate revocation list (CRL) format support.
   * Add `crls` helper function.

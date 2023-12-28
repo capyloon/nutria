@@ -141,6 +141,7 @@ impl<'a> Object<'a> {
             Architecture::Riscv32 => true,
             Architecture::S390x => true,
             Architecture::Sbf => false,
+            Architecture::Sharc => true,
             Architecture::Sparc64 => true,
             Architecture::Xtensa => true,
             _ => {
@@ -153,50 +154,6 @@ impl<'a> Object<'a> {
     }
 
     pub(crate) fn elf_fixup_relocation(&mut self, relocation: &mut Relocation) -> Result<i64> {
-        // Return true if we should use a section symbol to avoid preemption.
-        fn want_section_symbol(relocation: &Relocation, symbol: &Symbol) -> bool {
-            if symbol.scope != SymbolScope::Dynamic {
-                // Only dynamic symbols can be preemptible.
-                return false;
-            }
-            match symbol.kind {
-                SymbolKind::Text | SymbolKind::Data => {}
-                _ => return false,
-            }
-            match relocation.kind {
-                // Anything using GOT or PLT is preemptible.
-                // We also require that `Other` relocations must already be correct.
-                RelocationKind::Got
-                | RelocationKind::GotRelative
-                | RelocationKind::GotBaseRelative
-                | RelocationKind::PltRelative
-                | RelocationKind::Elf(_) => return false,
-                // Absolute relocations are preemptible for non-local data.
-                // TODO: not sure if this rule is exactly correct
-                // This rule was added to handle global data references in debuginfo.
-                // Maybe this should be a new relocation kind so that the caller can decide.
-                RelocationKind::Absolute => {
-                    if symbol.kind == SymbolKind::Data {
-                        return false;
-                    }
-                }
-                _ => {}
-            }
-            true
-        }
-
-        // Use section symbols for relocations where required to avoid preemption.
-        // Otherwise, the linker will fail with:
-        //     relocation R_X86_64_PC32 against symbol `SomeSymbolName' can not be used when
-        //     making a shared object; recompile with -fPIC
-        let symbol = &self.symbols[relocation.symbol.0];
-        if want_section_symbol(relocation, symbol) {
-            if let Some(section) = symbol.section.id() {
-                relocation.addend += symbol.value as i64;
-                relocation.symbol = self.section_symbol(section);
-            }
-        }
-
         // Determine whether the addend is stored in the relocation or the data.
         if self.elf_has_relocation_addend()? {
             Ok(0)
@@ -324,33 +281,34 @@ impl<'a> Object<'a> {
 
         // Start writing.
         let e_type = elf::ET_REL;
-        let e_machine = match self.architecture {
-            Architecture::Aarch64 => elf::EM_AARCH64,
-            Architecture::Aarch64_Ilp32 => elf::EM_AARCH64,
-            Architecture::Arm => elf::EM_ARM,
-            Architecture::Avr => elf::EM_AVR,
-            Architecture::Bpf => elf::EM_BPF,
-            Architecture::Csky => elf::EM_CSKY,
-            Architecture::I386 => elf::EM_386,
-            Architecture::X86_64 => elf::EM_X86_64,
-            Architecture::X86_64_X32 => elf::EM_X86_64,
-            Architecture::Hexagon => elf::EM_HEXAGON,
-            Architecture::LoongArch64 => elf::EM_LOONGARCH,
-            Architecture::Mips => elf::EM_MIPS,
-            Architecture::Mips64 => elf::EM_MIPS,
-            Architecture::Msp430 => elf::EM_MSP430,
-            Architecture::PowerPc => elf::EM_PPC,
-            Architecture::PowerPc64 => elf::EM_PPC64,
-            Architecture::Riscv32 => elf::EM_RISCV,
-            Architecture::Riscv64 => elf::EM_RISCV,
-            Architecture::S390x => elf::EM_S390,
-            Architecture::Sbf => elf::EM_SBF,
-            Architecture::Sparc64 => elf::EM_SPARCV9,
-            Architecture::Xtensa => elf::EM_XTENSA,
+        let e_machine = match (self.architecture, self.sub_architecture) {
+            (Architecture::Aarch64, None) => elf::EM_AARCH64,
+            (Architecture::Aarch64_Ilp32, None) => elf::EM_AARCH64,
+            (Architecture::Arm, None) => elf::EM_ARM,
+            (Architecture::Avr, None) => elf::EM_AVR,
+            (Architecture::Bpf, None) => elf::EM_BPF,
+            (Architecture::Csky, None) => elf::EM_CSKY,
+            (Architecture::I386, None) => elf::EM_386,
+            (Architecture::X86_64, None) => elf::EM_X86_64,
+            (Architecture::X86_64_X32, None) => elf::EM_X86_64,
+            (Architecture::Hexagon, None) => elf::EM_HEXAGON,
+            (Architecture::LoongArch64, None) => elf::EM_LOONGARCH,
+            (Architecture::Mips, None) => elf::EM_MIPS,
+            (Architecture::Mips64, None) => elf::EM_MIPS,
+            (Architecture::Msp430, None) => elf::EM_MSP430,
+            (Architecture::PowerPc, None) => elf::EM_PPC,
+            (Architecture::PowerPc64, None) => elf::EM_PPC64,
+            (Architecture::Riscv32, None) => elf::EM_RISCV,
+            (Architecture::Riscv64, None) => elf::EM_RISCV,
+            (Architecture::S390x, None) => elf::EM_S390,
+            (Architecture::Sbf, None) => elf::EM_SBF,
+            (Architecture::Sharc, None) => elf::EM_SHARC,
+            (Architecture::Sparc64, None) => elf::EM_SPARCV9,
+            (Architecture::Xtensa, None) => elf::EM_XTENSA,
             _ => {
                 return Err(Error(format!(
-                    "unimplemented architecture {:?}",
-                    self.architecture
+                    "unimplemented architecture {:?} with sub-architecture {:?}",
+                    self.architecture, self.sub_architecture
                 )));
             }
         };
@@ -581,6 +539,9 @@ impl<'a> Object<'a> {
                                 (RelocationKind::Absolute, RelocationEncoding::Generic, 64) => {
                                     elf::R_X86_64_64
                                 }
+                                (RelocationKind::Relative, RelocationEncoding::X86Branch, 32) => {
+                                    elf::R_X86_64_PLT32
+                                }
                                 (RelocationKind::Relative, _, 32) => elf::R_X86_64_PC32,
                                 (RelocationKind::Got, _, 32) => elf::R_X86_64_GOT32,
                                 (RelocationKind::PltRelative, _, 32) => elf::R_X86_64_PLT32,
@@ -616,6 +577,7 @@ impl<'a> Object<'a> {
                             (RelocationKind::Absolute, _, 32) => elf::R_LARCH_32,
                             (RelocationKind::Absolute, _, 64) => elf::R_LARCH_64,
                             (RelocationKind::Relative, _, 32) => elf::R_LARCH_32_PCREL,
+                            (RelocationKind::Relative, _, 64) => elf::R_LARCH_64_PCREL,
                             (RelocationKind::Relative, RelocationEncoding::LoongArchBranch, 16)
                             | (
                                 RelocationKind::PltRelative,
@@ -761,6 +723,48 @@ impl<'a> Object<'a> {
                         Architecture::Sbf => match (reloc.kind, reloc.encoding, reloc.size) {
                             (RelocationKind::Absolute, _, 64) => elf::R_SBF_64_64,
                             (RelocationKind::Absolute, _, 32) => elf::R_SBF_64_32,
+                            (RelocationKind::Elf(x), _, _) => x,
+                            _ => {
+                                return Err(Error(format!("unimplemented relocation {:?}", reloc)));
+                            }
+                        },
+                        Architecture::Sharc => match (reloc.kind, reloc.encoding, reloc.size) {
+                            (RelocationKind::Absolute, RelocationEncoding::SharcTypeA, 32) => {
+                                elf::R_SHARC_ADDR32_V3
+                            }
+                            (RelocationKind::Absolute, RelocationEncoding::Generic, 32) => {
+                                elf::R_SHARC_ADDR_VAR_V3
+                            }
+                            (RelocationKind::Relative, RelocationEncoding::SharcTypeA, 24) => {
+                                elf::R_SHARC_PCRLONG_V3
+                            }
+                            (RelocationKind::Relative, RelocationEncoding::SharcTypeA, 6) => {
+                                elf::R_SHARC_PCRSHORT_V3
+                            }
+                            (RelocationKind::Relative, RelocationEncoding::SharcTypeB, 6) => {
+                                elf::R_SHARC_PCRSHORT_V3
+                            }
+                            (RelocationKind::Absolute, RelocationEncoding::Generic, 16) => {
+                                elf::R_SHARC_ADDR_VAR16_V3
+                            }
+                            (RelocationKind::Absolute, RelocationEncoding::SharcTypeA, 16) => {
+                                elf::R_SHARC_DATA16_V3
+                            }
+                            (RelocationKind::Absolute, RelocationEncoding::SharcTypeB, 16) => {
+                                elf::R_SHARC_DATA16_VISA_V3
+                            }
+                            (RelocationKind::Absolute, RelocationEncoding::SharcTypeA, 24) => {
+                                elf::R_SHARC_ADDR24_V3
+                            }
+                            (RelocationKind::Absolute, RelocationEncoding::SharcTypeA, 6) => {
+                                elf::R_SHARC_DATA6_V3
+                            }
+                            (RelocationKind::Absolute, RelocationEncoding::SharcTypeB, 6) => {
+                                elf::R_SHARC_DATA6_VISA_V3
+                            }
+                            (RelocationKind::Absolute, RelocationEncoding::SharcTypeB, 7) => {
+                                elf::R_SHARC_DATA7_VISA_V3
+                            }
                             (RelocationKind::Elf(x), _, _) => x,
                             _ => {
                                 return Err(Error(format!("unimplemented relocation {:?}", reloc)));

@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/http-body/0.4.5")]
+#![doc(html_root_url = "https://docs.rs/http-body/0.4.6")]
 #![deny(
     missing_debug_implementations,
     missing_docs,
@@ -13,6 +13,7 @@
 //!
 //! [`Body`]: trait.Body.html
 
+mod collect;
 mod empty;
 mod full;
 mod limited;
@@ -21,6 +22,7 @@ mod size_hint;
 
 pub mod combinators;
 
+pub use self::collect::Collected;
 pub use self::empty::Empty;
 pub use self::full::Full;
 pub use self::limited::{LengthLimitError, Limited};
@@ -116,6 +118,15 @@ pub trait Body {
         F: FnMut(Self::Error) -> E,
     {
         MapErr::new(self, f)
+    }
+
+    /// Turn this body into [`Collected`] body which will collect all the DATA frames
+    /// and trailers.
+    fn collect(self) -> crate::collect::Collect<Self>
+    where
+        Self: Sized,
+    {
+        collect::Collect::new(self)
     }
 
     /// Turn this body into a boxed trait object.

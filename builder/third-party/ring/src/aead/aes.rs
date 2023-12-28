@@ -49,6 +49,7 @@ fn set_encrypt_key(
     key: &mut AES_KEY,
 ) -> Result<(), error::Unspecified> {
     // Unusually, in this case zero means success and non-zero means failure.
+    #[allow(clippy::cast_possible_truncation)]
     if 0 == unsafe { f(bytes.as_ptr(), key_bits.as_usize_bits() as c::uint, key) } {
         Ok(())
     } else {
@@ -111,11 +112,12 @@ fn ctr32_encrypt_blocks_(
     assert_eq!(in_out_len % BLOCK_LEN, 0);
 
     let blocks = in_out_len / BLOCK_LEN;
+    #[allow(clippy::cast_possible_truncation)]
     let blocks_u32 = blocks as u32;
     assert_eq!(blocks, polyfill::usize_from_u32(blocks_u32));
 
-    let input = in_out[src].as_ptr() as *const [u8; BLOCK_LEN];
-    let output = in_out.as_mut_ptr() as *mut [u8; BLOCK_LEN];
+    let input = in_out[src].as_ptr().cast::<[u8; BLOCK_LEN]>();
+    let output = in_out.as_mut_ptr().cast::<[u8; BLOCK_LEN]>();
 
     unsafe {
         f(input, output, blocks, key, ctr);

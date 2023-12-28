@@ -11,9 +11,9 @@
 
 [package]
 edition = "2018"
-rust-version = "1.56"
+rust-version = "1.57"
 name = "web-sys"
-version = "0.3.64"
+version = "0.3.66"
 authors = ["The wasm-bindgen Developers"]
 description = """
 Bindings for all Web APIs, a procedurally generated crate from WebIDL
@@ -21,7 +21,7 @@ Bindings for all Web APIs, a procedurally generated crate from WebIDL
 homepage = "https://rustwasm.github.io/wasm-bindgen/web-sys/index.html"
 documentation = "https://rustwasm.github.io/wasm-bindgen/api/web_sys/"
 readme = "./README.md"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/rustwasm/wasm-bindgen/tree/master/crates/web-sys"
 resolver = "2"
 
@@ -34,10 +34,10 @@ test = false
 doctest = false
 
 [dependencies.js-sys]
-version = "0.3.64"
+version = "0.3.66"
 
 [dependencies.wasm-bindgen]
-version = "0.2.87"
+version = "0.2.89"
 
 [features]
 AbortController = []
@@ -90,6 +90,7 @@ AudioContext = [
     "BaseAudioContext",
     "EventTarget",
 ]
+AudioContextLatencyCategory = []
 AudioContextOptions = []
 AudioContextState = []
 AudioData = []
@@ -118,6 +119,9 @@ AudioScheduledSourceNode = [
     "AudioNode",
     "EventTarget",
 ]
+AudioSinkInfo = []
+AudioSinkOptions = []
+AudioSinkType = []
 AudioStreamTrack = [
     "EventTarget",
     "MediaStreamTrack",
@@ -310,10 +314,6 @@ CredentialsContainer = []
 Crypto = []
 CryptoKey = []
 CryptoKeyPair = []
-Csp = []
-CspPolicies = []
-CspReport = []
-CspReportProperties = []
 CssAnimation = [
     "Animation",
     "EventTarget",
@@ -411,6 +411,8 @@ DomError = []
 DomException = []
 DomImplementation = []
 DomMatrix = ["DomMatrixReadOnly"]
+DomMatrix2dInit = []
+DomMatrixInit = []
 DomMatrixReadOnly = []
 DomParser = []
 DomPoint = ["DomPointReadOnly"]
@@ -575,7 +577,6 @@ GamepadPose = []
 GamepadServiceTest = []
 Geolocation = []
 GetAnimationsOptions = []
-GetNotificationOptions = []
 GetRootNodeOptions = []
 GetUserMediaRequest = []
 Gpu = []
@@ -614,8 +615,7 @@ GpuCompilationMessage = []
 GpuCompilationMessageType = []
 GpuComputePassDescriptor = []
 GpuComputePassEncoder = []
-GpuComputePassTimestampLocation = []
-GpuComputePassTimestampWrite = []
+GpuComputePassTimestampWrites = []
 GpuComputePipeline = []
 GpuComputePipelineDescriptor = []
 GpuCullMode = []
@@ -649,6 +649,9 @@ GpuOrigin2dDict = []
 GpuOrigin3dDict = []
 GpuOutOfMemoryError = ["GpuError"]
 GpuPipelineDescriptorBase = []
+GpuPipelineError = ["DomException"]
+GpuPipelineErrorInit = []
+GpuPipelineErrorReason = []
 GpuPipelineLayout = []
 GpuPipelineLayoutDescriptor = []
 GpuPowerPreference = []
@@ -669,8 +672,7 @@ GpuRenderPassDepthStencilAttachment = []
 GpuRenderPassDescriptor = []
 GpuRenderPassEncoder = []
 GpuRenderPassLayout = []
-GpuRenderPassTimestampLocation = []
-GpuRenderPassTimestampWrite = []
+GpuRenderPassTimestampWrites = []
 GpuRenderPipeline = []
 GpuRenderPipelineDescriptor = []
 GpuRequestAdapterOptions = []
@@ -1237,6 +1239,7 @@ IntersectionObserverEntry = []
 IntersectionObserverEntryInit = []
 IntersectionObserverInit = []
 IntlUtils = []
+IsInputPendingOptions = []
 IterableKeyAndValueResult = []
 IterableKeyOrValueResult = []
 IterationCompositeOperation = []
@@ -1264,6 +1267,12 @@ LocalMediaStream = [
 ]
 LocaleInfo = []
 Location = []
+Lock = []
+LockInfo = []
+LockManager = []
+LockManagerSnapshot = []
+LockMode = []
+LockOptions = []
 MediaCapabilities = []
 MediaCapabilitiesInfo = []
 MediaConfiguration = []
@@ -1406,7 +1415,7 @@ NodeFilter = []
 NodeIterator = []
 NodeList = []
 Notification = ["EventTarget"]
-NotificationBehavior = []
+NotificationAction = []
 NotificationDirection = []
 NotificationEvent = [
     "Event",
@@ -1695,6 +1704,9 @@ RtcdtmfToneChangeEvent = ["Event"]
 RtcdtmfToneChangeEventInit = []
 RtcrtpContributingSourceStats = []
 RtcrtpStreamStats = []
+Scheduler = []
+SchedulerPostTaskOptions = []
+Scheduling = []
 Screen = ["EventTarget"]
 ScreenColorGamut = []
 ScreenLuminance = []
@@ -2323,6 +2335,16 @@ SvgtSpanElement = [
     "SvgTextContentElement",
     "SvgTextPositioningElement",
 ]
+TaskController = ["AbortController"]
+TaskControllerInit = []
+TaskPriority = []
+TaskPriorityChangeEvent = ["Event"]
+TaskPriorityChangeEventInit = []
+TaskSignal = [
+    "AbortSignal",
+    "EventTarget",
+]
+TaskSignalAnyInit = []
 TcpReadyState = []
 TcpServerSocket = ["EventTarget"]
 TcpServerSocketEvent = ["Event"]
@@ -2443,6 +2465,7 @@ VideoStreamTrack = [
 VideoTrack = []
 VideoTrackList = ["EventTarget"]
 VideoTransferCharacteristics = []
+ViewTransition = []
 VisibilityState = []
 VoidCallback = []
 VrDisplay = ["EventTarget"]
@@ -2532,6 +2555,7 @@ WebglDrawBuffers = []
 WebglLoseContext = []
 WebglMultiDraw = []
 WebrtcGlobalStatisticsReport = []
+WgslLanguageFeatures = []
 WheelEvent = [
     "Event",
     "MouseEvent",
@@ -2641,7 +2665,7 @@ gpu_shader_stage = []
 gpu_texture_usage = []
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-futures]
-version = "0.4.37"
+version = "0.4.39"
 
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-test]
-version = "0.3.37"
+version = "0.3.39"

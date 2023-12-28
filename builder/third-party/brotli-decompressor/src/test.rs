@@ -255,3 +255,16 @@ fn test_reader_quickfox_repeated() {
     }
   }
 }
+
+#[test]
+fn test_early_eof() {
+  const BUFFER_SIZE: usize = 128;
+  let mut input: [u8; 47] = [17, 17, 32, 32, 109, 109, 32, 32, 32, 181, 2, 0, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 151, 32, 42, 181, 32, 149, 59, 0, 0, 0, 0, 42, 42, 42, 42, 42, 5, 255, 255, 255, 255, 255];
+  let mut output = [0u8; BUFFER_SIZE];
+  let (result, input_offset, _output_offset) = oneshot(&mut input[..], &mut output[..]);
+  match result {
+    BrotliResult::ResultFailure => {}
+    _ => assert!(false),
+  }
+  assert_eq!(input_offset, input.len());
+}

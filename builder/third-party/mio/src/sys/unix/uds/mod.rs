@@ -15,16 +15,14 @@ pub(in crate::sys) fn path_offset(sockaddr: &libc::sockaddr_un) -> usize {
 
 cfg_os_poll! {
     use std::cmp::Ordering;
-    use std::os::unix::ffi::OsStrExt;
     use std::os::unix::io::{RawFd, FromRawFd};
-    use std::path::Path;
     use std::{io, mem};
 
     pub(crate) mod datagram;
     pub(crate) mod listener;
     pub(crate) mod stream;
 
-    pub(in crate::sys) fn socket_addr(path: &Path) -> io::Result<(libc::sockaddr_un, libc::socklen_t)> {
+    pub(in crate::sys) fn socket_addr(bytes: &[u8]) -> io::Result<(libc::sockaddr_un, libc::socklen_t)> {
         let sockaddr = mem::MaybeUninit::<libc::sockaddr_un>::zeroed();
 
         // This is safe to assume because a `libc::sockaddr_un` filled with `0`
@@ -39,7 +37,6 @@ cfg_os_poll! {
 
         sockaddr.sun_family = libc::AF_UNIX as libc::sa_family_t;
 
-        let bytes = path.as_os_str().as_bytes();
         match (bytes.first(), bytes.len().cmp(&sockaddr.sun_path.len())) {
             // Abstract paths don't need a null terminator
             (Some(&0), Ordering::Greater) => {
@@ -78,10 +75,13 @@ cfg_os_poll! {
         where T: FromRawFd,
     {
         #[cfg(not(any(
+            target_os = "aix",
             target_os = "ios",
             target_os = "macos",
             target_os = "tvos",
             target_os = "watchos",
+            target_os = "espidf",
+            target_os = "vita",
         )))]
         let flags = flags | libc::SOCK_NONBLOCK | libc::SOCK_CLOEXEC;
 
@@ -89,24 +89,30 @@ cfg_os_poll! {
         syscall!(socketpair(libc::AF_UNIX, flags, 0, fds.as_mut_ptr()))?;
         let pair = unsafe { (T::from_raw_fd(fds[0]), T::from_raw_fd(fds[1])) };
 
-        // Darwin doesn't have SOCK_NONBLOCK or SOCK_CLOEXEC.
+        // Darwin (and others) doesn't have SOCK_NONBLOCK or SOCK_CLOEXEC.
         //
         // In order to set those flags, additional `fcntl` sys calls must be
         // performed. If a `fnctl` fails after the sockets have been created,
         // the file descriptors will leak. Creating `pair` above ensures that if
         // there is an error, the file descriptors are closed.
         #[cfg(any(
+            target_os = "aix",
             target_os = "ios",
             target_os = "macos",
             target_os = "tvos",
             target_os = "watchos",
+            target_os = "espidf",
+            target_os = "vita",
         ))]
         {
             syscall!(fcntl(fds[0], libc::F_SETFL, libc::O_NONBLOCK))?;
+            #[cfg(not(any(target_os = "espidf", target_os = "vita")))]
             syscall!(fcntl(fds[0], libc::F_SETFD, libc::FD_CLOEXEC))?;
             syscall!(fcntl(fds[1], libc::F_SETFL, libc::O_NONBLOCK))?;
+            #[cfg(not(any(target_os = "espidf", target_os = "vita")))]
             syscall!(fcntl(fds[1], libc::F_SETFD, libc::FD_CLOEXEC))?;
         }
+
         Ok(pair)
     }
 
@@ -124,6 +130,7 @@ cfg_os_poll! {
     #[cfg(test)]
     mod tests {
         use super::{path_offset, socket_addr};
+        use std::os::unix::ffi::OsStrExt;
         use std::path::Path;
         use std::str;
 
@@ -135,7 +142,7 @@ cfg_os_poll! {
             // Pathname addresses do have a null terminator, so `socklen` is
             // expected to be `PATH_LEN` + `offset` + 1.
             let path = Path::new(PATH);
-            let (sockaddr, actual) = socket_addr(path).unwrap();
+            let (sockaddr, actual) = socket_addr(path.as_os_str().as_bytes()).unwrap();
             let offset = path_offset(&sockaddr);
             let expected = PATH_LEN + offset + 1;
             assert_eq!(expected as libc::socklen_t, actual)
@@ -148,9 +155,7 @@ cfg_os_poll! {
 
             // Abstract addresses do not have a null terminator, so `socklen` is
             // expected to be `PATH_LEN` + `offset`.
-            let abstract_path = str::from_utf8(PATH).unwrap();
-            let path = Path::new(abstract_path);
-            let (sockaddr, actual) = socket_addr(path).unwrap();
+            let (sockaddr, actual) = socket_addr(PATH).unwrap();
             let offset = path_offset(&sockaddr);
             let expected = PATH_LEN + offset;
             assert_eq!(expected as libc::socklen_t, actual)

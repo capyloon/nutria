@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #![cfg_attr(not(all(test, feature = "float")), allow(dead_code, unused_macros))]
 
 #[macro_use]
@@ -135,26 +137,26 @@ macro_rules! impl_debug_and_serde {
             }
         }
         #[cfg(feature = "serde")]
-        #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-        impl serde::Serialize for $atomic_type {
+        #[cfg_attr(portable_atomic_doc_cfg, doc(cfg(feature = "serde")))]
+        impl serde::ser::Serialize for $atomic_type {
             #[allow(clippy::missing_inline_in_public_items)] // serde doesn't use inline on std atomic's Serialize/Deserialize impl
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
-                S: serde::Serializer,
+                S: serde::ser::Serializer,
             {
                 // https://github.com/serde-rs/serde/blob/v1.0.152/serde/src/ser/impls.rs#L958-L959
                 self.load(Ordering::Relaxed).serialize(serializer)
             }
         }
         #[cfg(feature = "serde")]
-        #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-        impl<'de> serde::Deserialize<'de> for $atomic_type {
+        #[cfg_attr(portable_atomic_doc_cfg, doc(cfg(feature = "serde")))]
+        impl<'de> serde::de::Deserialize<'de> for $atomic_type {
             #[allow(clippy::missing_inline_in_public_items)] // serde doesn't use inline on std atomic's Serialize/Deserialize impl
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
             where
-                D: serde::Deserializer<'de>,
+                D: serde::de::Deserializer<'de>,
             {
-                serde::Deserialize::deserialize(deserializer).map(Self::new)
+                serde::de::Deserialize::deserialize(deserializer).map(Self::new)
             }
         }
     };
@@ -218,19 +220,19 @@ macro_rules! impl_default_bit_opts {
             #[inline]
             #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
             pub(crate) fn bit_set(&self, bit: u32, order: Ordering) -> bool {
-                let mask = (1 as $int_type).wrapping_shl(bit);
+                let mask = <$int_type>::wrapping_shl(1, bit);
                 self.fetch_or(mask, order) & mask != 0
             }
             #[inline]
             #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
             pub(crate) fn bit_clear(&self, bit: u32, order: Ordering) -> bool {
-                let mask = (1 as $int_type).wrapping_shl(bit);
+                let mask = <$int_type>::wrapping_shl(1, bit);
                 self.fetch_and(!mask, order) & mask != 0
             }
             #[inline]
             #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
             pub(crate) fn bit_toggle(&self, bit: u32, order: Ordering) -> bool {
-                let mask = (1 as $int_type).wrapping_shl(bit);
+                let mask = <$int_type>::wrapping_shl(1, bit);
                 self.fetch_xor(mask, order) & mask != 0
             }
         }
@@ -242,454 +244,6 @@ macro_rules! items {
     ($($tt:tt)*) => {
         $($tt)*
     };
-}
-
-#[cfg(not(all(
-    portable_atomic_no_atomic_load_store,
-    not(any(
-        target_arch = "avr",
-        target_arch = "bpf",
-        target_arch = "msp430",
-        target_arch = "riscv32",
-        target_arch = "riscv64",
-        feature = "critical-section",
-    )),
-)))]
-#[macro_use]
-mod atomic_ptr_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_ptr {
-        ($($tt:tt)*) => {
-            $($tt)*
-        };
-    }
-}
-#[cfg(all(
-    portable_atomic_no_atomic_load_store,
-    not(any(
-        target_arch = "avr",
-        target_arch = "bpf",
-        target_arch = "msp430",
-        target_arch = "riscv32",
-        target_arch = "riscv64",
-        feature = "critical-section",
-    )),
-))]
-#[macro_use]
-mod atomic_ptr_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_ptr {
-        ($($tt:tt)*) => {};
-    }
-}
-
-#[cfg(not(all(
-    portable_atomic_no_atomic_load_store,
-    not(any(
-        target_arch = "avr",
-        target_arch = "msp430",
-        target_arch = "riscv32",
-        target_arch = "riscv64",
-        feature = "critical-section",
-    )),
-)))]
-#[macro_use]
-mod atomic_8_16_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_8 {
-        ($($tt:tt)*) => {
-            $($tt)*
-        };
-    }
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_16 {
-        ($($tt:tt)*) => {
-            $($tt)*
-        };
-    }
-}
-#[cfg(all(
-    portable_atomic_no_atomic_load_store,
-    not(any(
-        target_arch = "avr",
-        target_arch = "msp430",
-        target_arch = "riscv32",
-        target_arch = "riscv64",
-        feature = "critical-section",
-    )),
-))]
-#[macro_use]
-mod atomic_8_16_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_8 {
-        ($($tt:tt)*) => {};
-    }
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_16 {
-        ($($tt:tt)*) => {};
-    }
-}
-
-#[cfg(all(
-    any(not(target_pointer_width = "16"), feature = "fallback"),
-    not(all(
-        portable_atomic_no_atomic_load_store,
-        not(any(
-            target_arch = "avr",
-            target_arch = "msp430",
-            target_arch = "riscv32",
-            target_arch = "riscv64",
-            feature = "critical-section",
-        )),
-    )),
-))]
-#[macro_use]
-mod atomic_32_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_32 {
-        ($($tt:tt)*) => {
-            $($tt)*
-        };
-    }
-}
-#[cfg(not(all(
-    any(not(target_pointer_width = "16"), feature = "fallback"),
-    not(all(
-        portable_atomic_no_atomic_load_store,
-        not(any(
-            target_arch = "avr",
-            target_arch = "msp430",
-            target_arch = "riscv32",
-            target_arch = "riscv64",
-            feature = "critical-section",
-        )),
-    )),
-)))]
-#[macro_use]
-mod atomic_32_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_32 {
-        ($($tt:tt)*) => {};
-    }
-}
-
-#[cfg_attr(
-    portable_atomic_no_cfg_target_has_atomic,
-    cfg(any(
-        all(
-            feature = "fallback",
-            any(
-                not(portable_atomic_no_atomic_cas),
-                portable_atomic_unsafe_assume_single_core,
-                feature = "critical-section",
-                target_arch = "avr",
-                target_arch = "msp430",
-            ),
-        ),
-        not(portable_atomic_no_atomic_64),
-        not(any(target_pointer_width = "16", target_pointer_width = "32")),
-    ))
-)]
-#[cfg_attr(
-    not(portable_atomic_no_cfg_target_has_atomic),
-    cfg(any(
-        all(
-            feature = "fallback",
-            any(
-                target_has_atomic = "ptr",
-                portable_atomic_unsafe_assume_single_core,
-                feature = "critical-section",
-                target_arch = "avr",
-                target_arch = "msp430",
-            ),
-        ),
-        target_has_atomic = "64",
-        not(any(target_pointer_width = "16", target_pointer_width = "32")),
-    ))
-)]
-#[macro_use]
-mod atomic_64_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_64 {
-        ($($tt:tt)*) => {
-            $($tt)*
-        };
-    }
-}
-#[cfg_attr(
-    portable_atomic_no_cfg_target_has_atomic,
-    cfg(not(any(
-        all(
-            feature = "fallback",
-            any(
-                not(portable_atomic_no_atomic_cas),
-                portable_atomic_unsafe_assume_single_core,
-                feature = "critical-section",
-                target_arch = "avr",
-                target_arch = "msp430",
-            ),
-        ),
-        not(portable_atomic_no_atomic_64),
-        not(any(target_pointer_width = "16", target_pointer_width = "32")),
-    )))
-)]
-#[cfg_attr(
-    not(portable_atomic_no_cfg_target_has_atomic),
-    cfg(not(any(
-        all(
-            feature = "fallback",
-            any(
-                target_has_atomic = "ptr",
-                portable_atomic_unsafe_assume_single_core,
-                feature = "critical-section",
-                target_arch = "avr",
-                target_arch = "msp430",
-            ),
-        ),
-        target_has_atomic = "64",
-        not(any(target_pointer_width = "16", target_pointer_width = "32")),
-    )))
-)]
-#[macro_use]
-mod atomic_64_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_64 {
-        ($($tt:tt)*) => {};
-    }
-}
-
-#[cfg_attr(
-    not(feature = "fallback"),
-    cfg(any(
-        all(
-            target_arch = "aarch64",
-            any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
-        ),
-        all(
-            target_arch = "x86_64",
-            any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
-            any(
-                target_feature = "cmpxchg16b",
-                portable_atomic_target_feature = "cmpxchg16b",
-                all(
-                    feature = "fallback",
-                    not(portable_atomic_no_cmpxchg16b_target_feature),
-                    not(portable_atomic_no_outline_atomics),
-                    not(any(target_env = "sgx", miri)),
-                ),
-            ),
-        ),
-        all(
-            target_arch = "powerpc64",
-            portable_atomic_unstable_asm_experimental_arch,
-            any(
-                target_feature = "quadword-atomics",
-                portable_atomic_target_feature = "quadword-atomics",
-                all(
-                    feature = "fallback",
-                    not(portable_atomic_no_outline_atomics),
-                    portable_atomic_outline_atomics, // TODO(powerpc64): currently disabled by default
-                    any(
-                        all(
-                            target_os = "linux",
-                            any(
-                                target_env = "gnu",
-                                all(
-                                    any(target_env = "musl", target_env = "ohos"),
-                                    not(target_feature = "crt-static"),
-                                ),
-                                portable_atomic_outline_atomics,
-                            ),
-                        ),
-                        target_os = "android",
-                        target_os = "freebsd",
-                    ),
-                    not(any(miri, portable_atomic_sanitize_thread)),
-                ),
-            ),
-        ),
-        all(target_arch = "s390x", portable_atomic_unstable_asm_experimental_arch),
-    ))
-)]
-#[cfg_attr(
-    all(feature = "fallback", portable_atomic_no_cfg_target_has_atomic),
-    cfg(any(
-        not(portable_atomic_no_atomic_cas),
-        portable_atomic_unsafe_assume_single_core,
-        feature = "critical-section",
-        target_arch = "avr",
-        target_arch = "msp430",
-    ))
-)]
-#[cfg_attr(
-    all(feature = "fallback", not(portable_atomic_no_cfg_target_has_atomic)),
-    cfg(any(
-        target_has_atomic = "ptr",
-        portable_atomic_unsafe_assume_single_core,
-        feature = "critical-section",
-        target_arch = "avr",
-        target_arch = "msp430",
-    ))
-)]
-#[macro_use]
-mod atomic_128_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_128 {
-        ($($tt:tt)*) => {
-            $($tt)*
-        };
-    }
-}
-#[cfg_attr(
-    not(feature = "fallback"),
-    cfg(not(any(
-        all(
-            target_arch = "aarch64",
-            any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
-        ),
-        all(
-            target_arch = "x86_64",
-            any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
-            any(
-                target_feature = "cmpxchg16b",
-                portable_atomic_target_feature = "cmpxchg16b",
-                all(
-                    feature = "fallback",
-                    not(portable_atomic_no_cmpxchg16b_target_feature),
-                    not(portable_atomic_no_outline_atomics),
-                    not(any(target_env = "sgx", miri)),
-                ),
-            ),
-        ),
-        all(
-            target_arch = "powerpc64",
-            portable_atomic_unstable_asm_experimental_arch,
-            any(
-                target_feature = "quadword-atomics",
-                portable_atomic_target_feature = "quadword-atomics",
-                all(
-                    feature = "fallback",
-                    not(portable_atomic_no_outline_atomics),
-                    portable_atomic_outline_atomics, // TODO(powerpc64): currently disabled by default
-                    any(
-                        all(
-                            target_os = "linux",
-                            any(
-                                target_env = "gnu",
-                                all(
-                                    any(target_env = "musl", target_env = "ohos"),
-                                    not(target_feature = "crt-static"),
-                                ),
-                                portable_atomic_outline_atomics,
-                            ),
-                        ),
-                        target_os = "android",
-                        target_os = "freebsd",
-                    ),
-                    not(any(miri, portable_atomic_sanitize_thread)),
-                ),
-            ),
-        ),
-        all(target_arch = "s390x", portable_atomic_unstable_asm_experimental_arch),
-    )))
-)]
-#[cfg_attr(
-    all(feature = "fallback", portable_atomic_no_cfg_target_has_atomic),
-    cfg(not(any(
-        not(portable_atomic_no_atomic_cas),
-        portable_atomic_unsafe_assume_single_core,
-        feature = "critical-section",
-        target_arch = "avr",
-        target_arch = "msp430",
-    )))
-)]
-#[cfg_attr(
-    all(feature = "fallback", not(portable_atomic_no_cfg_target_has_atomic)),
-    cfg(not(any(
-        target_has_atomic = "ptr",
-        portable_atomic_unsafe_assume_single_core,
-        feature = "critical-section",
-        target_arch = "avr",
-        target_arch = "msp430",
-    )))
-)]
-#[macro_use]
-mod atomic_128_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_128 {
-        ($($tt:tt)*) => {};
-    }
-}
-
-#[cfg_attr(
-    portable_atomic_no_cfg_target_has_atomic,
-    cfg(any(
-        not(portable_atomic_no_atomic_cas),
-        portable_atomic_unsafe_assume_single_core,
-        feature = "critical-section",
-        target_arch = "avr",
-        target_arch = "msp430",
-    ))
-)]
-#[cfg_attr(
-    not(portable_atomic_no_cfg_target_has_atomic),
-    cfg(any(
-        target_has_atomic = "ptr",
-        portable_atomic_unsafe_assume_single_core,
-        feature = "critical-section",
-        target_arch = "avr",
-        target_arch = "msp430",
-    ))
-)]
-#[macro_use]
-mod atomic_cas_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_cas {
-        ($($tt:tt)*) => {
-            $($tt)*
-        };
-    }
-}
-#[cfg_attr(
-    portable_atomic_no_cfg_target_has_atomic,
-    cfg(not(any(
-        not(portable_atomic_no_atomic_cas),
-        portable_atomic_unsafe_assume_single_core,
-        feature = "critical-section",
-        target_arch = "avr",
-        target_arch = "msp430",
-    )))
-)]
-#[cfg_attr(
-    not(portable_atomic_no_cfg_target_has_atomic),
-    cfg(not(any(
-        target_has_atomic = "ptr",
-        portable_atomic_unsafe_assume_single_core,
-        feature = "critical-section",
-        target_arch = "avr",
-        target_arch = "msp430",
-    )))
-)]
-#[macro_use]
-mod atomic_cas_macros {
-    #[doc(hidden)] // Not public API. (please submit an issue if you want this to be public API)
-    #[macro_export]
-    macro_rules! cfg_has_atomic_cas {
-        ($($tt:tt)*) => {};
-    }
 }
 
 // https://github.com/rust-lang/rust/blob/1.70.0/library/core/src/sync/atomic.rs#L3155
@@ -749,13 +303,26 @@ pub(crate) fn upgrade_success_ordering(success: Ordering, failure: Ordering) -> 
     }
 }
 
-#[cfg(any(
-    target_arch = "aarch64",
-    target_arch = "powerpc64",
-    target_arch = "s390x",
-    target_arch = "x86_64",
-))]
-pub(crate) use imp::Pair128 as Pair;
+/// Zero-extends the given 32-bit pointer to `MaybeUninit<u64>`.
+/// This is used for 64-bit architecture's 32-bit ABI (e.g., AArch64 ILP32 ABI).
+/// See ptr_reg! macro in src/gen/utils.rs for details.
+#[cfg(not(portable_atomic_no_asm_maybe_uninit))]
+#[cfg(target_pointer_width = "32")]
+#[allow(dead_code)]
+#[inline]
+pub(crate) fn zero_extend64_ptr(v: *mut ()) -> core::mem::MaybeUninit<u64> {
+    #[repr(C)]
+    struct ZeroExtended {
+        #[cfg(target_endian = "big")]
+        pad: *mut (),
+        v: *mut (),
+        #[cfg(target_endian = "little")]
+        pad: *mut (),
+    }
+    // SAFETY: we can safely transmute any 64-bit value to MaybeUninit<u64>.
+    unsafe { core::mem::transmute(ZeroExtended { v, pad: core::ptr::null_mut() }) }
+}
+
 #[allow(dead_code)]
 #[cfg(any(
     target_arch = "aarch64",
@@ -771,11 +338,8 @@ pub(crate) use imp::Pair128 as Pair;
 #[repr(C)]
 pub(crate) union U128 {
     pub(crate) whole: u128,
-    pub(crate) pair: Pair,
+    pub(crate) pair: Pair<u64>,
 }
-
-#[cfg(target_arch = "arm")]
-pub(crate) use imp::Pair64 as Pair;
 #[allow(dead_code)]
 #[cfg(target_arch = "arm")]
 /// A 64-bit value represented as a pair of 32-bit values.
@@ -786,82 +350,69 @@ pub(crate) use imp::Pair64 as Pair;
 #[repr(C)]
 pub(crate) union U64 {
     pub(crate) whole: u64,
-    pub(crate) pair: Pair,
+    pub(crate) pair: Pair<u32>,
+}
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub(crate) struct Pair<T: Copy> {
+    // little endian order
+    #[cfg(any(target_endian = "little", target_arch = "aarch64", target_arch = "arm"))]
+    pub(crate) lo: T,
+    pub(crate) hi: T,
+    // big endian order
+    #[cfg(not(any(target_endian = "little", target_arch = "aarch64", target_arch = "arm")))]
+    pub(crate) lo: T,
 }
 
-// little endian order
 #[allow(dead_code)]
-#[cfg(any(target_endian = "little", target_arch = "aarch64", target_arch = "arm"))]
-mod imp {
-    #[cfg(target_arch = "arm")]
-    // A pair of 32-bit values.
-    #[derive(Clone, Copy)]
-    #[repr(C)]
-    pub(crate) struct Pair64 {
-        pub(crate) lo: u32,
-        pub(crate) hi: u32,
-    }
-    #[cfg(any(
-        target_arch = "aarch64",
-        target_arch = "powerpc64",
-        target_arch = "s390x",
-        target_arch = "x86_64",
-    ))]
-    // A pair of 64-bit values.
-    #[derive(Clone, Copy)]
-    #[repr(C)]
-    pub(crate) struct Pair128 {
-        pub(crate) lo: u64,
-        pub(crate) hi: u64,
-    }
-}
-// big endian order
+type MinWord = u32;
+#[cfg(target_arch = "riscv32")]
+type RegSize = u32;
+#[cfg(target_arch = "riscv64")]
+type RegSize = u64;
+// Adapted from https://github.com/taiki-e/atomic-maybe-uninit/blob/v0.3.0/src/utils.rs#L210.
+// Helper for implementing sub-word atomic operations using word-sized LL/SC loop or CAS loop.
+//
+// Refs: https://github.com/llvm/llvm-project/blob/llvmorg-17.0.0-rc2/llvm/lib/CodeGen/AtomicExpandPass.cpp#L699
+// (aligned_ptr, shift, mask)
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 #[allow(dead_code)]
-#[cfg(not(any(target_endian = "little", target_arch = "aarch64", target_arch = "arm")))]
-mod imp {
-    #[cfg(target_arch = "arm")]
-    // A pair of 32-bit values.
-    #[derive(Clone, Copy)]
-    #[repr(C)]
-    pub(crate) struct Pair64 {
-        pub(crate) hi: u32,
-        pub(crate) lo: u32,
-    }
-    #[cfg(any(
-        target_arch = "aarch64",
-        target_arch = "powerpc64",
+#[inline]
+pub(crate) fn create_sub_word_mask_values<T>(ptr: *mut T) -> (*mut MinWord, RegSize, RegSize) {
+    use core::mem;
+    const SHIFT_MASK: bool = !cfg!(any(
+        target_arch = "riscv32",
+        target_arch = "riscv64",
+        target_arch = "loongarch64",
         target_arch = "s390x",
-        target_arch = "x86_64",
-    ))]
-    // A pair of 64-bit values.
-    #[derive(Clone, Copy)]
-    #[repr(C)]
-    pub(crate) struct Pair128 {
-        pub(crate) hi: u64,
-        pub(crate) lo: u64,
+    ));
+    let ptr_mask = mem::size_of::<MinWord>() - 1;
+    let aligned_ptr = strict::with_addr(ptr, ptr as usize & !ptr_mask) as *mut MinWord;
+    let ptr_lsb = if SHIFT_MASK {
+        ptr as usize & ptr_mask
+    } else {
+        // We use 32-bit wrapping shift instructions in asm on these platforms.
+        ptr as usize
+    };
+    let shift = if cfg!(any(target_endian = "little", target_arch = "s390x")) {
+        ptr_lsb.wrapping_mul(8)
+    } else {
+        (ptr_lsb ^ (mem::size_of::<MinWord>() - mem::size_of::<T>())).wrapping_mul(8)
+    };
+    let mut mask: RegSize = (1 << (mem::size_of::<T>() * 8)) - 1; // !(0 as T) as RegSize
+    if SHIFT_MASK {
+        mask <<= shift;
     }
+    (aligned_ptr, shift as RegSize, mask)
 }
 
 /// Emulate strict provenance.
 ///
 /// Once strict_provenance is stable, migrate to the standard library's APIs.
-#[cfg(miri)]
-#[allow(
-    clippy::cast_possible_wrap,
-    clippy::transmutes_expressible_as_ptr_casts,
-    clippy::useless_transmute
-)]
+#[cfg(any(miri, target_arch = "riscv32", target_arch = "riscv64"))]
+#[allow(dead_code)]
 pub(crate) mod strict {
-    use core::mem;
-
-    /// Get the address of a pointer.
-    #[inline]
-    #[must_use]
-    pub(crate) fn addr<T>(ptr: *mut T) -> usize {
-        // SAFETY: Every sized pointer is a valid integer for the time being.
-        unsafe { mem::transmute(ptr) }
-    }
-
     /// Replace the address portion of this pointer with a new address.
     #[inline]
     #[must_use]
@@ -869,20 +420,18 @@ pub(crate) mod strict {
         // FIXME(strict_provenance_magic): I am magic and should be a compiler intrinsic.
         //
         // In the mean-time, this operation is defined to be "as if" it was
-        // a wrapping_offset, so we can emulate it as such. This should properly
+        // a wrapping_add, so we can emulate it as such. This should properly
         // restore pointer provenance even under today's compiler.
-        let self_addr = self::addr(ptr) as isize;
-        let dest_addr = addr as isize;
-        let offset = dest_addr.wrapping_sub(self_addr);
+        let offset = addr.wrapping_sub(ptr as usize);
 
         // This is the canonical desugaring of this operation.
-        (ptr as *mut u8).wrapping_offset(offset) as *mut T
+        (ptr as *mut u8).wrapping_add(offset) as *mut T
     }
 
     /// Run an operation of some kind on a pointer.
     #[inline]
     #[must_use]
     pub(crate) fn map_addr<T>(ptr: *mut T, f: impl FnOnce(usize) -> usize) -> *mut T {
-        self::with_addr(ptr, f(addr(ptr)))
+        with_addr(ptr, f(ptr as usize))
     }
 }

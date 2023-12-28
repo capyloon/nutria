@@ -11,16 +11,16 @@
 
 [package]
 edition = "2018"
-rust-version = "1.56"
+rust-version = "1.57"
 name = "wasm-bindgen-macro-support"
-version = "0.2.87"
+version = "0.2.89"
 authors = ["The wasm-bindgen Developers"]
 description = """
 The part of the implementation of the `#[wasm_bindgen]` attribute that is not in the shared backend crate
 """
 homepage = "https://rustwasm.github.io/wasm-bindgen/"
 documentation = "https://docs.rs/wasm-bindgen"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/rustwasm/wasm-bindgen/tree/master/crates/macro-support"
 resolver = "2"
 
@@ -38,10 +38,10 @@ features = [
 ]
 
 [dependencies.wasm-bindgen-backend]
-version = "=0.2.87"
+version = "=0.2.89"
 
 [dependencies.wasm-bindgen-shared]
-version = "=0.2.87"
+version = "=0.2.89"
 
 [features]
 extra-traits = ["syn/extra-traits"]

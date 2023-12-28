@@ -10,20 +10,43 @@ use crate::convert::OptionIntoWasmAbi;
 use crate::convert::{
     FromWasmAbi, IntoWasmAbi, LongRefFromWasmAbi, RefFromWasmAbi, RefMutFromWasmAbi, WasmAbi,
 };
+use crate::convert::{VectorFromWasmAbi, VectorIntoWasmAbi};
+use crate::describe::*;
 use cfg_if::cfg_if;
 
 if_std! {
     use core::mem;
     use crate::convert::OptionFromWasmAbi;
+    use crate::convert::{js_value_vector_from_abi, js_value_vector_into_abi};
 }
 
+// note: `WasmAbi` types do not need to be FFI-safe themselves, it's just more
+// convenient to directly write `WasmSlice` in some of the manually-written FFI
+// functions in `lib.rs` rather than `WasmRet<WasmSlice>`.
 #[repr(C)]
 pub struct WasmSlice {
     pub ptr: u32,
     pub len: u32,
 }
 
-unsafe impl WasmAbi for WasmSlice {}
+impl WasmAbi for WasmSlice {
+    /// `self.ptr`
+    type Prim1 = u32;
+    /// `self.len`
+    type Prim2 = u32;
+    type Prim3 = ();
+    type Prim4 = ();
+
+    #[inline]
+    fn split(self) -> (u32, u32, (), ()) {
+        (self.ptr, self.len, (), ())
+    }
+
+    #[inline]
+    fn join(ptr: u32, len: u32, _: (), _: ()) -> Self {
+        Self { ptr, len }
+    }
+}
 
 #[inline]
 fn null_slice() -> WasmSlice {
@@ -31,13 +54,33 @@ fn null_slice() -> WasmSlice {
 }
 
 if_std! {
-    #[repr(C)]
     pub struct WasmMutSlice {
         pub slice: WasmSlice,
         pub idx: u32,
     }
 
-    unsafe impl WasmAbi for WasmMutSlice {}
+    impl WasmAbi for WasmMutSlice {
+        /// `self.slice.ptr`
+        type Prim1 = u32;
+        /// `self.slice.len`
+        type Prim2 = u32;
+        /// `self.idx`
+        type Prim3 = u32;
+        type Prim4 = ();
+
+        #[inline]
+        fn split(self) -> (u32, u32, u32, ()) {
+            (self.slice.ptr, self.slice.len, self.idx, ())
+        }
+
+        #[inline]
+        fn join(ptr: u32, len: u32, idx: u32, _: ()) -> Self {
+            Self {
+                slice: WasmSlice { ptr, len },
+                idx,
+            }
+        }
+    }
 
     /// The representation of a mutable slice passed from JS to Rust.
     pub struct MutSlice<T> {
@@ -77,14 +120,21 @@ if_std! {
 macro_rules! vectors {
     ($($t:ident)*) => ($(
         if_std! {
-            impl IntoWasmAbi for Box<[$t]> {
+            impl WasmDescribeVector for $t {
+                fn describe_vector() {
+                    inform(VECTOR);
+                    $t::describe();
+                }
+            }
+
+            impl VectorIntoWasmAbi for $t {
                 type Abi = WasmSlice;
 
                 #[inline]
-                fn into_abi(self) -> WasmSlice {
-                    let ptr = self.as_ptr();
-                    let len = self.len();
-                    mem::forget(self);
+                fn vector_into_abi(vector: Box<[$t]>) -> WasmSlice {
+                    let ptr = vector.as_ptr();
+                    let len = vector.len();
+                    mem::forget(vector);
                     WasmSlice {
                         ptr: ptr.into_abi(),
                         len: len as u32,
@@ -92,25 +142,15 @@ macro_rules! vectors {
                 }
             }
 
-            impl OptionIntoWasmAbi for Box<[$t]> {
-                #[inline]
-                fn none() -> WasmSlice { null_slice() }
-            }
-
-            impl FromWasmAbi for Box<[$t]> {
+            impl VectorFromWasmAbi for $t {
                 type Abi = WasmSlice;
 
                 #[inline]
-                unsafe fn from_abi(js: WasmSlice) -> Self {
+                unsafe fn vector_from_abi(js: WasmSlice) -> Box<[$t]> {
                     let ptr = <*mut $t>::from_abi(js.ptr);
                     let len = js.len as usize;
                     Vec::from_raw_parts(ptr, len, len).into_boxed_slice()
                 }
-            }
-
-            impl OptionFromWasmAbi for Box<[$t]> {
-                #[inline]
-                fn is_none(slice: &WasmSlice) -> bool { slice.ptr == 0 }
             }
         }
 
@@ -181,6 +221,39 @@ macro_rules! vectors {
 
 vectors! {
     u8 i8 u16 i16 u32 i32 u64 i64 usize isize f32 f64
+}
+
+if_std! {
+    impl WasmDescribeVector for String {
+        fn describe_vector() {
+            inform(VECTOR);
+            inform(NAMED_EXTERNREF);
+            // Trying to use an actual loop for this breaks the wasm interpreter.
+            inform(6);
+            inform('s' as u32);
+            inform('t' as u32);
+            inform('r' as u32);
+            inform('i' as u32);
+            inform('n' as u32);
+            inform('g' as u32);
+        }
+    }
+
+    impl VectorIntoWasmAbi for String {
+        type Abi = <Box<[JsValue]> as IntoWasmAbi>::Abi;
+
+        fn vector_into_abi(vector: Box<[Self]>) -> Self::Abi {
+            js_value_vector_into_abi(vector)
+        }
+    }
+
+    impl VectorFromWasmAbi for String {
+        type Abi = <Box<[JsValue]> as FromWasmAbi>::Abi;
+
+        unsafe fn vector_from_abi(js: Self::Abi) -> Box<[Self]> {
+            js_value_vector_from_abi(js)
+        }
+    }
 }
 
 cfg_if! {
@@ -300,14 +373,42 @@ impl LongRefFromWasmAbi for str {
 if_std! {
     use crate::JsValue;
 
-    impl IntoWasmAbi for Box<[JsValue]> {
+    impl<T: VectorIntoWasmAbi> IntoWasmAbi for Box<[T]> {
+        type Abi = <T as VectorIntoWasmAbi>::Abi;
+
+        fn into_abi(self) -> Self::Abi {
+            T::vector_into_abi(self)
+        }
+    }
+
+    impl<T> OptionIntoWasmAbi for Box<[T]> where Self: IntoWasmAbi<Abi = WasmSlice> {
+        fn none() -> WasmSlice {
+            null_slice()
+        }
+    }
+
+    impl<T: VectorFromWasmAbi> FromWasmAbi for Box<[T]> {
+        type Abi = <T as VectorFromWasmAbi>::Abi;
+
+        unsafe fn from_abi(js: Self::Abi) -> Self {
+            T::vector_from_abi(js)
+        }
+    }
+
+    impl<T> OptionFromWasmAbi for Box<[T]> where Self: FromWasmAbi<Abi = WasmSlice> {
+        fn is_none(slice: &WasmSlice) -> bool {
+            slice.ptr == 0
+        }
+    }
+
+    impl VectorIntoWasmAbi for JsValue {
         type Abi = WasmSlice;
 
         #[inline]
-        fn into_abi(self) -> WasmSlice {
-            let ptr = self.as_ptr();
-            let len = self.len();
-            mem::forget(self);
+        fn vector_into_abi(vector: Box<[Self]>) -> WasmSlice {
+            let ptr = vector.as_ptr();
+            let len = vector.len();
+            mem::forget(vector);
             WasmSlice {
                 ptr: ptr.into_abi(),
                 len: len as u32,
@@ -315,35 +416,25 @@ if_std! {
         }
     }
 
-    impl OptionIntoWasmAbi for Box<[JsValue]> {
-        #[inline]
-        fn none() -> WasmSlice { null_slice() }
-    }
-
-    impl FromWasmAbi for Box<[JsValue]> {
+    impl VectorFromWasmAbi for JsValue {
         type Abi = WasmSlice;
 
         #[inline]
-        unsafe fn from_abi(js: WasmSlice) -> Self {
+        unsafe fn vector_from_abi(js: WasmSlice) -> Box<[Self]> {
             let ptr = <*mut JsValue>::from_abi(js.ptr);
             let len = js.len as usize;
             Vec::from_raw_parts(ptr, len, len).into_boxed_slice()
         }
     }
 
-    impl OptionFromWasmAbi for Box<[JsValue]> {
-        #[inline]
-        fn is_none(slice: &WasmSlice) -> bool { slice.ptr == 0 }
-    }
-
-    impl<T> IntoWasmAbi for Box<[T]> where T: JsObject {
+    impl<T> VectorIntoWasmAbi for T where T: JsObject {
         type Abi = WasmSlice;
 
         #[inline]
-        fn into_abi(self) -> WasmSlice {
-            let ptr = self.as_ptr();
-            let len = self.len();
-            mem::forget(self);
+        fn vector_into_abi(vector: Box<[T]>) -> WasmSlice {
+            let ptr = vector.as_ptr();
+            let len = vector.len();
+            mem::forget(vector);
             WasmSlice {
                 ptr: ptr.into_abi(),
                 len: len as u32,
@@ -351,25 +442,15 @@ if_std! {
         }
     }
 
-    impl<T> OptionIntoWasmAbi for Box<[T]> where T: JsObject {
-        #[inline]
-        fn none() -> WasmSlice { null_slice() }
-    }
-
-    impl<T> FromWasmAbi for Box<[T]> where T: JsObject {
+    impl<T> VectorFromWasmAbi for T where T: JsObject {
         type Abi = WasmSlice;
 
         #[inline]
-        unsafe fn from_abi(js: WasmSlice) -> Self {
+        unsafe fn vector_from_abi(js: WasmSlice) -> Box<[T]> {
             let ptr = <*mut JsValue>::from_abi(js.ptr);
             let len = js.len as usize;
             let vec: Vec<T> = Vec::from_raw_parts(ptr, len, len).drain(..).map(|js_value| T::unchecked_from_js(js_value)).collect();
             vec.into_boxed_slice()
         }
-    }
-
-    impl<T> OptionFromWasmAbi for Box<[T]> where T: JsObject {
-        #[inline]
-        fn is_none(slice: &WasmSlice) -> bool { slice.ptr == 0 }
     }
 }

@@ -38,16 +38,14 @@
 
 use self::boxed_limbs::BoxedLimbs;
 pub(crate) use self::{
-    modulus::{Modulus, PartialModulus, MODULUS_MAX_LIMBS},
+    modulus::{Modulus, OwnedModulus, MODULUS_MAX_LIMBS},
     private_exponent::PrivateExponent,
 };
-use super::n0::N0;
-pub(crate) use super::nonnegative::Nonnegative;
 use crate::{
     arithmetic::montgomery::*,
-    bits, c, cpu, error,
+    bits::BitLength,
+    c, error,
     limb::{self, Limb, LimbMask, LIMB_BITS},
-    polyfill::u64_from_usize,
 };
 use alloc::vec;
 use core::{marker::PhantomData, num::NonZeroU64};
@@ -55,62 +53,6 @@ use core::{marker::PhantomData, num::NonZeroU64};
 mod boxed_limbs;
 mod modulus;
 mod private_exponent;
-
-/// A prime modulus.
-///
-/// # Safety
-///
-/// Some logic may assume a `Prime` number is non-zero, and thus a non-empty
-/// array of limbs, or make similar assumptions. TODO: Any such logic should
-/// be encapsulated here, or this trait should be made non-`unsafe`. TODO:
-/// non-zero-ness and non-empty-ness should be factored out into a separate
-/// trait. (In retrospect, this shouldn't have been made an `unsafe` trait
-/// preemptively.)
-pub unsafe trait Prime {}
-
-struct Width<M> {
-    num_limbs: usize,
-
-    /// The modulus *m* that the width originated from.
-    m: PhantomData<M>,
-}
-
-/// A modulus *s* that is smaller than another modulus *l* so every element of
-/// ℤ/sℤ is also an element of ℤ/lℤ.
-///
-/// # Safety
-///
-/// Some logic may assume that the invariant holds when accessing limbs within
-/// a value, e.g. by assuming the larger modulus has at least as many limbs.
-/// TODO: Any such logic should be encapsulated here, or this trait should be
-/// made non-`unsafe`. (In retrospect, this shouldn't have been made an `unsafe`
-/// trait preemptively.)
-pub unsafe trait SmallerModulus<L> {}
-
-/// A modulus *s* where s < l < 2*s for the given larger modulus *l*. This is
-/// the precondition for reduction by conditional subtraction,
-/// `elem_reduce_once()`.
-///
-/// # Safety
-///
-/// Some logic may assume that the invariant holds when accessing limbs within
-/// a value, e.g. by assuming that the smaller modulus is at most one limb
-/// smaller than the larger modulus. TODO: Any such logic should be
-/// encapsulated here, or this trait should be made non-`unsafe`. (In retrospect,
-/// this shouldn't have been made an `unsafe` trait preemptively.)
-pub unsafe trait SlightlySmallerModulus<L>: SmallerModulus<L> {}
-
-/// A modulus *s* where √l <= s < l for the given larger modulus *l*. This is
-/// the precondition for the more general Montgomery reduction from ℤ/lℤ to
-/// ℤ/sℤ.
-///
-/// # Safety
-///
-/// Some logic may assume that the invariant holds when accessing limbs within
-/// a value. TODO: Any such logic should be encapsulated here, or this trait
-/// should be made non-`unsafe`. (In retrospect, this shouldn't have been made
-/// an `unsafe` trait preemptively.)
-pub unsafe trait NotMuchSmallerModulus<L>: SmallerModulus<L> {}
 
 pub trait PublicModulus {}
 
@@ -152,10 +94,9 @@ fn from_montgomery_amm<M>(limbs: BoxedLimbs<M>, m: &Modulus<M>) -> Elem<M, Unenc
     debug_assert_eq!(limbs.len(), m.limbs().len());
 
     let mut limbs = limbs;
-    let num_limbs = m.width().num_limbs;
     let mut one = [0; MODULUS_MAX_LIMBS];
     one[0] = 1;
-    let one = &one[..num_limbs]; // assert!(num_limbs <= MODULUS_MAX_LIMBS);
+    let one = &one[..m.limbs().len()];
     limbs_mont_mul(&mut limbs, one, m.limbs(), m.n0(), m.cpu_features());
     Elem {
         limbs,
@@ -163,6 +104,7 @@ fn from_montgomery_amm<M>(limbs: BoxedLimbs<M>, m: &Modulus<M>) -> Elem<M, Unenc
     }
 }
 
+#[cfg(any(test, not(target_arch = "x86_64")))]
 impl<M> Elem<M, R> {
     #[inline]
     pub fn into_unencoded(self, m: &Modulus<M>) -> Elem<M, Unencoded> {
@@ -194,19 +136,8 @@ impl<M> Elem<M, Unencoded> {
 
 pub fn elem_mul<M, AF, BF>(
     a: &Elem<M, AF>,
-    b: Elem<M, BF>,
-    m: &Modulus<M>,
-) -> Elem<M, <(AF, BF) as ProductEncoding>::Output>
-where
-    (AF, BF): ProductEncoding,
-{
-    elem_mul_(a, b, &m.as_partial())
-}
-
-fn elem_mul_<M, AF, BF>(
-    a: &Elem<M, AF>,
     mut b: Elem<M, BF>,
-    m: &PartialModulus<M>,
+    m: &Modulus<M>,
 ) -> Elem<M, <(AF, BF) as ProductEncoding>::Output>
 where
     (AF, BF): ProductEncoding,
@@ -218,26 +149,23 @@ where
     }
 }
 
-fn elem_mul_by_2<M, AF>(a: &mut Elem<M, AF>, m: &PartialModulus<M>) {
-    prefixed_extern! {
-        fn LIMBS_shl_mod(r: *mut Limb, a: *const Limb, m: *const Limb, num_limbs: c::size_t);
-    }
-    unsafe {
-        LIMBS_shl_mod(
-            a.limbs.as_mut_ptr(),
-            a.limbs.as_ptr(),
-            m.limbs().as_ptr(),
-            m.limbs().len(),
-        );
-    }
+// r *= 2.
+fn elem_double<M, AF>(r: &mut Elem<M, AF>, m: &Modulus<M>) {
+    limb::limbs_double_mod(&mut r.limbs, m.limbs())
 }
 
-pub fn elem_reduced_once<Larger, Smaller: SlightlySmallerModulus<Larger>>(
-    a: &Elem<Larger, Unencoded>,
-    m: &Modulus<Smaller>,
-) -> Elem<Smaller, Unencoded> {
+// TODO: This is currently unused, but we intend to eventually use this to
+// reduce elements (x mod q) mod p in the RSA CRT. If/when we do so, we
+// should update the testing so it is reflective of that usage, instead of
+// the old usage.
+pub fn elem_reduced_once<A, M>(
+    a: &Elem<A, Unencoded>,
+    m: &Modulus<M>,
+    other_modulus_len_bits: BitLength,
+) -> Elem<M, Unencoded> {
+    assert_eq!(m.len_bits(), other_modulus_len_bits);
+
     let mut r = a.limbs.clone();
-    assert!(r.len() <= m.limbs().len());
     limb::limbs_reduce_once_constant_time(&mut r, m.limbs());
     Elem {
         limbs: BoxedLimbs::new_unchecked(r.into_limbs()),
@@ -246,10 +174,19 @@ pub fn elem_reduced_once<Larger, Smaller: SlightlySmallerModulus<Larger>>(
 }
 
 #[inline]
-pub fn elem_reduced<Larger, Smaller: NotMuchSmallerModulus<Larger>>(
+pub fn elem_reduced<Larger, Smaller>(
     a: &Elem<Larger, Unencoded>,
     m: &Modulus<Smaller>,
+    other_prime_len_bits: BitLength,
 ) -> Elem<Smaller, RInverse> {
+    // This is stricter than required mathematically but this is what we
+    // guarantee and this is easier to check. The real requirement is that
+    // that `a < m*R` where `R` is the Montgomery `R` for `m`.
+    assert_eq!(other_prime_len_bits, m.len_bits());
+
+    // `limbs_from_mont_in_place` requires this.
+    assert_eq!(a.limbs.len(), m.limbs().len() * 2);
+
     let mut tmp = [0; MODULUS_MAX_LIMBS];
     let tmp = &mut tmp[..a.limbs.len()];
     tmp.copy_from_slice(&a.limbs);
@@ -261,7 +198,7 @@ pub fn elem_reduced<Larger, Smaller: NotMuchSmallerModulus<Larger>>(
 
 fn elem_squared<M, E>(
     mut a: Elem<M, E>,
-    m: &PartialModulus<M>,
+    m: &Modulus<M>,
 ) -> Elem<M, <(E, E) as ProductEncoding>::Output>
 where
     (E, E): ProductEncoding,
@@ -273,13 +210,17 @@ where
     }
 }
 
-pub fn elem_widen<Larger, Smaller: SmallerModulus<Larger>>(
+pub fn elem_widen<Larger, Smaller>(
     a: Elem<Smaller, Unencoded>,
     m: &Modulus<Larger>,
-) -> Elem<Larger, Unencoded> {
+    smaller_modulus_bits: BitLength,
+) -> Result<Elem<Larger, Unencoded>, error::Unspecified> {
+    if smaller_modulus_bits >= m.len_bits() {
+        return Err(error::Unspecified);
+    }
     let mut r = m.zero();
     r.limbs[..a.limbs.len()].copy_from_slice(&a.limbs);
-    r
+    Ok(r)
 }
 
 // TODO: Document why this works for all Montgomery factors.
@@ -323,53 +264,81 @@ impl<M> One<M, RR> {
     // values, using `LIMB_BITS` here, rather than `N0::LIMBS_USED * LIMB_BITS`,
     // is correct because R**2 will still be a multiple of the latter as
     // `N0::LIMBS_USED` is either one or two.
-    fn newRR(m: &PartialModulus<M>, m_bits: bits::BitLength) -> Self {
-        let m_bits = m_bits.as_usize_bits();
-        let r = (m_bits + (LIMB_BITS - 1)) / LIMB_BITS * LIMB_BITS;
+    pub(crate) fn newRR(m: &Modulus<M>) -> Self {
+        // The number of limbs in the numbers involved.
+        let w = m.limbs().len();
 
-        // base = 2**(lg m - 1).
-        let bit = m_bits - 1;
-        let mut base = m.zero();
-        base.limbs[bit / LIMB_BITS] = 1 << (bit % LIMB_BITS);
+        // The length of the numbers involved, in bits. R = 2**r.
+        let r = w * LIMB_BITS;
 
-        // Double `base` so that base == R == 2**r (mod m). For normal moduli
-        // that have the high bit of the highest limb set, this requires one
-        // doubling. Unusual moduli require more doublings but we are less
-        // concerned about the performance of those.
+        let mut acc: Elem<M, R> = m.zero();
+        m.oneR(&mut acc.limbs);
+
+        // 2**t * R can be calculated by t doublings starting with R.
         //
-        // Then double `base` again so that base == 2*R (mod n), i.e. `2` in
-        // Montgomery form (`elem_exp_vartime()` requires the base to be in
-        // Montgomery form). Then compute
-        // RR = R**2 == base**r == R**r == (2**r)**r (mod n).
+        // Choose a t that divides r and where t doublings are cheaper than 1 squaring.
         //
-        // Take advantage of the fact that `elem_mul_by_2` is faster than
-        // `elem_squared` by replacing some of the early squarings with shifts.
-        // TODO: Benchmark shift vs. squaring performance to determine the
-        // optimal value of `LG_BASE`.
-        const LG_BASE: usize = 2; // Shifts vs. squaring trade-off.
-        debug_assert_eq!(LG_BASE.count_ones(), 1); // Must be 2**n for n >= 0.
-        let shifts = r - bit + LG_BASE;
-        // `m_bits >= LG_BASE` (for the currently chosen value of `LG_BASE`)
-        // since we require the modulus to have at least `MODULUS_MIN_LIMBS`
-        // limbs. `r >= m_bits` as seen above. So `r >= LG_BASE` and thus
-        // `r / LG_BASE` is non-zero.
+        // We could choose other values of t than w. But if t < d then the exponentiation that
+        // follows would require multiplications. Normally d is 1 (i.e. the modulus length is a
+        // power of two: RSA 1024, 2048, 4097, 8192) or 3 (RSA 1536, 3072).
         //
-        // The maximum value of `r` is determined by
-        // `MODULUS_MAX_LIMBS * LIMB_BITS`. Further `r` is a multiple of
-        // `LIMB_BITS` so the maximum Hamming Weight is bounded by
-        // `MODULUS_MAX_LIMBS`. For the common case of {2048, 4096, 8192}-bit
-        // moduli the Hamming weight is 1. For the other common case of 3072
-        // the Hamming weight is 2.
-        let exponent = NonZeroU64::new(u64_from_usize(r / LG_BASE)).unwrap();
-        for _ in 0..shifts {
-            elem_mul_by_2(&mut base, m)
+        // XXX(perf): Currently t = w / 2 is slightly faster. TODO(perf): Optimize `elem_double`
+        // and re-run benchmarks to rebalance this.
+        let t = w;
+        let z = w.trailing_zeros();
+        let d = w >> z;
+        debug_assert_eq!(w, d * (1 << z));
+        debug_assert!(d <= t);
+        debug_assert!(t < r);
+        for _ in 0..t {
+            elem_double(&mut acc, m);
         }
-        let RR = elem_exp_vartime(base, exponent, m);
+
+        // Because t | r:
+        //
+        //     MontExp(2**t * R, r / t)
+        //   = (2**t)**(r / t)   * R (mod m) by definition of MontExp.
+        //   = (2**t)**(1/t * r) * R (mod m)
+        //   = (2**(t * 1/t))**r * R (mod m)
+        //   = (2**1)**r         * R (mod m)
+        //   = 2**r              * R (mod m)
+        //   = R * R                 (mod m)
+        //   = RR
+        //
+        // Like BoringSSL, use t = w (`m.limbs.len()`) which ensures that the exponent is a power
+        // of two. Consequently, there will be no multiplications in the Montgomery exponentiation;
+        // there will only be lg(r / t) squarings.
+        //
+        //     lg(r / t)
+        //   = lg((w * 2**b) / t)
+        //   = lg((t * 2**b) / t)
+        //   = lg(2**b)
+        //   = b
+        // TODO(MSRV:1.67): const B: u32 = LIMB_BITS.ilog2();
+        const B: u32 = if cfg!(target_pointer_width = "64") {
+            6
+        } else if cfg!(target_pointer_width = "32") {
+            5
+        } else {
+            panic!("unsupported target_pointer_width")
+        };
+        #[allow(clippy::assertions_on_constants)]
+        const _LIMB_BITS_IS_2_POW_B: () = assert!(LIMB_BITS == 1 << B);
+        debug_assert_eq!(r, t * (1 << B));
+        for _ in 0..B {
+            acc = elem_squared(acc, m);
+        }
 
         Self(Elem {
-            limbs: RR.limbs,
+            limbs: acc.limbs,
             encoding: PhantomData, // PhantomData<RR>
         })
+    }
+}
+
+impl<M> One<M, RRR> {
+    pub(crate) fn newRRR(One(oneRR): One<M, RR>, m: &Modulus<M>) -> Self {
+        Self(elem_squared(oneRR, m))
     }
 }
 
@@ -397,7 +366,7 @@ impl<M: PublicModulus, E> Clone for One<M, E> {
 pub(crate) fn elem_exp_vartime<M>(
     base: Elem<M, R>,
     exponent: NonZeroU64,
-    m: &PartialModulus<M>,
+    m: &Modulus<M>,
 ) -> Elem<M, R> {
     // Use what [Knuth] calls the "S-and-X binary method", i.e. variable-time
     // square-and-multiply that scans the exponent from the most significant
@@ -424,18 +393,10 @@ pub(crate) fn elem_exp_vartime<M>(
         bit >>= 1;
         acc = elem_squared(acc, m);
         if (exponent & bit) != 0 {
-            acc = elem_mul_(&base, acc, m);
+            acc = elem_mul(&base, acc, m);
         }
     }
     acc
-}
-
-/// Uses Fermat's Little Theorem to calculate modular inverse in constant time.
-pub fn elem_inverse_consttime<M: Prime>(
-    a: Elem<M, R>,
-    m: &Modulus<M>,
-) -> Result<Elem<M, Unencoded>, error::Unspecified> {
-    elem_exp_consttime(a, &PrivateExponent::for_flt(m), m)
 }
 
 #[cfg(not(target_arch = "x86_64"))]
@@ -453,7 +414,7 @@ pub fn elem_exp_consttime<M>(
 
     let mut table = vec![0; TABLE_ENTRIES * num_limbs];
 
-    fn gather<M>(table: &[Limb], i: Window, r: &mut Elem<M, R>) {
+    fn gather<M>(table: &[Limb], acc: &mut Elem<M, R>, i: Window) {
         prefixed_extern! {
             fn LIMBS_select_512_32(
                 r: *mut Limb,
@@ -463,28 +424,25 @@ pub fn elem_exp_consttime<M>(
             ) -> bssl::Result;
         }
         Result::from(unsafe {
-            LIMBS_select_512_32(r.limbs.as_mut_ptr(), table.as_ptr(), r.limbs.len(), i)
+            LIMBS_select_512_32(acc.limbs.as_mut_ptr(), table.as_ptr(), acc.limbs.len(), i)
         })
         .unwrap();
     }
 
     fn power<M>(
         table: &[Limb],
-        i: Window,
         mut acc: Elem<M, R>,
-        mut tmp: Elem<M, R>,
         m: &Modulus<M>,
+        i: Window,
+        mut tmp: Elem<M, R>,
     ) -> (Elem<M, R>, Elem<M, R>) {
         for _ in 0..WINDOW_BITS {
-            acc = elem_squared(acc, &m.as_partial());
+            acc = elem_squared(acc, m);
         }
-        gather(table, i, &mut tmp);
+        gather(table, &mut tmp, i);
         let acc = elem_mul(&tmp, acc, m);
         (acc, tmp)
     }
-
-    let tmp = m.one();
-    let tmp = elem_mul(m.oneRR().as_ref(), tmp, m);
 
     fn entry(table: &[Limb], i: usize, num_limbs: usize) -> &[Limb] {
         &table[(i * num_limbs)..][..num_limbs]
@@ -492,7 +450,10 @@ pub fn elem_exp_consttime<M>(
     fn entry_mut(table: &mut [Limb], i: usize, num_limbs: usize) -> &mut [Limb] {
         &mut table[(i * num_limbs)..][..num_limbs]
     }
-    entry_mut(&mut table, 0, num_limbs).copy_from_slice(&tmp.limbs);
+
+    // table[0] = base**0 (i.e. 1).
+    m.oneR(entry_mut(&mut table, 0, num_limbs));
+
     entry_mut(&mut table, 1, num_limbs).copy_from_slice(&base.limbs);
     for i in 2..TABLE_ENTRIES {
         let (src1, src2) = if i % 2 == 0 {
@@ -507,22 +468,21 @@ pub fn elem_exp_consttime<M>(
         limbs_mont_product(dst, src1, src2, m.limbs(), m.n0(), m.cpu_features());
     }
 
-    let (r, _) = limb::fold_5_bit_windows(
+    let tmp = m.zero();
+    let mut acc = Elem {
+        limbs: base.limbs,
+        encoding: PhantomData,
+    };
+    let (acc, _) = limb::fold_5_bit_windows(
         exponent.limbs(),
         |initial_window| {
-            let mut r = Elem {
-                limbs: base.limbs,
-                encoding: PhantomData,
-            };
-            gather(&table, initial_window, &mut r);
-            (r, tmp)
+            gather(&table, &mut acc, initial_window);
+            (acc, tmp)
         },
-        |(acc, tmp), window| power(&table, window, acc, tmp, m),
+        |(acc, tmp), window| power(&table, acc, m, window, tmp),
     );
 
-    let r = r.into_unencoded(m);
-
-    Ok(r)
+    Ok(acc.into_unencoded(m))
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -531,7 +491,7 @@ pub fn elem_exp_consttime<M>(
     exponent: &PrivateExponent,
     m: &Modulus<M>,
 ) -> Result<Elem<M, Unencoded>, error::Unspecified> {
-    use crate::limb::LIMB_BYTES;
+    use crate::{cpu, limb::LIMB_BYTES};
 
     // Pretty much all the math here requires CPU feature detection to have
     // been done. `cpu_features` isn't threaded through all the internal
@@ -683,11 +643,7 @@ pub fn elem_exp_consttime<M>(
     // All entries in `table` will be Montgomery encoded.
 
     // acc = table[0] = base**0 (i.e. 1).
-    // `acc` was initialized to zero and hasn't changed. Change it to 1 and then Montgomery
-    // encode it.
-    debug_assert!(acc.iter().all(|&value| value == 0));
-    acc[0] = 1;
-    limbs_mont_mul(acc, &m.oneRR().0.limbs, m_cached, n0, cpu_features);
+    m.oneR(acc);
     scatter(table, acc, 0, num_limbs);
 
     // acc = base**1 (i.e. base).
@@ -745,102 +701,10 @@ pub fn elem_verify_equal_consttime<M, E>(
     }
 }
 
-// TODO: Move these methods from `Nonnegative` to `Modulus`.
-impl Nonnegative {
-    pub fn to_elem<M>(&self, m: &Modulus<M>) -> Result<Elem<M, Unencoded>, error::Unspecified> {
-        self.verify_less_than_modulus(m)?;
-        let mut r = m.zero();
-        r.limbs[0..self.limbs().len()].copy_from_slice(self.limbs());
-        Ok(r)
-    }
-
-    pub fn verify_less_than_modulus<M>(&self, m: &Modulus<M>) -> Result<(), error::Unspecified> {
-        if self.limbs().len() > m.limbs().len() {
-            return Err(error::Unspecified);
-        }
-        if self.limbs().len() == m.limbs().len() {
-            if limb::limbs_less_than_limbs_consttime(self.limbs(), m.limbs()) != LimbMask::True {
-                return Err(error::Unspecified);
-            }
-        }
-        Ok(())
-    }
-}
-
-/// r *= a
-fn limbs_mont_mul(r: &mut [Limb], a: &[Limb], m: &[Limb], n0: &N0, _cpu_features: cpu::Features) {
-    debug_assert_eq!(r.len(), m.len());
-    debug_assert_eq!(a.len(), m.len());
-    unsafe {
-        bn_mul_mont(
-            r.as_mut_ptr(),
-            r.as_ptr(),
-            a.as_ptr(),
-            m.as_ptr(),
-            n0,
-            r.len(),
-        )
-    }
-}
-
-/// r = a * b
-#[cfg(not(target_arch = "x86_64"))]
-fn limbs_mont_product(
-    r: &mut [Limb],
-    a: &[Limb],
-    b: &[Limb],
-    m: &[Limb],
-    n0: &N0,
-    _cpu_features: cpu::Features,
-) {
-    debug_assert_eq!(r.len(), m.len());
-    debug_assert_eq!(a.len(), m.len());
-    debug_assert_eq!(b.len(), m.len());
-
-    unsafe {
-        bn_mul_mont(
-            r.as_mut_ptr(),
-            a.as_ptr(),
-            b.as_ptr(),
-            m.as_ptr(),
-            n0,
-            r.len(),
-        )
-    }
-}
-
-/// r = r**2
-fn limbs_mont_square(r: &mut [Limb], m: &[Limb], n0: &N0, _cpu_features: cpu::Features) {
-    debug_assert_eq!(r.len(), m.len());
-    unsafe {
-        bn_mul_mont(
-            r.as_mut_ptr(),
-            r.as_ptr(),
-            r.as_ptr(),
-            m.as_ptr(),
-            n0,
-            r.len(),
-        )
-    }
-}
-
-prefixed_extern! {
-    // `r` and/or 'a' and/or 'b' may alias.
-    fn bn_mul_mont(
-        r: *mut Limb,
-        a: *const Limb,
-        b: *const Limb,
-        n: *const Limb,
-        n0: &N0,
-        num_limbs: c::size_t,
-    );
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{modulus::MODULUS_MIN_LIMBS, *};
-    use crate::{limb::LIMB_BYTES, test};
-    use alloc::format;
+    use super::*;
+    use crate::{cpu, test};
 
     // Type-level representation of an arbitrary modulus.
     struct M {}
@@ -856,6 +720,7 @@ mod tests {
                 assert_eq!(section, "");
 
                 let m = consume_modulus::<M>(test_case, "M", cpu_features);
+                let m = m.modulus();
                 let expected_result = consume_elem(test_case, "ModExp", &m);
                 let base = consume_elem(test_case, "A", &m);
                 let e = {
@@ -885,6 +750,7 @@ mod tests {
                 assert_eq!(section, "");
 
                 let m = consume_modulus::<M>(test_case, "M", cpu_features);
+                let m = m.modulus();
                 let expected_result = consume_elem(test_case, "ModMul", &m);
                 let a = consume_elem(test_case, "A", &m);
                 let b = consume_elem(test_case, "B", &m);
@@ -909,11 +775,12 @@ mod tests {
                 assert_eq!(section, "");
 
                 let m = consume_modulus::<M>(test_case, "M", cpu_features);
+                let m = m.modulus();
                 let expected_result = consume_elem(test_case, "ModSquare", &m);
                 let a = consume_elem(test_case, "A", &m);
 
                 let a = into_encoded(a, &m);
-                let actual_result = elem_squared(a, &m.as_partial());
+                let actual_result = elem_squared(a, &m);
                 let actual_result = actual_result.into_unencoded(&m);
                 assert_elem_eq(&actual_result, &expected_result);
 
@@ -930,17 +797,17 @@ mod tests {
             |section, test_case| {
                 assert_eq!(section, "");
 
-                struct MM {}
-                unsafe impl SmallerModulus<MM> for M {}
-                unsafe impl NotMuchSmallerModulus<MM> for M {}
+                struct M {}
 
-                let m = consume_modulus::<M>(test_case, "M", cpu_features);
+                let m_ = consume_modulus::<M>(test_case, "M", cpu_features);
+                let m = m_.modulus();
                 let expected_result = consume_elem(test_case, "R", &m);
                 let a =
-                    consume_elem_unchecked::<MM>(test_case, "A", expected_result.limbs.len() * 2);
+                    consume_elem_unchecked::<M>(test_case, "A", expected_result.limbs.len() * 2);
+                let other_modulus_len_bits = m_.len_bits();
 
-                let actual_result = elem_reduced(&a, &m);
-                let oneRR = m.oneRR();
+                let actual_result = elem_reduced(&a, &m, other_modulus_len_bits);
+                let oneRR = One::newRR(&m);
                 let actual_result = elem_mul(oneRR.as_ref(), actual_result, &m);
                 assert_elem_eq(&actual_result, &expected_result);
 
@@ -957,32 +824,19 @@ mod tests {
             |section, test_case| {
                 assert_eq!(section, "");
 
-                struct N {}
-                struct QQ {}
-                unsafe impl SmallerModulus<N> for QQ {}
-                unsafe impl SlightlySmallerModulus<N> for QQ {}
+                struct M {}
+                struct O {}
+                let m = consume_modulus::<M>(test_case, "m", cpu_features);
+                let a = consume_elem_unchecked::<O>(test_case, "a", m.modulus().limbs().len());
+                let expected_result = consume_elem::<M>(test_case, "r", &m.modulus());
+                let other_modulus_len_bits = m.modulus().len_bits();
 
-                let qq = consume_modulus::<QQ>(test_case, "QQ", cpu_features);
-                let expected_result = consume_elem::<QQ>(test_case, "R", &qq);
-                let n = consume_modulus::<N>(test_case, "N", cpu_features);
-                let a = consume_elem::<N>(test_case, "A", &n);
-
-                let actual_result = elem_reduced_once(&a, &qq);
+                let actual_result = elem_reduced_once(&a, &m.modulus(), other_modulus_len_bits);
                 assert_elem_eq(&actual_result, &expected_result);
 
                 Ok(())
             },
         )
-    }
-
-    #[test]
-    fn test_modulus_debug() {
-        let (modulus, _) = Modulus::<M>::from_be_bytes_with_bit_length(
-            untrusted::Input::from(&[0xff; LIMB_BYTES * MODULUS_MIN_LIMBS]),
-            cpu::features(),
-        )
-        .unwrap();
-        assert_eq!("Modulus", format!("{:?}", modulus));
     }
 
     fn consume_elem<M>(
@@ -999,12 +853,10 @@ mod tests {
         name: &str,
         num_limbs: usize,
     ) -> Elem<M, Unencoded> {
-        let value = consume_nonnegative(test_case, name);
-        let mut limbs = BoxedLimbs::zero(Width {
-            num_limbs,
-            m: PhantomData,
-        });
-        limbs[0..value.limbs().len()].copy_from_slice(value.limbs());
+        let bytes = test_case.consume_bytes(name);
+        let mut limbs = BoxedLimbs::zero(num_limbs);
+        limb::parse_big_endian_and_pad_consttime(untrusted::Input::from(&bytes), &mut limbs)
+            .unwrap();
         Elem {
             limbs,
             encoding: PhantomData,
@@ -1015,19 +867,9 @@ mod tests {
         test_case: &mut test::TestCase,
         name: &str,
         cpu_features: cpu::Features,
-    ) -> Modulus<M> {
+    ) -> OwnedModulus<M> {
         let value = test_case.consume_bytes(name);
-        let (value, _) =
-            Modulus::from_be_bytes_with_bit_length(untrusted::Input::from(&value), cpu_features)
-                .unwrap();
-        value
-    }
-
-    fn consume_nonnegative(test_case: &mut test::TestCase, name: &str) -> Nonnegative {
-        let bytes = test_case.consume_bytes(name);
-        let (r, _r_bits) =
-            Nonnegative::from_be_bytes_with_bit_length(untrusted::Input::from(&bytes)).unwrap();
-        r
+        OwnedModulus::from_be_bytes(untrusted::Input::from(&value), cpu_features).unwrap()
     }
 
     fn assert_elem_eq<M, E>(a: &Elem<M, E>, b: &Elem<M, E>) {
@@ -1037,6 +879,7 @@ mod tests {
     }
 
     fn into_encoded<M>(a: Elem<M, Unencoded>, m: &Modulus<M>) -> Elem<M, R> {
-        elem_mul(m.oneRR().as_ref(), a, m)
+        let oneRR = One::newRR(m);
+        elem_mul(oneRR.as_ref(), a, m)
     }
 }

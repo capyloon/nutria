@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "hyper"
-version = "0.14.27"
+version = "0.14.28"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 include = [
     "Cargo.toml",
@@ -122,7 +122,10 @@ required-features = ["full"]
 [[example]]
 name = "tower_client"
 path = "examples/tower_client.rs"
-required-features = ["full"]
+required-features = [
+    "full",
+    "backports",
+]
 
 [[example]]
 name = "tower_server"
@@ -220,7 +223,7 @@ optional = true
 version = "0.2.4"
 
 [dependencies.socket2]
-version = "0.4.7"
+version = ">=0.4.7, <0.6.0"
 features = ["all"]
 optional = true
 

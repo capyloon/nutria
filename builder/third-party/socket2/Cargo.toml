@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.63"
 name = "socket2"
-version = "0.5.4"
+version = "0.5.5"
 authors = [
     "Alex Crichton <alex@alexcrichton.com>",
     "Thomas de Zeeuw <thomasdezeeuw@gmail.com>",
@@ -74,7 +74,7 @@ features = ["all"]
 all = []
 
 [target."cfg(unix)".dependencies.libc]
-version = "0.2.141"
+version = "0.2.149"
 
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.48"

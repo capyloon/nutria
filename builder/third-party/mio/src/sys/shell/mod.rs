@@ -23,8 +23,10 @@ cfg_io_source! {
     use std::io;
     #[cfg(windows)]
     use std::os::windows::io::RawSocket;
+    #[cfg(unix)]
+    use std::os::unix::io::RawFd;
 
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     use crate::{Registry, Token, Interest};
 
     pub(crate) struct IoSourceState;
@@ -41,6 +43,33 @@ cfg_io_source! {
             // We don't hold state, so we can just call the function and
             // return.
             f(io)
+        }
+    }
+
+    #[cfg(unix)]
+    impl IoSourceState {
+        pub fn register(
+            &mut self,
+            _: &Registry,
+            _: Token,
+            _: Interest,
+            _: RawFd,
+        ) -> io::Result<()> {
+            os_required!()
+        }
+
+        pub fn reregister(
+            &mut self,
+            _: &Registry,
+            _: Token,
+            _: Interest,
+            _: RawFd,
+        ) -> io::Result<()> {
+           os_required!()
+        }
+
+        pub fn deregister(&mut self, _: &Registry, _: RawFd) -> io::Result<()> {
+            os_required!()
         }
     }
 

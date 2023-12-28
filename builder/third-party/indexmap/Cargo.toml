@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.63"
 name = "indexmap"
-version = "2.0.0"
+version = "2.1.0"
 description = "A hash table with consistent order and fast iteration."
 documentation = "https://docs.rs/indexmap/"
 readme = "README.md"
@@ -45,7 +45,7 @@ no-dev-version = true
 tag-name = "{{version}}"
 
 [profile.bench]
-debug = true
+debug = 2
 
 [lib]
 bench = false
@@ -60,7 +60,7 @@ version = "1.0"
 default-features = false
 
 [dependencies.hashbrown]
-version = "0.14"
+version = "0.14.1"
 features = ["raw"]
 default-features = false
 
@@ -90,7 +90,7 @@ version = "1.0"
 version = "0.2.1"
 
 [dev-dependencies.itertools]
-version = "0.10"
+version = "0.11"
 
 [dev-dependencies.lazy_static]
 version = "1.3"

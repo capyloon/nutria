@@ -86,15 +86,18 @@
 //! a different thread.
 
 // Proc-macro2 types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/proc-macro2/1.0.67")]
+#![doc(html_root_url = "https://docs.rs/proc-macro2/1.0.71")]
 #![cfg_attr(any(proc_macro_span, super_unstable), feature(proc_macro_span))]
 #![cfg_attr(super_unstable, feature(proc_macro_def_site))]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
+#![deny(unsafe_op_in_unsafe_fn)]
 #![allow(
     clippy::cast_lossless,
     clippy::cast_possible_truncation,
+    clippy::checked_conversions,
     clippy::doc_markdown,
     clippy::items_after_statements,
+    clippy::iter_without_into_iter,
     clippy::let_underscore_untyped,
     clippy::manual_assert,
     clippy::manual_range_contains,
@@ -948,8 +951,9 @@ impl Ident {
     ///   style="padding-right:0;">syn::parse_str</code></a><code
     ///   style="padding-left:0;">::&lt;Ident&gt;</code>
     /// rather than `Ident::new`.
+    #[track_caller]
     pub fn new(string: &str, span: Span) -> Self {
-        Ident::_new(imp::Ident::new(string, span.inner))
+        Ident::_new(imp::Ident::new_checked(string, span.inner))
     }
 
     /// Same as `Ident::new`, but creates a raw identifier (`r#ident`). The
@@ -957,12 +961,9 @@ impl Ident {
     /// (including keywords, e.g. `fn`). Keywords which are usable in path
     /// segments (e.g. `self`, `super`) are not supported, and will cause a
     /// panic.
+    #[track_caller]
     pub fn new_raw(string: &str, span: Span) -> Self {
-        Ident::_new_raw(string, span)
-    }
-
-    fn _new_raw(string: &str, span: Span) -> Self {
-        Ident::_new(imp::Ident::new_raw(string, span.inner))
+        Ident::_new(imp::Ident::new_raw_checked(string, span.inner))
     }
 
     /// Returns the span of this `Ident`.
@@ -1239,7 +1240,7 @@ impl Literal {
     // representation. This is not public API other than for quote.
     #[doc(hidden)]
     pub unsafe fn from_str_unchecked(repr: &str) -> Self {
-        Literal::_new(imp::Literal::from_str_unchecked(repr))
+        Literal::_new(unsafe { imp::Literal::from_str_unchecked(repr) })
     }
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2016 Brian Smith.
+// Copyright 2016-2023 Brian Smith.
 //
 // Permission to use, copy, modify, and/or distribute this software for any
 // purpose with or without fee is hereby granted, provided that the above
@@ -11,8 +11,6 @@
 // WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-use crate::arithmetic::limbs_from_hex;
 
 use super::{
     elem::{binary_op, binary_op_assign},
@@ -27,14 +25,20 @@ pub static COMMON_OPS: CommonOps = CommonOps {
         rr: limbs_from_hex("10000000200000000fffffffe000000000000000200000000fffffffe00000001"),
     },
     n: Elem::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973"),
+
     a: Elem::from_hex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffffc0000000000000003fffffffc"),
-    b: Elem::from_hex("cd08114b604fbff9b62b21f41f022094e3374bee94938ae277f2209b1920022ef729add87a4c32ec081188719d412dcc")
-,
+    b: Elem::from_hex("cd08114b604fbff9b62b21f41f022094e3374bee94938ae277f2209b1920022ef729add87a4c32ec081188719d412dcc"),
+
     elem_mul_mont: p384_elem_mul_mont,
     elem_sqr_mont: p384_elem_sqr_mont,
 
     point_add_jacobian_impl: p384_point_add,
 };
+
+pub(super) static GENERATOR: (Elem<R>, Elem<R>) = (
+    Elem::from_hex("4d3aadc2299e1513812ff723614ede2b6454868459a30eff879c3afc541b4d6e20e378e2a0d6ce383dd0756649c0b528"),
+    Elem::from_hex("2b78abc25a15c5e9dd8002263969a840c6c3521968f4ffd98bade7562e83b050a1bfa8bf7bb4a9ac23043dad4b03a4fe"),
+);
 
 pub static PRIVATE_KEY_OPS: PrivateKeyOps = PrivateKeyOps {
     common: &COMMON_OPS,
@@ -101,11 +105,6 @@ fn p384_elem_inv_squared(a: &Elem<R>) -> Elem<R> {
 
 fn p384_point_mul_base_impl(a: &Scalar) -> Point {
     // XXX: Not efficient. TODO: Precompute multiples of the generator.
-    const GENERATOR: (Elem<R>, Elem<R>) = (
-        Elem::from_hex("4d3aadc2299e1513812ff723614ede2b6454868459a30eff879c3afc541b4d6e20e378e2a0d6ce383dd0756649c0b528"),
-        Elem::from_hex("2b78abc25a15c5e9dd8002263969a840c6c3521968f4ffd98bade7562e83b050a1bfa8bf7bb4a9ac23043dad4b03a4fe"),
-    );
-
     PRIVATE_KEY_OPS.point_mul(a, &GENERATOR)
 }
 
@@ -115,7 +114,6 @@ pub static PUBLIC_KEY_OPS: PublicKeyOps = PublicKeyOps {
 
 pub static SCALAR_OPS: ScalarOps = ScalarOps {
     common: &COMMON_OPS,
-    scalar_inv_to_mont_impl: p384_scalar_inv_to_mont,
     scalar_mul_mont: p384_scalar_mul_mont,
 };
 
@@ -127,25 +125,28 @@ pub static PUBLIC_SCALAR_OPS: PublicScalarOps = PublicScalarOps {
     },
 
     q_minus_n: Elem::from_hex("389cb27e0bc8d21fa7e5f24cb74f58851313e696333ad68c"),
+
+    // TODO: Use an optimized variable-time implementation.
+    scalar_inv_to_mont_vartime: |s| PRIVATE_SCALAR_OPS.scalar_inv_to_mont(s),
 };
 
 pub static PRIVATE_SCALAR_OPS: PrivateScalarOps = PrivateScalarOps {
     scalar_ops: &SCALAR_OPS,
 
     oneRR_mod_n: Scalar::from_hex("c84ee012b39bf213fb05b7a28266895d40d49174aab1cc5bc3e483afcb82947ff3d81e5df1aa4192d319b2419b409a9"),
-
+    scalar_inv_to_mont: p384_scalar_inv_to_mont,
 };
 
-fn p384_scalar_inv_to_mont(a: &Scalar<Unencoded>) -> Scalar<R> {
+fn p384_scalar_inv_to_mont(a: Scalar<R>) -> Scalar<R> {
     // Calculate the modular inverse of scalar |a| using Fermat's Little
     // Theorem:
     //
-    //   a**-1 (mod n) == a**(n - 2) (mod n)
+    //    a**-1 (mod n) == a**(n - 2) (mod n)
     //
     // The exponent (n - 2) is:
     //
-    //     0xffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf\
-    //       581a0db248b0a77aecec196accc52971.
+    //    0xffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf\
+    //      581a0db248b0a77aecec196accc52971
 
     fn mul(a: &Scalar<R>, b: &Scalar<R>) -> Scalar<R> {
         binary_op(p384_scalar_mul_mont, a, b)
@@ -178,15 +179,6 @@ fn p384_scalar_inv_to_mont(a: &Scalar<Unencoded>) -> Scalar<R> {
         binary_op_assign(p384_scalar_mul_mont, acc, b)
     }
 
-    fn to_mont(a: &Scalar<Unencoded>) -> Scalar<R> {
-        static N_RR: Scalar<Unencoded> = Scalar {
-            limbs: PRIVATE_SCALAR_OPS.oneRR_mod_n.limbs,
-            m: PhantomData,
-            encoding: PhantomData,
-        };
-        binary_op(p384_scalar_mul_mont, a, &N_RR)
-    }
-
     // Indexes into `d`.
     const B_1: usize = 0;
     const B_11: usize = 1;
@@ -199,7 +191,7 @@ fn p384_scalar_inv_to_mont(a: &Scalar<Unencoded>) -> Scalar<R> {
     const DIGIT_COUNT: usize = 8;
 
     let mut d = [Scalar::zero(); DIGIT_COUNT];
-    d[B_1] = to_mont(a);
+    d[B_1] = a;
     let b_10 = sqr(&d[B_1]);
     for i in B_11..DIGIT_COUNT {
         d[i] = mul(&d[i - 1], &b_10);
@@ -222,6 +214,7 @@ fn p384_scalar_inv_to_mont(a: &Scalar<Unencoded>) -> Scalar<R> {
     //    0101100000011010000011011011001001001000101100001010011101111010
     //    1110110011101100000110010110101011001100110001010010100101110001
 
+    #[allow(clippy::cast_possible_truncation)]
     static REMAINING_WINDOWS: [(u8, u8); 39] = [
         (2, B_11 as u8),
         (3 + 3, B_111 as u8),

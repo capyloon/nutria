@@ -7,7 +7,7 @@ use {crate::backend::c, bitflags::bitflags};
 bitflags! {
     /// `O_*` constants for use with [`pipe_with`].
     ///
-    /// [`pipe_with`]: crate::io::pipe_with
+    /// [`pipe_with`]: crate::pipe::pipe_with
     #[repr(transparent)]
     #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct PipeFlags: u32 {
@@ -34,8 +34,8 @@ bitflags! {
 
 #[cfg(linux_kernel)]
 bitflags! {
-    /// `SPLICE_F_*` constants for use with [`splice`], [`vmsplice`],
-    /// and [`tee`].
+    /// `SPLICE_F_*` constants for use with [`splice`], [`vmsplice`], and
+    /// [`tee`].
     #[repr(transparent)]
     #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct SpliceFlags: c::c_uint {
@@ -53,12 +53,14 @@ bitflags! {
     }
 }
 
-/// A buffer type used with `vmsplice`.
+/// A buffer type for use with [`vmsplice`].
 ///
 /// It is guaranteed to be ABI compatible with the iovec type on Unix platforms
 /// and `WSABUF` on Windows. Unlike `IoSlice` and `IoSliceMut` it is
 /// semantically like a raw pointer, and therefore can be shared or mutated as
 /// needed.
+///
+/// [`vmsplice`]: crate::pipe::vmsplice
 #[cfg(linux_kernel)]
 #[repr(transparent)]
 pub struct IoSliceRaw<'a> {

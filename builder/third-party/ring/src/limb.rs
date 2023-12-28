@@ -141,28 +141,6 @@ pub enum AllowZero {
     Yes,
 }
 
-/// Parses `input` into `result`, reducing it via conditional subtraction
-/// (mod `m`). Assuming 2**((self.num_limbs * LIMB_BITS) - 1) < m and
-/// m < 2**(self.num_limbs * LIMB_BITS), the value will be reduced mod `m` in
-/// constant time so that the result is in the range [0, m) if `allow_zero` is
-/// `AllowZero::Yes`, or [1, m) if `allow_zero` is `AllowZero::No`. `result` is
-/// padded with zeros to its length.
-pub fn parse_big_endian_in_range_partially_reduced_and_pad_consttime(
-    input: untrusted::Input,
-    allow_zero: AllowZero,
-    m: &[Limb],
-    result: &mut [Limb],
-) -> Result<(), error::Unspecified> {
-    parse_big_endian_and_pad_consttime(input, result)?;
-    limbs_reduce_once_constant_time(result, m);
-    if allow_zero != AllowZero::Yes {
-        if limbs_are_zero_constant_time(result) != LimbMask::False {
-            return Err(error::Unspecified);
-        }
-    }
-    Ok(())
-}
-
 /// Parses `input` into `result`, verifies that the value is less than
 /// `max_exclusive`, and pads `result` with zeros to its length. If `allow_zero`
 /// is not `AllowZero::Yes`, zero values are rejected.
@@ -348,6 +326,30 @@ pub(crate) fn limbs_add_assign_mod(a: &mut [Limb], b: &[Limb], m: &[Limb]) {
         );
     }
     unsafe { LIMBS_add_mod(a.as_mut_ptr(), a.as_ptr(), b.as_ptr(), m.as_ptr(), m.len()) }
+}
+
+// r *= 2 (mod m).
+pub(crate) fn limbs_double_mod(r: &mut [Limb], m: &[Limb]) {
+    assert_eq!(r.len(), m.len());
+    prefixed_extern! {
+        fn LIMBS_shl_mod(r: *mut Limb, a: *const Limb, m: *const Limb, num_limbs: c::size_t);
+    }
+    unsafe {
+        LIMBS_shl_mod(r.as_mut_ptr(), r.as_ptr(), m.as_ptr(), m.len());
+    }
+}
+
+// *r = -a, assuming a is odd.
+pub(crate) fn limbs_negative_odd(r: &mut [Limb], a: &[Limb]) {
+    debug_assert_eq!(r.len(), a.len());
+    // Two's complement step 1: flip all the bits.
+    // The compiler should optimize this to vectorized (a ^ !0).
+    r.iter_mut().zip(a.iter()).for_each(|(r, &a)| {
+        *r = !a;
+    });
+    // Two's complement step 2: Add one. Since `a` is odd, `r` is even. Thus we
+    // can use a bitwise or for addition.
+    r[0] |= 1;
 }
 
 prefixed_extern! {

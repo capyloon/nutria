@@ -92,7 +92,7 @@ impl Style {
 
     /// Render the ANSI code
     #[inline]
-    pub fn render(self) -> impl core::fmt::Display {
+    pub fn render(self) -> impl core::fmt::Display + Copy + Clone {
         StyleDisplay(self)
     }
 
@@ -121,7 +121,7 @@ impl Style {
     ///
     /// Unlike [`Reset::render`][crate::Reset::render], this will elide the code if there is nothing to reset.
     #[inline]
-    pub fn render_reset(self) -> impl core::fmt::Display {
+    pub fn render_reset(self) -> impl core::fmt::Display + Copy + Clone {
         if self != Self::new() {
             RESET
         } else {
@@ -374,6 +374,7 @@ impl core::cmp::PartialEq<crate::Effects> for Style {
     }
 }
 
+#[derive(Copy, Clone, Default, Debug)]
 struct StyleDisplay(Style);
 
 impl core::fmt::Display for StyleDisplay {

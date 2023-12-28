@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.34"
 name = "portable-atomic"
-version = "1.4.3"
+version = "1.6.0"
 exclude = [
     "/.*",
     "/tools",
@@ -35,6 +35,9 @@ categories = [
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/taiki-e/portable-atomic"
 
+[package.metadata.cargo_check_external_types]
+allowed_external_types = ["serde::*"]
+
 [package.metadata.docs.rs]
 features = [
     "float",
@@ -44,7 +47,7 @@ features = [
 ]
 rustdoc-args = [
     "--cfg",
-    "docsrs",
+    "portable_atomic_doc_cfg",
 ]
 targets = ["x86_64-unknown-linux-gnu"]
 
@@ -72,9 +75,6 @@ version = "2"
 [dev-dependencies.paste]
 version = "1"
 
-[dev-dependencies.serde_test]
-version = "1"
-
 [dev-dependencies.sptr]
 version = "0.3"
 
@@ -86,7 +86,82 @@ default = ["fallback"]
 disable-fiq = []
 fallback = []
 float = []
+force-amo = []
 require-cas = []
 s-mode = []
 std = []
 unsafe-assume-single-core = []
+
+[lints.clippy]
+all = "warn"
+as_ptr_cast_mut = "warn"
+default_union_representation = "warn"
+inline_asm_x86_att_syntax = "warn"
+pedantic = "warn"
+trailing_empty_array = "warn"
+transmute_undefined_repr = "warn"
+undocumented_unsafe_blocks = "warn"
+
+[lints.clippy.borrow_as_ptr]
+level = "allow"
+priority = 1
+
+[lints.clippy.doc_markdown]
+level = "allow"
+priority = 1
+
+[lints.clippy.float_cmp]
+level = "allow"
+priority = 1
+
+[lints.clippy.manual_assert]
+level = "allow"
+priority = 1
+
+[lints.clippy.manual_range_contains]
+level = "allow"
+priority = 1
+
+[lints.clippy.missing_errors_doc]
+level = "allow"
+priority = 1
+
+[lints.clippy.module_name_repetitions]
+level = "allow"
+priority = 1
+
+[lints.clippy.similar_names]
+level = "allow"
+priority = 1
+
+[lints.clippy.single_match]
+level = "allow"
+priority = 1
+
+[lints.clippy.single_match_else]
+level = "allow"
+priority = 1
+
+[lints.clippy.struct_excessive_bools]
+level = "allow"
+priority = 1
+
+[lints.clippy.too_many_arguments]
+level = "allow"
+priority = 1
+
+[lints.clippy.too_many_lines]
+level = "allow"
+priority = 1
+
+[lints.clippy.type_complexity]
+level = "allow"
+priority = 1
+
+[lints.rust]
+improper_ctypes = "warn"
+improper_ctypes_definitions = "warn"
+non_ascii_idents = "warn"
+rust_2018_idioms = "warn"
+single_use_lifetimes = "warn"
+unreachable_pub = "warn"

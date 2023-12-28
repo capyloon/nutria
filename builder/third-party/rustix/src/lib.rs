@@ -1,5 +1,5 @@
 //! `rustix` provides efficient memory-safe and [I/O-safe] wrappers to
-//! POSIX-like, Unix-like, Linux, and Winsock2 syscall-like APIs, with
+//! POSIX-like, Unix-like, Linux, and Winsock syscall-like APIs, with
 //! configurable backends.
 //!
 //! With rustix, you can write code like this:
@@ -141,6 +141,7 @@ extern crate static_assertions;
 mod static_assertions;
 
 // Internal utilities.
+mod buffer;
 #[cfg(not(windows))]
 #[macro_use]
 pub(crate) mod cstr;
@@ -305,6 +306,7 @@ pub(crate) mod mount;
     not(feature = "use-explicitly-provided-auxv"),
     any(
         feature = "param",
+        feature = "process",
         feature = "runtime",
         feature = "time",
         target_arch = "x86",
@@ -322,6 +324,7 @@ pub(crate) mod fs;
     not(feature = "use-explicitly-provided-auxv"),
     any(
         feature = "param",
+        feature = "process",
         feature = "runtime",
         feature = "time",
         target_arch = "x86",
@@ -353,6 +356,7 @@ mod signal;
 #[cfg(not(windows))]
 #[cfg(any(
     feature = "fs",
+    feature = "process",
     feature = "runtime",
     feature = "thread",
     feature = "time",
@@ -362,6 +366,7 @@ mod signal;
         not(feature = "use-explicitly-provided-auxv"),
         any(
             feature = "param",
+            feature = "process",
             feature = "runtime",
             feature = "time",
             target_arch = "x86",

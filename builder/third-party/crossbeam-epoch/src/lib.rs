@@ -76,8 +76,7 @@ mod primitive {
     }
     pub(crate) mod sync {
         pub(crate) mod atomic {
-            use core::sync::atomic::Ordering;
-            pub(crate) use loom::sync::atomic::{fence, AtomicUsize};
+            pub(crate) use loom::sync::atomic::{fence, AtomicPtr, AtomicUsize, Ordering};
 
             // FIXME: loom does not support compiler_fence at the moment.
             // https://github.com/tokio-rs/loom/issues/117
@@ -90,11 +89,10 @@ mod primitive {
     }
     pub(crate) use loom::thread_local;
 }
-#[cfg(not(crossbeam_no_atomic_cas))]
+#[cfg(target_has_atomic = "ptr")]
 #[cfg(not(crossbeam_loom))]
 #[allow(unused_imports, dead_code)]
 mod primitive {
-    #[cfg(feature = "alloc")]
     pub(crate) mod cell {
         #[derive(Debug)]
         #[repr(transparent)]
@@ -122,13 +120,13 @@ mod primitive {
             }
         }
     }
-    #[cfg(feature = "alloc")]
     pub(crate) mod sync {
         pub(crate) mod atomic {
-            pub(crate) use core::sync::atomic::compiler_fence;
-            pub(crate) use core::sync::atomic::fence;
-            pub(crate) use core::sync::atomic::AtomicUsize;
+            pub(crate) use core::sync::atomic::{
+                compiler_fence, fence, AtomicPtr, AtomicUsize, Ordering,
+            };
         }
+        #[cfg(feature = "alloc")]
         pub(crate) use alloc::sync::Arc;
     }
 
@@ -136,7 +134,7 @@ mod primitive {
     pub(crate) use std::thread_local;
 }
 
-#[cfg(not(crossbeam_no_atomic_cas))]
+#[cfg(target_has_atomic = "ptr")]
 cfg_if! {
     if #[cfg(feature = "alloc")] {
         extern crate alloc;

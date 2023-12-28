@@ -145,11 +145,9 @@ impl Timestamp {
 
     #[cfg(any(feature = "v1", feature = "v6"))]
     const fn unix_to_rfc4122_ticks(seconds: u64, nanos: u32) -> u64 {
-        let ticks = UUID_TICKS_BETWEEN_EPOCHS
+        UUID_TICKS_BETWEEN_EPOCHS
             .wrapping_add(seconds.wrapping_mul(10_000_000))
-            .wrapping_add(nanos as u64 / 100);
-
-        ticks
+            .wrapping_add(nanos as u64 / 100)
     }
 
     const fn rfc4122_to_unix(ticks: u64) -> (u64, u32) {
@@ -206,7 +204,6 @@ pub(crate) const fn decode_rfc4122_timestamp(uuid: &Uuid) -> (u64, u16) {
     (ticks, counter)
 }
 
-#[cfg(uuid_unstable)]
 pub(crate) const fn encode_sorted_rfc4122_timestamp(
     ticks: u64,
     counter: u16,
@@ -230,7 +227,6 @@ pub(crate) const fn encode_sorted_rfc4122_timestamp(
     Uuid::from_fields(time_high, time_mid, time_low_and_version, &d4)
 }
 
-#[cfg(uuid_unstable)]
 pub(crate) const fn decode_sorted_rfc4122_timestamp(uuid: &Uuid) -> (u64, u16) {
     let bytes = uuid.as_bytes();
 
@@ -248,7 +244,6 @@ pub(crate) const fn decode_sorted_rfc4122_timestamp(uuid: &Uuid) -> (u64, u16) {
     (ticks, counter)
 }
 
-#[cfg(uuid_unstable)]
 pub(crate) const fn encode_unix_timestamp_millis(millis: u64, random_bytes: &[u8; 10]) -> Uuid {
     let millis_high = ((millis >> 16) & 0xFFFF_FFFF) as u32;
     let millis_low = (millis & 0xFFFF) as u16;
@@ -270,7 +265,6 @@ pub(crate) const fn encode_unix_timestamp_millis(millis: u64, random_bytes: &[u8
     Uuid::from_fields(millis_high, millis_low, random_and_version, &d4)
 }
 
-#[cfg(uuid_unstable)]
 pub(crate) const fn decode_unix_timestamp_millis(uuid: &Uuid) -> u64 {
     let bytes = uuid.as_bytes();
 
@@ -438,7 +432,7 @@ pub mod context {
             // increment the clock sequence we want to wrap once it becomes larger
             // than what we can represent in a "u14". Otherwise there'd be patches
             // where the clock sequence doesn't change regardless of the timestamp
-            self.count.fetch_add(1, Ordering::AcqRel) % (u16::MAX >> 2)
+            self.count.fetch_add(1, Ordering::AcqRel) & (u16::MAX >> 2)
         }
     }
 }

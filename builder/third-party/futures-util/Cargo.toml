@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.56"
 name = "futures-util"
-version = "0.3.28"
+version = "0.3.30"
 description = """
 Common utilities and extension traits for the futures-rs library.
 """
@@ -30,33 +30,33 @@ rustdoc-args = [
 ]
 
 [dependencies.futures-channel]
-version = "0.3.28"
+version = "0.3.30"
 features = ["std"]
 optional = true
 default-features = false
 
 [dependencies.futures-core]
-version = "0.3.28"
+version = "0.3.30"
 default-features = false
 
 [dependencies.futures-io]
-version = "0.3.28"
+version = "0.3.30"
 features = ["std"]
 optional = true
 default-features = false
 
 [dependencies.futures-macro]
-version = "=0.3.28"
+version = "=0.3.30"
 optional = true
 default-features = false
 
 [dependencies.futures-sink]
-version = "0.3.28"
+version = "0.3.30"
 optional = true
 default-features = false
 
 [dependencies.futures-task]
-version = "0.3.28"
+version = "0.3.30"
 default-features = false
 
 [dependencies.futures_01]

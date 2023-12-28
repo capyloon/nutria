@@ -22,6 +22,16 @@
 //!     <th>Description
 //! <tr><td><code>alloc (default)</code>
 //!     <td>Enable features that require use of the heap, RSA in particular.
+//! <tr><td><code>less-safe-getrandom-custom-or-rdrand</code>
+//!     <td>Treat user-provided ("custom") and RDRAND-based <code>getrandom</code>
+//!         implementations as secure random number generators (see
+//!         <code>SecureRandom</code>). This feature only works with
+//!         <code>os = "none"</code> targets. See
+//!         <a href="https://docs.rs/getrandom/0.2.10/getrandom/macro.register_custom_getrandom.html">
+//!             <code>register_custom_getrandom</code>
+//!         </a> and <a href="https://docs.rs/getrandom/0.2.10/getrandom/#rdrand-on-x86">
+//!             RDRAND on x86
+//!         </a> for additional details.
 //! <tr><td><code>std</code>
 //!     <td>Enable features that use libstd, in particular
 //!         <code>std::error::Error</code> integration. Implies `alloc`.
@@ -49,7 +59,22 @@
     unsafe_code
 )]
 #![deny(variant_size_differences)]
-#![forbid(unused_results)]
+#![forbid(
+    unused_results,
+    invalid_reference_casting,
+    clippy::char_lit_as_u8,
+    clippy::fn_to_numeric_cast,
+    clippy::fn_to_numeric_cast_with_truncation,
+    clippy::ptr_as_ptr
+)]
+#![warn(
+    clippy::unnecessary_cast,
+    clippy::cast_lossless,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss
+)]
 #![no_std]
 
 #[cfg(feature = "alloc")]

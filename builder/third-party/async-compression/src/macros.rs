@@ -222,7 +222,21 @@ macro_rules! algos {
                 }
             }
         }
-        { @dec }
+        { @dec
+            /// Creates a new decoder with the specified limit of memory.
+            ///
+            /// # Errors
+            ///
+            /// An IO error may be returned during decoding if the specified limit is too small.
+            pub fn with_mem_limit(read: $inner, memlimit: u64) -> Self {
+                Self {
+                    inner: crate::$($mod::)+generic::Decoder::new(
+                        read,
+                        crate::codec::XzDecoder::with_memlimit(memlimit),
+                    ),
+                }
+            }
+        }
         );
 
         algos!(@algo lzma ["lzma"] LzmaDecoder LzmaEncoder <$inner>
@@ -237,7 +251,22 @@ macro_rules! algos {
                 }
             }
         }
-        { @dec }
+        { @dec
+            /// Creates a new decoder with the specified limit of memory.
+            ///
+            /// # Errors
+            ///
+            /// An IO error may be returned during decoding if the specified limit is too small.
+            pub fn with_mem_limit(read: $inner, memlimit: u64) -> Self {
+                Self {
+                    inner: crate::$($mod::)+generic::Decoder::new(
+                        read,
+                        crate::codec::LzmaDecoder::with_memlimit(memlimit),
+                    ),
+                }
+            }
+
+        }
         );
     }
 }

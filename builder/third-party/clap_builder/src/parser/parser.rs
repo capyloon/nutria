@@ -501,10 +501,7 @@ impl<'cmd> Parser<'cmd> {
                     self.cmd,
                     arg_os.display().to_string(),
                     candidates,
-                    self.cmd
-                        .get_bin_name()
-                        .unwrap_or_else(|| self.cmd.get_name())
-                        .to_owned(),
+                    self.cmd.get_bin_name_fallback().to_owned(),
                     suggested_trailing_arg,
                     Usage::new(self.cmd).create_usage_with_title(&[]),
                 );
@@ -544,19 +541,24 @@ impl<'cmd> Parser<'cmd> {
             if self.cmd.is_infer_subcommands_set() {
                 // For subcommand `test`, we accepts it's prefix: `t`, `te`,
                 // `tes` and `test`.
-                let v = self
-                    .cmd
-                    .all_subcommand_names()
-                    .filter(|s| s.starts_with(arg))
-                    .collect::<Vec<_>>();
+                let mut iter = self.cmd.get_subcommands().filter_map(|s| {
+                    if s.get_name().starts_with(arg) {
+                        return Some(s.get_name());
+                    }
 
-                if v.len() == 1 {
-                    return Some(v[0]);
+                    // Use find here instead of chaining the iterator because we want to accept
+                    // conflicts in aliases.
+                    s.get_all_aliases().find(|s| s.starts_with(arg))
+                });
+
+                if let name @ Some(_) = iter.next() {
+                    if iter.next().is_none() {
+                        return name;
+                    }
                 }
-
-                // If there is any ambiguity, fallback to non-infer subcommand
-                // search.
             }
+            // Don't use an else here because we want inference to support exact matching even if
+            // there are conflicts.
             if let Some(sc) = self.cmd.find_subcommand(arg) {
                 return Some(sc.get_name());
             }
@@ -568,28 +570,29 @@ impl<'cmd> Parser<'cmd> {
     fn possible_long_flag_subcommand(&self, arg: &str) -> Option<&str> {
         debug!("Parser::possible_long_flag_subcommand: arg={arg:?}");
         if self.cmd.is_infer_subcommands_set() {
-            let options = self
-                .cmd
-                .get_subcommands()
-                .fold(Vec::new(), |mut options, sc| {
-                    if let Some(long) = sc.get_long_flag() {
-                        if long.starts_with(arg) {
-                            options.push(long);
-                        }
-                        options.extend(sc.get_all_aliases().filter(|alias| alias.starts_with(arg)))
+            let mut iter = self.cmd.get_subcommands().filter_map(|sc| {
+                sc.get_long_flag().and_then(|long| {
+                    if long.starts_with(arg) {
+                        Some(sc.get_name())
+                    } else {
+                        sc.get_all_long_flag_aliases().find_map(|alias| {
+                            if alias.starts_with(arg) {
+                                Some(sc.get_name())
+                            } else {
+                                None
+                            }
+                        })
                     }
-                    options
-                });
-            if options.len() == 1 {
-                return Some(options[0]);
-            }
+                })
+            });
 
-            for sc in options {
-                if sc == arg {
-                    return Some(sc);
+            if let name @ Some(_) = iter.next() {
+                if iter.next().is_none() {
+                    return name;
                 }
             }
-        } else if let Some(sc_name) = self.cmd.find_long_subcmd(arg) {
+        }
+        if let Some(sc_name) = self.cmd.find_long_subcmd(arg) {
             return Some(sc_name);
         }
         None
@@ -637,7 +640,7 @@ impl<'cmd> Parser<'cmd> {
 
         if self.cmd[current_positional.get_id()].is_allow_hyphen_values_set()
             || (self.cmd[current_positional.get_id()].is_allow_negative_numbers_set()
-                && next.is_number())
+                && next.is_negative_number())
         {
             // If allow hyphen, this isn't a new arg.
             debug!("Parser::is_new_arg: Allow hyphen");
@@ -835,7 +838,7 @@ impl<'cmd> Parser<'cmd> {
 
         #[allow(clippy::blocks_in_if_conditions)]
         if matches!(parse_state, ParseState::Opt(opt) | ParseState::Pos(opt)
-                if self.cmd[opt].is_allow_hyphen_values_set() || (self.cmd[opt].is_allow_negative_numbers_set() && short_arg.is_number()))
+                if self.cmd[opt].is_allow_hyphen_values_set() || (self.cmd[opt].is_allow_negative_numbers_set() && short_arg.is_negative_number()))
         {
             debug!("Parser::parse_short_args: prior arg accepts hyphenated values",);
             return Ok(ParseResult::MaybeHyphenValue);
@@ -845,7 +848,7 @@ impl<'cmd> Parser<'cmd> {
             .get(&pos_counter)
             .map(|arg| arg.is_allow_negative_numbers_set())
             .unwrap_or_default()
-            && short_arg.is_number()
+            && short_arg.is_negative_number()
         {
             debug!("Parser::parse_short_arg: negative number");
             return Ok(ParseResult::MaybeHyphenValue);

@@ -1,6 +1,6 @@
-# Unreleased
+# 0.4.6 (December 8, 2023)
 
-None.
+- Add `Collect` combinator (backported from http-body-util).
 
 # 0.4.5 (May 20, 2022)
 

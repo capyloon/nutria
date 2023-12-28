@@ -287,32 +287,6 @@ fn nanosleep() {
 
 //TODO: physunmap
 
-#[test]
-fn pipe2() {
-    let mut fds = [0, 0];
-    assert_eq!(dbg!(crate::pipe2(&mut fds, crate::O_CLOEXEC)), Ok(0));
-    assert_ne!(dbg!(fds), [0, 0]);
-
-    {
-        let mut buf = [0; 256];
-        for i in 0..buf.len() {
-            buf[i] = i as u8;
-        }
-        assert_eq!(dbg!(crate::write(fds[1], &buf)), Ok(buf.len()));
-    }
-
-    {
-        let mut buf = [0; 256];
-        assert_eq!(dbg!(crate::read(fds[0], &mut buf)), Ok(buf.len()));
-        for i in 0..buf.len() {
-            assert_eq!(buf[i], i as u8);
-        }
-    }
-
-    assert_eq!(dbg!(crate::close(fds[0])), Ok(0));
-    assert_eq!(dbg!(crate::close(fds[1])), Ok(0));
-}
-
 //TODO: read
 
 #[test]

@@ -2,6 +2,7 @@ use core::mem;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
+#[derive(Default)]
 pub enum State {
     Anywhere = 0,
     CsiEntry = 1,
@@ -15,17 +16,11 @@ pub enum State {
     DcsPassthrough = 9,
     Escape = 10,
     EscapeIntermediate = 11,
+    #[default]
     Ground = 12,
     OscString = 13,
     SosPmApcString = 14,
     Utf8 = 15,
-}
-
-impl Default for State {
-    #[inline]
-    fn default() -> State {
-        State::Ground
-    }
 }
 
 impl TryFrom<u8> for State {
@@ -58,7 +53,9 @@ const STATES: [State; 16] = [
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
+#[derive(Default)]
 pub enum Action {
+    #[default]
     Nop = 0,
     Clear = 1,
     Collect = 2,
@@ -75,13 +72,6 @@ pub enum Action {
     Put = 13,
     Unhook = 14,
     BeginUtf8 = 15,
-}
-
-impl Default for Action {
-    #[inline]
-    fn default() -> Action {
-        Action::Nop
-    }
 }
 
 impl TryFrom<u8> for Action {

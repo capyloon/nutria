@@ -6,72 +6,74 @@
 //!
 //! Those are used to recognize the lowest level elements of your grammar, like, "here is a dot", or "here is an big endian integer".
 //!
-//! | combinator | usage | input | output | comment |
-//! |---|---|---|---|---|
-//! | [`one_of`][crate::token::one_of] | `one_of(['a', 'b', 'c'])` |  `"abc"` | `Ok(("bc", 'a'))` |Matches one of the provided characters (works with non ASCII characters too)|
-//! | [`none_of`][crate::token::none_of] | `none_of(['a', 'b', 'c'])` |  `"xyab"` | `Ok(("yab", 'x'))` |Matches anything but the provided characters|
-//! | [`tag`][crate::token::tag] | `"hello"` |  `"hello world"` | `Ok((" world", "hello"))` |Recognizes a specific suite of characters or bytes|
-//! | [`tag_no_case`][crate::token::tag_no_case] | `tag_no_case("hello")` |  `"HeLLo World"` | `Ok((" World", "HeLLo"))` |Case insensitive comparison. Note that case insensitive comparison is not well defined for unicode, and that you might have bad surprises|
-//! | [`take`][crate::token::take] | `take(4)` |  `"hello"` | `Ok(("o", "hell"))` |Takes a specific number of bytes or characters|
-//! | [`take_while`][crate::token::take_while] | `take_while(0.., is_alphabetic)` |  `"abc123"` | `Ok(("123", "abc"))` |Returns the longest list of bytes for which the provided pattern matches.|
-//! | [`take_till0`][crate::token::take_till0] | `take_till0(is_alphabetic)` |  `"123abc"` | `Ok(("abc", "123"))` |Returns the longest list of bytes or characters until the provided pattern matches. `take_till1` does the same, but must return at least one character. This is the reverse behaviour from `take_while`: `take_till(f)` is equivalent to `take_while(0.., \|c\| !f(c))`|
-//! | [`take_until0`][crate::token::take_until0] | `take_until0("world")` |  `"Hello world"` | `Ok(("world", "Hello "))` |Returns the longest list of bytes or characters until the provided tag is found. `take_until1` does the same, but must return at least one character|
+//! | combinator | usage | input | new input | output | comment |
+//! |---|---|---|---|---|---|
+//! | [`one_of`][crate::token::one_of] | `one_of(['a', 'b', 'c'])` |  `"abc"` |  `"bc"` | `Ok('a')` |Matches one of the provided characters (works with non ASCII characters too)|
+//! | [`none_of`][crate::token::none_of] | `none_of(['a', 'b', 'c'])` |  `"xyab"` |  `"yab"` | `Ok('x')` |Matches anything but the provided characters|
+//! | [`tag`][crate::token::tag] | `"hello"` |  `"hello world"` |  `" world"` | `Ok("hello")` |Recognizes a specific suite of characters or bytes (see also [`Caseless`][crate::ascii::Caseless])|
+//! | [`take`][crate::token::take] | `take(4)` |  `"hello"` |  `"o"` | `Ok("hell")` |Takes a specific number of bytes or characters|
+//! | [`take_while`][crate::token::take_while] | `take_while(0.., is_alphabetic)` |  `"abc123"` |  `"123"` | `Ok("abc")` |Returns the longest list of bytes for which the provided pattern matches.|
+//! | [`take_till0`][crate::token::take_till0] | `take_till0(is_alphabetic)` |  `"123abc"` |  `"abc"` | `Ok("123")` |Returns the longest list of bytes or characters until the provided pattern matches. `take_till1` does the same, but must return at least one character. This is the reverse behaviour from `take_while`: `take_till(f)` is equivalent to `take_while(0.., \|c\| !f(c))`|
+//! | [`take_until0`][crate::token::take_until0] | `take_until0("world")` |  `"Hello world"` |  `"world"` | `Ok("Hello ")` |Returns the longest list of bytes or characters until the provided tag is found. `take_until1` does the same, but must return at least one character|
 //!
 //! ## Choice combinators
 //!
-//! | combinator | usage | input | output | comment |
-//! |---|---|---|---|---|
-//! | [`alt`][crate::combinator::alt] | `alt(("ab", "cd"))` |  `"cdef"` | `Ok(("ef", "cd"))` |Try a list of parsers and return the result of the first successful one|
-//! | [`dispatch`][crate::combinator::dispatch] | \- | \- | \- | `match` for parsers |
-//! | [`permutation`][crate::combinator::permutation] | `permutation(("ab", "cd", "12"))` | `"cd12abc"` | `Ok(("c", ("ab", "cd", "12"))` |Succeeds when all its child parser have succeeded, whatever the order|
+//! | combinator | usage | input | new input | output | comment |
+//! |---|---|---|---|---|---|
+//! | [`alt`] | `alt(("ab", "cd"))` |  `"cdef"` |  `"ef"` | `Ok("cd")` |Try a list of parsers and return the result of the first successful one|
+//! | [`dispatch`] | \- | \- | \- | \- | `match` for parsers |
+//! | [`permutation`] | `permutation(("ab", "cd", "12"))` | `"cd12abc"` | `"c"` | `Ok(("ab", "cd", "12"))` |Succeeds when all its child parser have succeeded, whatever the order|
 //!
 //! ## Sequence combinators
 //!
-//! | combinator | usage | input | output | comment |
-//! |---|---|---|---|---|
-//! | [`(...)` (tuples)][crate::Parser] | `("ab", "XY", take(1))` | `"abXYZ!"` | `Ok(("!", ("ab", "XY", "Z")))` |Chains parsers and assemble the sub results in a tuple. You can use as many child parsers as you can put elements in a tuple|
-//! | [`delimited`] | `delimited(char('('), take(2), char(')'))` | `"(ab)cd"` | `Ok(("cd", "ab"))` ||
-//! | [`preceded`] | `preceded("ab", "XY")` | `"abXYZ"` | `Ok(("Z", "XY"))` ||
-//! | [`terminated`] | `terminated("ab", "XY")` | `"abXYZ"` | `Ok(("Z", "ab"))` ||
-//! | [`separated_pair`] | `separated_pair("hello", char(','), "world")` | `"hello,world!"` | `Ok(("!", ("hello", "world")))` ||
+//! | combinator | usage | input | new input | output | comment |
+//! |---|---|---|---|---|---|
+//! | [`(...)` (tuples)][crate::Parser] | `("ab", "XY", take(1))` | `"abXYZ!"` | `"!"` | `Ok(("ab", "XY", "Z"))` |Chains parsers and assemble the sub results in a tuple. You can use as many child parsers as you can put elements in a tuple|
+//! | [`seq!`] | `seq!(_: char('('), take(2), _: char(')'))` | `"(ab)cd"` | `"cd"` | `Ok("ab")` ||
+//! | [`delimited`] | `delimited(char('('), take(2), char(')'))` | `"(ab)cd"` | `"cd"` | `Ok("ab")` ||
+//! | [`preceded`] | `preceded("ab", "XY")` | `"abXYZ"` | `"Z"` | `Ok("XY")` ||
+//! | [`terminated`] | `terminated("ab", "XY")` | `"abXYZ"` | `"Z"` | `Ok("ab")` ||
+//! | [`separated_pair`] | `separated_pair("hello", char(','), "world")` | `"hello,world!"` | `"!"` | `Ok(("hello", "world"))` ||
 //!
 //! ## Applying a parser multiple times
 //!
-//! | combinator | usage | input | output | comment |
-//! |---|---|---|---|---|
-//! | [`repeat`][crate::combinator::repeat] | `repeat(1..=3, "ab")` | `"ababc"` | `Ok(("c", vec!["ab", "ab"]))` |Applies the parser between m and n times (n included) and returns the list of results in a Vec|
-//! | [`repeat_till0`][crate::combinator::repeat_till0] | `repeat_till0(tag( "ab" ), tag( "ef" ))` | `"ababefg"` | `Ok(("g", (vec!["ab", "ab"], "ef")))` |Applies the first parser until the second applies. Returns a tuple containing the list of results from the first in a Vec and the result of the second|
-//! | [`separated0`][crate::combinator::separated0] | `separated0("ab", ",")` | `"ab,ab,ab."` | `Ok((".", vec!["ab", "ab", "ab"]))` |`separated1` works like `separated0` but must returns at least one element|
-//! | [`fold_repeat`][crate::combinator::fold_repeat] | `fold_repeat(1..=2, be_u8, \|\| 0, \|acc, item\| acc + item)` | `[1, 2, 3]` | `Ok(([3], 3))` |Applies the parser between m and n times (n included) and folds the list of return value|
+//! | combinator | usage | input | new input | output | comment |
+//! |---|---|---|---|---|---|
+//! | [`repeat`] | `repeat(1..=3, "ab")` | `"ababc"` | `"c"` | `Ok(vec!["ab", "ab"])` |Applies the parser between m and n times (n included) and returns the list of results in a Vec|
+//! | [`repeat_till0`] | `repeat_till0(tag( "ab" ), tag( "ef" ))` | `"ababefg"` | `"g"` | `Ok((vec!["ab", "ab"], "ef"))` |Applies the first parser until the second applies. Returns a tuple containing the list of results from the first in a Vec and the result of the second|
+//! | [`separated`] | `separated(1..=3, "ab", ",")` | `"ab,ab,ab."` | `"."` | `Ok(vec!["ab", "ab", "ab"])` |Applies the parser and separator between m and n times (n included) and returns the list of results in a Vec|
+//! | [`fold_repeat`] | `fold_repeat(1..=2, be_u8, \|\| 0, \|acc, item\| acc + item)` | `[1, 2, 3]` | `[3]` | `Ok(3)` |Applies the parser between m and n times (n included) and folds the list of return value|
 //!
 //! ## Partial related
 //!
-//! - [`eof`][eof]: Returns its input if it is at the end of input data
+//! - [`eof`]: Returns its input if it is at the end of input data
 //! - [`Parser::complete_err`]: Replaces an `Incomplete` returned by the child parser with an `Backtrack`
 //!
 //! ## Modifiers
 //!
-//! - [`cond`][cond]: Conditional combinator. Wraps another parser and calls it if the condition is met
-//! - [`Parser::flat_map`][crate::Parser::flat_map]: method to map a new parser from the output of the first parser, then apply that parser over the rest of the input
-//! - [`Parser::value`][crate::Parser::value]: method to replace the result of a parser
-//! - [`Parser::map`][crate::Parser::map]: method to map a function on the result of a parser
-//! - [`Parser::and_then`][crate::Parser::and_then]: Applies a second parser over the output of the first one
-//! - [`Parser::verify_map`][Parser::verify_map]: Maps a function returning an `Option` on the output of a parser
-//! - [`Parser::try_map`][Parser::try_map]: Maps a function returning a `Result` on the output of a parser
-//! - [`Parser::parse_to`][crate::Parser::parse_to]: Apply [`std::str::FromStr`] to the output of the parser
-//! - [`not`][not]: Returns a result only if the embedded parser returns `Backtrack` or `Incomplete`. Does not consume the input
-//! - [`opt`][opt]: Make the underlying parser optional
-//! - [`peek`][peek]: Returns a result without consuming the input
-//! - [`Parser::recognize`][Parser::recognize]: If the child parser was successful, return the consumed input as the produced value
-//! - [`Parser::with_recognized`][Parser::with_recognized]: If the child parser was successful, return a tuple of the consumed input and the produced output.
-//! - [`Parser::span`][Parser::span]: If the child parser was successful, return the location of the consumed input as the produced value
-//! - [`Parser::with_span`][Parser::with_span]: If the child parser was successful, return a tuple of the location of the consumed input and the produced output.
+//! - [`cond`]: Conditional combinator. Wraps another parser and calls it if the condition is met
+//! - [`Parser::flat_map`]: method to map a new parser from the output of the first parser, then apply that parser over the rest of the input
+//! - [`Parser::value`]: method to replace the result of a parser
+//! - [`Parser::default_value`]: method to replace the result of a parser
+//! - [`Parser::void`]: method to discard the result of a parser
+//! - [`Parser::map`]: method to map a function on the result of a parser
+//! - [`Parser::and_then`]: Applies a second parser over the output of the first one
+//! - [`Parser::verify_map`]: Maps a function returning an `Option` on the output of a parser
+//! - [`Parser::try_map`]: Maps a function returning a `Result` on the output of a parser
+//! - [`Parser::parse_to`]: Apply [`std::str::FromStr`] to the output of the parser
+//! - [`not`]: Returns a result only if the embedded parser returns `Backtrack` or `Incomplete`. Does not consume the input
+//! - [`opt`]: Make the underlying parser optional
+//! - [`peek`]: Returns a result without consuming the input
+//! - [`Parser::recognize`]: If the child parser was successful, return the consumed input as the produced value
+//! - [`Parser::with_recognized`]: If the child parser was successful, return a tuple of the consumed input and the produced output.
+//! - [`Parser::span`]: If the child parser was successful, return the location of the consumed input as the produced value
+//! - [`Parser::with_span`]: If the child parser was successful, return a tuple of the location of the consumed input and the produced output.
 //! - [`Parser::verify`]: Returns the result of the child parser if it satisfies a verification function
 //!
 //! ## Error management and debugging
 //!
 //! - [`cut_err`]: Commit the parse result, disallowing alternative parsers from being attempted
-//! - [`backtrack_err`]: Attemmpts a parse, allowing alternative parsers to be attempted despite
+//! - [`backtrack_err`]: Attempts a parse, allowing alternative parsers to be attempted despite
 //!   use of `cut_err`
 //! - [`Parser::context`]: Add context to the error if the parser fails
 //! - [`trace`][crate::trace::trace]: Print the parse state with the `debug` feature flag
@@ -79,8 +81,8 @@
 //!
 //! ## Remaining combinators
 //!
-//! - [`success`][success]: Returns a value without consuming any input, always succeeds
-//! - [`fail`][fail]: Inversion of `success`. Always fails.
+//! - [`success`]: Returns a value without consuming any input, always succeeds
+//! - [`fail`]: Inversion of `success`. Always fails.
 //! - [`Parser::by_ref`]: Allow moving `&mut impl Parser` into other parsers
 //!
 //! ## Text parsing
@@ -91,7 +93,7 @@
 //! - [`line_ending`][crate::ascii::line_ending]: Recognizes an end of line (both `\n` and `\r\n`)
 //! - [`newline`][crate::ascii::newline]: Matches a newline character `\n`
 //! - [`not_line_ending`][crate::ascii::not_line_ending]: Recognizes a string of any char except `\r` or `\n`
-//! - [`rest`][rest]: Return the remaining input
+//! - [`rest`]: Return the remaining input
 //!
 //! - [`alpha0`][crate::ascii::alpha0]: Recognizes zero or more lowercase and uppercase alphabetic characters: `[a-zA-Z]`. [`alpha1`][crate::ascii::alpha1] does the same but returns at least one character
 //! - [`alphanumeric0`][crate::ascii::alphanumeric0]: Recognizes zero or more numerical and alphabetic characters: `[0-9a-zA-Z]`. [`alphanumeric1`][crate::ascii::alphanumeric1] does the same but returns at least one character
@@ -149,8 +151,8 @@
 //!
 //! - [`bits`][crate::binary::bits::bits]: Transforms the current input type (byte slice `&[u8]`) to a bit stream on which bit specific parsers and more general combinators can be applied
 //! - [`bytes`][crate::binary::bits::bytes]: Transforms its bits stream input back into a byte slice for the underlying parser
-//! - [`take`][crate::binary::bits::take]: Take a set number of its
-//! - [`tag`][crate::binary::bits::tag]: Check if a set number of bis matches a pattern
+//! - [`take`][crate::binary::bits::take]: Take a set number of bits
+//! - [`tag`][crate::binary::bits::tag]: Check if a set number of bits matches a pattern
 //! - [`bool`][crate::binary::bits::bool]: Match any one bit
 
 mod branch;

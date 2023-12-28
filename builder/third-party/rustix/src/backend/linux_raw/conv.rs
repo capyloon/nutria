@@ -15,7 +15,7 @@
 
 use super::c;
 use super::fd::{AsRawFd, BorrowedFd, FromRawFd, RawFd};
-#[cfg(feature = "runtime")]
+#[cfg(any(feature = "event", feature = "runtime"))]
 use super::io::errno::try_decode_error;
 #[cfg(target_pointer_width = "64")]
 use super::io::errno::try_decode_u64;
@@ -303,6 +303,7 @@ pub(super) fn socklen_t<'a, Num: ArgNumber>(i: socklen_t) -> ArgReg<'a, Num> {
         not(feature = "use-explicitly-provided-auxv"),
         any(
             feature = "param",
+            feature = "process",
             feature = "runtime",
             feature = "time",
             target_arch = "x86",
@@ -622,7 +623,6 @@ impl<'a, Num: ArgNumber> From<crate::backend::mm::types::MlockFlags> for ArgReg<
 }
 
 #[cfg(feature = "mm")]
-#[cfg(any(linux_kernel, freebsdlike, netbsdlike))]
 impl<'a, Num: ArgNumber> From<crate::backend::mm::types::MlockAllFlags> for ArgReg<'a, Num> {
     #[inline]
     fn from(flags: crate::backend::mm::types::MlockAllFlags) -> Self {
@@ -874,7 +874,7 @@ pub(super) unsafe fn ret(raw: RetReg<R0>) -> io::Result<()> {
 ///
 /// The caller must ensure that this is the return value of a syscall which
 /// doesn't return on success.
-#[cfg(feature = "runtime")]
+#[cfg(any(feature = "event", feature = "runtime"))]
 #[inline]
 pub(super) unsafe fn ret_error(raw: RetReg<R0>) -> io::Errno {
     try_decode_error(raw)

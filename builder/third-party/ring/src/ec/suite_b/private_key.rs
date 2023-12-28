@@ -16,21 +16,15 @@
 //! ECDSA signing).
 
 use super::{ops::*, verify_affine_point_is_on_the_curve};
-use crate::{
-    arithmetic::montgomery::R,
-    ec, error,
-    limb::{self, LIMB_BYTES},
-    rand,
-};
+use crate::{arithmetic::montgomery::R, ec, error, limb, rand};
 
 /// Generates a random scalar in the range [1, n).
 pub fn random_scalar(
     ops: &PrivateKeyOps,
     rng: &dyn rand::SecureRandom,
 ) -> Result<Scalar, error::Unspecified> {
-    let num_limbs = ops.common.num_limbs;
     let mut bytes = [0; ec::SCALAR_MAX_BYTES];
-    let bytes = &mut bytes[..(num_limbs * LIMB_BYTES)];
+    let bytes = &mut bytes[..ops.common.len()];
     generate_private_scalar_bytes(ops, rng, bytes)?;
     scalar_from_big_endian_bytes(ops, bytes)
 }
@@ -99,7 +93,7 @@ pub fn check_scalar_big_endian_bytes(
     ops: &PrivateKeyOps,
     bytes: &[u8],
 ) -> Result<(), error::Unspecified> {
-    debug_assert_eq!(bytes.len(), ops.common.num_limbs * LIMB_BYTES);
+    debug_assert_eq!(bytes.len(), ops.common.len());
     scalar_from_big_endian_bytes(ops, bytes).map(|_| ())
 }
 
@@ -135,7 +129,7 @@ pub fn public_from_private(
     public_out: &mut [u8],
     my_private_key: &ec::Seed,
 ) -> Result<(), error::Unspecified> {
-    let elem_and_scalar_bytes = ops.common.num_limbs * LIMB_BYTES;
+    let elem_and_scalar_bytes = ops.common.len();
     debug_assert_eq!(public_out.len(), 1 + (2 * elem_and_scalar_bytes));
     let my_private_key = private_key_as_scalar(ops, my_private_key);
     let my_public_key = ops.point_mul_base(&my_private_key);
@@ -189,14 +183,13 @@ pub fn big_endian_affine_from_jacobian(
     p: &Point,
 ) -> Result<(), error::Unspecified> {
     let (x_aff, y_aff) = affine_from_jacobian(ops, p)?;
-    let num_limbs = ops.common.num_limbs;
     if let Some(x_out) = x_out {
         let x = ops.common.elem_unencoded(&x_aff);
-        limb::big_endian_from_limbs(&x.limbs[..num_limbs], x_out);
+        limb::big_endian_from_limbs(ops.leak_limbs(&x), x_out);
     }
     if let Some(y_out) = y_out {
         let y = ops.common.elem_unencoded(&y_aff);
-        limb::big_endian_from_limbs(&y.limbs[..num_limbs], y_out);
+        limb::big_endian_from_limbs(ops.leak_limbs(&y), y_out);
     }
 
     Ok(())

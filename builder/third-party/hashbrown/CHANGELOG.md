@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.14.3] - 2023-11-26
+
+### Added
+
+- Specialized `fold` implementation of iterators. (#480)
+
+### Fixed
+
+- Avoid using unstable `ptr::invalid_mut` on nightly. (#481)
+
+## [v0.14.2] - 2023-10-19
+
+### Added
+
+- `HashTable` type which provides a low-level but safe API with explicit hashing. (#466)
+
+### Fixed
+
+- Disabled the use of NEON instructions on big-endian ARM. (#475)
+- Disabled the use of NEON instructions on Miri. (#476)
+
+## [v0.14.1] - 2023-09-28
+
+### Added
+
+- Allow serializing `HashMap`s that use a custom allocator. (#449)
+
+### Changed
+
+- Use the `Equivalent` trait from the `equivalent` crate. (#442)
+- Slightly improved performance of table resizing. (#451)
+- Relaxed MSRV to 1.63.0. (#457)
+- Removed `Clone` requirement from custom allocators. (#468)
+
+### Fixed
+
+- Fixed custom allocators being leaked in some situations. (#439, #465)
+
 ## [v0.14.0] - 2023-06-01
 
 ### Added
@@ -22,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Optimized insertion to only perform a single lookup. (#277)
-- `DrainFilter` has been renamed to `ExtractIf` and no longer drops remaining
+- `DrainFilter` (`drain_filter`) has been renamed to `ExtractIf` and no longer drops remaining
   elements when the iterator is dropped. #(374)
 - Bumped MSRV to 1.64.0. (#431)
 - `{Map,Set}::raw_table` now returns an immutable reference. (#404)
@@ -433,7 +471,10 @@ This release was _yanked_ due to a breaking change for users of `no-default-feat
 
 - Initial release
 
-[Unreleased]: https://github.com/rust-lang/hashbrown/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/rust-lang/hashbrown/compare/v0.14.3...HEAD
+[v0.14.3]: https://github.com/rust-lang/hashbrown/compare/v0.14.2...v0.14.3
+[v0.14.2]: https://github.com/rust-lang/hashbrown/compare/v0.14.1...v0.14.2
+[v0.14.1]: https://github.com/rust-lang/hashbrown/compare/v0.14.0...v0.14.1
 [v0.14.0]: https://github.com/rust-lang/hashbrown/compare/v0.13.2...v0.14.0
 [v0.13.2]: https://github.com/rust-lang/hashbrown/compare/v0.13.1...v0.13.2
 [v0.13.1]: https://github.com/rust-lang/hashbrown/compare/v0.12.3...v0.13.1

@@ -19,10 +19,11 @@ use super::{
 /// RSA PKCS#1 1.5 signatures.
 use crate::{
     arithmetic::{
-        bigint::{self, Prime},
-        montgomery::R,
+        bigint,
+        montgomery::{R, RR, RRR},
     },
-    bits, cpu, digest,
+    bits::BitLength,
+    cpu, digest,
     error::{self, KeyRejected},
     io::der,
     pkcs8, rand, signature,
@@ -30,11 +31,9 @@ use crate::{
 
 /// An RSA key pair, used for signing.
 pub struct KeyPair {
-    p: PrivatePrime<P>,
-    q: PrivatePrime<Q>,
+    p: PrivateCrtPrime<P>,
+    q: PrivateCrtPrime<Q>,
     qInv: bigint::Elem<P, R>,
-    qq: bigint::Modulus<QQ>,
-    q_mod_n: bigint::Elem<N, R>,
     public: PublicKey,
 }
 
@@ -256,23 +255,6 @@ impl KeyPair {
         let dQ = untrusted::Input::from(dQ);
         let qInv = untrusted::Input::from(qInv);
 
-        let (p, p_bits) = bigint::Nonnegative::from_be_bytes_with_bit_length(p)
-            .map_err(|error::Unspecified| KeyRejected::invalid_encoding())?;
-        let (q, q_bits) = bigint::Nonnegative::from_be_bytes_with_bit_length(q)
-            .map_err(|error::Unspecified| KeyRejected::invalid_encoding())?;
-
-        // Our implementation of CRT-based modular exponentiation used requires
-        // that `p > q` so swap them if `p < q`. If swapped, `qInv` is
-        // recalculated below. `p != q` is verified implicitly below, e.g. when
-        // `q_mod_p` is constructed.
-        let ((p, p_bits, dP), (q, q_bits, dQ, qInv)) = match q.verify_less_than(&p) {
-            Ok(_) => ((p, p_bits, dP), (q, q_bits, dQ, Some(qInv))),
-            Err(error::Unspecified) => {
-                // TODO: verify `q` and `qInv` are inverses (mod p).
-                ((q, q_bits, dQ), (p, p_bits, dP, None))
-            }
-        };
-
         // XXX: Some steps are done out of order, but the NIST steps are worded
         // in such a way that it is clear that NIST intends for them to be done
         // in order. TODO: Does this matter at all?
@@ -296,13 +278,14 @@ impl KeyPair {
         let public_key = PublicKey::from_modulus_and_exponent(
             n,
             e,
-            bits::BitLength::from_usize_bits(2048),
+            BitLength::from_usize_bits(2048),
             super::PRIVATE_KEY_PUBLIC_MODULUS_MAX_BITS,
             PublicExponent::_65537,
             cpu_features,
         )?;
 
-        let n = public_key.n().value();
+        let n_one = public_key.inner().n().oneRR();
+        let n = &public_key.inner().n().value();
 
         // 6.4.1.4.3 says to skip 6.4.1.2.1 Step 2.
 
@@ -318,34 +301,10 @@ impl KeyPair {
 
         // Steps 5.a and 5.b are omitted, as explained above.
 
-        // Step 5.c.
-        //
-        // TODO: First, stop if `p < (√2) * 2**((nBits/2) - 1)`.
-        //
-        // Second, stop if `p > 2**(nBits/2) - 1`.
-        let half_n_bits = public_key.n().len_bits().half_rounded_up();
-        if p_bits != half_n_bits {
-            return Err(KeyRejected::inconsistent_components());
-        }
+        let n_bits = public_key.inner().n().len_bits();
 
-        // TODO: Step 5.d: Verify GCD(p - 1, e) == 1.
-
-        // Steps 5.e and 5.f are omitted as explained above.
-
-        // Step 5.g.
-        //
-        // TODO: First, stop if `q < (√2) * 2**((nBits/2) - 1)`.
-        //
-        // Second, stop if `q > 2**(nBits/2) - 1`.
-        if p_bits != q_bits {
-            return Err(KeyRejected::inconsistent_components());
-        }
-
-        // TODO: Step 5.h: Verify GCD(p - 1, e) == 1.
-
-        let q_mod_n_decoded = q
-            .to_elem(n)
-            .map_err(|error::Unspecified| KeyRejected::inconsistent_components())?;
+        let p = PrivatePrime::new(p, n_bits, cpu_features)?;
+        let q = PrivatePrime::new(q, n_bits, cpu_features)?;
 
         // TODO: Step 5.i
         //
@@ -358,10 +317,15 @@ impl KeyPair {
         // 0 < q < p < n. We check that q and p are close to sqrt(n) and then
         // assume that these preconditions are enough to let us assume that
         // checking p * q == 0 (mod n) is equivalent to checking p * q == n.
-        let q_mod_n = bigint::elem_mul(n.oneRR().as_ref(), q_mod_n_decoded.clone(), n);
-        let p_mod_n = p
+        let q_mod_n = q
+            .modulus
             .to_elem(n)
             .map_err(|error::Unspecified| KeyRejected::inconsistent_components())?;
+        let p_mod_n = p
+            .modulus
+            .to_elem(n)
+            .map_err(|error::Unspecified| KeyRejected::inconsistent_components())?;
+        let p_mod_n = bigint::elem_mul(n_one, p_mod_n, n);
         let pq_mod_n = bigint::elem_mul(&q_mod_n, p_mod_n, n);
         if !pq_mod_n.is_zero() {
             return Err(KeyRejected::inconsistent_components());
@@ -374,65 +338,46 @@ impl KeyPair {
         // First, validate `2**half_n_bits < d`. Since 2**half_n_bits has a bit
         // length of half_n_bits + 1, this check gives us 2**half_n_bits <= d,
         // and knowing d is odd makes the inequality strict.
-        let (d, d_bits) = bigint::Nonnegative::from_be_bytes_with_bit_length(d)
-            .map_err(|_| error::KeyRejected::invalid_encoding())?;
-        if !(half_n_bits < d_bits) {
+        let d = bigint::OwnedModulus::<D>::from_be_bytes(d, cpu_features)
+            .map_err(|_| error::KeyRejected::invalid_component())?;
+        if !(n_bits.half_rounded_up() < d.len_bits()) {
             return Err(KeyRejected::inconsistent_components());
         }
         // XXX: This check should be `d < LCM(p - 1, q - 1)`, but we don't have
         // a good way of calculating LCM, so it is omitted, as explained above.
-        d.verify_less_than_modulus(n)
+        d.verify_less_than(n)
             .map_err(|error::Unspecified| KeyRejected::inconsistent_components())?;
-        if !d.is_odd() {
-            return Err(KeyRejected::invalid_component());
-        }
 
         // Step 6.b is omitted as explained above.
 
+        let pm = &p.modulus.modulus();
+
         // 6.4.1.4.3 - Step 7.
 
-        // Step 7.a.
-        let p = PrivatePrime::new(p, dP, cpu_features)?;
-
-        // Step 7.b.
-        let q = PrivatePrime::new(q, dQ, cpu_features)?;
-
-        let q_mod_p = q.modulus.to_elem(&p.modulus);
-
         // Step 7.c.
-        let qInv = if let Some(qInv) = qInv {
-            bigint::Elem::from_be_bytes_padded(qInv, &p.modulus)
-                .map_err(|error::Unspecified| KeyRejected::invalid_component())?
-        } else {
-            // We swapped `p` and `q` above, so we need to calculate `qInv`.
-            // Step 7.f below will verify `qInv` is correct.
-            let q_mod_p = bigint::elem_mul(p.modulus.oneRR().as_ref(), q_mod_p.clone(), &p.modulus);
-            bigint::elem_inverse_consttime(q_mod_p, &p.modulus)
-                .map_err(|error::Unspecified| KeyRejected::unexpected_error())?
-        };
+        let qInv = bigint::Elem::from_be_bytes_padded(qInv, pm)
+            .map_err(|error::Unspecified| KeyRejected::invalid_component())?;
 
         // Steps 7.d and 7.e are omitted per the documentation above, and
         // because we don't (in the long term) have a good way to do modulo
         // with an even modulus.
 
         // Step 7.f.
-        let qInv = bigint::elem_mul(p.modulus.oneRR().as_ref(), qInv, &p.modulus);
-        bigint::verify_inverses_consttime(&qInv, q_mod_p, &p.modulus)
+        let qInv = bigint::elem_mul(p.oneRR.as_ref(), qInv, pm);
+        let q_mod_p = bigint::elem_reduced(&q_mod_n, pm, q.modulus.len_bits());
+        let q_mod_p = bigint::elem_mul(p.oneRR.as_ref(), q_mod_p, pm);
+        bigint::verify_inverses_consttime(&qInv, q_mod_p, pm)
             .map_err(|error::Unspecified| KeyRejected::inconsistent_components())?;
 
-        let qq = bigint::Modulus::from_elem(
-            bigint::elem_mul(&q_mod_n, q_mod_n_decoded, n),
-            cpu_features,
-        )?;
-
         // This should never fail since `n` and `e` were validated above.
+
+        let p = PrivateCrtPrime::new(p, dP)?;
+        let q = PrivateCrtPrime::new(q, dQ)?;
 
         Ok(Self {
             p,
             q,
             qInv,
-            q_mod_n,
-            qq,
             public: public_key,
         })
     }
@@ -460,26 +405,58 @@ impl signature::KeyPair for KeyPair {
     }
 }
 
-struct PrivatePrime<M: Prime> {
-    modulus: bigint::Modulus<M>,
-    exponent: bigint::PrivateExponent,
+struct PrivatePrime<M> {
+    modulus: bigint::OwnedModulus<M>,
+    oneRR: bigint::One<M, RR>,
 }
 
-impl<M: Prime> PrivatePrime<M> {
-    /// Constructs a `PrivatePrime` from the private prime `p` and `dP` where
-    /// dP == d % (p - 1).
+impl<M> PrivatePrime<M> {
     fn new(
-        p: bigint::Nonnegative,
-        dP: untrusted::Input,
+        p: untrusted::Input,
+        n_bits: BitLength,
         cpu_features: cpu::Features,
     ) -> Result<Self, KeyRejected> {
-        let (p, p_bits) = bigint::Modulus::from_nonnegative_with_bit_length(p, cpu_features)?;
-        if p_bits.as_usize_bits() % 512 != 0 {
+        let p = bigint::OwnedModulus::from_be_bytes(p, cpu_features)?;
+
+        // 5.c / 5.g:
+        //
+        // TODO: First, stop if `p < (√2) * 2**((nBits/2) - 1)`.
+        // TODO: First, stop if `q < (√2) * 2**((nBits/2) - 1)`.
+        //
+        // Second, stop if `p > 2**(nBits/2) - 1`.
+        // Second, stop if `q > 2**(nBits/2) - 1`.
+        if p.len_bits() != n_bits.half_rounded_up() {
+            return Err(KeyRejected::inconsistent_components());
+        }
+
+        if p.len_bits().as_usize_bits() % 512 != 0 {
             return Err(error::KeyRejected::private_modulus_len_not_multiple_of_512_bits());
         }
 
+        // TODO: Step 5.d: Verify GCD(p - 1, e) == 1.
+        // TODO: Step 5.h: Verify GCD(q - 1, e) == 1.
+
+        // Steps 5.e and 5.f are omitted as explained above.
+
+        let oneRR = bigint::One::newRR(&p.modulus());
+
+        Ok(Self { modulus: p, oneRR })
+    }
+}
+
+struct PrivateCrtPrime<M> {
+    modulus: bigint::OwnedModulus<M>,
+    oneRRR: bigint::One<M, RRR>,
+    exponent: bigint::PrivateExponent,
+}
+
+impl<M> PrivateCrtPrime<M> {
+    /// Constructs a `PrivateCrtPrime` from the private prime `p` and `dP` where
+    /// dP == d % (p - 1).
+    fn new(p: PrivatePrime<M>, dP: untrusted::Input) -> Result<Self, KeyRejected> {
+        let m = &p.modulus.modulus();
         // [NIST SP-800-56B rev. 1] 6.4.1.4.3 - Steps 7.a & 7.b.
-        let dP = bigint::PrivateExponent::from_be_bytes_padded(dP, &p)
+        let dP = bigint::PrivateExponent::from_be_bytes_padded(dP, m)
             .map_err(|error::Unspecified| KeyRejected::inconsistent_components())?;
 
         // XXX: Steps 7.d and 7.e are omitted. We don't check that
@@ -491,61 +468,35 @@ impl<M: Prime> PrivatePrime<M> {
         // and `e`. TODO: Either prove that what we do is sufficient, or make
         // it so.
 
+        let oneRRR = bigint::One::newRRR(p.oneRR, m);
+
         Ok(Self {
-            modulus: p,
+            modulus: p.modulus,
+            oneRRR,
             exponent: dP,
         })
     }
 }
 
-fn elem_exp_consttime<M, MM>(
-    c: &bigint::Elem<MM>,
-    p: &PrivatePrime<M>,
-) -> Result<bigint::Elem<M>, error::Unspecified>
-where
-    M: bigint::NotMuchSmallerModulus<MM>,
-    M: Prime,
-{
-    let c_mod_m = bigint::elem_reduced(c, &p.modulus);
-    // We could precompute `oneRRR = elem_squared(&p.oneRR`) as mentioned
-    // in the Smooth CRT-RSA paper.
-    let c_mod_m = bigint::elem_mul(p.modulus.oneRR().as_ref(), c_mod_m, &p.modulus);
-    let c_mod_m = bigint::elem_mul(p.modulus.oneRR().as_ref(), c_mod_m, &p.modulus);
-    bigint::elem_exp_consttime(c_mod_m, &p.exponent, &p.modulus)
+fn elem_exp_consttime<M>(
+    c: &bigint::Elem<N>,
+    p: &PrivateCrtPrime<M>,
+    other_prime_len_bits: BitLength,
+) -> Result<bigint::Elem<M>, error::Unspecified> {
+    let m = &p.modulus.modulus();
+    let c_mod_m = bigint::elem_reduced(c, m, other_prime_len_bits);
+    let c_mod_m = bigint::elem_mul(p.oneRRR.as_ref(), c_mod_m, m);
+    bigint::elem_exp_consttime(c_mod_m, &p.exponent, m)
 }
 
 // Type-level representations of the different moduli used in RSA signing, in
 // addition to `super::N`. See `super::bigint`'s modulue-level documentation.
 
-#[derive(Copy, Clone)]
 enum P {}
-unsafe impl Prime for P {}
-unsafe impl bigint::SmallerModulus<N> for P {}
-unsafe impl bigint::NotMuchSmallerModulus<N> for P {}
 
-#[derive(Copy, Clone)]
-enum QQ {}
-unsafe impl bigint::SmallerModulus<N> for QQ {}
-unsafe impl bigint::NotMuchSmallerModulus<N> for QQ {}
-
-// `q < p < 2*q` since `q` is slightly smaller than `p` (see below). Thus:
-//
-//                         q <  p  < 2*q
-//                       q*q < p*q < 2*q*q.
-//                      q**2 <  n  < 2*(q**2).
-unsafe impl bigint::SlightlySmallerModulus<N> for QQ {}
-
-#[derive(Copy, Clone)]
 enum Q {}
-unsafe impl Prime for Q {}
-unsafe impl bigint::SmallerModulus<N> for Q {}
-unsafe impl bigint::SmallerModulus<P> for Q {}
 
-// q < p && `p.bit_length() == q.bit_length()` implies `q < p < 2*q`.
-unsafe impl bigint::SlightlySmallerModulus<P> for Q {}
-
-unsafe impl bigint::SmallerModulus<QQ> for Q {}
-unsafe impl bigint::NotMuchSmallerModulus<QQ> for Q {}
+enum D {}
 
 impl KeyPair {
     /// Computes the signature of `msg` and writes it into `signature`.
@@ -580,7 +531,7 @@ impl KeyPair {
 
         // Use the output buffer as the scratch space for the signature to
         // reduce the required stack space.
-        padding_alg.encode(m_hash, signature, self.public().n().len_bits(), rng)?;
+        padding_alg.encode(m_hash, signature, self.public().inner().n().len_bits(), rng)?;
 
         // RFC 8017 Section 5.1.2: RSADP, using the Chinese Remainder Theorem
         // with Garner's algorithm.
@@ -607,7 +558,8 @@ impl KeyPair {
         // RFC 8017 Section 5.1.2: RSADP, using the Chinese Remainder Theorem
         // with Garner's algorithm.
 
-        let n = self.public.n().value();
+        let n = &self.public.inner().n().value();
+        let n_one = self.public.inner().n().oneRR();
 
         // Step 1. The value zero is also rejected.
         let base = bigint::Elem::from_be_bytes_padded(untrusted::Input::from(base), n)?;
@@ -616,25 +568,30 @@ impl KeyPair {
         let c = base;
 
         // Step 2.b.i.
-        let m_1 = elem_exp_consttime(&c, &self.p)?;
-        let c_mod_qq = bigint::elem_reduced_once(&c, &self.qq);
-        let m_2 = elem_exp_consttime(&c_mod_qq, &self.q)?;
+        let q_bits = self.q.modulus.len_bits();
+        let m_1 = elem_exp_consttime(&c, &self.p, q_bits)?;
+        let m_2 = elem_exp_consttime(&c, &self.q, self.p.modulus.len_bits())?;
 
         // Step 2.b.ii isn't needed since there are only two primes.
 
         // Step 2.b.iii.
-        let p = &self.p.modulus;
-        let m_2 = bigint::elem_widen(m_2, p);
-        let m_1_minus_m_2 = bigint::elem_sub(m_1, &m_2, p);
-        let h = bigint::elem_mul(&self.qInv, m_1_minus_m_2, p);
+        let h = {
+            let p = &self.p.modulus.modulus();
+            let m_2 = bigint::elem_reduced_once(&m_2, p, q_bits);
+            let m_1_minus_m_2 = bigint::elem_sub(m_1, &m_2, p);
+            bigint::elem_mul(&self.qInv, m_1_minus_m_2, p)
+        };
 
         // Step 2.b.iv. The reduction in the modular multiplication isn't
         // necessary because `h < p` and `p * q == n` implies `h * q < n`.
         // Modular arithmetic is used simply to avoid implementing
         // non-modular arithmetic.
-        let h = bigint::elem_widen(h, n);
-        let q_times_h = bigint::elem_mul(&self.q_mod_n, h, n);
-        let m_2 = bigint::elem_widen(m_2, n);
+        let p_bits = self.p.modulus.len_bits();
+        let h = bigint::elem_widen(h, n, p_bits)?;
+        let q_mod_n = self.q.modulus.to_elem(n)?;
+        let q_mod_n = bigint::elem_mul(n_one, q_mod_n, n);
+        let q_times_h = bigint::elem_mul(&q_mod_n, h, n);
+        let m_2 = bigint::elem_widen(m_2, n, q_bits)?;
         let m = bigint::elem_add(m_2, q_times_h, n);
 
         // Step 2.b.v isn't needed since there are only two primes.
@@ -648,12 +605,50 @@ impl KeyPair {
         // minimum value, since the relationship of `e` to `d`, `p`, and `q` is
         // not verified during `KeyPair` construction.
         {
-            let verify = self.public.exponentiate_elem(m.clone());
+            let verify = self.public.inner().exponentiate_elem(&m);
             bigint::elem_verify_equal_consttime(&verify, &c)?;
         }
 
         // Step 3 will be done by the caller.
 
         Ok(m)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test;
+    use alloc::vec;
+
+    #[test]
+    fn test_rsakeypair_private_exponentiate() {
+        test::run(
+            test_file!("keypair_private_exponentiate_tests.txt"),
+            |section, test_case| {
+                assert_eq!(section, "");
+
+                let key = test_case.consume_bytes("Key");
+                let key = KeyPair::from_pkcs8(&key).unwrap();
+                let test_cases = &[
+                    test_case.consume_bytes("p"),
+                    test_case.consume_bytes("p_plus_1"),
+                    test_case.consume_bytes("p_minus_1"),
+                    test_case.consume_bytes("q"),
+                    test_case.consume_bytes("q_plus_1"),
+                    test_case.consume_bytes("q_minus_1"),
+                ];
+                for test_case in test_cases {
+                    // THe call to `elem_verify_equal_consttime` will cause
+                    // `private_exponentiate` to fail if the computation is
+                    // incorrect.
+                    let mut padded = vec![0; key.public.modulus_len()];
+                    let zeroes = padded.len() - test_case.len();
+                    padded[zeroes..].copy_from_slice(test_case);
+                    let _: bigint::Elem<_> = key.private_exponentiate(&padded).unwrap();
+                }
+                Ok(())
+            },
+        );
     }
 }

@@ -113,7 +113,7 @@ impl EcdsaVerificationAlgorithm {
 
         // NSA Guide Step 4: "Compute w = s**−1 mod n, using the routine in
         // Appendix B.1."
-        let w = scalar_ops.scalar_inv_to_mont(&s);
+        let w = self.ops.scalar_inv_to_mont_vartime(&s);
 
         // NSA Guide Step 5: "Compute u1 = (e * w) mod n, and compute
         // u2 = (r * w) mod n."
@@ -157,10 +157,7 @@ impl EcdsaVerificationAlgorithm {
             return Ok(());
         }
         if self.ops.elem_less_than(&r, &self.ops.q_minus_n) {
-            self.ops
-                .scalar_ops
-                .common
-                .elem_add(&mut r, &public_key_ops.common.n);
+            self.ops.scalar_ops.common.elem_add(&mut r, self.ops.n());
             if sig_r_equals_x(self.ops, &r, &x, &z2) {
                 return Ok(());
             }

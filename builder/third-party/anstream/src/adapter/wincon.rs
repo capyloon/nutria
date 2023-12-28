@@ -105,11 +105,12 @@ impl anstyle_parse::Perform for WinconCapture {
         }
 
         let mut style = self.style;
+        // param/value differences are dependent on the escape code
+        let mut state = State::Normal;
+        let mut r = None;
+        let mut g = None;
+        let mut is_bg = false;
         for param in params {
-            let mut state = State::Normal;
-            let mut r = None;
-            let mut g = None;
-            let mut is_bg = false;
             for value in param {
                 match (state, *value) {
                     (State::Normal, 0) => {
@@ -244,7 +245,7 @@ mod test {
             .collect::<Vec<_>>();
         let mut state = WinconBytes::new();
         let actual = state.extract_next(input.as_bytes()).collect::<Vec<_>>();
-        assert_eq!(expected, actual);
+        assert_eq!(expected, actual, "{input:?}");
     }
 
     #[test]
@@ -283,6 +284,21 @@ mod test {
                 anstyle::AnsiColor::Green.on(anstyle::AnsiColor::Red),
                 "world!",
             ),
+        ];
+        verify(&input, expected);
+    }
+
+    #[test]
+    fn ansi256_colors() {
+        // termcolor only supports "brights" via these
+        let input = format!(
+            "Hello {}!",
+            "world".color(owo_colors::XtermColors::UserBrightYellow)
+        );
+        let expected = vec![
+            (anstyle::Style::default(), "Hello "),
+            (anstyle::Ansi256Color(11).on_default(), "world"),
+            (anstyle::Style::default(), "!"),
         ];
         verify(&input, expected);
     }

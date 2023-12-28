@@ -1,11 +1,12 @@
 //! Parser execution tracing
 //!
-//! By default, nothing happens and tracing gets compiled away as a no-op.  To enable tracing, use
+//! By default, nothing happens and tracing gets compiled away as a no-op. To enable tracing, use
 //! `--features debug`.
 //!
 //! # Example
 //!
 //!![Trace output from string example](https://raw.githubusercontent.com/winnow-rs/winnow/main/assets/trace.svg "Example output")
+#![cfg_attr(feature = "debug", allow(clippy::std_instead_of_core))]
 
 #[cfg(feature = "debug")]
 mod internals;
@@ -19,7 +20,7 @@ compile_error!("`debug` requires `std`");
 
 /// Trace the execution of the parser
 ///
-/// Note that [`Parser::context` also provides high level trace information.
+/// Note that [`Parser::context`] also provides high level trace information.
 ///
 /// See [`trace` module][self] for more details.
 ///

@@ -82,7 +82,9 @@ pub struct HeaderMap<T = HeaderValue> {
 /// more than once if it has more than one associated value.
 #[derive(Debug)]
 pub struct Iter<'a, T> {
-    inner: IterMut<'a, T>,
+    map: &'a HeaderMap<T>,
+    entry: usize,
+    cursor: Option<Cursor>,
 }
 
 /// `HeaderMap` mutable entry iterator
@@ -224,7 +226,7 @@ enum Cursor {
 /// limit enables using `u16` to represent all offsets, which takes 2 bytes
 /// instead of 8 on 64 bit processors.
 ///
-/// Setting this limit is especially benificial for `indices`, making it more
+/// Setting this limit is especially beneficial for `indices`, making it more
 /// cache friendly. More hash codes can fit in a cache line.
 ///
 /// You may notice that `u16` may represent more than 32,768 values. This is
@@ -452,6 +454,10 @@ impl<T> HeaderMap<T> {
     /// allocations before `capacity` headers are stored in the map.
     ///
     /// More capacity than requested may be allocated.
+    /// 
+    /// # Panics
+    /// 
+    /// Requested capacity too large: would overflow `usize`.
     ///
     /// # Examples
     ///
@@ -472,7 +478,13 @@ impl<T> HeaderMap<T> {
                 danger: Danger::Green,
             }
         } else {
-            let raw_cap = to_raw_capacity(capacity).next_power_of_two();
+            let raw_cap = match to_raw_capacity(capacity).checked_next_power_of_two() {
+                Some(c) => c,
+                None => panic!(
+                    "requested capacity {} too large: next power of two would overflow `usize`",
+                    capacity
+                ),
+            };
             assert!(raw_cap <= MAX_SIZE, "requested capacity too large");
             debug_assert!(raw_cap > 0);
 
@@ -801,12 +813,9 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
-            inner: IterMut {
-                map: self as *const _ as *mut _,
-                entry: 0,
-                cursor: self.entries.first().map(|_| Cursor::Head),
-                lt: PhantomData,
-            },
+            map: self,
+            entry: 0,
+            cursor: self.entries.first().map(|_| Cursor::Head),
         }
     }
 
@@ -1152,7 +1161,7 @@ impl<T> HeaderMap<T> {
             danger,
             // Vacant
             {
-                drop(danger); // Make lint happy
+                let _ = danger; // Make lint happy
                 let index = self.entries.len();
                 self.insert_entry(hash, key.into(), value);
                 self.indices[probe] = Pos::new(index, hash);
@@ -1255,7 +1264,7 @@ impl<T> HeaderMap<T> {
             danger,
             // Vacant
             {
-                drop(danger);
+                let _ = danger;
                 let index = self.entries.len();
                 self.insert_entry(hash, key.into(), value);
                 self.indices[probe] = Pos::new(index, hash);
@@ -2068,13 +2077,47 @@ impl<'a, T> Iterator for Iter<'a, T> {
     type Item = (&'a HeaderName, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next_unsafe()
-            .map(|(key, ptr)| (key, unsafe { &*ptr }))
+        use self::Cursor::*;
+
+        if self.cursor.is_none() {
+            if (self.entry + 1) >= self.map.entries.len() {
+                return None;
+            }
+
+            self.entry += 1;
+            self.cursor = Some(Cursor::Head);
+        }
+
+        let entry = &self.map.entries[self.entry];
+
+        match self.cursor.unwrap() {
+            Head => {
+                self.cursor = entry.links.map(|l| Values(l.next));
+                Some((&entry.key, &entry.value))
+            }
+            Values(idx) => {
+                let extra = &self.map.extra_values[idx];
+
+                match extra.next {
+                    Link::Entry(_) => self.cursor = None,
+                    Link::Extra(i) => self.cursor = Some(Values(i)),
+                }
+
+                Some((&entry.key, &extra.value))
+            }
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.size_hint()
+        let map = self.map;
+        debug_assert!(map.entries.len() >= self.entry);
+
+        let lower = map.entries.len() - self.entry;
+        // We could pessimistically guess at the upper bound, saying
+        // that its lower + map.extra_values.len(). That could be
+        // way over though, such as if we're near the end, and have
+        // already gone through several extra values...
+        (lower, None)
     }
 }
 
@@ -2098,22 +2141,22 @@ impl<'a, T> IterMut<'a, T> {
             self.cursor = Some(Cursor::Head);
         }
 
-        let entry = unsafe { &(*self.map).entries[self.entry] };
+        let entry = unsafe { &mut (*self.map).entries[self.entry] };
 
         match self.cursor.unwrap() {
             Head => {
                 self.cursor = entry.links.map(|l| Values(l.next));
-                Some((&entry.key, &entry.value as *const _ as *mut _))
+                Some((&entry.key, &mut entry.value as *mut _))
             }
             Values(idx) => {
-                let extra = unsafe { &(*self.map).extra_values[idx] };
+                let extra = unsafe { &mut (*self.map).extra_values[idx] };
 
                 match extra.next {
                     Link::Entry(_) => self.cursor = None,
                     Link::Extra(i) => self.cursor = Some(Values(i)),
                 }
 
-                Some((&entry.key, &extra.value as *const _ as *mut _))
+                Some((&entry.key, &mut extra.value as *mut _))
             }
         }
     }
@@ -3218,7 +3261,13 @@ fn usable_capacity(cap: usize) -> usize {
 
 #[inline]
 fn to_raw_capacity(n: usize) -> usize {
-    n + n / 3
+    match n.checked_add(n / 3) {
+        Some(n) => n,
+        None => panic!(
+            "requested capacity {} too large: overflow while converting to raw capacity",
+            n
+        ),
+    }
 }
 
 #[inline]

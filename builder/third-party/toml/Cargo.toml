@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.67"
 name = "toml"
-version = "0.8.4"
+version = "0.8.8"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 include = [
     "build.rs",
@@ -133,9 +133,10 @@ version = "0.6.5"
 features = ["serde"]
 
 [dependencies.toml_edit]
-version = "0.20.4"
+version = "0.21.0"
 features = ["serde"]
 optional = true
+default-features = false
 
 [dev-dependencies.serde]
 version = "1.0.160"
@@ -158,6 +159,12 @@ default = [
     "parse",
     "display",
 ]
-display = ["dep:toml_edit"]
-parse = ["dep:toml_edit"]
+display = [
+    "dep:toml_edit",
+    "toml_edit?/display",
+]
+parse = [
+    "dep:toml_edit",
+    "toml_edit?/parse",
+]
 preserve_order = ["indexmap"]

@@ -163,8 +163,43 @@ impl Interest {
     ///
     /// assert!(BOTH.is_readable());
     /// assert!(BOTH.is_writable());
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub const fn add(self, other: Interest) -> Interest {
         Self(self.0 | other.0)
+    }
+
+    /// Remove `Interest` from `self`.
+    ///
+    /// Interests present in `other` but *not* in `self` are ignored.
+    ///
+    /// Returns `None` if the set would be empty after removing `Interest`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tokio::io::Interest;
+    ///
+    /// const RW_INTEREST: Interest = Interest::READABLE.add(Interest::WRITABLE);
+    ///
+    /// let w_interest = RW_INTEREST.remove(Interest::READABLE).unwrap();
+    /// assert!(!w_interest.is_readable());
+    /// assert!(w_interest.is_writable());
+    ///
+    /// // Removing all interests from the set returns `None`.
+    /// assert_eq!(w_interest.remove(Interest::WRITABLE), None);
+    ///
+    /// // Remove all interests at once.
+    /// assert_eq!(RW_INTEREST.remove(RW_INTEREST), None);
+    /// ```
+    #[must_use = "this returns the result of the operation, without modifying the original"]
+    pub fn remove(self, other: Interest) -> Option<Interest> {
+        let value = self.0 & !other.0;
+
+        if value != 0 {
+            Some(Self(value))
+        } else {
+            None
+        }
     }
 
     // This function must be crate-private to avoid exposing a `mio` dependency.
@@ -204,7 +239,7 @@ impl Interest {
 
         if self.is_error() {
             // There is no error interest in mio, because error events are always reported.
-            // But mio interests cannot be empty and an interest is needed just for the registeration.
+            // But mio interests cannot be empty and an interest is needed just for the registration.
             //
             // read readiness is filtered out in `Interest::mask` or `Ready::from_interest` if
             // the read interest was not specified by the user.
@@ -244,7 +279,7 @@ impl ops::BitOr for Interest {
 impl ops::BitOrAssign for Interest {
     #[inline]
     fn bitor_assign(&mut self, other: Self) {
-        *self = *self | other
+        *self = *self | other;
     }
 }
 

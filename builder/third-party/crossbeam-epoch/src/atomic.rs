@@ -1,16 +1,16 @@
+use alloc::boxed::Box;
+use core::alloc::Layout;
 use core::borrow::{Borrow, BorrowMut};
 use core::cmp;
 use core::fmt;
 use core::marker::PhantomData;
 use core::mem::{self, MaybeUninit};
 use core::ops::{Deref, DerefMut};
+use core::ptr;
 use core::slice;
-use core::sync::atomic::Ordering;
 
-use crate::alloc::alloc;
-use crate::alloc::boxed::Box;
 use crate::guard::Guard;
-use crate::primitive::sync::atomic::AtomicUsize;
+use crate::primitive::sync::atomic::{AtomicUsize, Ordering};
 use crossbeam_utils::atomic::AtomicConsume;
 
 /// Given ordering for the success case in a compare-exchange operation, returns the strongest
@@ -233,14 +233,21 @@ impl<T> Pointable for T {
 ///
 /// Elements are not present in the type, but they will be in the allocation.
 /// ```
-///
-// TODO(@jeehoonkang): once we bump the minimum required Rust version to 1.44 or newer, use
-// [`alloc::alloc::Layout::extend`] instead.
 #[repr(C)]
 struct Array<T> {
     /// The number of elements (not the number of bytes).
     len: usize,
     elements: [MaybeUninit<T>; 0],
+}
+
+impl<T> Array<T> {
+    fn layout(len: usize) -> Layout {
+        Layout::new::<Self>()
+            .extend(Layout::array::<MaybeUninit<T>>(len).unwrap())
+            .unwrap()
+            .0
+            .pad_to_align()
+    }
 }
 
 impl<T> Pointable for [MaybeUninit<T>] {
@@ -249,14 +256,12 @@ impl<T> Pointable for [MaybeUninit<T>] {
     type Init = usize;
 
     unsafe fn init(len: Self::Init) -> usize {
-        let size = mem::size_of::<Array<T>>() + mem::size_of::<MaybeUninit<T>>() * len;
-        let align = mem::align_of::<Array<T>>();
-        let layout = alloc::Layout::from_size_align(size, align).unwrap();
-        let ptr = alloc::alloc(layout).cast::<Array<T>>();
+        let layout = Array::<T>::layout(len);
+        let ptr = alloc::alloc::alloc(layout).cast::<Array<T>>();
         if ptr.is_null() {
-            alloc::handle_alloc_error(layout);
+            alloc::alloc::handle_alloc_error(layout);
         }
-        (*ptr).len = len;
+        ptr::addr_of_mut!((*ptr).len).write(len);
         ptr as usize
     }
 
@@ -271,11 +276,9 @@ impl<T> Pointable for [MaybeUninit<T>] {
     }
 
     unsafe fn drop(ptr: usize) {
-        let array = &*(ptr as *mut Array<T>);
-        let size = mem::size_of::<Array<T>>() + mem::size_of::<MaybeUninit<T>>() * array.len;
-        let align = mem::align_of::<Array<T>>();
-        let layout = alloc::Layout::from_size_align(size, align).unwrap();
-        alloc::dealloc(ptr as *mut u8, layout);
+        let len = (*(ptr as *mut Array<T>)).len;
+        let layout = Array::<T>::layout(len);
+        alloc::alloc::dealloc(ptr as *mut u8, layout);
     }
 }
 
@@ -344,16 +347,15 @@ impl<T: ?Sized + Pointable> Atomic<T> {
     ///
     /// let a = Atomic::<i32>::null();
     /// ```
-    #[cfg(all(not(crossbeam_no_const_fn_trait_bound), not(crossbeam_loom)))]
+    #[cfg(not(crossbeam_loom))]
     pub const fn null() -> Atomic<T> {
         Self {
             data: AtomicUsize::new(0),
             _marker: PhantomData,
         }
     }
-
     /// Returns a new null atomic pointer.
-    #[cfg(not(all(not(crossbeam_no_const_fn_trait_bound), not(crossbeam_loom))))]
+    #[cfg(crossbeam_loom)]
     pub fn null() -> Atomic<T> {
         Self {
             data: AtomicUsize::new(0),
@@ -879,17 +881,7 @@ impl<T: ?Sized + Pointable> Atomic<T> {
     /// }
     /// ```
     pub unsafe fn into_owned(self) -> Owned<T> {
-        #[cfg(crossbeam_loom)]
-        {
-            // FIXME: loom does not yet support into_inner, so we use unsync_load for now,
-            // which should have the same synchronization properties:
-            // https://github.com/tokio-rs/loom/issues/117
-            Owned::from_usize(self.data.unsync_load())
-        }
-        #[cfg(not(crossbeam_loom))]
-        {
-            Owned::from_usize(self.data.into_inner())
-        }
+        Owned::from_usize(self.data.into_inner())
     }
 
     /// Takes ownership of the pointee if it is non-null.
@@ -926,10 +918,6 @@ impl<T: ?Sized + Pointable> Atomic<T> {
     /// }
     /// ```
     pub unsafe fn try_into_owned(self) -> Option<Owned<T>> {
-        // FIXME: See self.into_owned()
-        #[cfg(crossbeam_loom)]
-        let data = self.data.unsync_load();
-        #[cfg(not(crossbeam_loom))]
         let data = self.data.into_inner();
         if decompose_tag::<T>(data).0 == 0 {
             None
@@ -1313,10 +1301,7 @@ pub struct Shared<'g, T: 'g + ?Sized + Pointable> {
 
 impl<T: ?Sized + Pointable> Clone for Shared<'_, T> {
     fn clone(&self) -> Self {
-        Self {
-            data: self.data,
-            _marker: PhantomData,
-        }
+        *self
     }
 }
 
@@ -1702,7 +1687,6 @@ mod tests {
         Shared::<i64>::null().with_tag(7);
     }
 
-    #[rustversion::since(1.61)]
     #[test]
     fn const_atomic_null() {
         use super::Atomic;

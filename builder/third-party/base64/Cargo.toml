@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.48.0"
 name = "base64"
-version = "0.21.4"
+version = "0.21.5"
 authors = [
     "Alice Maz <alice@alicemaz.com>",
     "Marshall Pierce <marshall@mpierce.org>",
@@ -41,9 +41,22 @@ debug = 2
 [profile.test]
 opt-level = 3
 
+[[example]]
+name = "base64"
+required-features = ["std"]
+
+[[test]]
+name = "tests"
+required-features = ["alloc"]
+
+[[test]]
+name = "encode"
+required-features = ["alloc"]
+
 [[bench]]
 name = "benchmarks"
 harness = false
+required-features = ["std"]
 
 [dev-dependencies.criterion]
 version = "0.4.0"
@@ -67,4 +80,4 @@ version = "0.3.26"
 [features]
 alloc = []
 default = ["std"]
-std = []
+std = ["alloc"]

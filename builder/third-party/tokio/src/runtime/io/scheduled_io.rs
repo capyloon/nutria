@@ -44,25 +44,20 @@ use std::task::{Context, Poll, Waker};
     ),
     repr(align(128))
 )]
-// arm, mips, mips64, riscv64, sparc, and hexagon have 32-byte cache line size.
+// arm, mips, mips64, sparc, and hexagon have 32-byte cache line size.
 //
 // Sources:
 // - https://github.com/golang/go/blob/3dd58676054223962cd915bb0934d1f9f489d4d2/src/internal/cpu/cpu_arm.go#L7
 // - https://github.com/golang/go/blob/3dd58676054223962cd915bb0934d1f9f489d4d2/src/internal/cpu/cpu_mips.go#L7
 // - https://github.com/golang/go/blob/3dd58676054223962cd915bb0934d1f9f489d4d2/src/internal/cpu/cpu_mipsle.go#L7
 // - https://github.com/golang/go/blob/3dd58676054223962cd915bb0934d1f9f489d4d2/src/internal/cpu/cpu_mips64x.go#L9
-// - https://github.com/golang/go/blob/3dd58676054223962cd915bb0934d1f9f489d4d2/src/internal/cpu/cpu_riscv64.go#L7
 // - https://github.com/torvalds/linux/blob/3516bd729358a2a9b090c1905bd2a3fa926e24c6/arch/sparc/include/asm/cache.h#L17
 // - https://github.com/torvalds/linux/blob/3516bd729358a2a9b090c1905bd2a3fa926e24c6/arch/hexagon/include/asm/cache.h#L12
-//
-// riscv32 is assumed not to exceed the cache line size of riscv64.
 #[cfg_attr(
     any(
         target_arch = "arm",
         target_arch = "mips",
         target_arch = "mips64",
-        target_arch = "riscv32",
-        target_arch = "riscv64",
         target_arch = "sparc",
         target_arch = "hexagon",
     ),
@@ -79,12 +74,13 @@ use std::task::{Context, Poll, Waker};
 // - https://github.com/golang/go/blob/3dd58676054223962cd915bb0934d1f9f489d4d2/src/internal/cpu/cpu_s390x.go#L7
 // - https://github.com/torvalds/linux/blob/3516bd729358a2a9b090c1905bd2a3fa926e24c6/arch/s390/include/asm/cache.h#L13
 #[cfg_attr(target_arch = "s390x", repr(align(256)))]
-// x86, wasm, and sparc64 have 64-byte cache line size.
+// x86, riscv, wasm, and sparc64 have 64-byte cache line size.
 //
 // Sources:
 // - https://github.com/golang/go/blob/dda2991c2ea0c5914714469c4defc2562a907230/src/internal/cpu/cpu_x86.go#L9
 // - https://github.com/golang/go/blob/3dd58676054223962cd915bb0934d1f9f489d4d2/src/internal/cpu/cpu_wasm.go#L7
 // - https://github.com/torvalds/linux/blob/3516bd729358a2a9b090c1905bd2a3fa926e24c6/arch/sparc/include/asm/cache.h#L19
+// - https://github.com/torvalds/linux/blob/3516bd729358a2a9b090c1905bd2a3fa926e24c6/arch/riscv/include/asm/cache.h#L10
 //
 // All others are assumed to have 64-byte cache line size.
 #[cfg_attr(
@@ -95,8 +91,6 @@ use std::task::{Context, Poll, Waker};
         target_arch = "arm",
         target_arch = "mips",
         target_arch = "mips64",
-        target_arch = "riscv32",
-        target_arch = "riscv64",
         target_arch = "sparc",
         target_arch = "hexagon",
         target_arch = "m68k",
@@ -171,11 +165,11 @@ enum State {
 //
 // | shutdown | driver tick | readiness |
 // |----------+-------------+-----------|
-// |   1 bit  |   8 bits    +   16 bits |
+// |   1 bit  |  15 bits    +   16 bits |
 
 const READINESS: bit::Pack = bit::Pack::least_significant(16);
 
-const TICK: bit::Pack = READINESS.then(8);
+const TICK: bit::Pack = READINESS.then(15);
 
 const SHUTDOWN: bit::Pack = TICK.then(1);
 
@@ -186,7 +180,7 @@ impl Default for ScheduledIo {
         ScheduledIo {
             linked_list_pointers: UnsafeCell::new(linked_list::Pointers::new()),
             readiness: AtomicUsize::new(0),
-            waiters: Mutex::new(Default::default()),
+            waiters: Mutex::new(Waiters::default()),
         }
     }
 }
@@ -216,8 +210,8 @@ impl ScheduledIo {
     pub(super) fn set_readiness(&self, tick: Tick, f: impl Fn(Ready) -> Ready) {
         let mut current = self.readiness.load(Acquire);
 
-        // The shutdown bit should not be set
-        debug_assert_eq!(0, SHUTDOWN.unpack(current));
+        // If the io driver is shut down, then you are only allowed to clear readiness.
+        debug_assert!(SHUTDOWN.unpack(current) == 0 || matches!(tick, Tick::Clear(_)));
 
         loop {
             // Mask out the tick bits so that the modifying function doesn't see
@@ -225,17 +219,21 @@ impl ScheduledIo {
             let current_readiness = Ready::from_usize(current);
             let new = f(current_readiness);
 
-            let next = match tick {
-                Tick::Set(t) => TICK.pack(t as usize, new.as_usize()),
+            let new_tick = match tick {
+                Tick::Set => {
+                    let current = TICK.unpack(current);
+                    current.wrapping_add(1) % (TICK.max_value() + 1)
+                }
                 Tick::Clear(t) => {
                     if TICK.unpack(current) as u8 != t {
                         // Trying to clear readiness with an old event!
                         return;
                     }
 
-                    TICK.pack(t as usize, new.as_usize())
+                    t as usize
                 }
             };
+            let next = TICK.pack(new_tick, new.as_usize());
 
             match self
                 .readiness

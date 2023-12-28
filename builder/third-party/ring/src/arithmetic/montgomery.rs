@@ -12,6 +12,9 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+pub use super::n0::N0;
+use crate::cpu;
+
 // Indicates that the element is not encoded; there is no *R* factor
 // that needs to be canceled out.
 #[derive(Copy, Clone)]
@@ -21,6 +24,12 @@ pub enum Unencoded {}
 // factor that needs to be canceled out.
 #[derive(Copy, Clone)]
 pub enum R {}
+
+// Indicates the element is encoded three times; the value has three
+// *R* factors that need to be canceled out.
+#[allow(clippy::upper_case_acronyms)]
+#[derive(Copy, Clone)]
+pub enum RRR {}
 
 // Indicates the element is encoded twice; the value has two *R*
 // factors that need to be canceled out.
@@ -34,6 +43,7 @@ pub enum RInverse {}
 
 pub trait Encoding {}
 
+impl Encoding for RRR {}
 impl Encoding for RR {}
 impl Encoding for R {}
 impl Encoding for Unencoded {}
@@ -42,6 +52,10 @@ impl Encoding for RInverse {}
 /// The encoding of the result of a reduction.
 pub trait ReductionEncoding {
     type Output: Encoding;
+}
+
+impl ReductionEncoding for RRR {
+    type Output = RR;
 }
 
 impl ReductionEncoding for RR {
@@ -67,6 +81,10 @@ impl<E: Encoding> ProductEncoding for (R, E) {
     type Output = E;
 }
 
+impl ProductEncoding for (RR, RR) {
+    type Output = RRR;
+}
+
 impl<E: ReductionEncoding> ProductEncoding for (RInverse, E)
 where
     E::Output: ReductionEncoding,
@@ -87,11 +105,25 @@ impl ProductEncoding for (RR, RInverse) {
     type Output = <(RInverse, RR) as ProductEncoding>::Output;
 }
 
+impl ProductEncoding for (RRR, RInverse) {
+    type Output = <(RInverse, RRR) as ProductEncoding>::Output;
+}
+
 #[allow(unused_imports)]
-use {
-    super::n0::N0,
-    crate::{bssl, c, limb::Limb},
-};
+use crate::{bssl, c, limb::Limb};
+
+#[inline(always)]
+unsafe fn mul_mont(
+    r: *mut Limb,
+    a: *const Limb,
+    b: *const Limb,
+    n: *const Limb,
+    n0: &N0,
+    num_limbs: c::size_t,
+    _: cpu::Features,
+) {
+    bn_mul_mont(r, a, b, n, n0, num_limbs)
+}
 
 #[cfg(not(any(
     target_arch = "aarch64",
@@ -99,6 +131,8 @@ use {
     target_arch = "x86",
     target_arch = "x86_64"
 )))]
+// TODO: Stop calling this from C and un-export it.
+#[allow(deprecated)]
 prefixed_export! {
     unsafe fn bn_mul_mont(
         r: *mut Limb,
@@ -178,12 +212,7 @@ fn limbs_mul(r: &mut [Limb], a: &[Limb], b: &[Limb]) {
     r[..ab_len].fill(0);
     for (i, &b_limb) in b.iter().enumerate() {
         r[ab_len + i] = unsafe {
-            limbs_mul_add_limb(
-                (&mut r[i..][..ab_len]).as_mut_ptr(),
-                a.as_ptr(),
-                b_limb,
-                ab_len,
-            )
+            limbs_mul_add_limb(r[i..][..ab_len].as_mut_ptr(), a.as_ptr(), b_limb, ab_len)
         };
     }
 }
@@ -203,6 +232,89 @@ prefixed_extern! {
     fn limbs_mul_add_limb(r: *mut Limb, a: *const Limb, b: Limb, num_limbs: c::size_t) -> Limb;
 }
 
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "arm",
+    target_arch = "x86_64",
+    target_arch = "x86"
+))]
+prefixed_extern! {
+    // `r` and/or 'a' and/or 'b' may alias.
+    fn bn_mul_mont(
+        r: *mut Limb,
+        a: *const Limb,
+        b: *const Limb,
+        n: *const Limb,
+        n0: &N0,
+        num_limbs: c::size_t,
+    );
+}
+
+/// r *= a
+pub(super) fn limbs_mont_mul(
+    r: &mut [Limb],
+    a: &[Limb],
+    m: &[Limb],
+    n0: &N0,
+    cpu_features: cpu::Features,
+) {
+    debug_assert_eq!(r.len(), m.len());
+    debug_assert_eq!(a.len(), m.len());
+    unsafe {
+        mul_mont(
+            r.as_mut_ptr(),
+            r.as_ptr(),
+            a.as_ptr(),
+            m.as_ptr(),
+            n0,
+            r.len(),
+            cpu_features,
+        )
+    }
+}
+
+/// r = a * b
+#[cfg(not(target_arch = "x86_64"))]
+pub(super) fn limbs_mont_product(
+    r: &mut [Limb],
+    a: &[Limb],
+    b: &[Limb],
+    m: &[Limb],
+    n0: &N0,
+    cpu_features: cpu::Features,
+) {
+    debug_assert_eq!(r.len(), m.len());
+    debug_assert_eq!(a.len(), m.len());
+    debug_assert_eq!(b.len(), m.len());
+
+    unsafe {
+        mul_mont(
+            r.as_mut_ptr(),
+            a.as_ptr(),
+            b.as_ptr(),
+            m.as_ptr(),
+            n0,
+            r.len(),
+            cpu_features,
+        )
+    }
+}
+
+/// r = r**2
+pub(super) fn limbs_mont_square(r: &mut [Limb], m: &[Limb], n0: &N0, cpu_features: cpu::Features) {
+    debug_assert_eq!(r.len(), m.len());
+    unsafe {
+        mul_mont(
+            r.as_mut_ptr(),
+            r.as_ptr(),
+            r.as_ptr(),
+            m.as_ptr(),
+            n0,
+            r.len(),
+            cpu_features,
+        )
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -17,9 +17,18 @@
     allow(dead_code)
 )]
 
+// uclibc: When linked statically, uclibc doesn't provide getauxval.
+// When linked dynamically, recent versions do provide it, but we
+// want to support older versions too. Assume that if uclibc is being
+// used, this is an embedded target where the user cares a lot about
+// minimizing code size and also that they know in advance exactly
+// what target features are supported, so rely only on static feature
+// detection.
+
 #[cfg(all(
     any(target_os = "android", target_os = "linux"),
-    any(target_arch = "aarch64", target_arch = "arm")
+    any(target_arch = "aarch64", target_arch = "arm"),
+    not(target_env = "uclibc")
 ))]
 fn detect_features() -> u32 {
     use libc::c_ulong;
@@ -144,6 +153,19 @@ fn detect_features() -> u32 {
     features
 }
 
+#[cfg(all(
+    any(target_arch = "aarch64", target_arch = "arm"),
+    not(any(
+        target_os = "android",
+        target_os = "fuchsia",
+        all(target_os = "linux", not(target_env = "uclibc")),
+        target_os = "windows"
+    ))
+))]
+fn detect_features() -> u32 {
+    0
+}
+
 macro_rules! features {
     {
         $(
@@ -196,7 +218,7 @@ impl Feature {
             any(
                 target_os = "android",
                 target_os = "fuchsia",
-                target_os = "linux",
+                all(target_os = "linux", not(target_env = "uclibc")),
                 target_os = "windows"
             ),
             any(target_arch = "arm", target_arch = "aarch64")
@@ -246,16 +268,8 @@ features! {
 // - This may only be called from within `cpu::features()` and only while it is initializing its
 //   `INIT`.
 // - See the safety invariants of `OPENSSL_armcap_P` below.
-#[cfg(all(
-    any(target_arch = "aarch64", target_arch = "arm"),
-    any(
-        target_os = "android",
-        target_os = "fuchsia",
-        target_os = "linux",
-        target_os = "windows"
-    )
-))]
-pub unsafe fn initialize_OPENSSL_armcap_P() {
+#[cfg(any(target_arch = "aarch64", target_arch = "arm"))]
+pub unsafe fn init_global_shared_with_assembly() {
     let detected = detect_features();
     let filtered = (if cfg!(feature = "unstable-testing-arm-no-hw") {
         AES.mask | SHA256.mask | PMULL.mask
@@ -291,9 +305,8 @@ pub unsafe fn initialize_OPENSSL_armcap_P() {
 // TODO: Remove all the direct accesses of this from assembly language code, and then replace this
 // with a `OnceCell<u32>` that will provide all the necessary safety guarantees.
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-prefixed_export! {
-    #[allow(non_upper_case_globals)]
-    static mut OPENSSL_armcap_P: u32 = ARMCAP_STATIC;
+prefixed_extern! {
+    static mut OPENSSL_armcap_P: u32;
 }
 
 // MSRV: Enforce 1.61.0 on some aarch64-* targets (aarch64-apple-*, in particular) prior to. Earlier

@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.70.0"
 name = "anstyle-wincon"
-version = "2.1.0"
+version = "3.0.2"
 include = [
     "build.rs",
     "src/**/*",
@@ -87,7 +87,7 @@ version = "1.0.0"
 version = "0.3.0"
 
 [target."cfg(windows)".dependencies.windows-sys]
-version = "0.48.0"
+version = "0.52.0"
 features = [
     "Win32_System_Console",
     "Win32_Foundation",

@@ -237,7 +237,7 @@ impl ArgMatches {
     ///
     /// # Panics
     ///
-    /// If the argument definition and access mismatch. To handle this case programmatically, see
+    /// If the argument definition and access mismatch (debug builds). To handle this case programmatically, see
     /// [`ArgMatches::try_get_occurrences`].
     ///
     /// # Examples
@@ -490,7 +490,7 @@ impl ArgMatches {
     ///
     /// # Panics
     ///
-    /// If `id` is not a valid argument or group name.  To handle this case programmatically, see
+    /// If `id` is not a valid argument or group name (debug builds).  To handle this case programmatically, see
     /// [`ArgMatches::try_contains_id`].
     ///
     /// # Examples
@@ -514,7 +514,7 @@ impl ArgMatches {
         MatchesError::unwrap(id, self.try_contains_id(id))
     }
 
-    /// Iterate over [`Arg`][crate::Arg] and [`ArgGroup`][crate::ArgGroup] [`Id`][crate::Id]s via [`ArgMatches::ids`].
+    /// Iterate over [`Arg`][crate::Arg] and [`ArgGroup`][crate::ArgGroup] [`Id`]s via [`ArgMatches::ids`].
     ///
     /// # Examples
     ///
@@ -570,7 +570,7 @@ impl ArgMatches {
     ///
     /// # Panics
     ///
-    /// If `id` is not a valid argument or group id.
+    /// If `id` is not a valid argument or group id (debug builds).
     ///
     /// # Examples
     ///
@@ -617,7 +617,7 @@ impl ArgMatches {
     ///
     /// # Panics
     ///
-    /// If `id` is not a valid argument or group id.
+    /// If `id` is not a valid argument or group id (debug builds).
     ///
     /// # Examples
     ///
@@ -765,7 +765,7 @@ impl ArgMatches {
     ///
     /// # Panics
     ///
-    /// If `id` is not a valid argument or group id.
+    /// If `id` is not a valid argument or group id (debug builds).
     ///
     /// # Examples
     ///
@@ -969,7 +969,7 @@ impl ArgMatches {
     ///
     /// # Panics
     ///
-    /// If `id` is not a valid subcommand.
+    /// If `id` is not a valid subcommand (debug builds).
     ///
     /// # Examples
     ///
@@ -1325,7 +1325,7 @@ pub(crate) struct SubCommand {
     pub(crate) matches: ArgMatches,
 }
 
-/// Iterate over [`Arg`][crate::Arg] and [`ArgGroup`][crate::ArgGroup] [`Id`][crate::Id]s via [`ArgMatches::ids`].
+/// Iterate over [`Arg`][crate::Arg] and [`ArgGroup`][crate::ArgGroup] [`Id`]s via [`ArgMatches::ids`].
 ///
 /// # Examples
 ///

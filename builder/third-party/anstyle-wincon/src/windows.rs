@@ -1,25 +1,88 @@
+//! Low-level wincon-styling
+
 use std::os::windows::io::AsHandle;
 use std::os::windows::io::AsRawHandle;
 
+type StdioColorResult = std::io::Result<(anstyle::AnsiColor, anstyle::AnsiColor)>;
+type StdioColorInnerResult = Result<(anstyle::AnsiColor, anstyle::AnsiColor), inner::IoError>;
+
+/// Cached [`get_colors`] call for [`std::io::stdout`]
+pub fn stdout_initial_colors() -> StdioColorResult {
+    static INITIAL: std::sync::OnceLock<StdioColorInnerResult> = std::sync::OnceLock::new();
+    INITIAL
+        .get_or_init(|| get_colors_(&std::io::stdout()))
+        .clone()
+        .map_err(Into::into)
+}
+
+/// Cached [`get_colors`] call for [`std::io::stderr`]
+pub fn stderr_initial_colors() -> StdioColorResult {
+    static INITIAL: std::sync::OnceLock<StdioColorInnerResult> = std::sync::OnceLock::new();
+    INITIAL
+        .get_or_init(|| get_colors_(&std::io::stderr()))
+        .clone()
+        .map_err(Into::into)
+}
+
+/// Apply colors to future writes
+///
+/// **Note:** Make sure any buffers are first flushed or else these colors will apply
 pub fn set_colors<S: AsHandle>(
     stream: &mut S,
     fg: anstyle::AnsiColor,
     bg: anstyle::AnsiColor,
 ) -> std::io::Result<()> {
+    set_colors_(stream, fg, bg).map_err(Into::into)
+}
+
+fn set_colors_<S: AsHandle>(
+    stream: &mut S,
+    fg: anstyle::AnsiColor,
+    bg: anstyle::AnsiColor,
+) -> Result<(), inner::IoError> {
     let handle = stream.as_handle();
     let handle = handle.as_raw_handle();
     let attributes = inner::set_colors(fg, bg);
     inner::set_console_text_attributes(handle, attributes)
 }
 
-pub fn get_colors<S: AsHandle>(
-    stream: &S,
-) -> std::io::Result<(anstyle::AnsiColor, anstyle::AnsiColor)> {
+/// Get the colors currently active on the console
+pub fn get_colors<S: AsHandle>(stream: &S) -> StdioColorResult {
+    get_colors_(stream).map_err(Into::into)
+}
+
+fn get_colors_<S: AsHandle>(stream: &S) -> StdioColorInnerResult {
     let handle = stream.as_handle();
     let handle = handle.as_raw_handle();
     let info = inner::get_screen_buffer_info(handle)?;
     let (fg, bg) = inner::get_colors(&info);
     Ok((fg, bg))
+}
+
+pub(crate) fn write_colored<S: AsHandle + std::io::Write>(
+    stream: &mut S,
+    fg: Option<anstyle::AnsiColor>,
+    bg: Option<anstyle::AnsiColor>,
+    data: &[u8],
+    initial: StdioColorResult,
+) -> std::io::Result<usize> {
+    let (initial_fg, initial_bg) = initial?;
+    let non_default = fg.is_some() || bg.is_some();
+
+    if non_default {
+        let fg = fg.unwrap_or(initial_fg);
+        let bg = bg.unwrap_or(initial_bg);
+        // Ensure everything is written with the last set of colors before applying the next set
+        stream.flush()?;
+        set_colors(stream, fg, bg)?;
+    }
+    let written = stream.write(data)?;
+    if non_default {
+        // Ensure everything is written with the last set of colors before applying the next set
+        stream.flush()?;
+        set_colors(stream, initial_fg, initial_bg)?;
+    }
+    Ok(written)
 }
 
 mod inner {
@@ -38,16 +101,36 @@ mod inner {
     const FOREGROUND_WHITE: CONSOLE_CHARACTER_ATTRIBUTES =
         FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED;
 
-    pub fn get_screen_buffer_info(
+    #[derive(Copy, Clone, Debug)]
+    pub(crate) enum IoError {
+        BrokenPipe,
+        RawOs(i32),
+    }
+
+    impl From<IoError> for std::io::Error {
+        fn from(io: IoError) -> Self {
+            match io {
+                IoError::BrokenPipe => {
+                    std::io::Error::new(std::io::ErrorKind::BrokenPipe, "console is detached")
+                }
+                IoError::RawOs(code) => std::io::Error::from_raw_os_error(code),
+            }
+        }
+    }
+
+    impl IoError {
+        fn last_os_error() -> Self {
+            Self::RawOs(std::io::Error::last_os_error().raw_os_error().unwrap())
+        }
+    }
+
+    pub(crate) fn get_screen_buffer_info(
         handle: RawHandle,
-    ) -> std::io::Result<CONSOLE_SCREEN_BUFFER_INFO> {
+    ) -> Result<CONSOLE_SCREEN_BUFFER_INFO, IoError> {
         unsafe {
             let handle = std::mem::transmute(handle);
             if handle == 0 {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::BrokenPipe,
-                    "console is detached",
-                ));
+                return Err(IoError::BrokenPipe);
             }
 
             let mut info: CONSOLE_SCREEN_BUFFER_INFO = std::mem::zeroed();
@@ -56,34 +139,31 @@ mod inner {
             {
                 Ok(info)
             } else {
-                Err(std::io::Error::last_os_error())
+                Err(IoError::last_os_error())
             }
         }
     }
 
-    pub fn set_console_text_attributes(
+    pub(crate) fn set_console_text_attributes(
         handle: RawHandle,
         attributes: CONSOLE_CHARACTER_ATTRIBUTES,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), IoError> {
         unsafe {
             let handle = std::mem::transmute(handle);
             if handle == 0 {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::BrokenPipe,
-                    "console is detached",
-                ));
+                return Err(IoError::BrokenPipe);
             }
 
             if windows_sys::Win32::System::Console::SetConsoleTextAttribute(handle, attributes) != 0
             {
                 Ok(())
             } else {
-                Err(std::io::Error::last_os_error())
+                Err(IoError::last_os_error())
             }
         }
     }
 
-    pub fn get_colors(
+    pub(crate) fn get_colors(
         info: &CONSOLE_SCREEN_BUFFER_INFO,
     ) -> (anstyle::AnsiColor, anstyle::AnsiColor) {
         let attributes = info.wAttributes;
@@ -92,7 +172,7 @@ mod inner {
         (fg, bg)
     }
 
-    pub fn set_colors(
+    pub(crate) fn set_colors(
         fg: anstyle::AnsiColor,
         bg: anstyle::AnsiColor,
     ) -> CONSOLE_CHARACTER_ATTRIBUTES {

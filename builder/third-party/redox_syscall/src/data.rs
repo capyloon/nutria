@@ -149,6 +149,24 @@ pub struct SigAction {
     pub sa_mask: [u64; 2],
     pub sa_flags: SigActionFlags,
 }
+impl Deref for SigAction {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(self as *const SigAction as *const u8,
+                                  mem::size_of::<SigAction>())
+        }
+    }
+}
+
+impl DerefMut for SigAction {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        unsafe {
+            slice::from_raw_parts_mut(self as *mut SigAction as *mut u8,
+                                      mem::size_of::<SigAction>())
+        }
+    }
+}
 
 #[allow(dead_code)]
 unsafe fn _assert_size_of_function_is_sane() {
@@ -292,6 +310,47 @@ macro_rules! ptrace_event {
               )?
             )?
             ..Default::default()
+        }
+    }
+}
+
+bitflags::bitflags! {
+    #[derive(Default)]
+    pub struct GrantFlags: usize {
+        const GRANT_READ = 0x0000_0001;
+        const GRANT_WRITE = 0x0000_0002;
+        const GRANT_EXEC = 0x0000_0004;
+
+        const GRANT_SHARED = 0x0000_0008;
+        const GRANT_LAZY = 0x0000_0010;
+        const GRANT_SCHEME = 0x0000_0020;
+        const GRANT_PHYS = 0x0000_0040;
+        const GRANT_PINNED = 0x0000_0080;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct GrantDesc {
+    pub base: usize,
+    pub size: usize,
+    pub flags: GrantFlags,
+    pub offset: u64,
+}
+
+impl Deref for GrantDesc {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(self as *const GrantDesc as *const u8, mem::size_of::<GrantDesc>())
+        }
+    }
+}
+
+impl DerefMut for GrantDesc {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        unsafe {
+            slice::from_raw_parts_mut(self as *mut GrantDesc as *mut u8, mem::size_of::<GrantDesc>())
         }
     }
 }

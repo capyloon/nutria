@@ -1,7 +1,7 @@
 #![warn(rust_2018_idioms)]
 #![cfg(all(unix, feature = "full"))]
 
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, IntoRawFd, RawFd};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -132,7 +132,14 @@ fn socketpair() -> (FileDescriptor, FileDescriptor) {
         SockFlag::empty(),
     )
     .expect("socketpair");
-    let fds = (FileDescriptor { fd: fd_a }, FileDescriptor { fd: fd_b });
+    let fds = (
+        FileDescriptor {
+            fd: fd_a.into_raw_fd(),
+        },
+        FileDescriptor {
+            fd: fd_b.into_raw_fd(),
+        },
+    );
 
     set_nonblocking(fds.0.fd);
     set_nonblocking(fds.1.fd);
@@ -576,6 +583,23 @@ fn driver_shutdown_wakes_poll() {
 
     assert_err!(futures::executor::block_on(poll_readable(&afd_a)));
     assert_err!(futures::executor::block_on(poll_writable(&afd_a)));
+}
+
+#[test]
+fn driver_shutdown_then_clear_readiness() {
+    let rt = rt();
+
+    let (a, _b) = socketpair();
+    let afd_a = {
+        let _enter = rt.enter();
+        AsyncFd::new(a).unwrap()
+    };
+
+    let mut write_ready = rt.block_on(afd_a.writable()).unwrap();
+
+    std::mem::drop(rt);
+
+    write_ready.clear_ready();
 }
 
 #[test]

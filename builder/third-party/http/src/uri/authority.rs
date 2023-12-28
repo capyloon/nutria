@@ -69,12 +69,13 @@ impl Authority {
     // Postcondition: for all Ok() returns, s[..ret.unwrap()] is valid UTF-8 where
     // ret is the return value.
     pub(super) fn parse(s: &[u8]) -> Result<usize, InvalidUri> {
-        let mut colon_cnt = 0;
+        let mut colon_cnt = 0u32;
         let mut start_bracket = false;
         let mut end_bracket = false;
         let mut has_percent = false;
         let mut end = s.len();
         let mut at_sign_pos = None;
+        const MAX_COLONS: u32 = 8; // e.g., [FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:80
 
         // Among other things, this loop checks that every byte in s up to the
         // first '/', '?', or '#' is a valid URI character (or in some contexts,
@@ -87,6 +88,9 @@ impl Authority {
                     break;
                 }
                 b':' => {
+                    if colon_cnt >= MAX_COLONS {
+                        return Err(ErrorKind::InvalidAuthority.into());
+                    }
                     colon_cnt += 1;
                 }
                 b'[' => {
@@ -97,7 +101,7 @@ impl Authority {
                     start_bracket = true;
                 }
                 b']' => {
-                    if end_bracket {
+                    if (!start_bracket) || end_bracket {
                         return Err(ErrorKind::InvalidAuthority.into());
                     }
                     end_bracket = true;
@@ -645,6 +649,12 @@ mod tests {
     }
 
     #[test]
+    fn reject_obviously_invalid_ipv6_address() {
+        let err = Authority::parse_non_empty(b"[0:1:2:3:4:5:6:7:8:9:10:11:12:13:14]").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    }
+
+    #[test]
     fn rejects_percent_outside_ipv6_address() {
         let err = Authority::parse_non_empty(b"1234%20[fe80::1:2:3:4]").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
@@ -658,14 +668,17 @@ mod tests {
         let err = Authority::try_from([0xc0u8].as_ref()).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
 
-        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref()))
-            .unwrap_err();
+        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref())).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
     }
 
     #[test]
     fn rejects_invalid_use_of_brackets() {
         let err = Authority::parse_non_empty(b"[]@[").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+
+        // reject tie-fighter
+        let err = Authority::parse_non_empty(b"]o[").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
     }
 }

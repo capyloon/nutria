@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #![allow(unused_macros)]
 
 use core::sync::atomic::Ordering;
@@ -435,12 +437,9 @@ macro_rules! __test_atomic_int {
                 assert_eq!(a.load(Ordering::Relaxed), 1);
                 assert_eq!(a.fetch_max(0, order), 1);
                 assert_eq!(a.load(Ordering::Relaxed), 1);
-                let a = <$atomic_type>::new((0 as $int_type).wrapping_sub(1));
-                assert_eq!(a.fetch_max(0, order), (0 as $int_type).wrapping_sub(1));
-                assert_eq!(
-                    a.load(Ordering::Relaxed),
-                    core::cmp::max((0 as $int_type).wrapping_sub(1), 0)
-                );
+                let a = <$atomic_type>::new(!0);
+                assert_eq!(a.fetch_max(0, order), !0);
+                assert_eq!(a.load(Ordering::Relaxed), core::cmp::max(!0, 0));
             }
         }
         #[test]
@@ -458,12 +457,9 @@ macro_rules! __test_atomic_int {
                 assert_eq!(a.load(Ordering::Relaxed), 0);
                 assert_eq!(a.fetch_min(1, order), 0);
                 assert_eq!(a.load(Ordering::Relaxed), 0);
-                let a = <$atomic_type>::new((0 as $int_type).wrapping_sub(1));
-                assert_eq!(a.fetch_min(0, order), (0 as $int_type).wrapping_sub(1));
-                assert_eq!(
-                    a.load(Ordering::Relaxed),
-                    core::cmp::min((0 as $int_type).wrapping_sub(1), 0)
-                );
+                let a = <$atomic_type>::new(!0);
+                assert_eq!(a.fetch_min(0, order), !0);
+                assert_eq!(a.load(Ordering::Relaxed), core::cmp::min(!0, 0));
             }
         }
         #[test]
@@ -493,8 +489,8 @@ macro_rules! __test_atomic_int {
             for &order in &test_helper::SWAP_ORDERINGS {
                 let a = <$atomic_type>::new(5);
                 assert_eq!(a.fetch_neg(order), 5);
-                assert_eq!(a.load(Ordering::Relaxed), (5 as $int_type).wrapping_neg());
-                assert_eq!(a.fetch_neg(order), (5 as $int_type).wrapping_neg());
+                assert_eq!(a.load(Ordering::Relaxed), <$int_type>::wrapping_neg(5));
+                assert_eq!(a.fetch_neg(order), <$int_type>::wrapping_neg(5));
                 assert_eq!(a.load(Ordering::Relaxed), 5);
                 let a = <$atomic_type>::new(<$int_type>::MIN);
                 assert_eq!(a.fetch_neg(order), <$int_type>::MIN);
@@ -510,7 +506,7 @@ macro_rules! __test_atomic_int {
             for &order in &test_helper::SWAP_ORDERINGS {
                 let a = <$atomic_type>::new(5);
                 a.neg(order);
-                assert_eq!(a.load(Ordering::Relaxed), (5 as $int_type).wrapping_neg());
+                assert_eq!(a.load(Ordering::Relaxed), <$int_type>::wrapping_neg(5));
                 a.neg(order);
                 assert_eq!(a.load(Ordering::Relaxed), 5);
                 let a = <$atomic_type>::new(<$int_type>::MIN);
@@ -780,7 +776,7 @@ macro_rules! __test_atomic_int {
                 for &order in &test_helper::SWAP_ORDERINGS {
                     let a = <$atomic_type>::new(x);
                     let b = a.bit_set(bit, order);
-                    let mask = (1 as $int_type).wrapping_shl(bit);
+                    let mask = <$int_type>::wrapping_shl(1, bit);
                     assert_eq!(a.load(Ordering::Relaxed), x | mask);
                     assert_eq!(b, x & mask != 0);
                 }
@@ -790,7 +786,7 @@ macro_rules! __test_atomic_int {
                 for &order in &test_helper::SWAP_ORDERINGS {
                     let a = <$atomic_type>::new(x);
                     let b = a.bit_clear(bit, order);
-                    let mask = (1 as $int_type).wrapping_shl(bit);
+                    let mask = <$int_type>::wrapping_shl(1, bit);
                     assert_eq!(a.load(Ordering::Relaxed), x & !mask);
                     assert_eq!(b, x & mask != 0);
                 }
@@ -800,7 +796,7 @@ macro_rules! __test_atomic_int {
                 for &order in &test_helper::SWAP_ORDERINGS {
                     let a = <$atomic_type>::new(x);
                     let b = a.bit_toggle(bit, order);
-                    let mask = (1 as $int_type).wrapping_shl(bit);
+                    let mask = <$int_type>::wrapping_shl(1, bit);
                     assert_eq!(a.load(Ordering::Relaxed), x ^ mask);
                     assert_eq!(b, x & mask != 0);
                 }
@@ -1401,12 +1397,24 @@ macro_rules! __test_atomic_ptr {
 macro_rules! __test_atomic_int_load_store_pub {
     ($atomic_type:ty, $int_type:ident) => {
         __test_atomic_pub_common!($atomic_type, $int_type);
+        use std::{boxed::Box, mem};
         #[test]
         fn impls() {
             let a = <$atomic_type>::default();
             let b = <$atomic_type>::from(0);
             assert_eq!(a.load(Ordering::SeqCst), b.load(Ordering::SeqCst));
             assert_eq!(std::format!("{:?}", a), std::format!("{:?}", a.load(Ordering::SeqCst)));
+
+            unsafe {
+                let ptr: *mut Align16<$int_type> = Box::into_raw(Box::new(Align16(0)));
+                assert!(ptr as usize % mem::align_of::<$atomic_type>() == 0);
+                {
+                    let a = <$atomic_type>::from_ptr(ptr.cast::<$int_type>());
+                    *a.as_ptr() = 1;
+                }
+                assert_eq!((*ptr).0, 1);
+                drop(Box::from_raw(ptr));
+            }
         }
     };
 }
@@ -1460,6 +1468,7 @@ macro_rules! __test_atomic_int_pub {
 macro_rules! __test_atomic_float_pub {
     ($atomic_type:ty, $float_type:ident) => {
         __test_atomic_pub_common!($atomic_type, $float_type);
+        use std::{boxed::Box, mem};
         #[test]
         fn fetch_update() {
             let a = <$atomic_type>::new(7.0);
@@ -1478,12 +1487,24 @@ macro_rules! __test_atomic_float_pub {
             let b = <$atomic_type>::from(0.0);
             assert_eq!(a.load(Ordering::SeqCst), b.load(Ordering::SeqCst));
             assert_eq!(std::format!("{:?}", a), std::format!("{:?}", a.load(Ordering::SeqCst)));
+
+            unsafe {
+                let ptr: *mut Align16<$float_type> = Box::into_raw(Box::new(Align16(0.0)));
+                assert!(ptr as usize % mem::align_of::<$atomic_type>() == 0);
+                {
+                    let a = <$atomic_type>::from_ptr(ptr.cast::<$float_type>());
+                    *a.as_ptr() = 1.0;
+                }
+                assert_eq!((*ptr).0, 1.0);
+                drop(Box::from_raw(ptr));
+            }
         }
     };
 }
 macro_rules! __test_atomic_bool_pub {
     ($atomic_type:ty) => {
         __test_atomic_pub_common!($atomic_type, bool);
+        use std::{boxed::Box, mem};
         #[test]
         fn fetch_nand() {
             let a = <$atomic_type>::new(true);
@@ -1548,6 +1569,17 @@ macro_rules! __test_atomic_bool_pub {
             let b = <$atomic_type>::from(false);
             assert_eq!(a.load(Ordering::SeqCst), b.load(Ordering::SeqCst));
             assert_eq!(std::format!("{:?}", a), std::format!("{:?}", a.load(Ordering::SeqCst)));
+
+            unsafe {
+                let ptr: *mut bool = Box::into_raw(Box::new(false));
+                assert!(ptr as usize % mem::align_of::<$atomic_type>() == 0);
+                {
+                    let a = <$atomic_type>::from_ptr(ptr);
+                    *a.as_ptr() = true;
+                }
+                assert_eq!((*ptr), true);
+                drop(Box::from_raw(ptr));
+            }
         }
     };
 }
@@ -1555,6 +1587,7 @@ macro_rules! __test_atomic_ptr_pub {
     ($atomic_type:ty) => {
         __test_atomic_pub_common!($atomic_type, *mut u8);
         use sptr::Strict;
+        use std::{boxed::Box, mem};
         #[test]
         fn fetch_update() {
             let a = <$atomic_type>::new(ptr::null_mut());
@@ -1576,6 +1609,17 @@ macro_rules! __test_atomic_ptr_pub {
             assert_eq!(a.load(Ordering::SeqCst), b.load(Ordering::SeqCst));
             assert_eq!(std::format!("{:?}", a), std::format!("{:?}", a.load(Ordering::SeqCst)));
             assert_eq!(std::format!("{:p}", a), std::format!("{:p}", a.load(Ordering::SeqCst)));
+
+            unsafe {
+                let ptr: *mut Align16<*mut u8> = Box::into_raw(Box::new(Align16(ptr::null_mut())));
+                assert!(ptr as usize % mem::align_of::<$atomic_type>() == 0);
+                {
+                    let a = <$atomic_type>::from_ptr(ptr.cast::<*mut u8>());
+                    *a.as_ptr() = ptr::null_mut::<u8>().wrapping_add(1);
+                }
+                assert_eq!((*ptr).0, ptr::null_mut::<u8>().wrapping_add(1));
+                drop(Box::from_raw(ptr));
+            }
         }
         // https://github.com/rust-lang/rust/blob/1.70.0/library/core/tests/atomic.rs#L130-L213
         #[test]
@@ -1954,20 +1998,7 @@ macro_rules! assert_float_op_eq {
     }};
 }
 
-pub(crate) trait FloatExt: Copy {
-    fn epsilon(&self) -> Self;
-}
-impl FloatExt for f32 {
-    fn epsilon(&self) -> Self {
-        Self::EPSILON
-    }
-}
-impl FloatExt for f64 {
-    fn epsilon(&self) -> Self {
-        Self::EPSILON
-    }
-}
-
+#[allow(clippy::disallowed_methods)] // set_var/remove_var is fine as we run tests with RUST_TEST_THREADS=1
 #[cfg_attr(not(portable_atomic_no_track_caller), track_caller)]
 pub(crate) fn assert_panic<T: std::fmt::Debug>(f: impl FnOnce() -> T) -> std::string::String {
     let backtrace = std::env::var_os("RUST_BACKTRACE");
@@ -2088,6 +2119,9 @@ fn is_panic_abort() -> bool {
     build_context::PANIC.contains("abort")
 }
 
+#[repr(C, align(16))]
+pub(crate) struct Align16<T>(pub(crate) T);
+
 // Test the cases that should not fail if the memory ordering is implemented correctly.
 // This is still not exhaustive and only tests a few cases.
 // This currently only supports 32-bit or more integers.
@@ -2105,7 +2139,7 @@ macro_rules! __stress_test_acquire_release {
         paste::paste! {
             // Currently, to make this test work well enough outside of Miri, tens of thousands
             // of iterations are needed, but this test is slow in some environments.
-            // So, ignore on non-Miri environments by default.
+            // So, ignore on non-Miri environments by default. See also catch_unwind_on_weak_memory_arch.
             #[test]
             #[cfg_attr(not(miri), ignore)]
             fn [<load_ $load_order:lower _ $write _ $store_order:lower>]() {
@@ -2168,7 +2202,7 @@ macro_rules! __stress_test_seqcst {
             // Currently, to make this test work well enough outside of Miri, tens of thousands
             // of iterations are needed, but this test is very slow in some environments because
             // it creates two threads for each iteration.
-            // So, ignore on non-Miri environments by default.
+            // So, ignore on non-Miri environments by default. See also catch_unwind_on_non_seqcst_arch.
             #[test]
             #[cfg_attr(not(miri), ignore)]
             fn [<load_ $load_order:lower _ $write _ $store_order:lower>]() {

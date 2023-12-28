@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.70.0"
 name = "clap_derive"
-version = "4.4.2"
+version = "4.4.7"
 include = [
     "build.rs",
     "src/**/*",

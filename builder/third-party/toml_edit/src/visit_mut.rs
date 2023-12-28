@@ -45,6 +45,8 @@
 //! 2 decimal points.
 //!
 //! ```
+//! # #[cfg(feature = "parse")] {
+//! # #[cfg(feature = "display")] {
 //! # use toml_edit::*;
 //! use toml_edit::visit_mut::*;
 //!
@@ -80,10 +82,12 @@
 //! "#;
 //!
 //! assert_eq!(format!("{}", document), output);
+//! # }
+//! # }
 //! ```
 //!
 //! For a more complex example where the visitor has internal state, see `examples/visit.rs`
-//! [on GitHub](https://github.com/ordian/toml_edit/blob/master/examples/visit.rs).
+//! [on GitHub](https://github.com/toml-rs/toml/blob/main/crates/toml_edit/examples/visit.rs).
 
 use crate::{
     Array, ArrayOfTables, Datetime, Document, Formatted, InlineTable, Item, KeyMut, Table,

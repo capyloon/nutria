@@ -1,3 +1,15 @@
+# Version 0.9.17
+
+- Remove dependency on `memoffset`. (#1058)
+
+# Version 0.9.16
+
+- Bump the minimum supported Rust version to 1.61. (#1037)
+- Improve support for targets without atomic CAS. (#1037)
+- Remove build script. (#1037)
+- Remove dependency on `scopeguard`. (#1045)
+- Update `loom` dependency to 0.7.
+
 # Version 0.9.15
 
 - Update `memoffset` to 0.9. (#981)

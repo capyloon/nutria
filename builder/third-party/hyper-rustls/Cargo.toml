@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.63"
 name = "hyper-rustls"
-version = "0.24.1"
+version = "0.24.2"
 description = "Rustls+hyper integration for pure rust HTTPS"
 homepage = "https://github.com/rustls/hyper-rustls"
 documentation = "https://docs.rs/hyper-rustls/"
@@ -46,6 +46,7 @@ required-features = [
 
 [dependencies.futures-util]
 version = "0.3"
+default-features = false
 
 [dependencies.http]
 version = "0.2"
@@ -60,7 +61,7 @@ version = "0.4.4"
 optional = true
 
 [dependencies.rustls]
-version = "0.21.0"
+version = "0.21.6"
 default-features = false
 
 [dependencies.rustls-native-certs]
@@ -75,12 +76,8 @@ version = "0.24.0"
 default-features = false
 
 [dependencies.webpki-roots]
-version = "0.23"
+version = "0.25"
 optional = true
-
-[dev-dependencies.futures-util]
-version = "0.3.1"
-default-features = false
 
 [dev-dependencies.hyper]
 version = "0.14"

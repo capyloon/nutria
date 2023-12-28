@@ -227,7 +227,7 @@ bitflags! {
         /// `MOVE_MOUNT__MASK`
         const MOVE_MOUNT_SET_GROUP = 0x0000_0100;
 
-        // TODO: add when linux 6.5 is released
+        // TODO: add when Linux 6.5 is released
         // /// `MOVE_MOUNT_BENEATH`
         // const MOVE_MOUNT_BENEATH = 0x0000_0200;
 
@@ -299,9 +299,9 @@ bitflags! {
 
 #[cfg(linux_kernel)]
 bitflags! {
-    /// `MS_*` constants for use with [`change_mount`].
+    /// `MS_*` constants for use with [`mount_change`].
     ///
-    /// [`change_mount`]: crate::mount::change_mount
+    /// [`mount_change`]: crate::mount::mount_change
     #[repr(transparent)]
     #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
     pub struct MountPropagationFlags: c::c_ulong {

@@ -7,7 +7,7 @@ use crate::trace::trace;
 use crate::trace::trace_result;
 use crate::*;
 
-/// Implementation of [`Parser::by_ref`][Parser::by_ref]
+/// Implementation of [`Parser::by_ref`]
 #[cfg_attr(nightly, warn(rustdoc::missing_doc_code_examples))]
 pub struct ByRef<'p, P> {
     p: &'p mut P,
@@ -35,7 +35,7 @@ where
 pub struct Map<F, G, I, O, O2, E>
 where
     F: Parser<I, O, E>,
-    G: Fn(O) -> O2,
+    G: FnMut(O) -> O2,
 {
     parser: F,
     map: G,
@@ -48,7 +48,7 @@ where
 impl<F, G, I, O, O2, E> Map<F, G, I, O, O2, E>
 where
     F: Parser<I, O, E>,
-    G: Fn(O) -> O2,
+    G: FnMut(O) -> O2,
 {
     #[inline(always)]
     pub(crate) fn new(parser: F, map: G) -> Self {
@@ -66,7 +66,7 @@ where
 impl<F, G, I, O, O2, E> Parser<I, O2, E> for Map<F, G, I, O, O2, E>
 where
     F: Parser<I, O, E>,
-    G: Fn(O) -> O2,
+    G: FnMut(O) -> O2,
 {
     #[inline]
     fn parse_next(&mut self, i: &mut I) -> PResult<O2, E> {
@@ -393,7 +393,7 @@ where
 pub struct Verify<F, G, I, O, O2, E>
 where
     F: Parser<I, O, E>,
-    G: Fn(&O2) -> bool,
+    G: FnMut(&O2) -> bool,
     I: Stream,
     O: Borrow<O2>,
     O2: ?Sized,
@@ -410,7 +410,7 @@ where
 impl<F, G, I, O, O2, E> Verify<F, G, I, O, O2, E>
 where
     F: Parser<I, O, E>,
-    G: Fn(&O2) -> bool,
+    G: FnMut(&O2) -> bool,
     I: Stream,
     O: Borrow<O2>,
     O2: ?Sized,
@@ -432,7 +432,7 @@ where
 impl<F, G, I, O, O2, E> Parser<I, O, E> for Verify<F, G, I, O, O2, E>
 where
     F: Parser<I, O, E>,
-    G: Fn(&O2) -> bool,
+    G: FnMut(&O2) -> bool,
     I: Stream,
     O: Borrow<O2>,
     O2: ?Sized,
@@ -490,6 +490,48 @@ where
     #[inline]
     fn parse_next(&mut self, input: &mut I) -> PResult<O2, E> {
         (self.parser).parse_next(input).map(|_| self.val.clone())
+    }
+}
+
+/// Implementation of [`Parser::default_value`]
+#[cfg_attr(nightly, warn(rustdoc::missing_doc_code_examples))]
+pub struct DefaultValue<F, I, O, O2, E>
+where
+    F: Parser<I, O, E>,
+    O2: core::default::Default,
+{
+    parser: F,
+    o2: core::marker::PhantomData<O2>,
+    i: core::marker::PhantomData<I>,
+    o: core::marker::PhantomData<O>,
+    e: core::marker::PhantomData<E>,
+}
+
+impl<F, I, O, O2, E> DefaultValue<F, I, O, O2, E>
+where
+    F: Parser<I, O, E>,
+    O2: core::default::Default,
+{
+    #[inline(always)]
+    pub(crate) fn new(parser: F) -> Self {
+        Self {
+            parser,
+            o2: Default::default(),
+            i: Default::default(),
+            o: Default::default(),
+            e: Default::default(),
+        }
+    }
+}
+
+impl<F, I, O, O2, E> Parser<I, O2, E> for DefaultValue<F, I, O, O2, E>
+where
+    F: Parser<I, O, E>,
+    O2: core::default::Default,
+{
+    #[inline]
+    fn parse_next(&mut self, input: &mut I) -> PResult<O2, E> {
+        (self.parser).parse_next(input).map(|_| O2::default())
     }
 }
 

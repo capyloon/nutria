@@ -18,7 +18,7 @@ use core::ops::{
 };
 use core::u32;
 
-use crate::convert::{FromWasmAbi, WasmSlice};
+use crate::convert::{FromWasmAbi, TryFromJsValue, WasmRet, WasmSlice};
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -28,14 +28,14 @@ macro_rules! if_std {
 
 macro_rules! externs {
     ($(#[$attr:meta])* extern "C" { $(fn $name:ident($($args:tt)*) -> $ret:ty;)* }) => (
-        #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+        #[cfg(all(target_arch = "wasm32", not(any(target_os = "emscripten", target_os = "wasi"))))]
         $(#[$attr])*
         extern "C" {
             $(fn $name($($args)*) -> $ret;)*
         }
 
         $(
-            #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+            #[cfg(not(all(target_arch = "wasm32", not(any(target_os = "emscripten", target_os = "wasi")))))]
             #[allow(unused_variables)]
             unsafe extern fn $name($($args)*) -> $ret {
                 panic!("function not implemented on non-wasm32 targets")
@@ -71,7 +71,6 @@ pub mod describe;
 
 mod cast;
 pub use crate::cast::{JsCast, JsObject};
-use convert::WasmOption;
 
 if_std! {
     extern crate std;
@@ -265,7 +264,7 @@ impl JsValue {
     /// `None`.
     #[inline]
     pub fn as_f64(&self) -> Option<f64> {
-        unsafe { FromWasmAbi::from_abi(__wbindgen_number_get(self.idx)) }
+        unsafe { __wbindgen_number_get(self.idx).join() }
     }
 
     /// Tests whether this JS value is a JS string.
@@ -805,6 +804,28 @@ if_std! {
             JsValue::from_str(&s)
         }
     }
+
+    impl TryFrom<JsValue> for String {
+        type Error = JsValue;
+
+        fn try_from(value: JsValue) -> Result<Self, Self::Error> {
+            match value.as_string() {
+                Some(s) => Ok(s),
+                None => Err(value),
+            }
+        }
+    }
+
+    impl TryFromJsValue for String {
+        type Error = JsValue;
+
+        fn try_from_js_value(value: JsValue) -> Result<Self, Self::Error> {
+            match value.as_string() {
+                Some(s) => Ok(s),
+                None => Err(value),
+            }
+        }
+    }
 }
 
 impl From<bool> for JsValue {
@@ -899,7 +920,7 @@ macro_rules! big_numbers {
 }
 
 fn bigint_get_as_i64(v: &JsValue) -> Option<i64> {
-    unsafe { Option::from_abi(__wbindgen_bigint_get_as_i64(v.idx)) }
+    unsafe { __wbindgen_bigint_get_as_i64(v.idx).join() }
 }
 
 macro_rules! try_from_for_num64 {
@@ -1046,10 +1067,10 @@ externs! {
         fn __wbindgen_ge(a: u32, b: u32) -> u32;
         fn __wbindgen_gt(a: u32, b: u32) -> u32;
 
-        fn __wbindgen_number_get(idx: u32) -> WasmOption<f64>;
+        fn __wbindgen_number_get(idx: u32) -> WasmRet<Option<f64>>;
         fn __wbindgen_boolean_get(idx: u32) -> u32;
         fn __wbindgen_string_get(idx: u32) -> WasmSlice;
-        fn __wbindgen_bigint_get_as_i64(idx: u32) -> WasmOption<i64>;
+        fn __wbindgen_bigint_get_as_i64(idx: u32) -> WasmRet<Option<i64>>;
 
         fn __wbindgen_debug_string(ret: *mut [usize; 2], idx: u32) -> ();
 
@@ -1324,7 +1345,10 @@ pub trait UnwrapThrowExt<T>: Sized {
 impl<T> UnwrapThrowExt<T> for Option<T> {
     #[cfg_attr(debug_assertions, track_caller)]
     fn expect_throw(self, message: &str) -> T {
-        if cfg!(all(target_arch = "wasm32", not(target_os = "emscripten"))) {
+        if cfg!(all(
+            target_arch = "wasm32",
+            not(any(target_os = "emscripten", target_os = "wasi"))
+        )) {
             match self {
                 Some(val) => val,
                 None => throw_str(message),
@@ -1341,7 +1365,10 @@ where
 {
     #[cfg_attr(debug_assertions, track_caller)]
     fn expect_throw(self, message: &str) -> T {
-        if cfg!(all(target_arch = "wasm32", not(target_os = "emscripten"))) {
+        if cfg!(all(
+            target_arch = "wasm32",
+            not(any(target_os = "emscripten", target_os = "wasi"))
+        )) {
             match self {
                 Ok(val) => val,
                 Err(_) => throw_str(message),
@@ -1352,13 +1379,9 @@ where
     }
 }
 
-/// Returns a handle to this wasm instance's `WebAssembly.Module`
-///
-/// Note that this is only available when the final wasm app is built with
-/// `--target no-modules`, it's not recommended to rely on this API yet! This is
-/// largely just an experimental addition to enable threading demos. Using this
-/// may prevent your wasm module from building down the road.
-#[doc(hidden)]
+/// Returns a handle to this Wasm instance's `WebAssembly.Module`.
+/// This is only available when the final Wasm app is built with
+/// `--target no-modules` or `--target web`.
 pub fn module() -> JsValue {
     unsafe { JsValue::_new(__wbindgen_module()) }
 }

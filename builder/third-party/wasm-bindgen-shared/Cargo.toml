@@ -11,9 +11,9 @@
 
 [package]
 edition = "2018"
-rust-version = "1.56"
+rust-version = "1.57"
 name = "wasm-bindgen-shared"
-version = "0.2.87"
+version = "0.2.89"
 authors = ["The wasm-bindgen Developers"]
 links = "wasm_bindgen"
 description = """
@@ -22,6 +22,6 @@ dependency.
 """
 homepage = "https://rustwasm.github.io/wasm-bindgen/"
 documentation = "https://docs.rs/wasm-bindgen-shared"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/rustwasm/wasm-bindgen/tree/master/crates/shared"
 resolver = "2"

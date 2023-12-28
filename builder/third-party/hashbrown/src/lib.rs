@@ -81,6 +81,7 @@ mod map;
 mod rustc_entry;
 mod scopeguard;
 mod set;
+mod table;
 
 pub mod hash_map {
     //! A hash map implemented with quadratic probing and SIMD lookup.
@@ -113,10 +114,30 @@ pub mod hash_set {
         pub use crate::external_trait_impls::rayon::set::*;
     }
 }
+pub mod hash_table {
+    //! A hash table implemented with quadratic probing and SIMD lookup.
+    pub use crate::table::*;
+
+    #[cfg(feature = "rayon")]
+    /// [rayon]-based parallel iterator types for hash tables.
+    /// You will rarely need to interact with it directly unless you have need
+    /// to name one of the iterator types.
+    ///
+    /// [rayon]: https://docs.rs/rayon/1.0/rayon
+    pub mod rayon {
+        pub use crate::external_trait_impls::rayon::table::*;
+    }
+}
 
 pub use crate::map::HashMap;
 pub use crate::set::HashSet;
+pub use crate::table::HashTable;
 
+#[cfg(feature = "equivalent")]
+pub use equivalent::Equivalent;
+
+// This is only used as a fallback when building as part of `std`.
+#[cfg(not(feature = "equivalent"))]
 /// Key equivalence trait.
 ///
 /// This trait defines the function used to compare the input value with the
@@ -140,6 +161,7 @@ pub trait Equivalent<K: ?Sized> {
     fn equivalent(&self, key: &K) -> bool;
 }
 
+#[cfg(not(feature = "equivalent"))]
 impl<Q: ?Sized, K: ?Sized> Equivalent<K> for Q
 where
     Q: Eq,

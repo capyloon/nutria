@@ -29,6 +29,7 @@ pub(crate) use linux_raw_sys::general::epoll_event;
         not(feature = "use-explicitly-provided-auxv"),
         any(
             feature = "param",
+            feature = "process",
             feature = "runtime",
             feature = "time",
             target_arch = "x86",
@@ -142,6 +143,8 @@ pub(crate) const EXIT_SUCCESS: c_int = 0;
 pub(crate) const EXIT_FAILURE: c_int = 1;
 #[cfg(feature = "process")]
 pub(crate) const EXIT_SIGNALED_SIGABRT: c_int = 128 + linux_raw_sys::general::SIGABRT as c_int;
+#[cfg(feature = "runtime")]
+pub(crate) const CLONE_CHILD_SETTID: c_int = linux_raw_sys::general::CLONE_CHILD_SETTID as c_int;
 
 #[cfg(feature = "process")]
 pub(crate) use linux_raw_sys::{
@@ -266,6 +269,14 @@ pub(crate) const CLOCK_THREAD_CPUTIME_ID: c_int =
     linux_raw_sys::general::CLOCK_THREAD_CPUTIME_ID as _;
 pub(crate) const CLOCK_PROCESS_CPUTIME_ID: c_int =
     linux_raw_sys::general::CLOCK_PROCESS_CPUTIME_ID as _;
+#[cfg(any(feature = "thread", feature = "time", target_arch = "x86"))]
+pub(crate) const CLOCK_BOOTTIME: c_int = linux_raw_sys::general::CLOCK_BOOTTIME as _;
+#[cfg(any(feature = "thread", feature = "time", target_arch = "x86"))]
+pub(crate) const CLOCK_BOOTTIME_ALARM: c_int = linux_raw_sys::general::CLOCK_BOOTTIME_ALARM as _;
+#[cfg(any(feature = "thread", feature = "time", target_arch = "x86"))]
+pub(crate) const CLOCK_TAI: c_int = linux_raw_sys::general::CLOCK_TAI as _;
+#[cfg(any(feature = "thread", feature = "time", target_arch = "x86"))]
+pub(crate) const CLOCK_REALTIME_ALARM: c_int = linux_raw_sys::general::CLOCK_REALTIME_ALARM as _;
 
 #[cfg(feature = "system")]
 mod reboot_symbols {

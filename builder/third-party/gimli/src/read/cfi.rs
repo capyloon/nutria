@@ -1,5 +1,5 @@
 #[cfg(feature = "read")]
-use alloc::vec::Vec;
+use alloc::boxed::Box;
 
 use core::cmp::{Ord, Ordering};
 use core::fmt::{self, Debug};
@@ -1588,6 +1588,24 @@ where
             get_cie,
         )
     }
+
+    /// Get the offset of this entry from the start of its containing section.
+    pub fn offset(&self) -> R::Offset {
+        self.offset
+    }
+
+    /// Get the offset of this FDE's CIE.
+    pub fn cie_offset(&self) -> Section::Offset {
+        self.cie_offset
+    }
+
+    /// > A constant that gives the number of bytes of the header and
+    /// > instruction stream for this function, not including the length field
+    /// > itself (see Section 7.2.2). The size of the length field plus the value
+    /// > of length must be an integral multiple of the address size.
+    pub fn entry_len(&self) -> R::Offset {
+        self.length
+    }
 }
 
 /// A `FrameDescriptionEntry` is a set of CFA instructions for an address range.
@@ -1894,11 +1912,13 @@ pub trait UnwindContextStorage<R: Reader>: Sized {
 
 #[cfg(feature = "read")]
 const MAX_RULES: usize = 192;
+#[cfg(feature = "read")]
+const MAX_UNWIND_STACK_DEPTH: usize = 4;
 
 #[cfg(feature = "read")]
 impl<R: Reader> UnwindContextStorage<R> for StoreOnHeap {
     type Rules = [(Register, RegisterRule<R>); MAX_RULES];
-    type Stack = Vec<UnwindTableRow<R, Self>>;
+    type Stack = Box<[UnwindTableRow<R, Self>; MAX_UNWIND_STACK_DEPTH]>;
 }
 
 /// Common context needed when evaluating the call frame unwinding information.
@@ -1994,9 +2014,8 @@ impl<R: Reader, A: UnwindContextStorage<R>> UnwindContext<R, A> {
         bases: &BaseAddresses,
         cie: &CommonInformationEntry<R>,
     ) -> Result<()> {
-        if self.is_initialized {
-            self.reset();
-        }
+        // Always reset because previous initialization failure may leave dirty state.
+        self.reset();
 
         let mut table = UnwindTable::new_for_cie(section, bases, self, cie);
         while table.next_row()?.is_some() {}
@@ -3142,7 +3161,7 @@ pub enum CallFrameInstruction<R: Reader> {
     /// >
     /// > AArch64 Extension
     /// >
-    /// > The DW_CFA_AARCH64_negate_ra_state operation negates bit[0] of the
+    /// > The DW_CFA_AARCH64_negate_ra_state operation negates bit 0 of the
     /// > RA_SIGN_STATE pseudo-register. It does not take any operands. The
     /// > DW_CFA_AARCH64_negate_ra_state must not be mixed with other DWARF Register
     /// > Rule Instructions on the RA_SIGN_STATE pseudo-register in one Common
@@ -5872,6 +5891,98 @@ mod tests {
         // All done!
         assert_eq!(Ok(None), table.next_row());
         assert_eq!(Ok(None), table.next_row());
+    }
+
+    #[test]
+    fn test_unwind_table_cie_invalid_rule() {
+        let initial_instructions1 = Section::with_endian(Endian::Little)
+            // Test that stack length is reset.
+            .D8(constants::DW_CFA_remember_state.0)
+            // Test that stack value is reset (different register from that used later).
+            .D8(constants::DW_CFA_offset.0 | 4)
+            .uleb(8)
+            // Invalid due to missing operands.
+            .D8(constants::DW_CFA_offset.0);
+        let initial_instructions1 = initial_instructions1.get_contents().unwrap();
+
+        let cie1 = CommonInformationEntry {
+            offset: 0,
+            length: 0,
+            format: Format::Dwarf32,
+            version: 4,
+            augmentation: None,
+            address_size: 8,
+            segment_size: 0,
+            code_alignment_factor: 1,
+            data_alignment_factor: 1,
+            return_address_register: Register(3),
+            initial_instructions: EndianSlice::new(&initial_instructions1, LittleEndian),
+        };
+
+        let initial_instructions2 = Section::with_endian(Endian::Little)
+            // Register 3 is 4 from the CFA.
+            .D8(constants::DW_CFA_offset.0 | 3)
+            .uleb(4)
+            .append_repeated(constants::DW_CFA_nop.0, 4);
+        let initial_instructions2 = initial_instructions2.get_contents().unwrap();
+
+        let cie2 = CommonInformationEntry {
+            offset: 0,
+            length: 0,
+            format: Format::Dwarf32,
+            version: 4,
+            augmentation: None,
+            address_size: 8,
+            segment_size: 0,
+            code_alignment_factor: 1,
+            data_alignment_factor: 1,
+            return_address_register: Register(3),
+            initial_instructions: EndianSlice::new(&initial_instructions2, LittleEndian),
+        };
+
+        let fde1 = FrameDescriptionEntry {
+            offset: 0,
+            length: 0,
+            format: Format::Dwarf32,
+            cie: cie1.clone(),
+            initial_segment: 0,
+            initial_address: 0,
+            address_range: 100,
+            augmentation: None,
+            instructions: EndianSlice::new(&[], LittleEndian),
+        };
+
+        let fde2 = FrameDescriptionEntry {
+            offset: 0,
+            length: 0,
+            format: Format::Dwarf32,
+            cie: cie2.clone(),
+            initial_segment: 0,
+            initial_address: 0,
+            address_range: 100,
+            augmentation: None,
+            instructions: EndianSlice::new(&[], LittleEndian),
+        };
+
+        let section = &DebugFrame::from(EndianSlice::default());
+        let bases = &BaseAddresses::default();
+        let mut ctx = Box::new(UnwindContext::new());
+
+        let table = fde1
+            .rows(section, bases, &mut ctx)
+            .map_eof(&initial_instructions1);
+        assert_eq!(table.err(), Some(Error::UnexpectedEof(ReaderOffsetId(4))));
+        assert!(!ctx.is_initialized);
+        assert_eq!(ctx.stack.len(), 2);
+        assert_eq!(ctx.initial_rule, None);
+
+        let _table = fde2
+            .rows(section, bases, &mut ctx)
+            .expect("Should run initial program OK");
+        assert!(ctx.is_initialized);
+        assert_eq!(ctx.stack.len(), 1);
+        let expected_initial_rule = (Register(3), RegisterRule::Offset(4));
+        assert_eq!(ctx.initial_rule, Some(expected_initial_rule));
     }
 
     #[test]

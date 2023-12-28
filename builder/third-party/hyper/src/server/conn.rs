@@ -68,6 +68,12 @@ cfg_feature! {
 
     use std::error::Error as StdError;
     use std::fmt;
+    use std::task::{Context, Poll};
+    use std::pin::Pin;
+    use std::future::Future;
+    use std::marker::Unpin;
+    #[cfg(not(all(feature = "http1", feature = "http2")))]
+    use std::convert::Infallible;
 
     use bytes::Bytes;
     use pin_project_lite::pin_project;
@@ -76,9 +82,6 @@ cfg_feature! {
 
     pub use super::server::Connecting;
     use crate::body::{Body, HttpBody};
-    use crate::common::{task, Future, Pin, Poll, Unpin};
-    #[cfg(not(all(feature = "http1", feature = "http2")))]
-    use crate::common::Never;
     use crate::common::exec::{ConnStreamExec, Exec};
     use crate::proto;
     use crate::service::HttpService;
@@ -156,14 +159,14 @@ type Http1Dispatcher<T, B, S> =
     proto::h1::Dispatcher<proto::h1::dispatch::Server<S, Body>, B, T, proto::ServerTransaction>;
 
 #[cfg(all(not(feature = "http1"), feature = "http2"))]
-type Http1Dispatcher<T, B, S> = (Never, PhantomData<(T, Box<Pin<B>>, Box<Pin<S>>)>);
+type Http1Dispatcher<T, B, S> = (Infallible, PhantomData<(T, Box<Pin<B>>, Box<Pin<S>>)>);
 
 #[cfg(feature = "http2")]
 type Http2Server<T, B, S, E> = proto::h2::Server<Rewind<T>, S, B, E>;
 
 #[cfg(all(not(feature = "http2"), feature = "http1"))]
 type Http2Server<T, B, S, E> = (
-    Never,
+    Infallible,
     PhantomData<(T, Box<Pin<S>>, Box<Pin<B>>, Box<Pin<E>>)>,
 );
 
@@ -805,7 +808,7 @@ where
     /// upgrade. Once the upgrade is completed, the connection would be "done",
     /// but it is not desired to actually shutdown the IO object. Instead you
     /// would take it back using `into_parts`.
-    pub fn poll_without_shutdown(&mut self, cx: &mut task::Context<'_>) -> Poll<crate::Result<()>> {
+    pub fn poll_without_shutdown(&mut self, cx: &mut Context<'_>) -> Poll<crate::Result<()>> {
         loop {
             match *self.conn.as_mut().unwrap() {
                 #[cfg(feature = "http1")]
@@ -901,7 +904,7 @@ where
 {
     type Output = crate::Result<()>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         loop {
             match ready!(Pin::new(self.conn.as_mut().unwrap()).poll(cx)) {
                 Ok(done) => {
@@ -980,7 +983,7 @@ where
 {
     type Output = crate::Result<proto::Dispatched>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match self.project() {
             #[cfg(feature = "http1")]
             ProtoServerProj::H1 { h1, .. } => h1.poll(cx),
@@ -1041,7 +1044,7 @@ mod upgrades {
     {
         type Output = crate::Result<()>;
 
-        fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
             loop {
                 match ready!(Pin::new(self.inner.conn.as_mut().unwrap()).poll(cx)) {
                     Ok(proto::Dispatched::Shutdown) => return Poll::Ready(Ok(())),

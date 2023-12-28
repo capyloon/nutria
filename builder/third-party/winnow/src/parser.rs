@@ -1,5 +1,6 @@
 //! Basic types to build the parsers
 
+use crate::ascii::Caseless as AsciiCaseless;
 use crate::combinator::*;
 use crate::error::{AddContext, FromExternalError, IResult, PResult, ParseError, ParserError};
 use crate::stream::{AsChar, Compare, Location, ParseSlice, Stream, StreamIsPartial};
@@ -91,7 +92,7 @@ pub trait Parser<I, O, E> {
     ///
     /// # Example
     ///
-    /// Because parsers are `FnMut`, they can be called multiple times.  This prevents moving `f`
+    /// Because parsers are `FnMut`, they can be called multiple times. This prevents moving `f`
     /// into [`length_data`][crate::binary::length_data] and `g` into
     /// [`Parser::complete_err`]:
     /// ```rust,compile_fail
@@ -161,6 +162,30 @@ pub trait Parser<I, O, E> {
         Value::new(self, val)
     }
 
+    /// Produce a type's default value
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use winnow::{error::ErrMode,error::ErrorKind, error::InputError, Parser};
+    /// use winnow::ascii::alpha1;
+    /// # fn main() {
+    ///
+    /// let mut parser = alpha1.default_value::<u32>();
+    ///
+    /// assert_eq!(parser.parse_peek("abcd"), Ok(("", 0)));
+    /// assert_eq!(parser.parse_peek("123abcd;"), Err(ErrMode::Backtrack(InputError::new("123abcd;", ErrorKind::Slice))));
+    /// # }
+    /// ```
+    #[inline(always)]
+    fn default_value<O2>(self) -> DefaultValue<Self, I, O, O2, E>
+    where
+        Self: core::marker::Sized,
+        O2: core::default::Default,
+    {
+        DefaultValue::new(self)
+    }
+
     /// Discards the output of the `Parser`
     ///
     /// # Example
@@ -194,11 +219,11 @@ pub trait Parser<I, O, E> {
     /// use winnow::ascii::alpha1;
     /// # fn main() {
     ///
-    ///  fn parser1<'s>(i: &mut &'s str) -> PResult<&'s str, InputError<&'s str>> {
-    ///    alpha1(i)
-    ///  }
+    /// fn parser1<'s>(i: &mut &'s str) -> PResult<&'s str, InputError<&'s str>> {
+    ///   alpha1(i)
+    /// }
     ///
-    ///  let mut parser2 = parser1.output_into();
+    /// let mut parser2 = parser1.output_into();
     ///
     /// // the parser converts the &str output of the child parser into a Vec<u8>
     /// let bytes: IResult<&str, Vec<u8>> = parser2.parse_peek("abcd");
@@ -381,7 +406,7 @@ pub trait Parser<I, O, E> {
     #[inline(always)]
     fn map<G, O2>(self, map: G) -> Map<Self, G, I, O, O2, E>
     where
-        G: Fn(O) -> O2,
+        G: FnMut(O) -> O2,
         Self: core::marker::Sized,
     {
         Map::new(self, map)
@@ -580,7 +605,7 @@ pub trait Parser<I, O, E> {
     fn verify<G, O2>(self, filter: G) -> Verify<Self, G, I, O, O2, E>
     where
         Self: core::marker::Sized,
-        G: Fn(&O2) -> bool,
+        G: FnMut(&O2) -> bool,
         I: Stream,
         O: crate::lib::std::borrow::Borrow<O2>,
         O2: ?Sized,
@@ -742,6 +767,38 @@ where
 /// # use winnow::{error::ErrMode, error::{InputError, ErrorKind}, error::Needed};
 /// # use winnow::combinator::alt;
 /// # use winnow::token::take;
+/// use winnow::ascii::Caseless;
+///
+/// fn parser<'s>(s: &mut &'s [u8]) -> PResult<&'s [u8], InputError<&'s [u8]>> {
+///   alt((Caseless(&"hello"[..]), take(5usize))).parse_next(s)
+/// }
+///
+/// assert_eq!(parser.parse_peek(&b"Hello, World!"[..]), Ok((&b", World!"[..], &b"Hello"[..])));
+/// assert_eq!(parser.parse_peek(&b"hello, World!"[..]), Ok((&b", World!"[..], &b"hello"[..])));
+/// assert_eq!(parser.parse_peek(&b"HeLlo, World!"[..]), Ok((&b", World!"[..], &b"HeLlo"[..])));
+/// assert_eq!(parser.parse_peek(&b"Something"[..]), Ok((&b"hing"[..], &b"Somet"[..])));
+/// assert_eq!(parser.parse_peek(&b"Some"[..]), Err(ErrMode::Backtrack(InputError::new(&b"Some"[..], ErrorKind::Slice))));
+/// assert_eq!(parser.parse_peek(&b""[..]), Err(ErrMode::Backtrack(InputError::new(&b""[..], ErrorKind::Slice))));
+/// ```
+impl<'s, I, E: ParserError<I>> Parser<I, <I as Stream>::Slice, E> for AsciiCaseless<&'s [u8]>
+where
+    I: Compare<AsciiCaseless<&'s [u8]>> + StreamIsPartial,
+    I: Stream,
+{
+    #[inline(always)]
+    fn parse_next(&mut self, i: &mut I) -> PResult<<I as Stream>::Slice, E> {
+        crate::token::tag(*self).parse_next(i)
+    }
+}
+
+/// This is a shortcut for [`tag`][crate::token::tag].
+///
+/// # Example
+/// ```rust
+/// # use winnow::prelude::*;
+/// # use winnow::{error::ErrMode, error::{InputError, ErrorKind}, error::Needed};
+/// # use winnow::combinator::alt;
+/// # use winnow::token::take;
 ///
 /// fn parser<'s>(s: &mut &'s [u8]) -> PResult<&'s [u8], InputError<&'s [u8]>> {
 ///   alt((b"Hello", take(5usize))).parse_next(s)
@@ -755,6 +812,39 @@ where
 impl<'s, I, E: ParserError<I>, const N: usize> Parser<I, <I as Stream>::Slice, E> for &'s [u8; N]
 where
     I: Compare<&'s [u8; N]> + StreamIsPartial,
+    I: Stream,
+{
+    #[inline(always)]
+    fn parse_next(&mut self, i: &mut I) -> PResult<<I as Stream>::Slice, E> {
+        crate::token::tag(*self).parse_next(i)
+    }
+}
+
+/// This is a shortcut for [`tag`][crate::token::tag].
+///
+/// # Example
+/// ```rust
+/// # use winnow::prelude::*;
+/// # use winnow::{error::ErrMode, error::{InputError, ErrorKind}, error::Needed};
+/// # use winnow::combinator::alt;
+/// # use winnow::token::take;
+/// use winnow::ascii::Caseless;
+///
+/// fn parser<'s>(s: &mut &'s [u8]) -> PResult<&'s [u8], InputError<&'s [u8]>> {
+///   alt((Caseless(b"hello"), take(5usize))).parse_next(s)
+/// }
+///
+/// assert_eq!(parser.parse_peek(&b"Hello, World!"[..]), Ok((&b", World!"[..], &b"Hello"[..])));
+/// assert_eq!(parser.parse_peek(&b"hello, World!"[..]), Ok((&b", World!"[..], &b"hello"[..])));
+/// assert_eq!(parser.parse_peek(&b"HeLlo, World!"[..]), Ok((&b", World!"[..], &b"HeLlo"[..])));
+/// assert_eq!(parser.parse_peek(&b"Something"[..]), Ok((&b"hing"[..], &b"Somet"[..])));
+/// assert_eq!(parser.parse_peek(&b"Some"[..]), Err(ErrMode::Backtrack(InputError::new(&b"Some"[..], ErrorKind::Slice))));
+/// assert_eq!(parser.parse_peek(&b""[..]), Err(ErrMode::Backtrack(InputError::new(&b""[..], ErrorKind::Slice))));
+/// ```
+impl<'s, I, E: ParserError<I>, const N: usize> Parser<I, <I as Stream>::Slice, E>
+    for AsciiCaseless<&'s [u8; N]>
+where
+    I: Compare<AsciiCaseless<&'s [u8; N]>> + StreamIsPartial,
     I: Stream,
 {
     #[inline(always)]
@@ -784,6 +874,38 @@ where
 impl<'s, I, E: ParserError<I>> Parser<I, <I as Stream>::Slice, E> for &'s str
 where
     I: Compare<&'s str> + StreamIsPartial,
+    I: Stream,
+{
+    #[inline(always)]
+    fn parse_next(&mut self, i: &mut I) -> PResult<<I as Stream>::Slice, E> {
+        crate::token::tag(*self).parse_next(i)
+    }
+}
+
+/// This is a shortcut for [`tag`][crate::token::tag].
+///
+/// # Example
+/// ```rust
+/// # use winnow::prelude::*;
+/// # use winnow::{error::ErrMode, error::{InputError, ErrorKind}};
+/// # use winnow::combinator::alt;
+/// # use winnow::token::take;
+/// # use winnow::ascii::Caseless;
+///
+/// fn parser<'s>(s: &mut &'s str) -> PResult<&'s str, InputError<&'s str>> {
+///   alt((Caseless("hello"), take(5usize))).parse_next(s)
+/// }
+///
+/// assert_eq!(parser.parse_peek("Hello, World!"), Ok((", World!", "Hello")));
+/// assert_eq!(parser.parse_peek("hello, World!"), Ok((", World!", "hello")));
+/// assert_eq!(parser.parse_peek("HeLlo, World!"), Ok((", World!", "HeLlo")));
+/// assert_eq!(parser.parse_peek("Something"), Ok(("hing", "Somet")));
+/// assert_eq!(parser.parse_peek("Some"), Err(ErrMode::Backtrack(InputError::new("Some", ErrorKind::Slice))));
+/// assert_eq!(parser.parse_peek(""), Err(ErrMode::Backtrack(InputError::new("", ErrorKind::Slice))));
+/// ```
+impl<'s, I, E: ParserError<I>> Parser<I, <I as Stream>::Slice, E> for AsciiCaseless<&'s str>
+where
+    I: Compare<AsciiCaseless<&'s str>> + StreamIsPartial,
     I: Stream,
 {
     #[inline(always)]

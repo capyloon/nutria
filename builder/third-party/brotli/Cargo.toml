@@ -11,16 +11,26 @@
 
 [package]
 name = "brotli"
-version = "3.3.4"
-authors = ["Daniel Reiter Horn <danielrh@dropbox.com>", "The Brotli Authors"]
+version = "3.4.0"
+authors = [
+    "Daniel Reiter Horn <danielrh@dropbox.com>",
+    "The Brotli Authors",
+]
 autobins = false
 description = "A brotli compressor and decompressor that with an interface avoiding the rust stdlib. This makes it suitable for embedded devices and kernels. It is designed with a pluggable allocator so that the standard lib's allocator may be employed. The default build also includes a stdlib allocator and stream interface. Disable this with --features=no-stdlib. All included code is safe."
 homepage = "https://github.com/dropbox/rust-brotli"
 documentation = "https://docs.rs/brotli/"
 readme = "README.md"
-keywords = ["brotli", "decompression", "lz77", "huffman", "nostd"]
+keywords = [
+    "brotli",
+    "decompression",
+    "lz77",
+    "huffman",
+    "nostd",
+]
 license = "BSD-3-Clause/MIT"
 repository = "https://github.com/dropbox/rust-brotli"
+
 [profile.release]
 lto = true
 incremental = false
@@ -32,6 +42,7 @@ doc = false
 [[bin]]
 name = "catbrotli"
 doc = false
+
 [dependencies.alloc-no-stdlib]
 version = "2.0"
 
@@ -40,26 +51,27 @@ version = "~0.2"
 optional = true
 
 [dependencies.brotli-decompressor]
-version = "~2.3"
+version = "~2.5"
 default-features = false
 
-[dependencies.packed_simd_2]
-version = "0.3"
-optional = true
-
 [dependencies.sha2]
-version = "~0.8"
+version = "~0.10"
 optional = true
 
 [features]
 benchmark = ["brotli-decompressor/benchmark"]
-default = ["std", "ffi-api"]
+default = [
+    "std",
+    "ffi-api",
+]
 disable-timer = ["brotli-decompressor/disable-timer"]
 external-literal-probability = []
 ffi-api = []
 pass-through-ffi-panics = []
 seccomp = ["brotli-decompressor/seccomp"]
-simd = ["packed_simd_2/into_bits"]
-std = ["alloc-stdlib", "brotli-decompressor/std"]
+std = [
+    "alloc-stdlib",
+    "brotli-decompressor/std",
+]
 validation = ["sha2"]
 vector_scratch_space = []

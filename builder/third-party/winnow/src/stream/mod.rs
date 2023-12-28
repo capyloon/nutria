@@ -9,8 +9,10 @@
 //! - [`Partial`] can mark an input as partial buffer that is being streamed into
 //! - [Custom stream types][crate::_topic::stream]
 
+use core::hash::BuildHasher;
 use core::num::NonZeroUsize;
 
+use crate::ascii::Caseless as AsciiCaseless;
 use crate::error::Needed;
 use crate::lib::std::iter::{Cloned, Enumerate};
 use crate::lib::std::slice::Iter;
@@ -24,8 +26,12 @@ use crate::error::ErrMode;
 
 #[cfg(feature = "alloc")]
 use crate::lib::std::collections::BTreeMap;
+#[cfg(feature = "alloc")]
+use crate::lib::std::collections::BTreeSet;
 #[cfg(feature = "std")]
 use crate::lib::std::collections::HashMap;
+#[cfg(feature = "std")]
+use crate::lib::std::collections::HashSet;
 #[cfg(feature = "alloc")]
 use crate::lib::std::string::String;
 #[cfg(feature = "alloc")]
@@ -88,8 +94,18 @@ impl BStr {
 
 /// Allow collecting the span of a parsed token
 ///
+/// Spans are tracked as a [`Range<usize>`] of byte offsets.
+///
+/// Converting byte offsets to line or column numbers is left up to the user, as computing column
+/// numbers requires domain knowledge (are columns byte-based, codepoint-based, or grapheme-based?)
+/// and O(n) iteration over the input to determine codepoint and line boundaries.
+///
+/// [The `line-span` crate](https://docs.rs/line-span/latest/line_span/) can help with converting
+/// byte offsets to line numbers.
+///
 /// See [`Parser::span`][crate::Parser::span] and [`Parser::with_span`][crate::Parser::with_span] for more details
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[doc(alias = "LocatedSpan")]
 pub struct Located<I> {
     initial: I,
     input: I,
@@ -171,6 +187,7 @@ impl<I: crate::lib::std::fmt::Display> crate::lib::std::fmt::Display for Located
 /// assert_eq!(state.get(), 1);
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[doc(alias = "LocatedSpan")]
 pub struct Stateful<I, S> {
     /// Inner input being wrapped in state
     pub input: I,
@@ -202,7 +219,7 @@ impl<I: crate::lib::std::fmt::Display, S> crate::lib::std::fmt::Display for Stat
 
 /// Mark the input as a partial buffer for streaming input.
 ///
-/// Complete input means that we already have all of the data.  This will be the common case with
+/// Complete input means that we already have all of the data. This will be the common case with
 /// small files that can be read entirely to memory.
 ///
 /// In contrast, streaming input assumes that we might not have all of the data.
@@ -322,6 +339,13 @@ pub trait SliceLen {
     fn slice_len(&self) -> usize;
 }
 
+impl<S: SliceLen> SliceLen for AsciiCaseless<S> {
+    #[inline(always)]
+    fn slice_len(&self) -> usize {
+        self.0.slice_len()
+    }
+}
+
 impl<'a, T> SliceLen for &'a [T] {
     #[inline]
     fn slice_len(&self) -> usize {
@@ -423,7 +447,8 @@ pub trait Stream: Offset<<Self as Stream>::Checkpoint> + crate::lib::std::fmt::D
 
     /// Iterate with the offset from the current location
     fn iter_offsets(&self) -> Self::IterOffsets;
-    /// Returns the offaet to the end of the input
+
+    /// Returns the offset to the end of the input
     fn eof_offset(&self) -> usize;
 
     /// Split off the next token from the input
@@ -450,7 +475,7 @@ pub trait Stream: Offset<<Self as Stream>::Checkpoint> + crate::lib::std::fmt::D
     /// Split off a slice of tokens from the input
     ///
     /// **NOTE:** For inputs with variable width tokens, like `&str`'s `char`, `offset` might not correspond
-    /// with the number of tokens.  To get a valid offset, use:
+    /// with the number of tokens. To get a valid offset, use:
     /// - [`Stream::eof_offset`]
     /// - [`Stream::iter_offsets`]
     /// - [`Stream::offset_for`]
@@ -1276,7 +1301,10 @@ where
 
 /// Useful functions to calculate the offset between slices and show a hexdump of a slice
 pub trait Offset<Start = Self> {
-    /// Offset between the first byte of `start` and the first byte of `self`
+    /// Offset between the first byte of `start` and the first byte of `self`a
+    ///
+    /// **Note:** This is an offset, not an index, and may point to the end of input
+    /// (`start.len()`) when `self` is exhausted.
     fn offset_from(&self, start: &Start) -> usize;
 }
 
@@ -1288,9 +1316,9 @@ impl<'a, T> Offset for &'a [T] {
 
         debug_assert!(
             fst <= snd,
-            "`Offset::offset_to` only accepts slices of `self`"
+            "`Offset::offset_from({snd:?}, {fst:?})` only accepts slices of `self`"
         );
-        snd as usize - fst as usize
+        (snd as usize - fst as usize) / crate::lib::std::mem::size_of::<T>()
     }
 }
 
@@ -1567,46 +1595,49 @@ pub trait Compare<T> {
     /// by lowercasing both strings and comparing
     /// the result. This is a temporary solution until
     /// a better one appears
+    #[deprecated(since = "0.5.20", note = "Replaced with `compare(ascii::Caseless(_))`")]
     fn compare_no_case(&self, t: T) -> CompareResult;
-}
-
-fn lowercase_byte(c: u8) -> u8 {
-    match c {
-        b'A'..=b'Z' => c - b'A' + b'a',
-        _ => c,
-    }
 }
 
 impl<'a, 'b> Compare<&'b [u8]> for &'a [u8] {
     #[inline]
     fn compare(&self, t: &'b [u8]) -> CompareResult {
-        let pos = self.iter().zip(t.iter()).position(|(a, b)| a != b);
-
-        match pos {
-            Some(_) => CompareResult::Error,
-            None => {
-                if self.len() >= t.len() {
-                    CompareResult::Ok
-                } else {
-                    CompareResult::Incomplete
-                }
-            }
-        }
-    }
-
-    #[inline]
-    fn compare_no_case(&self, t: &'b [u8]) -> CompareResult {
-        if self
-            .iter()
-            .zip(t)
-            .any(|(a, b)| lowercase_byte(*a) != lowercase_byte(*b))
-        {
+        if t.iter().zip(*self).any(|(a, b)| a != b) {
             CompareResult::Error
-        } else if self.len() < t.len() {
+        } else if self.len() < t.slice_len() {
             CompareResult::Incomplete
         } else {
             CompareResult::Ok
         }
+    }
+
+    #[inline(always)]
+    #[allow(deprecated)]
+    fn compare_no_case(&self, t: &'b [u8]) -> CompareResult {
+        self.compare(AsciiCaseless(t))
+    }
+}
+
+impl<'a, 'b> Compare<AsciiCaseless<&'b [u8]>> for &'a [u8] {
+    #[inline]
+    fn compare(&self, t: AsciiCaseless<&'b [u8]>) -> CompareResult {
+        if t.0
+            .iter()
+            .zip(*self)
+            .any(|(a, b)| !a.eq_ignore_ascii_case(b))
+        {
+            CompareResult::Error
+        } else if self.len() < t.slice_len() {
+            CompareResult::Incomplete
+        } else {
+            CompareResult::Ok
+        }
+    }
+
+    #[inline(always)]
+    #[allow(deprecated)]
+    fn compare_no_case(&self, t: AsciiCaseless<&'b [u8]>) -> CompareResult {
+        self.compare(t)
     }
 }
 
@@ -1617,8 +1648,22 @@ impl<'a, const LEN: usize> Compare<[u8; LEN]> for &'a [u8] {
     }
 
     #[inline(always)]
+    #[allow(deprecated)]
     fn compare_no_case(&self, t: [u8; LEN]) -> CompareResult {
         self.compare_no_case(&t[..])
+    }
+}
+
+impl<'a, const LEN: usize> Compare<AsciiCaseless<[u8; LEN]>> for &'a [u8] {
+    #[inline(always)]
+    fn compare(&self, t: AsciiCaseless<[u8; LEN]>) -> CompareResult {
+        self.compare(AsciiCaseless(&t.0[..]))
+    }
+
+    #[inline(always)]
+    #[allow(deprecated)]
+    fn compare_no_case(&self, t: AsciiCaseless<[u8; LEN]>) -> CompareResult {
+        self.compare_no_case(AsciiCaseless(&t.0[..]))
     }
 }
 
@@ -1629,8 +1674,22 @@ impl<'a, 'b, const LEN: usize> Compare<&'b [u8; LEN]> for &'a [u8] {
     }
 
     #[inline(always)]
+    #[allow(deprecated)]
     fn compare_no_case(&self, t: &'b [u8; LEN]) -> CompareResult {
         self.compare_no_case(&t[..])
+    }
+}
+
+impl<'a, 'b, const LEN: usize> Compare<AsciiCaseless<&'b [u8; LEN]>> for &'a [u8] {
+    #[inline(always)]
+    fn compare(&self, t: AsciiCaseless<&'b [u8; LEN]>) -> CompareResult {
+        self.compare(AsciiCaseless(&t.0[..]))
+    }
+
+    #[inline(always)]
+    #[allow(deprecated)]
+    fn compare_no_case(&self, t: AsciiCaseless<&'b [u8; LEN]>) -> CompareResult {
+        self.compare_no_case(AsciiCaseless(&t.0[..]))
     }
 }
 
@@ -1640,8 +1699,21 @@ impl<'a, 'b> Compare<&'b str> for &'a [u8] {
         self.compare(t.as_bytes())
     }
     #[inline(always)]
+    #[allow(deprecated)]
     fn compare_no_case(&self, t: &'b str) -> CompareResult {
         self.compare_no_case(t.as_bytes())
+    }
+}
+
+impl<'a, 'b> Compare<AsciiCaseless<&'b str>> for &'a [u8] {
+    #[inline(always)]
+    fn compare(&self, t: AsciiCaseless<&'b str>) -> CompareResult {
+        self.compare(AsciiCaseless(t.0.as_bytes()))
+    }
+    #[inline(always)]
+    #[allow(deprecated)]
+    fn compare_no_case(&self, t: AsciiCaseless<&'b str>) -> CompareResult {
+        self.compare_no_case(AsciiCaseless(t.0.as_bytes()))
     }
 }
 
@@ -1651,24 +1723,23 @@ impl<'a, 'b> Compare<&'b str> for &'a str {
         self.as_bytes().compare(t.as_bytes())
     }
 
-    //FIXME: this version is too simple and does not use the current locale
     #[inline]
+    #[allow(deprecated)]
     fn compare_no_case(&self, t: &'b str) -> CompareResult {
-        let pos = self
-            .chars()
-            .zip(t.chars())
-            .position(|(a, b)| a.to_lowercase().ne(b.to_lowercase()));
+        self.compare(AsciiCaseless(t))
+    }
+}
 
-        match pos {
-            Some(_) => CompareResult::Error,
-            None => {
-                if self.len() >= t.len() {
-                    CompareResult::Ok
-                } else {
-                    CompareResult::Incomplete
-                }
-            }
-        }
+impl<'a, 'b> Compare<AsciiCaseless<&'b str>> for &'a str {
+    #[inline(always)]
+    fn compare(&self, t: AsciiCaseless<&'b str>) -> CompareResult {
+        self.as_bytes().compare(t.as_bytes())
+    }
+
+    #[inline(always)]
+    #[allow(deprecated)]
+    fn compare_no_case(&self, t: AsciiCaseless<&'b str>) -> CompareResult {
+        self.compare(t)
     }
 }
 
@@ -1678,7 +1749,20 @@ impl<'a, 'b> Compare<&'b [u8]> for &'a str {
         AsBStr::as_bstr(self).compare(t)
     }
     #[inline(always)]
+    #[allow(deprecated)]
     fn compare_no_case(&self, t: &'b [u8]) -> CompareResult {
+        AsBStr::as_bstr(self).compare_no_case(t)
+    }
+}
+
+impl<'a, 'b> Compare<AsciiCaseless<&'b [u8]>> for &'a str {
+    #[inline(always)]
+    fn compare(&self, t: AsciiCaseless<&'b [u8]>) -> CompareResult {
+        AsBStr::as_bstr(self).compare(t)
+    }
+    #[inline(always)]
+    #[allow(deprecated)]
+    fn compare_no_case(&self, t: AsciiCaseless<&'b [u8]>) -> CompareResult {
         AsBStr::as_bstr(self).compare_no_case(t)
     }
 }
@@ -1694,6 +1778,7 @@ where
     }
 
     #[inline(always)]
+    #[allow(deprecated)]
     fn compare_no_case(&self, t: T) -> CompareResult {
         let bytes = (*self).as_bytes();
         bytes.compare_no_case(t)
@@ -1711,6 +1796,7 @@ where
     }
 
     #[inline(always)]
+    #[allow(deprecated)]
     fn compare_no_case(&self, t: T) -> CompareResult {
         let bytes = (*self).as_bytes();
         bytes.compare_no_case(t)
@@ -1727,6 +1813,7 @@ where
     }
 
     #[inline(always)]
+    #[allow(deprecated)]
     fn compare_no_case(&self, other: U) -> CompareResult {
         self.input.compare_no_case(other)
     }
@@ -1742,6 +1829,7 @@ where
     }
 
     #[inline(always)]
+    #[allow(deprecated)]
     fn compare_no_case(&self, other: U) -> CompareResult {
         self.input.compare_no_case(other)
     }
@@ -1757,6 +1845,7 @@ where
     }
 
     #[inline(always)]
+    #[allow(deprecated)]
     fn compare_no_case(&self, t: T) -> CompareResult {
         self.input.compare_no_case(t)
     }
@@ -1775,10 +1864,52 @@ impl<'i, 's> FindSlice<&'s [u8]> for &'i [u8] {
     }
 }
 
+impl<'i, 's> FindSlice<(&'s [u8],)> for &'i [u8] {
+    #[inline(always)]
+    fn find_slice(&self, substr: (&'s [u8],)) -> Option<usize> {
+        memmem(self, substr.0)
+    }
+}
+
+impl<'i, 's> FindSlice<(&'s [u8], &'s [u8])> for &'i [u8] {
+    #[inline(always)]
+    fn find_slice(&self, substr: (&'s [u8], &'s [u8])) -> Option<usize> {
+        memmem2(self, substr)
+    }
+}
+
+impl<'i, 's> FindSlice<(&'s [u8], &'s [u8], &'s [u8])> for &'i [u8] {
+    #[inline(always)]
+    fn find_slice(&self, substr: (&'s [u8], &'s [u8], &'s [u8])) -> Option<usize> {
+        memmem3(self, substr)
+    }
+}
+
 impl<'i> FindSlice<u8> for &'i [u8] {
     #[inline(always)]
     fn find_slice(&self, substr: u8) -> Option<usize> {
         memchr(substr, self)
+    }
+}
+
+impl<'i> FindSlice<(u8,)> for &'i [u8] {
+    #[inline(always)]
+    fn find_slice(&self, substr: (u8,)) -> Option<usize> {
+        memchr(substr.0, self)
+    }
+}
+
+impl<'i> FindSlice<(u8, u8)> for &'i [u8] {
+    #[inline(always)]
+    fn find_slice(&self, substr: (u8, u8)) -> Option<usize> {
+        memchr2(substr, self)
+    }
+}
+
+impl<'i> FindSlice<(u8, u8, u8)> for &'i [u8] {
+    #[inline(always)]
+    fn find_slice(&self, substr: (u8, u8, u8)) -> Option<usize> {
+        memchr3(substr, self)
     }
 }
 
@@ -1789,17 +1920,129 @@ impl<'i, 's> FindSlice<&'s str> for &'i [u8] {
     }
 }
 
+impl<'i, 's> FindSlice<(&'s str,)> for &'i [u8] {
+    #[inline(always)]
+    fn find_slice(&self, substr: (&'s str,)) -> Option<usize> {
+        memmem(self, substr.0.as_bytes())
+    }
+}
+
+impl<'i, 's> FindSlice<(&'s str, &'s str)> for &'i [u8] {
+    #[inline(always)]
+    fn find_slice(&self, substr: (&'s str, &'s str)) -> Option<usize> {
+        memmem2(self, (substr.0.as_bytes(), substr.1.as_bytes()))
+    }
+}
+
+impl<'i, 's> FindSlice<(&'s str, &'s str, &'s str)> for &'i [u8] {
+    #[inline(always)]
+    fn find_slice(&self, substr: (&'s str, &'s str, &'s str)) -> Option<usize> {
+        memmem3(
+            self,
+            (
+                substr.0.as_bytes(),
+                substr.1.as_bytes(),
+                substr.2.as_bytes(),
+            ),
+        )
+    }
+}
+
 impl<'i, 's> FindSlice<&'s str> for &'i str {
     #[inline(always)]
     fn find_slice(&self, substr: &'s str) -> Option<usize> {
-        self.find(substr)
+        self.as_bytes().find_slice(substr.as_bytes())
+    }
+}
+
+impl<'i, 's> FindSlice<(&'s str,)> for &'i str {
+    #[inline(always)]
+    fn find_slice(&self, substr: (&'s str,)) -> Option<usize> {
+        self.as_bytes().find_slice(substr)
+    }
+}
+
+impl<'i, 's> FindSlice<(&'s str, &'s str)> for &'i str {
+    #[inline(always)]
+    fn find_slice(&self, substr: (&'s str, &'s str)) -> Option<usize> {
+        self.as_bytes().find_slice(substr)
+    }
+}
+
+impl<'i, 's> FindSlice<(&'s str, &'s str, &'s str)> for &'i str {
+    #[inline(always)]
+    fn find_slice(&self, substr: (&'s str, &'s str, &'s str)) -> Option<usize> {
+        self.as_bytes().find_slice(substr)
     }
 }
 
 impl<'i> FindSlice<char> for &'i str {
     #[inline(always)]
     fn find_slice(&self, substr: char) -> Option<usize> {
-        self.find(substr)
+        let mut b = [0; 4];
+        let substr = substr.encode_utf8(&mut b);
+        self.find_slice(&*substr)
+    }
+}
+
+impl<'i> FindSlice<(char,)> for &'i str {
+    #[inline(always)]
+    fn find_slice(&self, substr: (char,)) -> Option<usize> {
+        let mut b = [0; 4];
+        let substr0 = substr.0.encode_utf8(&mut b);
+        self.find_slice((&*substr0,))
+    }
+}
+
+impl<'i> FindSlice<(char, char)> for &'i str {
+    #[inline(always)]
+    fn find_slice(&self, substr: (char, char)) -> Option<usize> {
+        let mut b = [0; 4];
+        let substr0 = substr.0.encode_utf8(&mut b);
+        let mut b = [0; 4];
+        let substr1 = substr.1.encode_utf8(&mut b);
+        self.find_slice((&*substr0, &*substr1))
+    }
+}
+
+impl<'i> FindSlice<(char, char, char)> for &'i str {
+    #[inline(always)]
+    fn find_slice(&self, substr: (char, char, char)) -> Option<usize> {
+        let mut b = [0; 4];
+        let substr0 = substr.0.encode_utf8(&mut b);
+        let mut b = [0; 4];
+        let substr1 = substr.1.encode_utf8(&mut b);
+        let mut b = [0; 4];
+        let substr2 = substr.2.encode_utf8(&mut b);
+        self.find_slice((&*substr0, &*substr1, &*substr2))
+    }
+}
+
+impl<'i> FindSlice<u8> for &'i str {
+    #[inline(always)]
+    fn find_slice(&self, substr: u8) -> Option<usize> {
+        self.find_slice(substr.as_char())
+    }
+}
+
+impl<'i> FindSlice<(u8,)> for &'i str {
+    #[inline(always)]
+    fn find_slice(&self, substr: (u8,)) -> Option<usize> {
+        self.find_slice((substr.0.as_char(),))
+    }
+}
+
+impl<'i> FindSlice<(u8, u8)> for &'i str {
+    #[inline(always)]
+    fn find_slice(&self, substr: (u8, u8)) -> Option<usize> {
+        self.find_slice((substr.0.as_char(), substr.1.as_char()))
+    }
+}
+
+impl<'i> FindSlice<(u8, u8, u8)> for &'i str {
+    #[inline(always)]
+    fn find_slice(&self, substr: (u8, u8, u8)) -> Option<usize> {
+        self.find_slice((substr.0.as_char(), substr.1.as_char(), substr.2.as_char()))
     }
 }
 
@@ -1953,7 +2196,7 @@ where
     }
 }
 
-/// Ensure checkpoint details are kept privazte
+/// Ensure checkpoint details are kept private
 #[derive(Copy, Clone, Debug)]
 pub struct Checkpoint<T>(T);
 
@@ -2177,20 +2420,59 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<K, V> Accumulate<(K, V)> for HashMap<K, V>
+impl<K, V, S> Accumulate<(K, V)> for HashMap<K, V, S>
 where
     K: crate::lib::std::cmp::Eq + crate::lib::std::hash::Hash,
+    S: BuildHasher + Default,
 {
     #[inline(always)]
     fn initial(capacity: Option<usize>) -> Self {
+        let h = S::default();
         match capacity {
-            Some(capacity) => HashMap::with_capacity(clamp_capacity::<(K, V)>(capacity)),
-            None => HashMap::new(),
+            Some(capacity) => {
+                HashMap::with_capacity_and_hasher(clamp_capacity::<(K, V)>(capacity), h)
+            }
+            None => HashMap::with_hasher(h),
         }
     }
     #[inline(always)]
     fn accumulate(&mut self, (key, value): (K, V)) {
         self.insert(key, value);
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<K> Accumulate<K> for BTreeSet<K>
+where
+    K: crate::lib::std::cmp::Ord,
+{
+    #[inline(always)]
+    fn initial(_capacity: Option<usize>) -> Self {
+        BTreeSet::new()
+    }
+    #[inline(always)]
+    fn accumulate(&mut self, key: K) {
+        self.insert(key);
+    }
+}
+
+#[cfg(feature = "std")]
+impl<K, S> Accumulate<K> for HashSet<K, S>
+where
+    K: crate::lib::std::cmp::Eq + crate::lib::std::hash::Hash,
+    S: BuildHasher + Default,
+{
+    #[inline(always)]
+    fn initial(capacity: Option<usize>) -> Self {
+        let h = S::default();
+        match capacity {
+            Some(capacity) => HashSet::with_capacity_and_hasher(clamp_capacity::<K>(capacity), h),
+            None => HashSet::with_hasher(h),
+        }
+    }
+    #[inline(always)]
+    fn accumulate(&mut self, key: K) {
+        self.insert(key);
     }
 }
 
@@ -2520,7 +2802,7 @@ impl<C: AsChar> ContainsToken<C> for char {
     }
 }
 
-impl<C: AsChar, F: Fn(C) -> bool> ContainsToken<C> for F {
+impl<C, F: Fn(C) -> bool> ContainsToken<C> for F {
     #[inline(always)]
     fn contains_token(&self, token: C) -> bool {
         self(token)
@@ -2675,51 +2957,158 @@ fn memchr(token: u8, slice: &[u8]) -> Option<usize> {
     memchr::memchr(token, slice)
 }
 
+#[cfg(feature = "simd")]
+#[inline(always)]
+fn memchr2(token: (u8, u8), slice: &[u8]) -> Option<usize> {
+    memchr::memchr2(token.0, token.1, slice)
+}
+
+#[cfg(feature = "simd")]
+#[inline(always)]
+fn memchr3(token: (u8, u8, u8), slice: &[u8]) -> Option<usize> {
+    memchr::memchr3(token.0, token.1, token.2, slice)
+}
+
 #[cfg(not(feature = "simd"))]
 #[inline(always)]
 fn memchr(token: u8, slice: &[u8]) -> Option<usize> {
     slice.iter().position(|t| *t == token)
 }
 
-#[cfg(feature = "simd")]
+#[cfg(not(feature = "simd"))]
+#[inline(always)]
+fn memchr2(token: (u8, u8), slice: &[u8]) -> Option<usize> {
+    slice.iter().position(|t| *t == token.0 || *t == token.1)
+}
+
+#[cfg(not(feature = "simd"))]
+#[inline(always)]
+fn memchr3(token: (u8, u8, u8), slice: &[u8]) -> Option<usize> {
+    slice
+        .iter()
+        .position(|t| *t == token.0 || *t == token.1 || *t == token.2)
+}
+
 #[inline(always)]
 fn memmem(slice: &[u8], tag: &[u8]) -> Option<usize> {
-    if tag.len() > slice.len() {
-        return None;
+    if tag.len() == 1 {
+        memchr(tag[0], slice)
+    } else {
+        memmem_(slice, tag)
     }
+}
 
-    let (&substr_first, substr_rest) = match tag.split_first() {
-        Some(split) => split,
-        // an empty substring is found at position 0
-        // This matches the behavior of str.find("").
+#[inline(always)]
+fn memmem2(slice: &[u8], tag: (&[u8], &[u8])) -> Option<usize> {
+    if tag.0.len() == 1 && tag.1.len() == 1 {
+        memchr2((tag.0[0], tag.1[0]), slice)
+    } else {
+        memmem2_(slice, tag)
+    }
+}
+
+#[inline(always)]
+fn memmem3(slice: &[u8], tag: (&[u8], &[u8], &[u8])) -> Option<usize> {
+    if tag.0.len() == 1 && tag.1.len() == 1 && tag.2.len() == 1 {
+        memchr3((tag.0[0], tag.1[0], tag.2[0]), slice)
+    } else {
+        memmem3_(slice, tag)
+    }
+}
+
+#[cfg(feature = "simd")]
+#[inline(always)]
+fn memmem_(slice: &[u8], tag: &[u8]) -> Option<usize> {
+    let &prefix = match tag.first() {
+        Some(x) => x,
         None => return Some(0),
     };
-
-    if substr_rest.is_empty() {
-        return memchr::memchr(substr_first, slice);
-    }
-
-    let mut offset = 0;
-    let haystack = &slice[..slice.len() - substr_rest.len()];
-
-    while let Some(position) = memchr::memchr(substr_first, &haystack[offset..]) {
-        offset += position;
-        let next_offset = offset + 1;
-        if &slice[next_offset..][..substr_rest.len()] == substr_rest {
-            return Some(offset);
+    #[allow(clippy::manual_find)] // faster this way
+    for i in memchr::memchr_iter(prefix, slice) {
+        if slice[i..].starts_with(tag) {
+            return Some(i);
         }
-
-        offset = next_offset;
     }
+    None
+}
 
+#[cfg(feature = "simd")]
+fn memmem2_(slice: &[u8], tag: (&[u8], &[u8])) -> Option<usize> {
+    let prefix = match (tag.0.first(), tag.1.first()) {
+        (Some(&a), Some(&b)) => (a, b),
+        _ => return Some(0),
+    };
+    #[allow(clippy::manual_find)] // faster this way
+    for i in memchr::memchr2_iter(prefix.0, prefix.1, slice) {
+        let subslice = &slice[i..];
+        if subslice.starts_with(tag.0) {
+            return Some(i);
+        }
+        if subslice.starts_with(tag.1) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+#[cfg(feature = "simd")]
+fn memmem3_(slice: &[u8], tag: (&[u8], &[u8], &[u8])) -> Option<usize> {
+    let prefix = match (tag.0.first(), tag.1.first(), tag.2.first()) {
+        (Some(&a), Some(&b), Some(&c)) => (a, b, c),
+        _ => return Some(0),
+    };
+    #[allow(clippy::manual_find)] // faster this way
+    for i in memchr::memchr3_iter(prefix.0, prefix.1, prefix.2, slice) {
+        let subslice = &slice[i..];
+        if subslice.starts_with(tag.0) {
+            return Some(i);
+        }
+        if subslice.starts_with(tag.1) {
+            return Some(i);
+        }
+        if subslice.starts_with(tag.2) {
+            return Some(i);
+        }
+    }
     None
 }
 
 #[cfg(not(feature = "simd"))]
-fn memmem(slice: &[u8], tag: &[u8]) -> Option<usize> {
+fn memmem_(slice: &[u8], tag: &[u8]) -> Option<usize> {
     for i in 0..slice.len() {
         let subslice = &slice[i..];
         if subslice.starts_with(tag) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+#[cfg(not(feature = "simd"))]
+fn memmem2_(slice: &[u8], tag: (&[u8], &[u8])) -> Option<usize> {
+    for i in 0..slice.len() {
+        let subslice = &slice[i..];
+        if subslice.starts_with(tag.0) {
+            return Some(i);
+        }
+        if subslice.starts_with(tag.1) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+#[cfg(not(feature = "simd"))]
+fn memmem3_(slice: &[u8], tag: (&[u8], &[u8], &[u8])) -> Option<usize> {
+    for i in 0..slice.len() {
+        let subslice = &slice[i..];
+        if subslice.starts_with(tag.0) {
+            return Some(i);
+        }
+        if subslice.starts_with(tag.1) {
+            return Some(i);
+        }
+        if subslice.starts_with(tag.2) {
             return Some(i);
         }
     }

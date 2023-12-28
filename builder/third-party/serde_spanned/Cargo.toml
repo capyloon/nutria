@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.67"
 name = "serde_spanned"
-version = "0.6.4"
+version = "0.6.5"
 include = [
     "build.rs",
     "src/**/*",
@@ -86,3 +86,12 @@ search = "<!-- next-url -->"
 [dependencies.serde]
 version = "1.0.145"
 optional = true
+
+[dev-dependencies.serde]
+version = "1"
+
+[dev-dependencies.serde-untagged]
+version = "0.1"
+
+[dev-dependencies.serde_derive]
+version = "1"

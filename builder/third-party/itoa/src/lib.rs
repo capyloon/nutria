@@ -30,13 +30,14 @@
 //!
 //! ![performance](https://raw.githubusercontent.com/dtolnay/itoa/master/performance.png)
 
-#![doc(html_root_url = "https://docs.rs/itoa/1.0.9")]
+#![doc(html_root_url = "https://docs.rs/itoa/1.0.10")]
 #![no_std]
 #![allow(
     clippy::cast_lossless,
     clippy::cast_possible_truncation,
     clippy::expl_impl_clone_on_copy,
     clippy::must_use_candidate,
+    clippy::needless_doctest_main,
     clippy::unreadable_literal
 )]
 
@@ -72,7 +73,7 @@ impl Copy for Buffer {}
 
 impl Clone for Buffer {
     #[inline]
-    #[allow(clippy::incorrect_clone_impl_on_copy_type)] // false positive https://github.com/rust-lang/rust-clippy/issues/11072
+    #[allow(clippy::non_canonical_clone_impl)] // false positive https://github.com/rust-lang/rust-clippy/issues/11072
     fn clone(&self) -> Self {
         Buffer::new()
     }

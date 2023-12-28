@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // 64-bit atomic implementation using kuser_cmpxchg64 on pre-v6 ARM Linux/Android.
 //
 // Refs:
@@ -14,9 +16,7 @@
 #[path = "fallback/outline_atomics.rs"]
 mod fallback;
 
-#[cfg(not(portable_atomic_no_asm))]
-use core::arch::asm;
-use core::{cell::UnsafeCell, mem, sync::atomic::Ordering};
+use core::{arch::asm, cell::UnsafeCell, mem, sync::atomic::Ordering};
 
 use crate::utils::{Pair, U64};
 
@@ -330,15 +330,15 @@ macro_rules! atomic64 {
                 // SAFETY: any data races are prevented by the kernel user helper or the lock
                 // and the raw pointer passed in is valid because we got it from a reference.
                 unsafe {
-                    let (res, ok) = atomic_compare_exchange(
+                    let (prev, ok) = atomic_compare_exchange(
                         self.v.get().cast::<u64>(),
                         current as u64,
                         new as u64,
                     );
                     if ok {
-                        Ok(res as $int_type)
+                        Ok(prev as $int_type)
                     } else {
-                        Err(res as $int_type)
+                        Err(prev as $int_type)
                     }
                 }
             }

@@ -24,7 +24,7 @@ pub struct Slice<T> {
 // and reference lifetimes are bound together in function signatures.
 #[allow(unsafe_code)]
 impl<T> Slice<T> {
-    pub(super) fn from_slice(entries: &[Bucket<T>]) -> &Self {
+    pub(super) const fn from_slice(entries: &[Bucket<T>]) -> &Self {
         unsafe { &*(entries as *const [Bucket<T>] as *const Self) }
     }
 
@@ -42,13 +42,18 @@ impl<T> Slice<T> {
         self.into_boxed().into_vec()
     }
 
+    /// Returns an empty slice.
+    pub const fn new<'a>() -> &'a Self {
+        Self::from_slice(&[])
+    }
+
     /// Return the number of elements in the set slice.
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.entries.len()
     }
 
     /// Returns true if the set slice contains no elements.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
@@ -108,6 +113,64 @@ impl<T> Slice<T> {
     /// Return an iterator over the values of the set slice.
     pub fn iter(&self) -> Iter<'_, T> {
         Iter::new(&self.entries)
+    }
+
+    /// Search over a sorted set for a value.
+    ///
+    /// Returns the position where that value is present, or the position where it can be inserted
+    /// to maintain the sort. See [`slice::binary_search`] for more details.
+    ///
+    /// Computes in **O(log(n))** time, which is notably less scalable than looking the value up in
+    /// the set this is a slice from using [`IndexSet::get_index_of`], but this can also position
+    /// missing values.
+    pub fn binary_search(&self, x: &T) -> Result<usize, usize>
+    where
+        T: Ord,
+    {
+        self.binary_search_by(|p| p.cmp(x))
+    }
+
+    /// Search over a sorted set with a comparator function.
+    ///
+    /// Returns the position where that value is present, or the position where it can be inserted
+    /// to maintain the sort. See [`slice::binary_search_by`] for more details.
+    ///
+    /// Computes in **O(log(n))** time.
+    #[inline]
+    pub fn binary_search_by<'a, F>(&'a self, mut f: F) -> Result<usize, usize>
+    where
+        F: FnMut(&'a T) -> Ordering,
+    {
+        self.entries.binary_search_by(move |a| f(&a.key))
+    }
+
+    /// Search over a sorted set with an extraction function.
+    ///
+    /// Returns the position where that value is present, or the position where it can be inserted
+    /// to maintain the sort. See [`slice::binary_search_by_key`] for more details.
+    ///
+    /// Computes in **O(log(n))** time.
+    #[inline]
+    pub fn binary_search_by_key<'a, B, F>(&'a self, b: &B, mut f: F) -> Result<usize, usize>
+    where
+        F: FnMut(&'a T) -> B,
+        B: Ord,
+    {
+        self.binary_search_by(|k| f(k).cmp(b))
+    }
+
+    /// Returns the index of the partition point of a sorted set according to the given predicate
+    /// (the index of the first element of the second partition).
+    ///
+    /// See [`slice::partition_point`] for more details.
+    ///
+    /// Computes in **O(log(n))** time.
+    #[must_use]
+    pub fn partition_point<P>(&self, mut pred: P) -> usize
+    where
+        P: FnMut(&T) -> bool,
+    {
+        self.entries.partition_point(move |a| pred(&a.key))
     }
 }
 

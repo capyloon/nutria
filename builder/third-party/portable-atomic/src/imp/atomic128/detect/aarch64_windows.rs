@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // Run-time feature detection on aarch64 Windows by using IsProcessorFeaturePresent.
 //
 // As of nightly-2023-01-23, is_aarch64_feature_detected doesn't support run-time detection of FEAT_LSE on Windows.
@@ -8,7 +10,7 @@
 
 include!("common.rs");
 
-// windows-sys requires Rust 1.48
+// windows-sys requires Rust 1.56
 #[allow(clippy::upper_case_acronyms)]
 mod ffi {
     pub(crate) type DWORD = u32;

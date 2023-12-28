@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "mio"
-version = "0.8.8"
+version = "0.8.10"
 authors = [
     "Carl Lerche <me@carllerche.com>",
     "Thomas de Zeeuw <thomasdezeeuw@gmail.com>",
@@ -43,6 +43,7 @@ all-features = true
 rustdoc-args = [
     "--cfg",
     "docsrs",
+    "--generate-link-to-definition",
 ]
 targets = [
     "aarch64-apple-ios",
@@ -108,13 +109,13 @@ os-ext = [
 os-poll = []
 
 [target."cfg(target_os = \"wasi\")".dependencies.libc]
-version = "0.2.121"
+version = "0.2.149"
 
 [target."cfg(target_os = \"wasi\")".dependencies.wasi]
 version = "0.11.0"
 
 [target."cfg(unix)".dependencies.libc]
-version = "0.2.121"
+version = "0.2.149"
 
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.48"
