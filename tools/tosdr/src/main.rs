@@ -45,7 +45,21 @@ fn main() {
         )) {
             Ok(response) => {
                 let json = response.text().unwrap_or("{}".into());
-                let obj: TosDrResponse = serde_json::from_str(&json).unwrap();
+                let obj: TosDrResponse = match serde_json::from_str(&json) {
+                    Ok(val) => val,
+                    Err(_) => {
+                        error!("Failed to read: {}", json);
+                        if json.contains("You are doing this too much") {
+                            // Throttle 5 seconds.
+                            info!("Waiting 10 seconds... ({json})");
+                            std::thread::sleep(std::time::Duration::from_secs(10));
+                            continue;
+                        } else {
+                            // Unknown error, give up.
+                            return;
+                        }
+                    }
+                };
 
                 info!("Found {} services", obj.parameters.services.len());
                 for service in obj.parameters.services {
@@ -63,6 +77,9 @@ fn main() {
         if current_page > max_page {
             break;
         }
+
+        // Be gentle...
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
     let json = serde_json::to_string(&mapping).unwrap();
