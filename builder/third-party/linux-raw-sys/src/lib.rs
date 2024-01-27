@@ -202,6 +202,10 @@ pub mod general;
 #[cfg(target_arch = "arm")]
 #[path = "arm/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "arm")]
+#[path = "arm/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "arm")]
 #[path = "arm/io_uring.rs"]
@@ -246,6 +250,10 @@ pub mod general;
 #[cfg(target_arch = "aarch64")]
 #[path = "aarch64/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "aarch64")]
+#[path = "aarch64/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "aarch64")]
 #[path = "aarch64/io_uring.rs"]
@@ -290,6 +298,10 @@ pub mod general;
 #[cfg(target_arch = "csky")]
 #[path = "csky/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "csky")]
+#[path = "csky/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "csky")]
 #[path = "csky/io_uring.rs"]
@@ -334,6 +346,10 @@ pub mod general;
 #[cfg(target_arch = "loongarch64")]
 #[path = "loongarch64/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "loongarch64")]
+#[path = "loongarch64/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "loongarch64")]
 #[path = "loongarch64/io_uring.rs"]
@@ -378,6 +394,10 @@ pub mod general;
 #[cfg(target_arch = "mips")]
 #[path = "mips/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "mips")]
+#[path = "mips/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "mips")]
 #[path = "mips/io_uring.rs"]
@@ -422,6 +442,10 @@ pub mod general;
 #[cfg(target_arch = "mips64")]
 #[path = "mips64/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "mips64")]
+#[path = "mips64/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "mips64")]
 #[path = "mips64/io_uring.rs"]
@@ -466,6 +490,10 @@ pub mod general;
 #[cfg(target_arch = "mips32r6")]
 #[path = "mips32r6/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "mips32r6")]
+#[path = "mips32r6/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "mips32r6")]
 #[path = "mips32r6/io_uring.rs"]
@@ -510,6 +538,10 @@ pub mod general;
 #[cfg(target_arch = "mips64r6")]
 #[path = "mips64r6/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "mips64r6")]
+#[path = "mips64r6/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "mips64r6")]
 #[path = "mips64r6/io_uring.rs"]
@@ -554,6 +586,10 @@ pub mod general;
 #[cfg(target_arch = "powerpc")]
 #[path = "powerpc/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "powerpc")]
+#[path = "powerpc/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "powerpc")]
 #[path = "powerpc/io_uring.rs"]
@@ -598,6 +634,10 @@ pub mod general;
 #[cfg(target_arch = "powerpc64")]
 #[path = "powerpc64/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "powerpc64")]
+#[path = "powerpc64/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "powerpc64")]
 #[path = "powerpc64/io_uring.rs"]
@@ -642,6 +682,10 @@ pub mod general;
 #[cfg(target_arch = "riscv32")]
 #[path = "riscv32/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "riscv32")]
+#[path = "riscv32/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "riscv32")]
 #[path = "riscv32/io_uring.rs"]
@@ -686,6 +730,10 @@ pub mod general;
 #[cfg(target_arch = "riscv64")]
 #[path = "riscv64/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "riscv64")]
+#[path = "riscv64/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "riscv64")]
 #[path = "riscv64/io_uring.rs"]
@@ -730,6 +778,10 @@ pub mod general;
 #[cfg(target_arch = "s390x")]
 #[path = "s390x/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "s390x")]
+#[path = "s390x/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "s390x")]
 #[path = "s390x/io_uring.rs"]
@@ -774,6 +826,10 @@ pub mod general;
 #[cfg(target_arch = "sparc")]
 #[path = "sparc/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "sparc")]
+#[path = "sparc/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "sparc")]
 #[path = "sparc/io_uring.rs"]
@@ -818,6 +874,10 @@ pub mod general;
 #[cfg(target_arch = "sparc64")]
 #[path = "sparc64/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "sparc64")]
+#[path = "sparc64/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "sparc64")]
 #[path = "sparc64/io_uring.rs"]
@@ -862,6 +922,10 @@ pub mod general;
 #[cfg(target_arch = "x86")]
 #[path = "x86/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(target_arch = "x86")]
+#[path = "x86/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(target_arch = "x86")]
 #[path = "x86/io_uring.rs"]
@@ -906,6 +970,10 @@ pub mod general;
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
 #[path = "x86_64/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+#[path = "x86_64/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
 #[path = "x86_64/io_uring.rs"]
@@ -950,6 +1018,10 @@ pub mod general;
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "32"))]
 #[path = "x32/if_ether.rs"]
 pub mod if_ether;
+#[cfg(feature = "if_packet")]
+#[cfg(all(target_arch = "x86_64", target_pointer_width = "32"))]
+#[path = "x32/if_packet.rs"]
+pub mod if_packet;
 #[cfg(feature = "io_uring")]
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "32"))]
 #[path = "x32/io_uring.rs"]

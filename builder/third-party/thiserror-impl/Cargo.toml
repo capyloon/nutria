@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.56"
 name = "thiserror-impl"
-version = "1.0.52"
+version = "1.0.56"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 description = "Implementation detail of the `thiserror` crate"
 license = "MIT OR Apache-2.0"
@@ -27,10 +27,10 @@ targets = ["x86_64-unknown-linux-gnu"]
 proc-macro = true
 
 [dependencies.proc-macro2]
-version = "1.0.63"
+version = "1.0.74"
 
 [dependencies.quote]
-version = "1.0.29"
+version = "1.0.35"
 
 [dependencies.syn]
-version = "2.0.23"
+version = "2.0.46"

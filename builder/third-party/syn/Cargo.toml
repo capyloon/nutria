@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.56"
 name = "syn"
-version = "2.0.43"
+version = "2.0.48"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 include = [
     "/benches/**",
@@ -75,11 +75,11 @@ required-features = [
 ]
 
 [dependencies.proc-macro2]
-version = "1.0.67"
+version = "1.0.75"
 default-features = false
 
 [dependencies.quote]
-version = "1.0.28"
+version = "1.0.35"
 optional = true
 default-features = false
 

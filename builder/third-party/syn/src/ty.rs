@@ -64,12 +64,13 @@ ast_enum_of_structs! {
         // For testing exhaustiveness in downstream code, use the following idiom:
         //
         //     match ty {
+        //         #![cfg_attr(test, deny(non_exhaustive_omitted_patterns))]
+        //
         //         Type::Array(ty) => {...}
         //         Type::BareFn(ty) => {...}
         //         ...
         //         Type::Verbatim(ty) => {...}
         //
-        //         #[cfg_attr(test, deny(non_exhaustive_omitted_patterns))]
         //         _ => { /* some sane fallback */ }
         //     }
         //
@@ -264,7 +265,7 @@ ast_enum! {
 #[cfg(feature = "parsing")]
 pub(crate) mod parsing {
     use super::*;
-    use crate::ext::IdentExt;
+    use crate::ext::IdentExt as _;
     use crate::parse::{Parse, ParseStream, Result};
     use crate::path;
     use proc_macro2::Span;

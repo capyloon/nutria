@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.56"
 name = "serde_json"
-version = "1.0.108"
+version = "1.0.112"
 authors = [
     "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
     "David Tolnay <dtolnay@gmail.com>",
@@ -63,7 +63,7 @@ version = "1.0"
 version = "1.0"
 
 [dependencies.serde]
-version = "1.0.166"
+version = "1.0.194"
 default-features = false
 
 [dev-dependencies.automod]
@@ -79,7 +79,7 @@ version = "1.0.18"
 version = "1.0.13"
 
 [dev-dependencies.serde]
-version = "1.0.166"
+version = "1.0.194"
 features = ["derive"]
 
 [dev-dependencies.serde_bytes]

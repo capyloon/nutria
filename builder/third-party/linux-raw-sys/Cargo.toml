@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.63"
 name = "linux-raw-sys"
-version = "0.4.12"
+version = "0.4.13"
 authors = ["Dan Gohman <dev@sunfishcode.online>"]
 exclude = [
     "/gen",
@@ -41,6 +41,9 @@ features = [
     "net",
     "prctl",
     "elf",
+    "xdp",
+    "mempolicy",
+    "system",
 ]
 targets = [
     "x86_64-unknown-linux-gnu",
@@ -72,6 +75,7 @@ elf = []
 errno = []
 general = []
 if_ether = []
+if_packet = []
 io_uring = []
 ioctl = []
 mempolicy = []

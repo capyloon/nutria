@@ -226,37 +226,37 @@ mod complete {
     }
 
     #[test]
-    fn is_not_line_ending_bytes() {
+    fn is_till_line_ending_bytes() {
         let a: &[u8] = b"ab12cd\nefgh";
         assert_eq!(
-            not_line_ending::<_, InputError<_>>.parse_peek(a),
+            till_line_ending::<_, InputError<_>>.parse_peek(a),
             Ok((&b"\nefgh"[..], &b"ab12cd"[..]))
         );
 
         let b: &[u8] = b"ab12cd\nefgh\nijkl";
         assert_eq!(
-            not_line_ending::<_, InputError<_>>.parse_peek(b),
+            till_line_ending::<_, InputError<_>>.parse_peek(b),
             Ok((&b"\nefgh\nijkl"[..], &b"ab12cd"[..]))
         );
 
         let c: &[u8] = b"ab12cd\r\nefgh\nijkl";
         assert_eq!(
-            not_line_ending::<_, InputError<_>>.parse_peek(c),
+            till_line_ending::<_, InputError<_>>.parse_peek(c),
             Ok((&b"\r\nefgh\nijkl"[..], &b"ab12cd"[..]))
         );
 
         let d: &[u8] = b"ab12cd";
         assert_eq!(
-            not_line_ending::<_, InputError<_>>.parse_peek(d),
+            till_line_ending::<_, InputError<_>>.parse_peek(d),
             Ok((&[][..], d))
         );
     }
 
     #[test]
-    fn is_not_line_ending_str() {
+    fn is_till_line_ending_str() {
         let f = "βèƒôřè\rÂßÇáƒƭèř";
         assert_eq!(
-            not_line_ending.parse_peek(f),
+            till_line_ending.parse_peek(f),
             Err(ErrMode::Backtrack(InputError::new(
                 &f[12..],
                 ErrorKind::Tag
@@ -265,7 +265,7 @@ mod complete {
 
         let g2: &str = "ab12cd";
         assert_eq!(
-            not_line_ending::<_, InputError<_>>.parse_peek(g2),
+            till_line_ending::<_, InputError<_>>.parse_peek(g2),
             Ok(("", g2))
         );
     }
@@ -327,7 +327,7 @@ mod complete {
     #[test]
     fn full_line_windows() {
         fn take_full_line(i: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
-            (not_line_ending, line_ending).parse_peek(i)
+            (till_line_ending, line_ending).parse_peek(i)
         }
         let input = b"abc\r\n";
         let output = take_full_line(input);
@@ -337,7 +337,7 @@ mod complete {
     #[test]
     fn full_line_unix() {
         fn take_full_line(i: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
-            (not_line_ending, line_ending).parse_peek(i)
+            (till_line_ending, line_ending).parse_peek(i)
         }
         let input = b"abc\n";
         let output = take_full_line(input);
@@ -528,7 +528,7 @@ mod complete {
     #[test]
     #[cfg(feature = "std")]
     fn float_test() {
-        let mut test_cases = vec![
+        let test_cases = [
             "+3.14",
             "3.14",
             "-3.14",
@@ -546,27 +546,37 @@ mod complete {
             "-1.234E-12",
             "-1.234e-12",
             "0.00000000000000000087",
+            "inf",
+            "Inf",
+            "infinity",
+            "Infinity",
+            "-inf",
+            "-Inf",
+            "-infinity",
+            "-Infinity",
+            "+inf",
+            "+Inf",
+            "+infinity",
+            "+Infinity",
         ];
 
-        for test in test_cases.drain(..) {
+        for test in test_cases {
             let expected32 = str::parse::<f32>(test).unwrap();
             let expected64 = str::parse::<f64>(test).unwrap();
 
             println!("now parsing: {} -> {}", test, expected32);
 
-            let larger = test.to_string();
-
             assert_parse!(
-                float.parse_peek(larger.as_bytes()),
+                float.parse_peek(test.as_bytes()),
                 Ok((&b""[..], expected32))
             );
-            assert_parse!(float.parse_peek(&larger[..]), Ok(("", expected32)));
+            assert_parse!(float.parse_peek(test), Ok(("", expected32)));
 
             assert_parse!(
-                float.parse_peek(larger.as_bytes()),
+                float.parse_peek(test.as_bytes()),
                 Ok((&b""[..], expected64))
             );
-            assert_parse!(float.parse_peek(&larger[..]), Ok(("", expected64)));
+            assert_parse!(float.parse_peek(test), Ok(("", expected64)));
         }
 
         let remaining_exponent = "-1.234E-";
@@ -575,16 +585,27 @@ mod complete {
             Err(ErrMode::Cut(InputError::new("", ErrorKind::Slice)))
         );
 
-        let (i, nan) = float::<_, f32, ()>.parse_peek("NaN").unwrap();
-        assert!(nan.is_nan());
-        assert_eq!(i, "");
+        let nan_test_cases = ["nan", "NaN", "NAN"];
 
-        let (i, inf) = float::<_, f32, ()>.parse_peek("inf").unwrap();
-        assert!(inf.is_infinite());
-        assert_eq!(i, "");
-        let (i, inf) = float::<_, f32, ()>.parse_peek("infinity").unwrap();
-        assert!(inf.is_infinite());
-        assert_eq!(i, "");
+        for test in nan_test_cases {
+            println!("now parsing: {}", test);
+
+            let (remaining, parsed) = float::<_, f32, ()>.parse_peek(test.as_bytes()).unwrap();
+            assert!(parsed.is_nan());
+            assert!(remaining.is_empty());
+
+            let (remaining, parsed) = float::<_, f32, ()>.parse_peek(test).unwrap();
+            assert!(parsed.is_nan());
+            assert!(remaining.is_empty());
+
+            let (remaining, parsed) = float::<_, f64, ()>.parse_peek(test.as_bytes()).unwrap();
+            assert!(parsed.is_nan());
+            assert!(remaining.is_empty());
+
+            let (remaining, parsed) = float::<_, f64, ()>.parse_peek(test).unwrap();
+            assert!(parsed.is_nan());
+            assert!(remaining.is_empty());
+        }
     }
 
     #[cfg(feature = "std")]
@@ -1200,37 +1221,37 @@ mod partial {
     }
 
     #[test]
-    fn is_not_line_ending_bytes() {
+    fn is_till_line_ending_bytes() {
         let a: &[u8] = b"ab12cd\nefgh";
         assert_eq!(
-            not_line_ending::<_, InputError<_>>.parse_peek(Partial::new(a)),
+            till_line_ending::<_, InputError<_>>.parse_peek(Partial::new(a)),
             Ok((Partial::new(&b"\nefgh"[..]), &b"ab12cd"[..]))
         );
 
         let b: &[u8] = b"ab12cd\nefgh\nijkl";
         assert_eq!(
-            not_line_ending::<_, InputError<_>>.parse_peek(Partial::new(b)),
+            till_line_ending::<_, InputError<_>>.parse_peek(Partial::new(b)),
             Ok((Partial::new(&b"\nefgh\nijkl"[..]), &b"ab12cd"[..]))
         );
 
         let c: &[u8] = b"ab12cd\r\nefgh\nijkl";
         assert_eq!(
-            not_line_ending::<_, InputError<_>>.parse_peek(Partial::new(c)),
+            till_line_ending::<_, InputError<_>>.parse_peek(Partial::new(c)),
             Ok((Partial::new(&b"\r\nefgh\nijkl"[..]), &b"ab12cd"[..]))
         );
 
         let d: &[u8] = b"ab12cd";
         assert_eq!(
-            not_line_ending::<_, InputError<_>>.parse_peek(Partial::new(d)),
+            till_line_ending::<_, InputError<_>>.parse_peek(Partial::new(d)),
             Err(ErrMode::Incomplete(Needed::new(1)))
         );
     }
 
     #[test]
-    fn is_not_line_ending_str() {
+    fn is_till_line_ending_str() {
         let f = "βèƒôřè\rÂßÇáƒƭèř";
         assert_eq!(
-            not_line_ending.parse_peek(Partial::new(f)),
+            till_line_ending.parse_peek(Partial::new(f)),
             Err(ErrMode::Backtrack(InputError::new(
                 Partial::new(&f[12..]),
                 ErrorKind::Tag
@@ -1239,7 +1260,7 @@ mod partial {
 
         let g2: &str = "ab12cd";
         assert_eq!(
-            not_line_ending::<_, InputError<_>>.parse_peek(Partial::new(g2)),
+            till_line_ending::<_, InputError<_>>.parse_peek(Partial::new(g2)),
             Err(ErrMode::Incomplete(Needed::new(1)))
         );
     }
@@ -1317,7 +1338,7 @@ mod partial {
     fn full_line_windows() {
         #[allow(clippy::type_complexity)]
         fn take_full_line(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, (&[u8], &[u8])> {
-            (not_line_ending, line_ending).parse_peek(i)
+            (till_line_ending, line_ending).parse_peek(i)
         }
         let input = b"abc\r\n";
         let output = take_full_line(Partial::new(input));
@@ -1331,7 +1352,7 @@ mod partial {
     fn full_line_unix() {
         #[allow(clippy::type_complexity)]
         fn take_full_line(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, (&[u8], &[u8])> {
-            (not_line_ending, line_ending).parse_peek(i)
+            (till_line_ending, line_ending).parse_peek(i)
         }
         let input = b"abc\n";
         let output = take_full_line(Partial::new(input));

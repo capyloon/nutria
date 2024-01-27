@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.60.0"
 name = "env_logger"
-version = "0.10.1"
+version = "0.10.2"
 include = [
     "build.rs",
     "src/**/*",

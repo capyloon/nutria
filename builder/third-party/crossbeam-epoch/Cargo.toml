@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.61"
 name = "crossbeam-epoch"
-version = "0.9.17"
+version = "0.9.18"
 description = "Epoch-based garbage collection"
 homepage = "https://github.com/crossbeam-rs/crossbeam/tree/master/crossbeam-epoch"
 readme = "README.md"
@@ -31,18 +31,12 @@ categories = [
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/crossbeam-rs/crossbeam"
 
-[dependencies.cfg-if]
-version = "1"
-
 [dependencies.crossbeam-utils]
 version = "0.8.18"
 default-features = false
 
 [dev-dependencies.rand]
 version = "0.8"
-
-[build-dependencies.autocfg]
-version = "1"
 
 [features]
 alloc = []

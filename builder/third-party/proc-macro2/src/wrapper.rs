@@ -3,6 +3,8 @@ use crate::detection::inside_proc_macro;
 use crate::location::LineColumn;
 use crate::{fallback, Delimiter, Punct, Spacing, TokenTree};
 use core::fmt::{self, Debug, Display};
+#[cfg(span_locations)]
+use core::ops::Range;
 use core::ops::RangeBounds;
 use core::str::FromStr;
 use std::panic;
@@ -28,18 +30,23 @@ pub(crate) struct DeferredTokenStream {
 pub(crate) enum LexError {
     Compiler(proc_macro::LexError),
     Fallback(fallback::LexError),
+
+    // Rustc was supposed to return a LexError, but it panicked instead.
+    // https://github.com/rust-lang/rust/issues/58736
+    CompilerPanic,
 }
 
-impl LexError {
-    fn call_site() -> Self {
-        LexError::Fallback(fallback::LexError {
-            span: fallback::Span::call_site(),
-        })
+#[cold]
+fn mismatch(line: u32) -> ! {
+    #[cfg(procmacro2_backtrace)]
+    {
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        panic!("compiler/fallback mismatch #{}\n\n{}", line, backtrace)
     }
-}
-
-fn mismatch() -> ! {
-    panic!("compiler/fallback mismatch")
+    #[cfg(not(procmacro2_backtrace))]
+    {
+        panic!("compiler/fallback mismatch #{}", line)
+    }
 }
 
 impl DeferredTokenStream {
@@ -88,13 +95,13 @@ impl TokenStream {
     fn unwrap_nightly(self) -> proc_macro::TokenStream {
         match self {
             TokenStream::Compiler(s) => s.into_token_stream(),
-            TokenStream::Fallback(_) => mismatch(),
+            TokenStream::Fallback(_) => mismatch(line!()),
         }
     }
 
     fn unwrap_stable(self) -> fallback::TokenStream {
         match self {
-            TokenStream::Compiler(_) => mismatch(),
+            TokenStream::Compiler(_) => mismatch(line!()),
             TokenStream::Fallback(s) => s,
         }
     }
@@ -117,7 +124,7 @@ impl FromStr for TokenStream {
 // Work around https://github.com/rust-lang/rust/issues/58736.
 fn proc_macro_parse(src: &str) -> Result<proc_macro::TokenStream, LexError> {
     let result = panic::catch_unwind(|| src.parse().map_err(LexError::Compiler));
-    result.unwrap_or_else(|_| Err(LexError::call_site()))
+    result.unwrap_or_else(|_| Err(LexError::CompilerPanic))
 }
 
 impl Display for TokenStream {
@@ -198,14 +205,14 @@ impl FromIterator<TokenStream> for TokenStream {
                 first.evaluate_now();
                 first.stream.extend(streams.map(|s| match s {
                     TokenStream::Compiler(s) => s.into_token_stream(),
-                    TokenStream::Fallback(_) => mismatch(),
+                    TokenStream::Fallback(_) => mismatch(line!()),
                 }));
                 TokenStream::Compiler(first)
             }
             Some(TokenStream::Fallback(mut first)) => {
                 first.extend(streams.map(|s| match s {
                     TokenStream::Fallback(s) => s,
-                    TokenStream::Compiler(_) => mismatch(),
+                    TokenStream::Compiler(_) => mismatch(line!()),
                 }));
                 TokenStream::Fallback(first)
             }
@@ -255,7 +262,7 @@ impl Debug for TokenStream {
 impl LexError {
     pub(crate) fn span(&self) -> Span {
         match self {
-            LexError::Compiler(_) => Span::call_site(),
+            LexError::Compiler(_) | LexError::CompilerPanic => Span::call_site(),
             LexError::Fallback(e) => Span::Fallback(e.span()),
         }
     }
@@ -278,6 +285,10 @@ impl Debug for LexError {
         match self {
             LexError::Compiler(e) => Debug::fmt(e, f),
             LexError::Fallback(e) => Debug::fmt(e, f),
+            LexError::CompilerPanic => {
+                let fallback = fallback::LexError::call_site();
+                Debug::fmt(&fallback, f)
+            }
         }
     }
 }
@@ -287,6 +298,10 @@ impl Display for LexError {
         match self {
             LexError::Compiler(e) => Display::fmt(e, f),
             LexError::Fallback(e) => Display::fmt(e, f),
+            LexError::CompilerPanic => {
+                let fallback = fallback::LexError::call_site();
+                Display::fmt(&fallback, f)
+            }
         }
     }
 }
@@ -418,7 +433,8 @@ impl Span {
         match (self, other) {
             (Span::Compiler(a), Span::Compiler(b)) => Span::Compiler(a.resolved_at(b)),
             (Span::Fallback(a), Span::Fallback(b)) => Span::Fallback(a.resolved_at(b)),
-            _ => mismatch(),
+            (Span::Compiler(_), Span::Fallback(_)) => mismatch(line!()),
+            (Span::Fallback(_), Span::Compiler(_)) => mismatch(line!()),
         }
     }
 
@@ -426,7 +442,8 @@ impl Span {
         match (self, other) {
             (Span::Compiler(a), Span::Compiler(b)) => Span::Compiler(a.located_at(b)),
             (Span::Fallback(a), Span::Fallback(b)) => Span::Fallback(a.located_at(b)),
-            _ => mismatch(),
+            (Span::Compiler(_), Span::Fallback(_)) => mismatch(line!()),
+            (Span::Fallback(_), Span::Compiler(_)) => mismatch(line!()),
         }
     }
 
@@ -442,6 +459,17 @@ impl Span {
         match self {
             Span::Compiler(s) => SourceFile::nightly(s.source_file()),
             Span::Fallback(s) => SourceFile::Fallback(s.source_file()),
+        }
+    }
+
+    #[cfg(span_locations)]
+    pub fn byte_range(&self) -> Range<usize> {
+        match self {
+            #[cfg(proc_macro_span)]
+            Span::Compiler(s) => s.byte_range(),
+            #[cfg(not(proc_macro_span))]
+            Span::Compiler(_) => 0..0,
+            Span::Fallback(s) => s.byte_range(),
         }
     }
 
@@ -493,7 +521,7 @@ impl Span {
     fn unwrap_nightly(self) -> proc_macro::Span {
         match self {
             Span::Compiler(s) => s,
-            Span::Fallback(_) => mismatch(),
+            Span::Fallback(_) => mismatch(line!()),
         }
     }
 }
@@ -596,14 +624,15 @@ impl Group {
         match (self, span) {
             (Group::Compiler(g), Span::Compiler(s)) => g.set_span(s),
             (Group::Fallback(g), Span::Fallback(s)) => g.set_span(s),
-            _ => mismatch(),
+            (Group::Compiler(_), Span::Fallback(_)) => mismatch(line!()),
+            (Group::Fallback(_), Span::Compiler(_)) => mismatch(line!()),
         }
     }
 
     fn unwrap_nightly(self) -> proc_macro::Group {
         match self {
             Group::Compiler(g) => g,
-            Group::Fallback(_) => mismatch(),
+            Group::Fallback(_) => mismatch(line!()),
         }
     }
 }
@@ -674,14 +703,15 @@ impl Ident {
         match (self, span) {
             (Ident::Compiler(t), Span::Compiler(s)) => t.set_span(s),
             (Ident::Fallback(t), Span::Fallback(s)) => t.set_span(s),
-            _ => mismatch(),
+            (Ident::Compiler(_), Span::Fallback(_)) => mismatch(line!()),
+            (Ident::Fallback(_), Span::Compiler(_)) => mismatch(line!()),
         }
     }
 
     fn unwrap_nightly(self) -> proc_macro::Ident {
         match self {
             Ident::Compiler(s) => s,
-            Ident::Fallback(_) => mismatch(),
+            Ident::Fallback(_) => mismatch(line!()),
         }
     }
 }
@@ -691,7 +721,8 @@ impl PartialEq for Ident {
         match (self, other) {
             (Ident::Compiler(t), Ident::Compiler(o)) => t.to_string() == o.to_string(),
             (Ident::Fallback(t), Ident::Fallback(o)) => t == o,
-            _ => mismatch(),
+            (Ident::Compiler(_), Ident::Fallback(_)) => mismatch(line!()),
+            (Ident::Fallback(_), Ident::Compiler(_)) => mismatch(line!()),
         }
     }
 }
@@ -850,7 +881,8 @@ impl Literal {
         match (self, span) {
             (Literal::Compiler(lit), Span::Compiler(s)) => lit.set_span(s),
             (Literal::Fallback(lit), Span::Fallback(s)) => lit.set_span(s),
-            _ => mismatch(),
+            (Literal::Compiler(_), Span::Fallback(_)) => mismatch(line!()),
+            (Literal::Fallback(_), Span::Compiler(_)) => mismatch(line!()),
         }
     }
 
@@ -867,7 +899,7 @@ impl Literal {
     fn unwrap_nightly(self) -> proc_macro::Literal {
         match self {
             Literal::Compiler(s) => s,
-            Literal::Fallback(_) => mismatch(),
+            Literal::Fallback(_) => mismatch(line!()),
         }
     }
 }
@@ -907,5 +939,16 @@ impl Debug for Literal {
             Literal::Compiler(t) => Debug::fmt(t, f),
             Literal::Fallback(t) => Debug::fmt(t, f),
         }
+    }
+}
+
+#[cfg(span_locations)]
+pub(crate) fn invalidate_current_thread_spans() {
+    if inside_proc_macro() {
+        panic!(
+            "proc_macro2::extra::invalidate_current_thread_spans is not available in procedural macros"
+        );
+    } else {
+        crate::fallback::invalidate_current_thread_spans();
     }
 }

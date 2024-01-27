@@ -1,6 +1,6 @@
+use crate::combinator::trace;
 use crate::error::{ErrMode, ErrorKind, Needed, ParserError};
 use crate::stream::Stream;
-use crate::trace::trace;
 use crate::*;
 
 /// Return the remaining input.
@@ -225,6 +225,8 @@ where
 /// This commits the parse result, preventing alternative branch paths like with
 /// [`winnow::combinator::alt`][crate::combinator::alt].
 ///
+/// See the [tutorial][crate::_tutorial::chapter_6] for more details.
+///
 /// # Example
 ///
 /// Without `cut_err`:
@@ -432,10 +434,15 @@ enum State<E> {
     Incomplete(Needed),
 }
 
-/// Always succeeds with given value without consuming any input.
+/// Succeed, consuming no input
 ///
 /// For example, it can be used as the last alternative in `alt` to
 /// specify the default case.
+///
+/// Useful with:
+/// - [`Parser::value`]
+/// - [`Parser::default_value`]
+/// - [`Parser::map`]
 ///
 /// **Note:** This never advances the [`Stream`]
 ///
@@ -445,16 +452,13 @@ enum State<E> {
 /// # use winnow::{error::ErrMode, error::ErrorKind, error::InputError};
 /// # use winnow::prelude::*;
 /// use winnow::combinator::alt;
-/// use winnow::combinator::success;
-///
-/// let mut parser = success::<_,_,InputError<_>>(10);
-/// assert_eq!(parser.parse_peek("xyz"), Ok(("xyz", 10)));
+/// use winnow::combinator::empty;
 ///
 /// fn sign(input: &str) -> IResult<&str, isize> {
 ///     alt((
 ///         '-'.value(-1),
 ///         '+'.value(1),
-///         success::<_,_,InputError<_>>(1)
+///         empty.value(1)
 ///     )).parse_peek(input)
 /// }
 /// assert_eq!(sign("+10"), Ok(("10", 1)));
@@ -462,7 +466,13 @@ enum State<E> {
 /// assert_eq!(sign("10"), Ok(("10", 1)));
 /// ```
 #[doc(alias = "value")]
-#[doc(alias = "empty")]
+#[doc(alias = "success")]
+pub fn empty<I: Stream, E: ParserError<I>>(_input: &mut I) -> PResult<(), E> {
+    Ok(())
+}
+
+/// Deprecated, replaced with [`empty`] + [`Parser::value`]
+#[deprecated(since = "0.5.35", note = "Replaced with empty.value(...)`")]
 pub fn success<I: Stream, O: Clone, E: ParserError<I>>(val: O) -> impl Parser<I, O, E> {
     trace("success", move |_input: &mut I| Ok(val.clone()))
 }

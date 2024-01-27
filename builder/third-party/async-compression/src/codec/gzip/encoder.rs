@@ -1,5 +1,5 @@
 use crate::{codec::Encode, util::PartialBuffer};
-use std::io::Result;
+use std::io;
 
 use flate2::{Compression, Crc};
 
@@ -54,7 +54,7 @@ impl Encode for GzipEncoder {
         &mut self,
         input: &mut PartialBuffer<impl AsRef<[u8]>>,
         output: &mut PartialBuffer<impl AsRef<[u8]> + AsMut<[u8]>>,
-    ) -> Result<()> {
+    ) -> io::Result<()> {
         loop {
             match &mut self.state {
                 State::Header(header) => {
@@ -71,7 +71,12 @@ impl Encode for GzipEncoder {
                     self.crc.update(&input.written()[prior_written..]);
                 }
 
-                State::Footer(_) | State::Done => panic!("encode after complete"),
+                State::Footer(_) | State::Done => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "encode after complete",
+                    ));
+                }
             };
 
             if input.unwritten().is_empty() || output.unwritten().is_empty() {
@@ -83,7 +88,7 @@ impl Encode for GzipEncoder {
     fn flush(
         &mut self,
         output: &mut PartialBuffer<impl AsRef<[u8]> + AsMut<[u8]>>,
-    ) -> Result<bool> {
+    ) -> io::Result<bool> {
         loop {
             let done = match &mut self.state {
                 State::Header(header) => {
@@ -124,7 +129,7 @@ impl Encode for GzipEncoder {
     fn finish(
         &mut self,
         output: &mut PartialBuffer<impl AsRef<[u8]> + AsMut<[u8]>>,
-    ) -> Result<bool> {
+    ) -> io::Result<bool> {
         loop {
             match &mut self.state {
                 State::Header(header) => {

@@ -11,6 +11,8 @@ use core::cell::RefCell;
 use core::cmp;
 use core::fmt::{self, Debug, Display, Write};
 use core::mem::ManuallyDrop;
+#[cfg(span_locations)]
+use core::ops::Range;
 use core::ops::RangeBounds;
 use core::ptr;
 use core::str::FromStr;
@@ -45,7 +47,7 @@ impl LexError {
         self.span
     }
 
-    fn call_site() -> Self {
+    pub(crate) fn call_site() -> Self {
         LexError {
             span: Span::call_site(),
         }
@@ -151,9 +153,9 @@ fn get_cursor(src: &str) -> Cursor {
 
     // Create a dummy file & add it to the source map
     #[cfg(not(fuzzing))]
-    SOURCE_MAP.with(|cm| {
-        let mut cm = cm.borrow_mut();
-        let span = cm.add_file(src);
+    SOURCE_MAP.with(|sm| {
+        let mut sm = sm.borrow_mut();
+        let span = sm.add_file(src);
         Cursor {
             rest: src,
             off: span.lo,
@@ -334,6 +336,12 @@ thread_local! {
     });
 }
 
+#[cfg(span_locations)]
+pub(crate) fn invalidate_current_thread_spans() {
+    #[cfg(not(fuzzing))]
+    SOURCE_MAP.with(|sm| sm.borrow_mut().files.truncate(1));
+}
+
 #[cfg(all(span_locations, not(fuzzing)))]
 struct FileInfo {
     source_text: String,
@@ -366,7 +374,7 @@ impl FileInfo {
         span.lo >= self.span.lo && span.hi <= self.span.hi
     }
 
-    fn source_text(&mut self, span: Span) -> String {
+    fn byte_range(&mut self, span: Span) -> Range<usize> {
         let lo_char = (span.lo - self.span.lo) as usize;
 
         // Look up offset of the largest already-computed char index that is
@@ -395,11 +403,15 @@ impl FileInfo {
 
         let trunc_lo = &self.source_text[lo_byte..];
         let char_len = (span.hi - span.lo) as usize;
-        let source_text = match trunc_lo.char_indices().nth(char_len) {
-            Some((offset, _ch)) => &trunc_lo[..offset],
-            None => trunc_lo,
-        };
-        source_text.to_owned()
+        lo_byte..match trunc_lo.char_indices().nth(char_len) {
+            Some((offset, _ch)) => lo_byte + offset,
+            None => self.source_text.len(),
+        }
+    }
+
+    fn source_text(&mut self, span: Span) -> String {
+        let byte_range = self.byte_range(span);
+        self.source_text[byte_range].to_owned()
     }
 }
 
@@ -534,11 +546,26 @@ impl Span {
         };
 
         #[cfg(not(fuzzing))]
-        SOURCE_MAP.with(|cm| {
-            let cm = cm.borrow();
-            let path = cm.filepath(*self);
+        SOURCE_MAP.with(|sm| {
+            let sm = sm.borrow();
+            let path = sm.filepath(*self);
             SourceFile { path }
         })
+    }
+
+    #[cfg(span_locations)]
+    pub fn byte_range(&self) -> Range<usize> {
+        #[cfg(fuzzing)]
+        return 0..0;
+
+        #[cfg(not(fuzzing))]
+        {
+            if self.is_call_site() {
+                0..0
+            } else {
+                SOURCE_MAP.with(|sm| sm.borrow_mut().fileinfo_mut(*self).byte_range(*self))
+            }
+        }
     }
 
     #[cfg(span_locations)]
@@ -547,9 +574,9 @@ impl Span {
         return LineColumn { line: 0, column: 0 };
 
         #[cfg(not(fuzzing))]
-        SOURCE_MAP.with(|cm| {
-            let cm = cm.borrow();
-            let fi = cm.fileinfo(*self);
+        SOURCE_MAP.with(|sm| {
+            let sm = sm.borrow();
+            let fi = sm.fileinfo(*self);
             fi.offset_line_column(self.lo as usize)
         })
     }
@@ -560,9 +587,9 @@ impl Span {
         return LineColumn { line: 0, column: 0 };
 
         #[cfg(not(fuzzing))]
-        SOURCE_MAP.with(|cm| {
-            let cm = cm.borrow();
-            let fi = cm.fileinfo(*self);
+        SOURCE_MAP.with(|sm| {
+            let sm = sm.borrow();
+            let fi = sm.fileinfo(*self);
             fi.offset_line_column(self.hi as usize)
         })
     }
@@ -581,10 +608,10 @@ impl Span {
         };
 
         #[cfg(not(fuzzing))]
-        SOURCE_MAP.with(|cm| {
-            let cm = cm.borrow();
+        SOURCE_MAP.with(|sm| {
+            let sm = sm.borrow();
             // If `other` is not within the same FileInfo as us, return None.
-            if !cm.fileinfo(*self).span_within(other) {
+            if !sm.fileinfo(*self).span_within(other) {
                 return None;
             }
             Some(Span {
@@ -609,7 +636,7 @@ impl Span {
             if self.is_call_site() {
                 None
             } else {
-                Some(SOURCE_MAP.with(|cm| cm.borrow_mut().fileinfo_mut(*self).source_text(*self)))
+                Some(SOURCE_MAP.with(|sm| sm.borrow_mut().fileinfo_mut(*self).source_text(*self)))
             }
         }
     }

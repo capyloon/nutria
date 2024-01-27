@@ -95,7 +95,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Serde types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/serde/1.0.193")]
+#![doc(html_root_url = "https://docs.rs/serde/1.0.196")]
 // Support using Serde without the standard library!
 #![cfg_attr(not(feature = "std"), no_std)]
 // Show which crate feature enables conditionally compiled APIs in documentation.
@@ -122,7 +122,6 @@
     // things are often more readable this way
     clippy::cast_lossless,
     clippy::module_name_repetitions,
-    clippy::option_if_let_else,
     clippy::single_match_else,
     clippy::type_complexity,
     clippy::use_self,
@@ -183,7 +182,7 @@ mod lib {
     pub use self::core::cmp::Reverse;
     pub use self::core::convert::{self, From, Into};
     pub use self::core::default::{self, Default};
-    pub use self::core::fmt::{self, Debug, Display};
+    pub use self::core::fmt::{self, Debug, Display, Write as FmtWrite};
     pub use self::core::marker::{self, PhantomData};
     pub use self::core::num::Wrapping;
     pub use self::core::ops::{Bound, Range, RangeFrom, RangeInclusive, RangeTo};

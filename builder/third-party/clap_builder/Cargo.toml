@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.70.0"
 name = "clap_builder"
-version = "4.4.11"
+version = "4.4.18"
 include = [
     "build.rs",
     "src/**/*",
@@ -59,7 +59,7 @@ tag-name = "v{{version}}"
 bench = false
 
 [dependencies.anstream]
-version = "0.6.0"
+version = "0.6.7"
 optional = true
 
 [dependencies.anstyle]

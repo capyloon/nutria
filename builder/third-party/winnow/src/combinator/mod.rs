@@ -14,7 +14,7 @@
 //! | [`take`][crate::token::take] | `take(4)` |  `"hello"` |  `"o"` | `Ok("hell")` |Takes a specific number of bytes or characters|
 //! | [`take_while`][crate::token::take_while] | `take_while(0.., is_alphabetic)` |  `"abc123"` |  `"123"` | `Ok("abc")` |Returns the longest list of bytes for which the provided pattern matches.|
 //! | [`take_till0`][crate::token::take_till0] | `take_till0(is_alphabetic)` |  `"123abc"` |  `"abc"` | `Ok("123")` |Returns the longest list of bytes or characters until the provided pattern matches. `take_till1` does the same, but must return at least one character. This is the reverse behaviour from `take_while`: `take_till(f)` is equivalent to `take_while(0.., \|c\| !f(c))`|
-//! | [`take_until0`][crate::token::take_until0] | `take_until0("world")` |  `"Hello world"` |  `"world"` | `Ok("Hello ")` |Returns the longest list of bytes or characters until the provided tag is found. `take_until1` does the same, but must return at least one character|
+//! | [`take_until`][crate::token::take_until] | `take_until(0.., "world")` |  `"Hello world"` |  `"world"` | `Ok("Hello ")` |Returns the longest list of bytes or characters until the provided tag is found.|
 //!
 //! ## Choice combinators
 //!
@@ -40,7 +40,7 @@
 //! | combinator | usage | input | new input | output | comment |
 //! |---|---|---|---|---|---|
 //! | [`repeat`] | `repeat(1..=3, "ab")` | `"ababc"` | `"c"` | `Ok(vec!["ab", "ab"])` |Applies the parser between m and n times (n included) and returns the list of results in a Vec|
-//! | [`repeat_till0`] | `repeat_till0(tag( "ab" ), tag( "ef" ))` | `"ababefg"` | `"g"` | `Ok((vec!["ab", "ab"], "ef"))` |Applies the first parser until the second applies. Returns a tuple containing the list of results from the first in a Vec and the result of the second|
+//! | [`repeat_till`] | `repeat_till(0.., tag( "ab" ), tag( "ef" ))` | `"ababefg"` | `"g"` | `Ok((vec!["ab", "ab"], "ef"))` |Applies the first parser until the second applies. Returns a tuple containing the list of results from the first in a Vec and the result of the second|
 //! | [`separated`] | `separated(1..=3, "ab", ",")` | `"ab,ab,ab."` | `"."` | `Ok(vec!["ab", "ab", "ab"])` |Applies the parser and separator between m and n times (n included) and returns the list of results in a Vec|
 //! | [`fold_repeat`] | `fold_repeat(1..=2, be_u8, \|\| 0, \|acc, item\| acc + item)` | `[1, 2, 3]` | `[3]` | `Ok(3)` |Applies the parser between m and n times (n included) and folds the list of return value|
 //!
@@ -76,7 +76,7 @@
 //! - [`backtrack_err`]: Attempts a parse, allowing alternative parsers to be attempted despite
 //!   use of `cut_err`
 //! - [`Parser::context`]: Add context to the error if the parser fails
-//! - [`trace`][crate::trace::trace]: Print the parse state with the `debug` feature flag
+//! - [`trace`]: Print the parse state with the `debug` feature flag
 //! - [`todo()`]: Placeholder parser
 //!
 //! ## Remaining combinators
@@ -92,7 +92,7 @@
 //! - [`crlf`][crate::ascii::crlf]: Recognizes the string `\r\n`
 //! - [`line_ending`][crate::ascii::line_ending]: Recognizes an end of line (both `\n` and `\r\n`)
 //! - [`newline`][crate::ascii::newline]: Matches a newline character `\n`
-//! - [`not_line_ending`][crate::ascii::not_line_ending]: Recognizes a string of any char except `\r` or `\n`
+//! - [`till_line_ending`][crate::ascii::till_line_ending]: Recognizes a string of any char except `\r` or `\n`
 //! - [`rest`]: Return the remaining input
 //!
 //! - [`alpha0`][crate::ascii::alpha0]: Recognizes zero or more lowercase and uppercase alphabetic characters: `[a-zA-Z]`. [`alpha1`][crate::ascii::alpha1] does the same but returns at least one character
@@ -104,7 +104,7 @@
 //! - [`oct_digit0`][crate::ascii::oct_digit0]: Recognizes zero or more octal characters: `[0-7]`. [`oct_digit1`][crate::ascii::oct_digit1] does the same but returns at least one character
 //!
 //! - [`float`][crate::ascii::float]: Parse a floating point number in a byte string
-//! - [`dec_int`][crate::ascii::dec_uint]: Decode a variable-width, decimal signed integer
+//! - [`dec_int`][crate::ascii::dec_int]: Decode a variable-width, decimal signed integer
 //! - [`dec_uint`][crate::ascii::dec_uint]: Decode a variable-width, decimal unsigned integer
 //! - [`hex_uint`][crate::ascii::hex_uint]: Decode a variable-width, hexadecimal integer
 //!
@@ -157,6 +157,7 @@
 
 mod branch;
 mod core;
+mod debug;
 mod multi;
 mod parser;
 mod sequence;
@@ -166,6 +167,7 @@ mod tests;
 
 pub use self::branch::*;
 pub use self::core::*;
+pub use self::debug::*;
 pub use self::multi::*;
 pub use self::parser::*;
 pub use self::sequence::*;

@@ -575,6 +575,34 @@ s! {
         pub args: [::__u64; 6],
     }
 
+    pub struct seccomp_notif_sizes {
+        pub seccomp_notif: ::__u16,
+        pub seccomp_notif_resp: ::__u16,
+        pub seccomp_data: ::__u16,
+    }
+
+    pub struct seccomp_notif {
+        pub id: ::__u64,
+        pub pid: ::__u32,
+        pub flags: ::__u32,
+        pub data: seccomp_data,
+    }
+
+    pub struct seccomp_notif_resp {
+        pub id: ::__u64,
+        pub val: ::__s64,
+        pub error: ::__s32,
+        pub flags: ::__u32,
+    }
+
+    pub struct seccomp_notif_addfd {
+        pub id: ::__u64,
+        pub flags: ::__u32,
+        pub srcfd: ::__u32,
+        pub newfd: ::__u32,
+        pub newfd_flags: ::__u32,
+    }
+
     pub struct nlmsghdr {
         pub nlmsg_len: u32,
         pub nlmsg_type: u16,
@@ -849,6 +877,17 @@ s_no_extra_traits! {
         pub d_reclen: ::c_ushort,
         pub d_type: ::c_uchar,
         pub d_name: [::c_char; 256],
+    }
+
+    pub struct sched_attr {
+        pub size: ::__u32,
+        pub sched_policy: ::__u32,
+        pub sched_flags: ::__u64,
+        pub sched_nice: ::__s32,
+        pub sched_priority: ::__u32,
+        pub sched_runtime: ::__u64,
+        pub sched_deadline: ::__u64,
+        pub sched_period: ::__u64,
     }
 }
 
@@ -1313,6 +1352,46 @@ cfg_if! {
                 self.flags.hash(state);
                 self.tx_type.hash(state);
                 self.rx_filter.hash(state);
+            }
+        }
+
+        impl ::fmt::Debug for sched_attr {
+            fn fmt(&self, f: &mut ::fmt::Formatter) -> ::fmt::Result {
+                f.debug_struct("sched_attr")
+                    .field("size", &self.size)
+                    .field("sched_policy", &self.sched_policy)
+                    .field("sched_flags", &self.sched_flags)
+                    .field("sched_nice", &self.sched_nice)
+                    .field("sched_priority", &self.sched_priority)
+                    .field("sched_runtime", &self.sched_runtime)
+                    .field("sched_deadline", &self.sched_deadline)
+                    .field("sched_period", &self.sched_period)
+                    .finish()
+            }
+        }
+        impl PartialEq for sched_attr {
+            fn eq(&self, other: &sched_attr) -> bool {
+                self.size == other.size &&
+                self.sched_policy == other.sched_policy &&
+                self.sched_flags == other.sched_flags &&
+                self.sched_nice == other.sched_nice &&
+                self.sched_priority == other.sched_priority &&
+                self.sched_runtime == other.sched_runtime &&
+                self.sched_deadline == other.sched_deadline &&
+                self.sched_period == other.sched_period
+            }
+        }
+        impl Eq for sched_attr {}
+        impl ::hash::Hash for sched_attr {
+            fn hash<H: ::hash::Hasher>(&self, state: &mut H) {
+                self.size.hash(state);
+                self.sched_policy.hash(state);
+                self.sched_flags.hash(state);
+                self.sched_nice.hash(state);
+                self.sched_priority.hash(state);
+                self.sched_runtime.hash(state);
+                self.sched_deadline.hash(state);
+                self.sched_period.hash(state);
             }
         }
     }
@@ -2004,16 +2083,6 @@ pub const RENAME_NOREPLACE: ::c_uint = 1;
 pub const RENAME_EXCHANGE: ::c_uint = 2;
 pub const RENAME_WHITEOUT: ::c_uint = 4;
 
-pub const SCHED_OTHER: ::c_int = 0;
-pub const SCHED_FIFO: ::c_int = 1;
-pub const SCHED_RR: ::c_int = 2;
-pub const SCHED_BATCH: ::c_int = 3;
-pub const SCHED_IDLE: ::c_int = 5;
-
-pub const SCHED_RESET_ON_FORK: ::c_int = 0x40000000;
-
-pub const CLONE_PIDFD: ::c_int = 0x1000;
-
 // netinet/in.h
 // NOTE: These are in addition to the constants defined in src/unix/mod.rs
 
@@ -2272,13 +2341,22 @@ pub const GRND_NONBLOCK: ::c_uint = 0x0001;
 pub const GRND_RANDOM: ::c_uint = 0x0002;
 pub const GRND_INSECURE: ::c_uint = 0x0004;
 
+// <linux/seccomp.h>
 pub const SECCOMP_MODE_DISABLED: ::c_uint = 0;
 pub const SECCOMP_MODE_STRICT: ::c_uint = 1;
 pub const SECCOMP_MODE_FILTER: ::c_uint = 2;
 
+pub const SECCOMP_SET_MODE_STRICT: ::c_uint = 0;
+pub const SECCOMP_SET_MODE_FILTER: ::c_uint = 1;
+pub const SECCOMP_GET_ACTION_AVAIL: ::c_uint = 2;
+pub const SECCOMP_GET_NOTIF_SIZES: ::c_uint = 3;
+
 pub const SECCOMP_FILTER_FLAG_TSYNC: ::c_ulong = 1;
 pub const SECCOMP_FILTER_FLAG_LOG: ::c_ulong = 2;
 pub const SECCOMP_FILTER_FLAG_SPEC_ALLOW: ::c_ulong = 4;
+pub const SECCOMP_FILTER_FLAG_NEW_LISTENER: ::c_ulong = 8;
+pub const SECCOMP_FILTER_FLAG_TSYNC_ESRCH: ::c_ulong = 16;
+pub const SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV: ::c_ulong = 32;
 
 pub const SECCOMP_RET_KILL_PROCESS: ::c_uint = 0x80000000;
 pub const SECCOMP_RET_KILL_THREAD: ::c_uint = 0x00000000;
@@ -2292,6 +2370,11 @@ pub const SECCOMP_RET_ALLOW: ::c_uint = 0x7fff0000;
 pub const SECCOMP_RET_ACTION_FULL: ::c_uint = 0xffff0000;
 pub const SECCOMP_RET_ACTION: ::c_uint = 0x7fff0000;
 pub const SECCOMP_RET_DATA: ::c_uint = 0x0000ffff;
+
+pub const SECCOMP_USER_NOTIF_FLAG_CONTINUE: ::c_ulong = 1;
+
+pub const SECCOMP_ADDFD_FLAG_SETFD: ::c_ulong = 1;
+pub const SECCOMP_ADDFD_FLAG_SEND: ::c_ulong = 2;
 
 pub const ITIMER_REAL: ::c_int = 0;
 pub const ITIMER_VIRTUAL: ::c_int = 1;
@@ -4518,6 +4601,65 @@ pub const NET_LLC: ::c_int = 18;
 pub const NET_NETFILTER: ::c_int = 19;
 pub const NET_DCCP: ::c_int = 20;
 pub const NET_IRDA: ::c_int = 412;
+
+// include/linux/sched.h
+pub const PF_VCPU: ::c_int = 0x00000001;
+pub const PF_IDLE: ::c_int = 0x00000002;
+pub const PF_EXITING: ::c_int = 0x00000004;
+pub const PF_POSTCOREDUMP: ::c_int = 0x00000008;
+pub const PF_IO_WORKER: ::c_int = 0x00000010;
+pub const PF_WQ_WORKER: ::c_int = 0x00000020;
+pub const PF_FORKNOEXEC: ::c_int = 0x00000040;
+pub const PF_MCE_PROCESS: ::c_int = 0x00000080;
+pub const PF_SUPERPRIV: ::c_int = 0x00000100;
+pub const PF_DUMPCORE: ::c_int = 0x00000200;
+pub const PF_SIGNALED: ::c_int = 0x00000400;
+pub const PF_MEMALLOC: ::c_int = 0x00000800;
+pub const PF_NPROC_EXCEEDED: ::c_int = 0x00001000;
+pub const PF_USED_MATH: ::c_int = 0x00002000;
+pub const PF_USER_WORKER: ::c_int = 0x00004000;
+pub const PF_NOFREEZE: ::c_int = 0x00008000;
+pub const PF_KSWAPD: ::c_int = 0x00020000;
+pub const PF_MEMALLOC_NOFS: ::c_int = 0x00040000;
+pub const PF_MEMALLOC_NOIO: ::c_int = 0x00080000;
+pub const PF_LOCAL_THROTTLE: ::c_int = 0x00100000;
+pub const PF_KTHREAD: ::c_int = 0x00200000;
+pub const PF_RANDOMIZE: ::c_int = 0x00400000;
+pub const PF_NO_SETAFFINITY: ::c_int = 0x04000000;
+pub const PF_MCE_EARLY: ::c_int = 0x08000000;
+pub const PF_MEMALLOC_PIN: ::c_int = 0x10000000;
+
+pub const CSIGNAL: ::c_int = 0x000000ff;
+
+pub const SCHED_NORMAL: ::c_int = 0;
+pub const SCHED_OTHER: ::c_int = 0;
+pub const SCHED_FIFO: ::c_int = 1;
+pub const SCHED_RR: ::c_int = 2;
+pub const SCHED_BATCH: ::c_int = 3;
+pub const SCHED_IDLE: ::c_int = 5;
+pub const SCHED_DEADLINE: ::c_int = 6;
+
+pub const SCHED_RESET_ON_FORK: ::c_int = 0x40000000;
+
+pub const CLONE_PIDFD: ::c_int = 0x1000;
+
+pub const SCHED_FLAG_RESET_ON_FORK: ::c_int = 0x01;
+pub const SCHED_FLAG_RECLAIM: ::c_int = 0x02;
+pub const SCHED_FLAG_DL_OVERRUN: ::c_int = 0x04;
+pub const SCHED_FLAG_KEEP_POLICY: ::c_int = 0x08;
+pub const SCHED_FLAG_KEEP_PARAMS: ::c_int = 0x10;
+pub const SCHED_FLAG_UTIL_CLAMP_MIN: ::c_int = 0x20;
+pub const SCHED_FLAG_UTIL_CLAMP_MAX: ::c_int = 0x40;
+
+pub const SCHED_FLAG_KEEP_ALL: ::c_int = SCHED_FLAG_KEEP_POLICY | SCHED_FLAG_KEEP_PARAMS;
+
+pub const SCHED_FLAG_UTIL_CLAMP: ::c_int = SCHED_FLAG_UTIL_CLAMP_MIN | SCHED_FLAG_UTIL_CLAMP_MAX;
+
+pub const SCHED_FLAG_ALL: ::c_int = SCHED_FLAG_RESET_ON_FORK
+    | SCHED_FLAG_RECLAIM
+    | SCHED_FLAG_DL_OVERRUN
+    | SCHED_FLAG_KEEP_ALL
+    | SCHED_FLAG_UTIL_CLAMP;
 
 f! {
     pub fn NLA_ALIGN(len: ::c_int) -> ::c_int {

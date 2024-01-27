@@ -1,7 +1,51 @@
 # `wasm-bindgen` Change Log
 --------------------------------------------------------------------------------
 
-## [Unreleased](https://github.com/rustwasm/wasm-bindgen/compare/0.2.88...main)
+## [0.2.90](https://github.com/rustwasm/wasm-bindgen/compare/0.2.89...0.2.90)
+
+Released 2024-01-06
+
+### Fixed
+
+* Fix JS shim default path detection for the no-modules target.
+  [#3748](https://github.com/rustwasm/wasm-bindgen/pull/3748)
+
+### Added
+
+* Add bindings for `HTMLFormElement.requestSubmit()`.
+  [#3747](https://github.com/rustwasm/wasm-bindgen/pull/3747)
+
+* Add bindings for `RTCRtpSender.getCapabilities(DOMString)` method, `RTCRtpCapabilities`, `RTCRtpCodecCapability` and `RTCRtpHeaderExtensionCapability`.
+  [#3737](https://github.com/rustwasm/wasm-bindgen/pull/3737)
+
+* Add bindings for `UserActivation`.
+  [#3719](https://github.com/rustwasm/wasm-bindgen/pull/3719)
+
+* Add unstable bindings for the Compression Streams API.
+  [#3752](https://github.com/rustwasm/wasm-bindgen/pull/3752)
+
+### Changed
+
+* Stabilize File System API.
+  [#3745](https://github.com/rustwasm/wasm-bindgen/pull/3745)
+
+* Stabilize `QueuingStrategy`.
+  [#3753](https://github.com/rustwasm/wasm-bindgen/pull/3753)
+
+### Fixed
+
+* Fixed a compiler error when using `#[wasm_bindgen]` inside `macro_rules!`.
+  [#3725](https://github.com/rustwasm/wasm-bindgen/pull/3725)
+
+### Removed
+
+* Removed Gecko-only `InstallTriggerData` and Gecko-internal `FlexLineGrowthState`, `GridDeclaration`, `GridTrackState`,
+  `RtcLifecycleEvent` and `WebrtcGlobalStatisticsReport` features.
+  [#3723](https://github.com/rustwasm/wasm-bindgen/pull/3723)
+
+## [0.2.89](https://github.com/rustwasm/wasm-bindgen/compare/0.2.88...0.2.89)
+
+Released 2023-11-27.
 
 ### Added
 

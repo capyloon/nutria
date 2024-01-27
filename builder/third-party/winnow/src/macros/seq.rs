@@ -6,7 +6,7 @@
 /// # use winnow::prelude::*;
 /// # use winnow::ascii::{alphanumeric1, dec_uint, space0};
 /// # use winnow::combinator::delimited;
-/// # use winnow::combinator::success;
+/// # use winnow::combinator::empty;
 /// # use winnow::error::ContextError;
 /// use winnow::combinator::seq;
 ///
@@ -22,7 +22,7 @@
 /// // Parse into structs / tuple-structs
 /// fn field(input: &mut &[u8]) -> PResult<Field> {
 ///     seq!{Field {
-///         namespace: success(5),
+///         namespace: empty.value(5),
 ///         name: alphanumeric1.map(|s: &[u8]| s.to_owned()),
 ///         // `_` fields are ignored when building the struct
 ///         _: (space0, b':', space0),
@@ -64,7 +64,7 @@
 #[doc(alias = "struct_parser")]
 macro_rules! seq {
     ($name: ident { $($fields: tt)* }) => {
-        $crate::trace::trace(stringify!($name), move |input: &mut _| {
+        $crate::combinator::trace(stringify!($name), move |input: &mut _| {
             use $crate::Parser;
             $crate::seq_parse_struct_fields!(input; $($fields)*);
             #[allow(clippy::redundant_field_names)]
@@ -72,7 +72,7 @@ macro_rules! seq {
         })
     };
     ($name: ident ( $($elements: tt)* )) => {
-        $crate::trace::trace(stringify!($name), move |input: &mut _| {
+        $crate::combinator::trace(stringify!($name), move |input: &mut _| {
             use $crate::Parser;
             $crate::seq_parse_tuple_fields!( ($($elements)*) ; ).map(|t| {
                 $crate::seq_init_tuple_fields!(
@@ -84,7 +84,7 @@ macro_rules! seq {
         })
     };
     (( $($elements: tt)* )) => {
-        $crate::trace::trace("tuple", move |input: &mut _| {
+        $crate::combinator::trace("tuple", move |input: &mut _| {
             use $crate::Parser;
             $crate::seq_parse_tuple_fields!( ($($elements)*) ; ).map(|t| {
                 $crate::seq_init_tuple_fields!(

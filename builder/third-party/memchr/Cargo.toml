@@ -13,15 +13,14 @@
 edition = "2021"
 rust-version = "1.61"
 name = "memchr"
-version = "2.6.4"
+version = "2.7.1"
 authors = [
     "Andrew Gallant <jamslam@gmail.com>",
     "bluss",
 ]
 exclude = [
-    "/bench",
-    "/benchmarks",
     "/.github",
+    "/benchmarks",
     "/fuzz",
     "/scripts",
     "/tmp",

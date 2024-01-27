@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.64.0"
 name = "winnow"
-version = "0.5.31"
+version = "0.5.35"
 include = [
     "build.rs",
     "src/**/*",
@@ -160,6 +160,10 @@ harness = false
 
 [[bench]]
 name = "iter"
+harness = false
+
+[[bench]]
+name = "next_slice"
 harness = false
 
 [[bench]]

@@ -1568,10 +1568,15 @@ impl<'h> From<Match<'h>> for core::ops::Range<usize> {
 
 /// Represents the capture groups for a single match.
 ///
-/// Capture groups refer to parts of a regex enclosed in parentheses. They can
-/// be optionally named. The purpose of capture groups is to be able to
-/// reference different parts of a match based on the original pattern. For
-/// example, say you want to match the individual letters in a 5-letter word:
+/// Capture groups refer to parts of a regex enclosed in parentheses. They
+/// can be optionally named. The purpose of capture groups is to be able to
+/// reference different parts of a match based on the original pattern. In
+/// essence, a `Captures` is a container of [`Match`] values for each group
+/// that participated in a regex match. Each `Match` can be looked up by either
+/// its capture group index or name (if it has one).
+///
+/// For example, say you want to match the individual letters in a 5-letter
+/// word:
 ///
 /// ```text
 /// (?<first>\w)(\w)(?:\w)\w(?<last>\w)
@@ -1984,7 +1989,7 @@ impl<'h> core::ops::Index<usize> for Captures<'h> {
 /// The haystack substring returned can't outlive the `Captures` object if this
 /// method is used, because of how `Index` is defined (normally `a[i]` is part
 /// of `a` and can't outlive it). To work around this limitation, do that, use
-/// [`Captures::get`] instead.
+/// [`Captures::name`] instead.
 ///
 /// `'h` is the lifetime of the matched haystack, but the lifetime of the
 /// `&str` returned by this implementation is the lifetime of the `Captures`

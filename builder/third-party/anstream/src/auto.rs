@@ -1,6 +1,5 @@
 use crate::stream::AsLockedWrite;
 use crate::stream::RawStream;
-#[cfg(feature = "auto")]
 use crate::ColorChoice;
 use crate::StripStream;
 #[cfg(all(windows, feature = "wincon"))]
@@ -25,11 +24,13 @@ where
     S: RawStream,
 {
     /// Runtime control over styling behavior
-    #[cfg(feature = "auto")]
     #[inline]
     pub fn new(raw: S, choice: ColorChoice) -> Self {
         match choice {
+            #[cfg(feature = "auto")]
             ColorChoice::Auto => Self::auto(raw),
+            #[cfg(not(feature = "auto"))]
+            ColorChoice::Auto => Self::never(raw),
             ColorChoice::AlwaysAnsi => Self::always_ansi(raw),
             ColorChoice::Always => Self::always(raw),
             ColorChoice::Never => Self::never(raw),

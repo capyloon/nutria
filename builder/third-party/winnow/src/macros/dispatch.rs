@@ -14,7 +14,7 @@
 /// # use winnow::token::any;
 /// # use winnow::combinator::peek;
 /// # use winnow::combinator::preceded;
-/// # use winnow::combinator::success;
+/// # use winnow::combinator::empty;
 /// # use winnow::combinator::fail;
 ///
 /// fn escaped(input: &mut &str) -> PResult<char> {
@@ -23,13 +23,13 @@
 ///
 /// fn escape_seq_char(input: &mut &str) -> PResult<char> {
 ///     dispatch! {any;
-///         'b' => success('\u{8}'),
-///         'f' => success('\u{c}'),
-///         'n' => success('\n'),
-///         'r' => success('\r'),
-///         't' => success('\t'),
-///         '\\' => success('\\'),
-///         '"' => success('"'),
+///         'b' => empty.value('\u{8}'),
+///         'f' => empty.value('\u{c}'),
+///         'n' => empty.value('\n'),
+///         'r' => empty.value('\r'),
+///         't' => empty.value('\t'),
+///         '\\' => empty.value('\\'),
+///         '"' => empty.value('"'),
 ///         _ => fail::<_, char, _>,
 ///     }
 ///     .parse_next(input)
@@ -41,7 +41,7 @@
 #[doc(hidden)] // forced to be visible in intended location
 macro_rules! dispatch {
     ($match_parser: expr; $( $pat:pat $(if $pred:expr)? => $expr: expr ),+ $(,)? ) => {
-        $crate::trace::trace("dispatch", move |i: &mut _|
+        $crate::combinator::trace("dispatch", move |i: &mut _|
         {
             use $crate::Parser;
             let initial = $match_parser.parse_next(i)?;

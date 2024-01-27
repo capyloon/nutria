@@ -1,13 +1,13 @@
 use crate::adapter::WinconBytes;
 use crate::stream::AsLockedWrite;
-use crate::stream::RawStream;
+use crate::stream::IsTerminal;
 
 /// Only pass printable data to the inner `Write`
 #[cfg(feature = "wincon")] // here mostly for documentation purposes
 #[derive(Debug)]
 pub struct WinconStream<S>
 where
-    S: RawStream,
+    S: anstyle_wincon::WinconStream,
 {
     raw: S,
     // `WinconBytes` is especially large compared to other variants of `AutoStream`, so boxing it
@@ -18,7 +18,7 @@ where
 
 impl<S> WinconStream<S>
 where
-    S: RawStream,
+    S: anstyle_wincon::WinconStream,
 {
     /// Only pass printable data to the inner `Write`
     #[inline]
@@ -29,12 +29,18 @@ where
         }
     }
 
-    /// Get the wrapped [`RawStream`]
+    /// Get the wrapped [`anstyle_wincon::WinconStream`]
     #[inline]
     pub fn into_inner(self) -> S {
         self.raw
     }
+}
 
+impl<S> WinconStream<S>
+where
+    S: anstyle_wincon::WinconStream,
+    S: IsTerminal,
+{
     #[inline]
     pub fn is_terminal(&self) -> bool {
         self.raw.is_terminal()
@@ -73,7 +79,8 @@ impl WinconStream<std::io::Stderr> {
 
 impl<S> std::io::Write for WinconStream<S>
 where
-    S: RawStream + AsLockedWrite,
+    S: anstyle_wincon::WinconStream,
+    S: AsLockedWrite,
 {
     // Must forward all calls to ensure locking happens appropriately
     #[inline]
@@ -105,7 +112,11 @@ where
     }
 }
 
-fn write(raw: &mut dyn RawStream, state: &mut WinconBytes, buf: &[u8]) -> std::io::Result<usize> {
+fn write(
+    raw: &mut dyn anstyle_wincon::WinconStream,
+    state: &mut WinconBytes,
+    buf: &[u8],
+) -> std::io::Result<usize> {
     for (style, printable) in state.extract_next(buf) {
         let fg = style.get_fg_color().and_then(cap_wincon_color);
         let bg = style.get_bg_color().and_then(cap_wincon_color);
@@ -119,7 +130,11 @@ fn write(raw: &mut dyn RawStream, state: &mut WinconBytes, buf: &[u8]) -> std::i
     Ok(buf.len())
 }
 
-fn write_all(raw: &mut dyn RawStream, state: &mut WinconBytes, buf: &[u8]) -> std::io::Result<()> {
+fn write_all(
+    raw: &mut dyn anstyle_wincon::WinconStream,
+    state: &mut WinconBytes,
+    buf: &[u8],
+) -> std::io::Result<()> {
     for (style, printable) in state.extract_next(buf) {
         let mut buf = printable.as_bytes();
         let fg = style.get_fg_color().and_then(cap_wincon_color);
@@ -142,7 +157,7 @@ fn write_all(raw: &mut dyn RawStream, state: &mut WinconBytes, buf: &[u8]) -> st
 }
 
 fn write_fmt(
-    raw: &mut dyn RawStream,
+    raw: &mut dyn anstyle_wincon::WinconStream,
     state: &mut WinconBytes,
     args: std::fmt::Arguments<'_>,
 ) -> std::io::Result<()> {

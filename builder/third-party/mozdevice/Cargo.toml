@@ -10,9 +10,9 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2018"
+edition = "2021"
 name = "mozdevice"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["Mozilla"]
 description = "Client library for the Android Debug Bridge (adb)"
 keywords = [
@@ -24,7 +24,6 @@ keywords = [
 ]
 license = "MPL-2.0"
 repository = "https://hg.mozilla.org/mozilla-central/file/tip/testing/mozbase/rust/mozdevice"
-resolver = "2"
 
 [dependencies.log]
 version = "0.4"

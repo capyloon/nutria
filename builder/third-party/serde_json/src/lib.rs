@@ -299,7 +299,7 @@
 //! [macro]: crate::json
 //! [`serde-json-core`]: https://github.com/rust-embedded-community/serde-json-core
 
-#![doc(html_root_url = "https://docs.rs/serde_json/1.0.108")]
+#![doc(html_root_url = "https://docs.rs/serde_json/1.0.112")]
 // Ignored clippy lints
 #![allow(
     clippy::collapsible_else_if,
@@ -316,6 +316,7 @@
     clippy::needless_late_init,
     clippy::return_self_not_must_use,
     clippy::transmute_ptr_to_ptr,
+    clippy::unconditional_recursion, // https://github.com/rust-lang/rust-clippy/issues/12133
     clippy::unnecessary_wraps
 )]
 // Ignored clippy_pedantic lints
@@ -365,6 +366,7 @@
 extern crate alloc;
 
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 #[doc(inline)]
 pub use crate::de::from_reader;
 #[doc(inline)]
@@ -374,6 +376,7 @@ pub use crate::error::{Error, Result};
 #[doc(inline)]
 pub use crate::ser::{to_string, to_string_pretty, to_vec, to_vec_pretty};
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 #[doc(inline)]
 pub use crate::ser::{to_writer, to_writer_pretty, Serializer};
 #[doc(inline)]

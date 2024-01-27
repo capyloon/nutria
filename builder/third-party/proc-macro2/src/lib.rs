@@ -86,7 +86,7 @@
 //! a different thread.
 
 // Proc-macro2 types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/proc-macro2/1.0.71")]
+#![doc(html_root_url = "https://docs.rs/proc-macro2/1.0.78")]
 #![cfg_attr(any(proc_macro_span, super_unstable), feature(proc_macro_span))]
 #![cfg_attr(super_unstable, feature(proc_macro_def_site))]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
@@ -122,6 +122,15 @@ compile_error! {"\
     build script as well.
 "}
 
+#[cfg(all(
+    procmacro2_nightly_testing,
+    feature = "proc-macro",
+    not(proc_macro_span)
+))]
+compile_error! {"\
+    Build script probe failed to compile.
+"}
+
 extern crate alloc;
 
 #[cfg(feature = "proc-macro")]
@@ -151,10 +160,12 @@ mod imp;
 mod location;
 
 use crate::extra::DelimSpan;
-use crate::marker::Marker;
+use crate::marker::{ProcMacroAutoTraits, MARKER};
 use core::cmp::Ordering;
 use core::fmt::{self, Debug, Display};
 use core::hash::{Hash, Hasher};
+#[cfg(span_locations)]
+use core::ops::Range;
 use core::ops::RangeBounds;
 use core::str::FromStr;
 use std::error::Error;
@@ -162,6 +173,7 @@ use std::error::Error;
 use std::path::PathBuf;
 
 #[cfg(span_locations)]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "span-locations")))]
 pub use crate::location::LineColumn;
 
 /// An abstract stream of tokens, or more concretely a sequence of token trees.
@@ -174,27 +186,27 @@ pub use crate::location::LineColumn;
 #[derive(Clone)]
 pub struct TokenStream {
     inner: imp::TokenStream,
-    _marker: Marker,
+    _marker: ProcMacroAutoTraits,
 }
 
 /// Error returned from `TokenStream::from_str`.
 pub struct LexError {
     inner: imp::LexError,
-    _marker: Marker,
+    _marker: ProcMacroAutoTraits,
 }
 
 impl TokenStream {
     fn _new(inner: imp::TokenStream) -> Self {
         TokenStream {
             inner,
-            _marker: Marker,
+            _marker: MARKER,
         }
     }
 
     fn _new_fallback(inner: fallback::TokenStream) -> Self {
         TokenStream {
             inner: inner.into(),
-            _marker: Marker,
+            _marker: MARKER,
         }
     }
 
@@ -231,7 +243,7 @@ impl FromStr for TokenStream {
     fn from_str(src: &str) -> Result<TokenStream, LexError> {
         let e = src.parse().map_err(|e| LexError {
             inner: e,
-            _marker: Marker,
+            _marker: MARKER,
         })?;
         Ok(TokenStream::_new(e))
     }
@@ -329,7 +341,7 @@ impl Error for LexError {}
 #[derive(Clone, PartialEq, Eq)]
 pub struct SourceFile {
     inner: imp::SourceFile,
-    _marker: Marker,
+    _marker: ProcMacroAutoTraits,
 }
 
 #[cfg(all(procmacro2_semver_exempt, any(not(wrap_proc_macro), super_unstable)))]
@@ -337,7 +349,7 @@ impl SourceFile {
     fn _new(inner: imp::SourceFile) -> Self {
         SourceFile {
             inner,
-            _marker: Marker,
+            _marker: MARKER,
         }
     }
 
@@ -376,21 +388,21 @@ impl Debug for SourceFile {
 #[derive(Copy, Clone)]
 pub struct Span {
     inner: imp::Span,
-    _marker: Marker,
+    _marker: ProcMacroAutoTraits,
 }
 
 impl Span {
     fn _new(inner: imp::Span) -> Self {
         Span {
             inner,
-            _marker: Marker,
+            _marker: MARKER,
         }
     }
 
     fn _new_fallback(inner: fallback::Span) -> Self {
         Span {
             inner: inner.into(),
-            _marker: Marker,
+            _marker: MARKER,
         }
     }
 
@@ -460,6 +472,21 @@ impl Span {
     #[cfg_attr(doc_cfg, doc(cfg(procmacro2_semver_exempt)))]
     pub fn source_file(&self) -> SourceFile {
         SourceFile::_new(self.inner.source_file())
+    }
+
+    /// Returns the span's byte position range in the source file.
+    ///
+    /// This method requires the `"span-locations"` feature to be enabled.
+    ///
+    /// When executing in a procedural macro context, the returned range is only
+    /// accurate if compiled with a nightly toolchain. The stable toolchain does
+    /// not have this information available. When executing outside of a
+    /// procedural macro, such as main.rs or build.rs, the byte range is always
+    /// accurate regardless of toolchain.
+    #[cfg(span_locations)]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "span-locations")))]
+    pub fn byte_range(&self) -> Range<usize> {
+        self.inner.byte_range()
     }
 
     /// Get the starting line/column in the source file for this span.
@@ -909,14 +936,14 @@ impl Debug for Punct {
 #[derive(Clone)]
 pub struct Ident {
     inner: imp::Ident,
-    _marker: Marker,
+    _marker: ProcMacroAutoTraits,
 }
 
 impl Ident {
     fn _new(inner: imp::Ident) -> Self {
         Ident {
             inner,
-            _marker: Marker,
+            _marker: MARKER,
         }
     }
 
@@ -1036,7 +1063,7 @@ impl Debug for Ident {
 #[derive(Clone)]
 pub struct Literal {
     inner: imp::Literal,
-    _marker: Marker,
+    _marker: ProcMacroAutoTraits,
 }
 
 macro_rules! suffixed_int_literals {
@@ -1083,14 +1110,14 @@ impl Literal {
     fn _new(inner: imp::Literal) -> Self {
         Literal {
             inner,
-            _marker: Marker,
+            _marker: MARKER,
         }
     }
 
     fn _new_fallback(inner: fallback::Literal) -> Self {
         Literal {
             inner: inner.into(),
-            _marker: Marker,
+            _marker: MARKER,
         }
     }
 
@@ -1250,7 +1277,7 @@ impl FromStr for Literal {
     fn from_str(repr: &str) -> Result<Self, LexError> {
         repr.parse().map(Literal::_new).map_err(|inner| LexError {
             inner,
-            _marker: Marker,
+            _marker: MARKER,
         })
     }
 }
@@ -1269,7 +1296,7 @@ impl Display for Literal {
 
 /// Public implementation details for the `TokenStream` type, such as iterators.
 pub mod token_stream {
-    use crate::marker::Marker;
+    use crate::marker::{ProcMacroAutoTraits, MARKER};
     use crate::{imp, TokenTree};
     use core::fmt::{self, Debug};
 
@@ -1282,7 +1309,7 @@ pub mod token_stream {
     #[derive(Clone)]
     pub struct IntoIter {
         inner: imp::TokenTreeIter,
-        _marker: Marker,
+        _marker: ProcMacroAutoTraits,
     }
 
     impl Iterator for IntoIter {
@@ -1311,7 +1338,7 @@ pub mod token_stream {
         fn into_iter(self) -> IntoIter {
             IntoIter {
                 inner: self.inner.into_iter(),
-                _marker: Marker,
+                _marker: MARKER,
             }
         }
     }

@@ -1,3 +1,11 @@
+# 0.21.7
+
+- Support getting an alphabet's contents as a str via `Alphabet::as_str()`
+
+# 0.21.6
+
+- Improved introductory documentation and example
+
 # 0.21.5
 
 - Add `Debug` and `Clone` impls for the general purpose Engine

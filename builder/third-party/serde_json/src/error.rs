@@ -438,11 +438,20 @@ impl de::Error for Error {
 
     #[cold]
     fn invalid_type(unexp: de::Unexpected, exp: &dyn de::Expected) -> Self {
-        if let de::Unexpected::Unit = unexp {
-            Error::custom(format_args!("invalid type: null, expected {}", exp))
-        } else {
-            Error::custom(format_args!("invalid type: {}, expected {}", unexp, exp))
-        }
+        Error::custom(format_args!(
+            "invalid type: {}, expected {}",
+            JsonUnexpected(unexp),
+            exp,
+        ))
+    }
+
+    #[cold]
+    fn invalid_value(unexp: de::Unexpected, exp: &dyn de::Expected) -> Self {
+        Error::custom(format_args!(
+            "invalid value: {}, expected {}",
+            JsonUnexpected(unexp),
+            exp,
+        ))
     }
 }
 
@@ -450,6 +459,22 @@ impl ser::Error for Error {
     #[cold]
     fn custom<T: Display>(msg: T) -> Error {
         make_error(msg.to_string())
+    }
+}
+
+struct JsonUnexpected<'a>(de::Unexpected<'a>);
+
+impl<'a> Display for JsonUnexpected<'a> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self.0 {
+            de::Unexpected::Unit => formatter.write_str("null"),
+            de::Unexpected::Float(value) => write!(
+                formatter,
+                "floating point `{}`",
+                ryu::Buffer::new().format(value),
+            ),
+            unexp => Display::fmt(&unexp, formatter),
+        }
     }
 }
 

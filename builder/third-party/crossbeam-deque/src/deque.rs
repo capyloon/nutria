@@ -1,15 +1,15 @@
 use std::cell::{Cell, UnsafeCell};
 use std::cmp;
 use std::fmt;
-use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::mem::{self, ManuallyDrop, MaybeUninit};
+use std::mem::{self, MaybeUninit};
 use std::ptr;
+use std::slice;
 use std::sync::atomic::{self, AtomicIsize, AtomicPtr, AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use crate::epoch::{self, Atomic, Owned};
-use crate::utils::{Backoff, CachePadded};
+use crossbeam_epoch::{self as epoch, Atomic, Owned};
+use crossbeam_utils::{Backoff, CachePadded};
 
 // Minimum buffer capacity.
 const MIN_CAP: usize = 64;
@@ -38,15 +38,22 @@ impl<T> Buffer<T> {
     fn alloc(cap: usize) -> Buffer<T> {
         debug_assert_eq!(cap, cap.next_power_of_two());
 
-        let mut v = ManuallyDrop::new(Vec::with_capacity(cap));
-        let ptr = v.as_mut_ptr();
+        let ptr = Box::into_raw(
+            (0..cap)
+                .map(|_| MaybeUninit::<T>::uninit())
+                .collect::<Box<[_]>>(),
+        )
+        .cast::<T>();
 
         Buffer { ptr, cap }
     }
 
     /// Deallocates the buffer.
     unsafe fn dealloc(self) {
-        drop(Vec::from_raw_parts(self.ptr, 0, self.cap));
+        drop(Box::from_raw(slice::from_raw_parts_mut(
+            self.ptr.cast::<MaybeUninit<T>>(),
+            self.cap,
+        )));
     }
 
     /// Returns a pointer to the task at the specified `index`.
@@ -1987,8 +1994,7 @@ impl<T> Drop for Injector<T> {
                 if offset < BLOCK_CAP {
                     // Drop the task in the slot.
                     let slot = (*block).slots.get_unchecked(offset);
-                    let p = &mut *slot.task.get();
-                    p.as_mut_ptr().drop_in_place();
+                    (*slot.task.get()).assume_init_drop();
                 } else {
                     // Deallocate the block and move to the next one.
                     let next = *(*block).next.get_mut();

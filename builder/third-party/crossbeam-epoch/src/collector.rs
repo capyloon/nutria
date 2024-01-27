@@ -286,7 +286,7 @@ mod tests {
         const COUNT: usize = 100_000;
         static DROPS: AtomicUsize = AtomicUsize::new(0);
 
-        struct Elem(i32);
+        struct Elem(#[allow(dead_code)] i32);
 
         impl Drop for Elem {
             fn drop(&mut self) {
@@ -350,7 +350,7 @@ mod tests {
         const COUNT: usize = 700;
         static DROPS: AtomicUsize = AtomicUsize::new(0);
 
-        struct Elem(i32);
+        struct Elem(#[allow(dead_code)] i32);
 
         impl Drop for Elem {
             fn drop(&mut self) {
@@ -403,9 +403,10 @@ mod tests {
             }
 
             let len = v.len();
-            let ptr = ManuallyDrop::new(v).as_mut_ptr() as usize;
+            let cap = v.capacity();
+            let ptr = ManuallyDrop::new(v).as_mut_ptr();
             guard.defer_unchecked(move || {
-                drop(Vec::from_raw_parts(ptr as *const i32 as *mut i32, len, len));
+                drop(Vec::from_raw_parts(ptr, len, cap));
                 DESTROYS.fetch_add(len, Ordering::Relaxed);
             });
             guard.flush();
@@ -427,7 +428,7 @@ mod tests {
         const COUNT: usize = 100_000;
         static DROPS: AtomicUsize = AtomicUsize::new(0);
 
-        struct Elem(i32);
+        struct Elem(#[allow(dead_code)] i32);
 
         impl Drop for Elem {
             fn drop(&mut self) {

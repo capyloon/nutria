@@ -8,15 +8,12 @@ use std::mem;
 use std::os::raw::c_void;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::io::AsRawHandle;
-use std::slice;
 use std::{char, mem::MaybeUninit};
 
 use encode_unicode::error::InvalidUtf16Tuple;
 use encode_unicode::CharExt;
-use windows_sys::Win32::Foundation::{CHAR, HANDLE, INVALID_HANDLE_VALUE, MAX_PATH};
-use windows_sys::Win32::Storage::FileSystem::{
-    FileNameInfo, GetFileInformationByHandleEx, FILE_NAME_INFO,
-};
+use windows_sys::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE, MAX_PATH};
+use windows_sys::Win32::Storage::FileSystem::{FileNameInfo, GetFileInformationByHandleEx};
 use windows_sys::Win32::System::Console::{
     FillConsoleOutputAttribute, FillConsoleOutputCharacterA, GetConsoleCursorInfo, GetConsoleMode,
     GetConsoleScreenBufferInfo, GetNumberOfConsoleInputEvents, GetStdHandle, ReadConsoleInputW,
@@ -225,7 +222,7 @@ pub fn clear_line(out: &Term) -> io::Result<()> {
                 Y: csbi.dwCursorPosition.Y,
             };
             let mut written = 0;
-            FillConsoleOutputCharacterA(hand, b' ' as CHAR, width as u32, pos, &mut written);
+            FillConsoleOutputCharacterA(hand, b' ', width as u32, pos, &mut written);
             FillConsoleOutputAttribute(hand, csbi.wAttributes, width as u32, pos, &mut written);
             SetConsoleCursorPosition(hand, pos);
         }
@@ -245,7 +242,7 @@ pub fn clear_chars(out: &Term, n: usize) -> io::Result<()> {
                 Y: csbi.dwCursorPosition.Y,
             };
             let mut written = 0;
-            FillConsoleOutputCharacterA(hand, b' ' as CHAR, width as u32, pos, &mut written);
+            FillConsoleOutputCharacterA(hand, b' ', width as u32, pos, &mut written);
             FillConsoleOutputAttribute(hand, csbi.wAttributes, width as u32, pos, &mut written);
             SetConsoleCursorPosition(hand, pos);
         }
@@ -262,7 +259,7 @@ pub fn clear_screen(out: &Term) -> io::Result<()> {
             let cells = csbi.dwSize.X as u32 * csbi.dwSize.Y as u32; // as u32, or else this causes stack overflows.
             let pos = COORD { X: 0, Y: 0 };
             let mut written = 0;
-            FillConsoleOutputCharacterA(hand, b' ' as CHAR, cells, pos, &mut written); // cells as u32 no longer needed.
+            FillConsoleOutputCharacterA(hand, b' ', cells, pos, &mut written); // cells as u32 no longer needed.
             FillConsoleOutputAttribute(hand, csbi.wAttributes, cells, pos, &mut written);
             SetConsoleCursorPosition(hand, pos);
         }
@@ -283,7 +280,7 @@ pub fn clear_to_end_of_screen(out: &Term) -> io::Result<()> {
                 Y: csbi.dwCursorPosition.Y,
             };
             let mut written = 0;
-            FillConsoleOutputCharacterA(hand, b' ' as CHAR, cells, pos, &mut written); // cells as u32 no longer needed.
+            FillConsoleOutputCharacterA(hand, b' ', cells, pos, &mut written); // cells as u32 no longer needed.
             FillConsoleOutputAttribute(hand, csbi.wAttributes, cells, pos, &mut written);
             SetConsoleCursorPosition(hand, pos);
         }
@@ -357,7 +354,7 @@ pub fn key_from_key_code(code: VIRTUAL_KEY) -> Key {
 pub fn read_secure() -> io::Result<String> {
     let mut rv = String::new();
     loop {
-        match read_single_key()? {
+        match read_single_key(false)? {
             Key::Enter => {
                 break;
             }
@@ -376,7 +373,7 @@ pub fn read_secure() -> io::Result<String> {
     Ok(rv)
 }
 
-pub fn read_single_key() -> io::Result<Key> {
+pub fn read_single_key(_ctrlc_key: bool) -> io::Result<Key> {
     let key_event = read_key_event()?;
 
     let unicode_char = unsafe { key_event.uChar.UnicodeChar };
@@ -390,6 +387,8 @@ pub fn read_single_key() -> io::Result<Key> {
                 // a special keycode for `Enter`, while ReadConsoleInputW() prefers to use '\r'.
                 if c == '\r' {
                     Ok(Key::Enter)
+                } else if c == '\t' {
+                    Ok(Key::Tab)
                 } else if c == '\x08' {
                     Ok(Key::Backspace)
                 } else if c == '\x1B' {
@@ -525,22 +524,37 @@ pub fn msys_tty_on(term: &Term) -> bool {
             }
         }
 
-        let size = mem::size_of::<FILE_NAME_INFO>();
-        let mut name_info_bytes = vec![0u8; size + MAX_PATH as usize * mem::size_of::<u16>()];
+        /// Mirrors windows_sys::Win32::Storage::FileSystem::FILE_NAME_INFO, giving
+        /// it a fixed length that we can stack allocate
+        #[repr(C)]
+        #[allow(non_snake_case)]
+        struct FILE_NAME_INFO {
+            FileNameLength: u32,
+            FileName: [u16; MAX_PATH as usize],
+        }
+
+        let mut name_info = FILE_NAME_INFO {
+            FileNameLength: 0,
+            FileName: [0; MAX_PATH as usize],
+        };
         let res = GetFileInformationByHandleEx(
             handle as HANDLE,
             FileNameInfo,
-            &mut *name_info_bytes as *mut _ as *mut c_void,
-            name_info_bytes.len() as u32,
+            &mut name_info as *mut _ as *mut c_void,
+            std::mem::size_of::<FILE_NAME_INFO>() as u32,
         );
         if res == 0 {
             return false;
         }
-        let name_info: &FILE_NAME_INFO = &*(name_info_bytes.as_ptr() as *const FILE_NAME_INFO);
-        let s = slice::from_raw_parts(
-            name_info.FileName.as_ptr(),
-            name_info.FileNameLength as usize / 2,
-        );
+
+        // Use `get` because `FileNameLength` can be out of range.
+        let s = match name_info
+            .FileName
+            .get(..name_info.FileNameLength as usize / 2)
+        {
+            Some(s) => s,
+            None => return false,
+        };
         let name = String::from_utf16_lossy(s);
         // This checks whether 'pty' exists in the file name, which indicates that
         // a pseudo-terminal is attached. To mitigate against false positives

@@ -1,12 +1,12 @@
 use crate::adapter::StripBytes;
 use crate::stream::AsLockedWrite;
-use crate::stream::RawStream;
+use crate::stream::IsTerminal;
 
 /// Only pass printable data to the inner `Write`
 #[derive(Debug)]
 pub struct StripStream<S>
 where
-    S: RawStream,
+    S: std::io::Write,
 {
     raw: S,
     state: StripBytes,
@@ -14,7 +14,7 @@ where
 
 impl<S> StripStream<S>
 where
-    S: RawStream,
+    S: std::io::Write,
 {
     /// Only pass printable data to the inner `Write`
     #[inline]
@@ -25,12 +25,18 @@ where
         }
     }
 
-    /// Get the wrapped [`RawStream`]
+    /// Get the wrapped [`std::io::Write`]
     #[inline]
     pub fn into_inner(self) -> S {
         self.raw
     }
+}
 
+impl<S> StripStream<S>
+where
+    S: std::io::Write,
+    S: IsTerminal,
+{
     #[inline]
     pub fn is_terminal(&self) -> bool {
         self.raw.is_terminal()
@@ -69,7 +75,8 @@ impl StripStream<std::io::Stderr> {
 
 impl<S> std::io::Write for StripStream<S>
 where
-    S: RawStream + AsLockedWrite,
+    S: std::io::Write,
+    S: AsLockedWrite,
 {
     // Must forward all calls to ensure locking happens appropriately
     #[inline]

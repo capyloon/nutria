@@ -39,7 +39,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.6.1"
+//! version = "1.7.0"
 //! features = [
 //!     "v4",                # Lets you generate random UUIDs
 //!     "fast-rng",          # Use a faster (but still sufficiently random) RNG
@@ -106,6 +106,8 @@
 //! * `macro-diagnostics` - enhances the diagnostics of `uuid!` macro.
 //! * `serde` - adds the ability to serialize and deserialize a UUID using
 //!   `serde`.
+//! * `borsh` - adds the ability to serialize and deserialize a UUID using
+//!   `borsh`.
 //! * `arbitrary` - adds an `Arbitrary` trait implementation to `Uuid` for
 //!   fuzzing.
 //! * `fast-rng` - uses a faster algorithm for generating random UUIDs.
@@ -120,8 +122,6 @@
 //!
 //! * `zerocopy` - adds support for zero-copy deserialization using the
 //!   `zerocopy` library.
-//! * `borsh` - adds the ability to serialize and deserialize a UUID using
-//!   `borsh`.
 //!
 //! Unstable features may break between minor releases.
 //!
@@ -141,7 +141,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.6.1"
+//! version = "1.7.0"
 //! features = [
 //!     "v4",
 //!     "v7",
@@ -156,7 +156,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.6.1"
+//! version = "1.7.0"
 //! default-features = false
 //! ```
 //!
@@ -169,7 +169,7 @@
 //! follow [`getrandom`'s docs] on configuring a source of randomness
 //! on currently unsupported targets. Alternatively, you can produce
 //! random bytes yourself and then pass them to [`Builder::from_random_bytes`]
-//! without enabling the `v4` feature.
+//! without enabling the `v4` or `v7` features.
 //!
 //! # Examples
 //!
@@ -214,7 +214,7 @@
 #![doc(
     html_logo_url = "https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png",
     html_favicon_url = "https://www.rust-lang.org/favicon.ico",
-    html_root_url = "https://docs.rs/uuid/1.6.1"
+    html_root_url = "https://docs.rs/uuid/1.7.0"
 )]
 
 #[cfg(any(feature = "std", test))]
@@ -440,8 +440,8 @@ pub enum Variant {
     derive(AsBytes, FromBytes, Unaligned)
 )]
 #[cfg_attr(
-    all(uuid_unstable, feature = "borsh"),
-    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+    feature = "borsh",
+    derive(borsh_derive::BorshDeserialize, borsh_derive::BorshSerialize)
 )]
 #[repr(transparent)]
 #[cfg_attr(

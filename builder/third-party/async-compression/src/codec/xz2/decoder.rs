@@ -46,11 +46,11 @@ impl Decode for Xz2Decoder {
         match status {
             Status::Ok => Ok(false),
             Status::StreamEnd => Ok(true),
-            Status::GetCheck => panic!("Unexpected lzma integrity check"),
-            Status::MemNeeded => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "More memory needed",
+            Status::GetCheck => Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Unexpected lzma integrity check",
             )),
+            Status::MemNeeded => Err(io::Error::new(io::ErrorKind::Other, "More memory needed")),
         }
     }
 
@@ -77,11 +77,11 @@ impl Decode for Xz2Decoder {
         match status {
             Status::Ok => Ok(false),
             Status::StreamEnd => Ok(true),
-            Status::GetCheck => panic!("Unexpected lzma integrity check"),
-            Status::MemNeeded => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "More memory needed",
+            Status::GetCheck => Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Unexpected lzma integrity check",
             )),
+            Status::MemNeeded => Err(io::Error::new(io::ErrorKind::Other, "More memory needed")),
         }
     }
 }
