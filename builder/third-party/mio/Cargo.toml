@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "mio"
-version = "0.8.10"
+version = "0.8.11"
 authors = [
     "Carl Lerche <me@carllerche.com>",
     "Thomas de Zeeuw <thomasdezeeuw@gmail.com>",
