@@ -4,6 +4,9 @@ body {
   height: 100%;
   margin: 0;
   overflow-x: hidden;
+}
+
+body {
   color: rgb(0, 0, 0);
   font-family: "Readex Pro", sans-serif;
   background: #FFFFFF;
