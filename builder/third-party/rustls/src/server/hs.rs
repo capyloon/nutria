@@ -1,6 +1,5 @@
 use crate::common_state::State;
 use crate::conn::ConnectionRandoms;
-use crate::dns_name::DnsName;
 #[cfg(feature = "tls12")]
 use crate::enums::CipherSuite;
 use crate::enums::{AlertDescription, HandshakeType, ProtocolVersion, SignatureScheme};
@@ -25,7 +24,12 @@ use super::tls12;
 use crate::server::common::ActiveCertifiedKey;
 use crate::server::tls13;
 
-use std::sync::Arc;
+use pki_types::DnsName;
+
+use alloc::borrow::ToOwned;
+use alloc::boxed::Box;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 
 pub(super) type NextState = Box<dyn State<ServerConnectionData>>;
 pub(super) type NextStateOrError = Result<NextState, Error>;
@@ -67,7 +71,6 @@ impl ExtensionProcessing {
         config: &ServerConfig,
         cx: &mut ServerContext<'_>,
         ocsp_response: &mut Option<&[u8]>,
-        sct_list: &mut Option<&[u8]>,
         hello: &ClientHelloPayload,
         resumedata: Option<&persist::ServerSessionValue>,
         extra_exts: Vec<ServerExtension>,
@@ -101,32 +104,29 @@ impl ExtensionProcessing {
             }
         }
 
-        #[cfg(feature = "quic")]
-        {
-            if cx.common.is_quic() {
-                // QUIC has strict ALPN, unlike TLS's more backwards-compatible behavior. RFC 9001
-                // says: "The server MUST treat the inability to select a compatible application
-                // protocol as a connection error of type 0x0178". We judge that ALPN was desired
-                // (rather than some out-of-band protocol negotiation mechanism) iff any ALPN
-                // protocols were configured locally or offered by the client. This helps prevent
-                // successful establishment of connections between peers that can't understand
-                // each other.
-                if cx.common.alpn_protocol.is_none()
-                    && (!our_protocols.is_empty() || maybe_their_protocols.is_some())
-                {
-                    return Err(cx.common.send_fatal_alert(
-                        AlertDescription::NoApplicationProtocol,
-                        Error::NoApplicationProtocol,
-                    ));
-                }
+        if cx.common.is_quic() {
+            // QUIC has strict ALPN, unlike TLS's more backwards-compatible behavior. RFC 9001
+            // says: "The server MUST treat the inability to select a compatible application
+            // protocol as a connection error of type 0x0178". We judge that ALPN was desired
+            // (rather than some out-of-band protocol negotiation mechanism) iff any ALPN
+            // protocols were configured locally or offered by the client. This helps prevent
+            // successful establishment of connections between peers that can't understand
+            // each other.
+            if cx.common.alpn_protocol.is_none()
+                && (!our_protocols.is_empty() || maybe_their_protocols.is_some())
+            {
+                return Err(cx.common.send_fatal_alert(
+                    AlertDescription::NoApplicationProtocol,
+                    Error::NoApplicationProtocol,
+                ));
+            }
 
-                match hello.get_quic_params_extension() {
-                    Some(params) => cx.common.quic.params = Some(params),
-                    None => {
-                        return Err(cx
-                            .common
-                            .missing_extension(PeerMisbehaved::MissingQuicTransportParameters));
-                    }
+            match hello.get_quic_params_extension() {
+                Some(params) => cx.common.quic.params = Some(params),
+                None => {
+                    return Err(cx
+                        .common
+                        .missing_extension(PeerMisbehaved::MissingQuicTransportParameters));
                 }
             }
         }
@@ -154,24 +154,6 @@ impl ExtensionProcessing {
         } else {
             // Throw away any OCSP response so we don't try to send it later.
             ocsp_response.take();
-        }
-
-        if !for_resume
-            && hello
-                .find_extension(ExtensionType::SCT)
-                .is_some()
-        {
-            if !cx.common.is_tls13() {
-                // Take the SCT list, if any, so we don't send it later,
-                // and put it in the legacy extension.
-                if let Some(sct_list) = sct_list.take() {
-                    self.exts
-                        .push(ServerExtension::make_sct(sct_list.to_vec()));
-                }
-            }
-        } else {
-            // Throw away any SCT list so we don't send it later.
-            sct_list.take();
         }
 
         self.exts.extend(extra_exts);
@@ -315,6 +297,7 @@ impl ExpectClientHello {
         // intersection of ciphersuites.
         let client_suites = self
             .config
+            .provider
             .cipher_suites
             .iter()
             .copied()
@@ -353,11 +336,17 @@ impl ExpectClientHello {
 
         // Reduce our supported ciphersuites by the certificate.
         // (no-op for TLS1.3)
-        let suitable_suites =
-            suites::reduce_given_sigalg(&self.config.cipher_suites, certkey.get_key().algorithm());
+        let suitable_suites = suites::reduce_given_sigalg(
+            &self.config.provider.cipher_suites,
+            certkey.get_key().algorithm(),
+        );
 
         // And version
-        let suitable_suites = suites::reduce_given_version(&suitable_suites, version);
+        let suitable_suites = suites::reduce_given_version_and_protocol(
+            &suitable_suites,
+            version,
+            cx.common.protocol,
+        );
 
         let suite = if self.config.ignore_client_order {
             suites::choose_ciphersuite_preferring_server(
@@ -381,10 +370,14 @@ impl ExpectClientHello {
         cx.common.suite = Some(suite);
 
         // Start handshake hash.
-        let starting_hash = suite.hash_algorithm();
+        let starting_hash = suite.hash_provider();
         let transcript = match self.transcript {
             HandshakeHashOrBuffer::Buffer(inner) => inner.start_hash(starting_hash),
-            HandshakeHashOrBuffer::Hash(inner) if inner.algorithm() == starting_hash => inner,
+            HandshakeHashOrBuffer::Hash(inner)
+                if inner.algorithm() == starting_hash.algorithm() =>
+            {
+                inner
+            }
             _ => {
                 return Err(cx.common.send_fatal_alert(
                     AlertDescription::IllegalParameter,
@@ -394,7 +387,10 @@ impl ExpectClientHello {
         };
 
         // Save their Random.
-        let randoms = ConnectionRandoms::new(client_hello.random, Random::new()?);
+        let randoms = ConnectionRandoms::new(
+            client_hello.random,
+            Random::new(self.config.provider.secure_random)?,
+        );
         match suite {
             SupportedCipherSuite::Tls13(suite) => tls13::CompleteClientHelloHandling {
                 config: self.config,
@@ -440,9 +436,11 @@ impl State<ServerConnectionData> for ExpectClientHello {
 ///
 /// This represents the first part of the `ClientHello` handling, where we do all validation that
 /// doesn't depend on a `ServerConfig` being available and extract everything needed to build a
-/// [`ClientHello`] value for a [`ResolvesServerConfig`]/`ResolvesServerCert`].
+/// [`ClientHello`] value for a [`ResolvesServerCert`].
 ///
 /// Note that this will modify `data.sni` even if config or certificate resolution fail.
+///
+/// [`ResolvesServerCert`]: crate::server::ResolvesServerCert
 pub(super) fn process_client_hello<'a>(
     m: &'a Message,
     done_retry: bool,

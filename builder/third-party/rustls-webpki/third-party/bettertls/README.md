@@ -4,14 +4,20 @@ Generated using the Netflix [bettertls] project.
 
 [bettertls]: https://github.com/Netflix/bettertls
 
-## Pathbuilding 
+## Test Data
 
-To regenerate pathbuilding test data:
+To regenerate vendored test data:
 
 1. Install Go
-2. Generate the JSON testdata export for the path building suite:
+2. Generate the JSON testdata export:
 
 ```bash
 GOBIN=$PWD go install github.com/Netflix/bettertls/test-suites/cmd/bettertls@latest
-./bettertls export-tests --suite pathbuilding --out ./pathbuilding.tests.json
+./bettertls export-tests --out ./bettertls.tests.json
+```
+
+3. Bzip2 compress it:
+
+```bash
+bzip2 ./bettertls.tests.json
 ```

@@ -1,26 +1,30 @@
 //! Tests for configuring and using a [`ClientCertVerifier`] for a server.
 
-#![cfg(feature = "dangerous_configuration")]
+#![cfg(any(feature = "ring", feature = "aws_lc_rs"))]
 
 mod common;
 
 use crate::common::{
-    dns_name, do_handshake_until_both_error, do_handshake_until_error, get_client_root_store,
+    do_handshake_until_both_error, do_handshake_until_error, get_client_root_store,
     make_client_config_with_versions, make_client_config_with_versions_with_auth,
-    make_pair_for_arc_configs, ErrorFromPeer, KeyType, ALL_KEY_TYPES,
+    make_pair_for_arc_configs, server_config_builder, server_name, webpki_client_verifier_builder,
+    ErrorFromPeer, KeyType, ALL_KEY_TYPES,
 };
-use rustls::client::WebPkiVerifier;
+use rustls::client::danger::HandshakeSignatureValid;
 use rustls::internal::msgs::handshake::DistinguishedName;
-use rustls::server::{ClientCertVerified, ClientCertVerifier};
+use rustls::server::danger::{ClientCertVerified, ClientCertVerifier};
 use rustls::{
-    AlertDescription, Certificate, ClientConnection, Error, InvalidMessage, ServerConfig,
+    AlertDescription, ClientConnection, DigitallySignedStruct, Error, InvalidMessage, ServerConfig,
     ServerConnection, SignatureScheme,
 };
+
+use pki_types::{CertificateDer, UnixTime};
+
 use std::sync::Arc;
 
 // Client is authorized!
 fn ver_ok() -> Result<ClientCertVerified, Error> {
-    Ok(rustls::server::ClientCertVerified::assertion())
+    Ok(ClientCertVerified::assertion())
 }
 
 // Use when we shouldn't even attempt verification
@@ -37,8 +41,7 @@ fn server_config_with_verifier(
     kt: KeyType,
     client_cert_verifier: MockClientVerifier,
 ) -> ServerConfig {
-    ServerConfig::builder()
-        .with_safe_defaults()
+    server_config_builder()
         .with_client_cert_verifier(Arc::new(client_cert_verifier))
         .with_single_cert(kt.get_chain(), kt.get_key())
         .unwrap()
@@ -48,17 +51,7 @@ fn server_config_with_verifier(
 // Happy path, we resolve to a root, it is verified OK, should be able to connect
 fn client_verifier_works() {
     for kt in ALL_KEY_TYPES.iter() {
-        let client_verifier = MockClientVerifier {
-            verified: ver_ok,
-            subjects: get_client_root_store(*kt)
-                .roots
-                .iter()
-                .map(|r| r.subject().clone())
-                .collect(),
-            mandatory: true,
-            offered_schemes: None,
-        };
-
+        let client_verifier = MockClientVerifier::new(ver_ok, *kt);
         let server_config = server_config_with_verifier(*kt, client_verifier);
         let server_config = Arc::new(server_config);
 
@@ -76,17 +69,8 @@ fn client_verifier_works() {
 #[test]
 fn client_verifier_no_schemes() {
     for kt in ALL_KEY_TYPES.iter() {
-        let client_verifier = MockClientVerifier {
-            verified: ver_ok,
-            subjects: get_client_root_store(*kt)
-                .roots
-                .iter()
-                .map(|r| r.subject().clone())
-                .collect(),
-            mandatory: true,
-            offered_schemes: Some(vec![]),
-        };
-
+        let mut client_verifier = MockClientVerifier::new(ver_ok, *kt);
+        client_verifier.offered_schemes = Some(vec![]);
         let server_config = server_config_with_verifier(*kt, client_verifier);
         let server_config = Arc::new(server_config);
 
@@ -109,17 +93,7 @@ fn client_verifier_no_schemes() {
 #[test]
 fn client_verifier_no_auth_yes_root() {
     for kt in ALL_KEY_TYPES.iter() {
-        let client_verifier = MockClientVerifier {
-            verified: ver_unreachable,
-            subjects: get_client_root_store(*kt)
-                .roots
-                .iter()
-                .map(|r| r.subject().clone())
-                .collect(),
-            mandatory: true,
-            offered_schemes: None,
-        };
-
+        let client_verifier = MockClientVerifier::new(ver_unreachable, *kt);
         let server_config = server_config_with_verifier(*kt, client_verifier);
         let server_config = Arc::new(server_config);
 
@@ -127,7 +101,7 @@ fn client_verifier_no_auth_yes_root() {
             let client_config = make_client_config_with_versions(*kt, &[version]);
             let mut server = ServerConnection::new(Arc::clone(&server_config)).unwrap();
             let mut client =
-                ClientConnection::new(Arc::new(client_config), dns_name("localhost")).unwrap();
+                ClientConnection::new(Arc::new(client_config), server_name("localhost")).unwrap();
             let errs = do_handshake_until_both_error(&mut client, &mut server);
             assert_eq!(
                 errs,
@@ -146,17 +120,7 @@ fn client_verifier_no_auth_yes_root() {
 // Triple checks we propagate the rustls::Error through
 fn client_verifier_fails_properly() {
     for kt in ALL_KEY_TYPES.iter() {
-        let client_verifier = MockClientVerifier {
-            verified: ver_err,
-            subjects: get_client_root_store(*kt)
-                .roots
-                .iter()
-                .map(|r| r.subject().clone())
-                .collect(),
-            mandatory: true,
-            offered_schemes: None,
-        };
-
+        let client_verifier = MockClientVerifier::new(ver_err, *kt);
         let server_config = server_config_with_verifier(*kt, client_verifier);
         let server_config = Arc::new(server_config);
 
@@ -164,7 +128,7 @@ fn client_verifier_fails_properly() {
             let client_config = make_client_config_with_versions_with_auth(*kt, &[version]);
             let mut server = ServerConnection::new(Arc::clone(&server_config)).unwrap();
             let mut client =
-                ClientConnection::new(Arc::new(client_config), dns_name("localhost")).unwrap();
+                ClientConnection::new(Arc::new(client_config), server_name("localhost")).unwrap();
             let err = do_handshake_until_error(&mut client, &mut server);
             assert_eq!(
                 err,
@@ -174,11 +138,27 @@ fn client_verifier_fails_properly() {
     }
 }
 
+#[derive(Debug)]
 pub struct MockClientVerifier {
+    parent: Arc<dyn ClientCertVerifier>,
     pub verified: fn() -> Result<ClientCertVerified, Error>,
     pub subjects: Vec<DistinguishedName>,
     pub mandatory: bool,
     pub offered_schemes: Option<Vec<SignatureScheme>>,
+}
+
+impl MockClientVerifier {
+    pub fn new(verified: fn() -> Result<ClientCertVerified, Error>, kt: KeyType) -> Self {
+        Self {
+            parent: webpki_client_verifier_builder(get_client_root_store(kt))
+                .build()
+                .unwrap(),
+            verified,
+            subjects: get_client_root_store(kt).subjects(),
+            mandatory: true,
+            offered_schemes: None,
+        }
+    }
 }
 
 impl ClientCertVerifier for MockClientVerifier {
@@ -186,24 +166,44 @@ impl ClientCertVerifier for MockClientVerifier {
         self.mandatory
     }
 
-    fn client_auth_root_subjects(&self) -> &[DistinguishedName] {
+    fn root_hint_subjects(&self) -> &[DistinguishedName] {
         &self.subjects
     }
 
     fn verify_client_cert(
         &self,
-        _end_entity: &Certificate,
-        _intermediates: &[Certificate],
-        _now: std::time::SystemTime,
+        _end_entity: &CertificateDer<'_>,
+        _intermediates: &[CertificateDer<'_>],
+        _now: UnixTime,
     ) -> Result<ClientCertVerified, Error> {
         (self.verified)()
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, Error> {
+        self.parent
+            .verify_tls12_signature(message, cert, dss)
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, Error> {
+        self.parent
+            .verify_tls13_signature(message, cert, dss)
     }
 
     fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
         if let Some(schemes) = &self.offered_schemes {
             schemes.clone()
         } else {
-            WebPkiVerifier::verification_schemes()
+            self.parent.supported_verify_schemes()
         }
     }
 }

@@ -1,29 +1,39 @@
-use crate::builder::{ConfigBuilder, WantsCipherSuites};
-use crate::common_state::{CommonState, Context, Side, State};
+use crate::builder::ConfigBuilder;
+use crate::common_state::{CommonState, Context, Protocol, Side, State};
 use crate::conn::{ConnectionCommon, ConnectionCore};
-use crate::dns_name::DnsName;
+use crate::crypto::CryptoProvider;
 use crate::enums::{CipherSuite, ProtocolVersion, SignatureScheme};
 use crate::error::Error;
-use crate::kx::SupportedKxGroup;
 #[cfg(feature = "logging")]
 use crate::log::trace;
 use crate::msgs::base::Payload;
 use crate::msgs::handshake::{ClientHelloPayload, ProtocolName, ServerExtension};
 use crate::msgs::message::Message;
-use crate::sign;
-use crate::suites::SupportedCipherSuite;
+use crate::suites::ExtractedSecrets;
 use crate::vecbuf::ChunkVecBuffer;
 use crate::verify;
-#[cfg(feature = "secret_extraction")]
-use crate::ExtractedSecrets;
+#[cfg(feature = "ring")]
+use crate::versions;
 use crate::KeyLog;
+#[cfg(feature = "ring")]
+use crate::WantsVerifier;
+use crate::{sign, WantsVersions};
 
 use super::hs;
 
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
-use std::{fmt, io};
+use pki_types::DnsName;
+
+use alloc::boxed::Box;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::fmt;
+use core::fmt::{Debug, Formatter};
+use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
+use std::io;
+
+#[cfg(doc)]
+use crate::crypto;
 
 /// A trait for the ability to store server session data.
 ///
@@ -43,7 +53,7 @@ use std::{fmt, io};
 /// in the type system to allow implementations freedom in
 /// how to achieve interior mutability.  `Mutex` is a common
 /// choice.
-pub trait StoresServerSessions: Send + Sync {
+pub trait StoresServerSessions: Debug + Send + Sync {
     /// Store session secrets encoded in `value` against `key`,
     /// overwrites any existing value against `key`.  Returns `true`
     /// if the value was stored.
@@ -64,7 +74,7 @@ pub trait StoresServerSessions: Send + Sync {
 }
 
 /// A trait for the ability to encrypt and decrypt tickets.
-pub trait ProducesTickets: Send + Sync {
+pub trait ProducesTickets: Debug + Send + Sync {
     /// Returns true if this implementation will encrypt/decrypt
     /// tickets.  Should return false if this is a dummy
     /// implementation: the server will not send the SessionTicket
@@ -98,7 +108,14 @@ pub trait ProducesTickets: Send + Sync {
 
 /// How to choose a certificate chain and signing key for use
 /// in server authentication.
-pub trait ResolvesServerCert: Send + Sync {
+///
+/// This is suitable when selecting a certificate does not require
+/// I/O or when the application is using blocking I/O anyhow.
+///
+/// For applications that use async I/O and need to do I/O to choose
+/// a certificate (for instance, fetching a certificate from a data store),
+/// the [`Acceptor`] interface is more suitable.
+pub trait ResolvesServerCert: Debug + Send + Sync {
     /// Choose a certificate chain and matching key given simplified
     /// ClientHello information.
     ///
@@ -108,7 +125,7 @@ pub trait ResolvesServerCert: Send + Sync {
 
 /// A struct representing the received Client Hello
 pub struct ClientHello<'a> {
-    server_name: &'a Option<DnsName>,
+    server_name: &'a Option<DnsName<'a>>,
     signature_schemes: &'a [SignatureScheme],
     alpn: Option<&'a Vec<ProtocolName>>,
     cipher_suites: &'a [CipherSuite],
@@ -188,40 +205,39 @@ impl<'a> ClientHello<'a> {
 /// from the operating system to add to the [`RootCertStore`] passed to a `ClientCertVerifier`
 /// builder may take on the order of a few hundred milliseconds.
 ///
-/// These must be created via the [`ServerConfig::builder()`] function.
+/// These must be created via the [`ServerConfig::builder()`] or [`ServerConfig::builder_with_provider()`]
+/// function.
 ///
 /// # Defaults
 ///
-/// * [`ServerConfig::max_fragment_size`]: the default is `None`: TLS packets are not fragmented to a specific size.
+/// * [`ServerConfig::max_fragment_size`]: the default is `None` (meaning 16kB).
 /// * [`ServerConfig::session_storage`]: the default stores 256 sessions in memory.
 /// * [`ServerConfig::alpn_protocols`]: the default is empty -- no ALPN protocol is negotiated.
 /// * [`ServerConfig::key_log`]: key material is not logged.
 /// * [`ServerConfig::send_tls13_tickets`]: 4 tickets are sent.
 ///
 /// [`RootCertStore`]: crate::RootCertStore
-#[derive(Clone)]
+#[derive(Debug)]
 pub struct ServerConfig {
-    /// List of ciphersuites, in preference order.
-    pub(super) cipher_suites: Vec<SupportedCipherSuite>,
-
-    /// List of supported key exchange groups.
-    ///
-    /// The first is the highest priority: they will be
-    /// offered to the client in this order.
-    pub(super) kx_groups: Vec<&'static SupportedKxGroup>,
+    /// Source of randomness and other crypto.
+    pub(super) provider: Arc<CryptoProvider>,
 
     /// Ignore the client's ciphersuite order. Instead,
     /// choose the top ciphersuite in the server list
     /// which is supported by the client.
     pub ignore_client_order: bool,
 
-    /// The maximum size of TLS message we'll emit.  If None, we don't limit TLS
-    /// message lengths except to the 2**16 limit specified in the standard.
+    /// The maximum size of plaintext input to be emitted in a single TLS record.
+    /// A value of None is equivalent to the [TLS maximum] of 16 kB.
     ///
     /// rustls enforces an arbitrary minimum of 32 bytes for this field.
-    /// Out of range values are reported as errors from ServerConnection::new.
+    /// Out of range values are reported as errors from [ServerConnection::new].
     ///
-    /// Setting this value to the TCP MSS may improve latency for stream-y workloads.
+    /// Setting this value to a little less than the TCP MSS may improve latency
+    /// for stream-y workloads.
+    ///
+    /// [TLS maximum]: https://datatracker.ietf.org/doc/html/rfc8446#section-5.1
+    /// [ServerConnection::new]: crate::server::ServerConnection::new
     pub max_fragment_size: Option<usize>,
 
     /// How to store client sessions.
@@ -230,7 +246,9 @@ pub struct ServerConfig {
     /// How to produce tickets.
     pub ticketer: Arc<dyn ProducesTickets>,
 
-    /// How to choose a server cert and key.
+    /// How to choose a server cert and key. This is usually set by
+    /// [ConfigBuilder::with_single_cert] or [ConfigBuilder::with_cert_resolver].
+    /// For async applications, see also [Acceptor].
     pub cert_resolver: Arc<dyn ResolvesServerCert>,
 
     /// Protocol names we support, most preferred first.
@@ -250,8 +268,6 @@ pub struct ServerConfig {
 
     /// Allows traffic secrets to be extracted after the handshake,
     /// e.g. for kTLS setup.
-    #[cfg(feature = "secret_extraction")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "secret_extraction")))]
     pub enable_secret_extraction: bool,
 
     /// Amount of early data to accept for sessions created by
@@ -301,26 +317,72 @@ pub struct ServerConfig {
     pub send_tls13_tickets: usize,
 }
 
-impl fmt::Debug for ServerConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ServerConfig")
-            .field("ignore_client_order", &self.ignore_client_order)
-            .field("max_fragment_size", &self.max_fragment_size)
-            .field("alpn_protocols", &self.alpn_protocols)
-            .field("max_early_data_size", &self.max_early_data_size)
-            .field("send_half_rtt_data", &self.send_half_rtt_data)
-            .field("send_tls13_tickets", &self.send_tls13_tickets)
-            .finish_non_exhaustive()
+// Avoid a `Clone` bound on `C`.
+impl Clone for ServerConfig {
+    fn clone(&self) -> Self {
+        Self {
+            provider: Arc::<CryptoProvider>::clone(&self.provider),
+            ignore_client_order: self.ignore_client_order,
+            max_fragment_size: self.max_fragment_size,
+            session_storage: Arc::clone(&self.session_storage),
+            ticketer: Arc::clone(&self.ticketer),
+            cert_resolver: Arc::clone(&self.cert_resolver),
+            alpn_protocols: self.alpn_protocols.clone(),
+            versions: self.versions,
+            verifier: Arc::clone(&self.verifier),
+            key_log: Arc::clone(&self.key_log),
+            enable_secret_extraction: self.enable_secret_extraction,
+            max_early_data_size: self.max_early_data_size,
+            send_half_rtt_data: self.send_half_rtt_data,
+            send_tls13_tickets: self.send_tls13_tickets,
+        }
     }
 }
 
 impl ServerConfig {
-    /// Create builder to build up the server configuration.
+    /// Create a builder for a server configuration with the default
+    /// [`CryptoProvider`]: [`crypto::ring::default_provider`] and safe ciphersuite and protocol
+    /// defaults.
     ///
     /// For more information, see the [`ConfigBuilder`] documentation.
-    pub fn builder() -> ConfigBuilder<Self, WantsCipherSuites> {
+    #[cfg(feature = "ring")]
+    pub fn builder() -> ConfigBuilder<Self, WantsVerifier> {
+        // Safety: we know the *ring* provider's ciphersuites are compatible with the safe default protocol versions.
+        Self::builder_with_provider(crate::crypto::ring::default_provider().into())
+            .with_safe_default_protocol_versions()
+            .unwrap()
+    }
+
+    /// Create a builder for a server configuration with the default
+    /// [`CryptoProvider`]: [`crypto::ring::default_provider`], safe ciphersuite defaults and
+    /// the provided protocol versions.
+    ///
+    /// Panics if provided an empty slice of supported versions.
+    ///
+    /// For more information, see the [`ConfigBuilder`] documentation.
+    #[cfg(feature = "ring")]
+    pub fn builder_with_protocol_versions(
+        versions: &[&'static versions::SupportedProtocolVersion],
+    ) -> ConfigBuilder<Self, WantsVerifier> {
+        // Safety: we know the *ring* provider's ciphersuites are compatible with all protocol version choices.
+        Self::builder_with_provider(crate::crypto::ring::default_provider().into())
+            .with_protocol_versions(versions)
+            .unwrap()
+    }
+
+    /// Create a builder for a server configuration with a specific [`CryptoProvider`].
+    ///
+    /// This will use the provider's configured ciphersuites. You must additionally choose
+    /// which protocol versions to enable, using `with_protocol_versions` or
+    /// `with_safe_default_protocol_versions` and handling the `Result` in case a protocol
+    /// version is not supported by the provider's ciphersuites.
+    ///
+    /// For more information, see the [`ConfigBuilder`] documentation.
+    pub fn builder_with_provider(
+        provider: Arc<CryptoProvider>,
+    ) -> ConfigBuilder<Self, WantsVersions> {
         ConfigBuilder {
-            state: WantsCipherSuites(()),
+            state: WantsVersions { provider },
             side: PhantomData,
         }
     }
@@ -331,9 +393,17 @@ impl ServerConfig {
     pub(crate) fn supports_version(&self, v: ProtocolVersion) -> bool {
         self.versions.contains(v)
             && self
+                .provider
                 .cipher_suites
                 .iter()
                 .any(|cs| cs.version().version == v)
+    }
+
+    pub(crate) fn supports_protocol(&self, proto: Protocol) -> bool {
+        self.provider
+            .cipher_suites
+            .iter()
+            .any(|cs| cs.usable_for_protocol(proto))
     }
 }
 
@@ -375,6 +445,9 @@ impl ServerConnection {
     /// Make a new ServerConnection.  `config` controls how
     /// we behave in the TLS protocol.
     pub fn new(config: Arc<ServerConfig>) -> Result<Self, Error> {
+        let mut common = CommonState::new(Side::Server);
+        common.set_max_fragment_size(config.max_fragment_size)?;
+        common.enable_secret_extraction = config.enable_secret_extraction;
         Ok(Self {
             inner: ConnectionCommon::from(ConnectionCore::for_server(config, Vec::new())?),
         })
@@ -455,15 +528,14 @@ impl ServerConnection {
     }
 
     /// Extract secrets, so they can be used when configuring kTLS, for example.
-    #[cfg(feature = "secret_extraction")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "secret_extraction")))]
-    pub fn extract_secrets(self) -> Result<ExtractedSecrets, Error> {
-        self.inner.extract_secrets()
+    /// Should be used with care as it exposes secret key material.
+    pub fn dangerous_extract_secrets(self) -> Result<ExtractedSecrets, Error> {
+        self.inner.dangerous_extract_secrets()
     }
 }
 
-impl fmt::Debug for ServerConnection {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Debug for ServerConnection {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("ServerConnection")
             .finish()
     }
@@ -489,7 +561,7 @@ impl From<ServerConnection> for crate::Connection {
     }
 }
 
-/// Handle on a server-side connection before configuration is available.
+/// Handle a server-side connection before configuration is available.
 ///
 /// `Acceptor` allows the caller to choose a [`ServerConfig`] after reading
 /// the [`ClientHello`] of an incoming connection. This is useful for servers
@@ -504,6 +576,7 @@ impl From<ServerConnection> for crate::Connection {
 /// # Example
 ///
 /// ```no_run
+/// # #[cfg(feature = "ring")] {
 /// # fn choose_server_config(
 /// #     _: rustls::server::ClientHello,
 /// # ) -> std::sync::Arc<rustls::ServerConfig> {
@@ -531,6 +604,7 @@ impl From<ServerConnection> for crate::Connection {
 
 ///     // Proceed with handling the ServerConnection.
 /// }
+/// # }
 /// # }
 /// ```
 pub struct Acceptor {
@@ -636,10 +710,7 @@ impl Accepted {
         self.connection
             .set_max_fragment_size(config.max_fragment_size)?;
 
-        #[cfg(feature = "secret_extraction")]
-        {
-            self.connection.enable_secret_extraction = config.enable_secret_extraction;
-        }
+        self.connection.enable_secret_extraction = config.enable_secret_extraction;
 
         let state = hs::ExpectClientHello::new(config, Vec::new());
         let mut cx = hs::ServerContext::from(&mut self.connection);
@@ -737,26 +808,14 @@ impl EarlyDataState {
     }
 }
 
-// these branches not reachable externally, unless something else goes wrong.
-#[test]
-fn test_read_in_new_state() {
-    assert_eq!(
-        format!("{:?}", EarlyDataState::default().read(&mut [0u8; 5])),
-        "Err(Kind(BrokenPipe))"
-    );
-}
-
-#[cfg(read_buf)]
-#[test]
-fn test_read_buf_in_new_state() {
-    use std::io::BorrowedBuf;
-
-    let mut buf = [0u8; 5];
-    let mut buf: BorrowedBuf<'_> = buf.as_mut_slice().into();
-    assert_eq!(
-        format!("{:?}", EarlyDataState::default().read_buf(buf.unfilled())),
-        "Err(Kind(BrokenPipe))"
-    );
+impl Debug for EarlyDataState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::New => write!(f, "EarlyDataState::New"),
+            Self::Accepted(buf) => write!(f, "EarlyDataState::Accepted({})", buf.len()),
+            Self::Rejected => write!(f, "EarlyDataState::Rejected"),
+        }
+    }
 }
 
 impl ConnectionCore<ServerConnectionData> {
@@ -766,10 +825,7 @@ impl ConnectionCore<ServerConnectionData> {
     ) -> Result<Self, Error> {
         let mut common = CommonState::new(Side::Server);
         common.set_max_fragment_size(config.max_fragment_size)?;
-        #[cfg(feature = "secret_extraction")]
-        {
-            common.enable_secret_extraction = config.enable_secret_extraction;
-        }
+        common.enable_secret_extraction = config.enable_secret_extraction;
         Ok(Self::new(
             Box::new(hs::ExpectClientHello::new(config, extra_exts)),
             ServerConnectionData::default(),
@@ -791,9 +847,9 @@ impl ConnectionCore<ServerConnectionData> {
 }
 
 /// State associated with a server connection.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ServerConnectionData {
-    pub(super) sni: Option<DnsName>,
+    pub(super) sni: Option<DnsName<'static>>,
     pub(super) received_resumption_data: Option<Vec<u8>>,
     pub(super) resumption_data: Vec<u8>,
     pub(super) early_data: EarlyDataState,
@@ -806,3 +862,30 @@ impl ServerConnectionData {
 }
 
 impl crate::conn::SideData for ServerConnectionData {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // these branches not reachable externally, unless something else goes wrong.
+    #[test]
+    fn test_read_in_new_state() {
+        assert_eq!(
+            format!("{:?}", EarlyDataState::default().read(&mut [0u8; 5])),
+            "Err(Kind(BrokenPipe))"
+        );
+    }
+
+    #[cfg(read_buf)]
+    #[test]
+    fn test_read_buf_in_new_state() {
+        use core::io::BorrowedBuf;
+
+        let mut buf = [0u8; 5];
+        let mut buf: BorrowedBuf<'_> = buf.as_mut_slice().into();
+        assert_eq!(
+            format!("{:?}", EarlyDataState::default().read_buf(buf.unfilled())),
+            "Err(Kind(BrokenPipe))"
+        );
+    }
+}

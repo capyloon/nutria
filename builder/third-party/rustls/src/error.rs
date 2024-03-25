@@ -2,9 +2,12 @@ use crate::enums::{AlertDescription, ContentType, HandshakeType};
 use crate::msgs::handshake::KeyExchangeAlgorithm;
 use crate::rand;
 
+use alloc::format;
+use alloc::string::String;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::fmt;
 use std::error::Error as StdError;
-use std::fmt;
-use std::sync::Arc;
 use std::time::SystemTimeError;
 
 /// rustls reports protocol errors using this type.
@@ -66,9 +69,6 @@ pub enum Error {
     /// implementation.
     InvalidCertificate(CertificateError),
 
-    /// The presented SCT(s) were invalid.
-    InvalidSct(sct::Error),
-
     /// A provided certificate revocation list (CRL) was invalid.
     InvalidCertRevocationList(CertRevocationListError),
 
@@ -94,6 +94,15 @@ pub enum Error {
     /// The `max_fragment_size` value supplied in configuration was too small,
     /// or too large.
     BadMaxFragmentSize,
+
+    /// Any other error.
+    ///
+    /// This variant should only be used when the error is not better described by a more
+    /// specific variant. For example, if a custom crypto provider returns a
+    /// provider specific error.
+    ///
+    /// Enums holding this variant will never compare equal to each other.
+    Other(OtherError),
 }
 
 /// A corrupt TLS message payload that resulted in an error.
@@ -189,7 +198,6 @@ pub enum PeerMisbehaved {
     IncorrectBinder,
     InvalidMaxEarlyDataSize,
     InvalidKeyShare,
-    InvalidSctList,
     KeyEpochWithPendingFragment,
     KeyUpdateReceivedInQuicConnection,
     MessageInterleavedWithHandshakeMessage,
@@ -304,6 +312,9 @@ pub enum CertificateError {
     /// The certificate chain is not issued by a known root certificate.
     UnknownIssuer,
 
+    /// The certificate's revocation status could not be determined.
+    UnknownRevocationStatus,
+
     /// A certificate is not correctly signed by the key of its alleged
     /// issuer.
     BadSignature,
@@ -329,7 +340,7 @@ pub enum CertificateError {
     /// not covered by the above common cases.
     ///
     /// Enums holding this variant will never compare equal to each other.
-    Other(Arc<dyn StdError + Send + Sync>),
+    Other(OtherError),
 }
 
 impl PartialEq<Self> for CertificateError {
@@ -365,7 +376,9 @@ impl From<CertificateError> for AlertDescription {
             //  A certificate has expired or **is not currently valid**.
             Expired | NotValidYet => Self::CertificateExpired,
             Revoked => Self::CertificateRevoked,
-            UnknownIssuer => Self::UnknownCA,
+            // OpenSSL, BoringSSL and AWS-LC all generate an Unknown CA alert for
+            // the case where revocation status can not be determined, so we do the same here.
+            UnknownIssuer | UnknownRevocationStatus => Self::UnknownCA,
             BadSignature => Self::DecryptError,
             InvalidPurpose => Self::UnsupportedCertificate,
             ApplicationVerificationFailure => Self::AccessDenied,
@@ -404,7 +417,7 @@ pub enum CertRevocationListError {
     /// The CRL is invalid for some other reason.
     ///
     /// Enums holding this variant will never compare equal to each other.
-    Other(Arc<dyn StdError + Send + Sync>),
+    Other(OtherError),
 
     /// The CRL is not correctly encoded.
     ParseError,
@@ -445,28 +458,6 @@ impl PartialEq<Self> for CertRevocationListError {
             (UnsupportedIndirectCrl, UnsupportedIndirectCrl) => true,
             (UnsupportedRevocationReason, UnsupportedRevocationReason) => true,
             _ => false,
-        }
-    }
-}
-
-impl From<webpki::Error> for CertRevocationListError {
-    fn from(e: webpki::Error) -> Self {
-        use webpki::Error::*;
-        match e {
-            InvalidCrlSignatureForPublicKey
-            | UnsupportedCrlSignatureAlgorithm
-            | UnsupportedCrlSignatureAlgorithmForPublicKey => Self::BadSignature,
-            InvalidCrlNumber => Self::InvalidCrlNumber,
-            InvalidSerialNumber => Self::InvalidRevokedCertSerialNumber,
-            IssuerNotCrlSigner => Self::IssuerInvalidForCrl,
-            MalformedExtensions | BadDer | BadDerTime => Self::ParseError,
-            UnsupportedCriticalExtension => Self::UnsupportedCriticalExtension,
-            UnsupportedCrlVersion => Self::UnsupportedCrlVersion,
-            UnsupportedDeltaCrl => Self::UnsupportedDeltaCrl,
-            UnsupportedIndirectCrl => Self::UnsupportedIndirectCrl,
-            UnsupportedRevocationReason => Self::UnsupportedRevocationReason,
-
-            _ => Self::Other(Arc::new(e)),
         }
     }
 }
@@ -526,13 +517,13 @@ impl fmt::Display for Error {
             Self::PeerSentOversizedRecord => write!(f, "peer sent excess record size"),
             Self::HandshakeNotComplete => write!(f, "handshake not complete"),
             Self::NoApplicationProtocol => write!(f, "peer doesn't support any known protocol"),
-            Self::InvalidSct(ref err) => write!(f, "invalid certificate timestamp: {:?}", err),
             Self::FailedToGetCurrentTime => write!(f, "failed to get current time"),
             Self::FailedToGetRandomBytes => write!(f, "failed to get random bytes"),
             Self::BadMaxFragmentSize => {
                 write!(f, "the supplied max_fragment_size was too small or large")
             }
             Self::General(ref err) => write!(f, "unexpected error: {}", err),
+            Self::Other(ref err) => write!(f, "other error: {}", err),
         }
     }
 }
@@ -552,10 +543,43 @@ impl From<rand::GetRandomFailed> for Error {
     }
 }
 
+/// Any other error that cannot be expressed by a more specific [`Error`] variant.
+///
+/// For example, an `OtherError` could be produced by a custom crypto provider
+/// exposing a provider specific error.
+///
+/// Enums holding this type will never compare equal to each other.
+#[derive(Debug, Clone)]
+pub struct OtherError(pub Arc<dyn StdError + Send + Sync>);
+
+impl PartialEq<Self> for OtherError {
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+}
+
+impl From<OtherError> for Error {
+    fn from(value: OtherError) -> Self {
+        Self::Other(value)
+    }
+}
+
+impl fmt::Display for OtherError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl StdError for OtherError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(self.0.as_ref())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Error, InvalidMessage};
-    use crate::error::CertRevocationListError;
+    use crate::error::{CertRevocationListError, OtherError};
 
     #[test]
     fn certificate_error_equality() {
@@ -573,7 +597,7 @@ mod tests {
             ApplicationVerificationFailure,
             ApplicationVerificationFailure
         );
-        let other = Other(std::sync::Arc::from(Box::from("")));
+        let other = Other(OtherError(alloc::sync::Arc::from(Box::from(""))));
         assert_ne!(other, other);
         assert_ne!(BadEncoding, Expired);
     }
@@ -594,67 +618,22 @@ mod tests {
         assert_eq!(UnsupportedDeltaCrl, UnsupportedDeltaCrl);
         assert_eq!(UnsupportedIndirectCrl, UnsupportedIndirectCrl);
         assert_eq!(UnsupportedRevocationReason, UnsupportedRevocationReason);
-        let other = Other(std::sync::Arc::from(Box::from("")));
+        let other = Other(OtherError(alloc::sync::Arc::from(Box::from(""))));
         assert_ne!(other, other);
         assert_ne!(BadSignature, InvalidCrlNumber);
     }
 
     #[test]
-    fn crl_error_from_webpki() {
-        use super::CertRevocationListError::*;
-        let testcases = &[
-            (webpki::Error::InvalidCrlSignatureForPublicKey, BadSignature),
-            (
-                webpki::Error::UnsupportedCrlSignatureAlgorithm,
-                BadSignature,
-            ),
-            (
-                webpki::Error::UnsupportedCrlSignatureAlgorithmForPublicKey,
-                BadSignature,
-            ),
-            (webpki::Error::InvalidCrlNumber, InvalidCrlNumber),
-            (
-                webpki::Error::InvalidSerialNumber,
-                InvalidRevokedCertSerialNumber,
-            ),
-            (webpki::Error::IssuerNotCrlSigner, IssuerInvalidForCrl),
-            (webpki::Error::MalformedExtensions, ParseError),
-            (webpki::Error::BadDer, ParseError),
-            (webpki::Error::BadDerTime, ParseError),
-            (
-                webpki::Error::UnsupportedCriticalExtension,
-                UnsupportedCriticalExtension,
-            ),
-            (webpki::Error::UnsupportedCrlVersion, UnsupportedCrlVersion),
-            (webpki::Error::UnsupportedDeltaCrl, UnsupportedDeltaCrl),
-            (
-                webpki::Error::UnsupportedIndirectCrl,
-                UnsupportedIndirectCrl,
-            ),
-            (
-                webpki::Error::UnsupportedRevocationReason,
-                UnsupportedRevocationReason,
-            ),
-        ];
-        for t in testcases {
-            assert_eq!(
-                <webpki::Error as Into<CertRevocationListError>>::into(t.0),
-                t.1
-            );
-        }
-
-        assert!(matches!(
-            <webpki::Error as Into<CertRevocationListError>>::into(
-                webpki::Error::NameConstraintViolation
-            ),
-            Other(_)
-        ));
+    fn other_error_equality() {
+        let other_error = OtherError(alloc::sync::Arc::from(Box::from("")));
+        assert_ne!(other_error, other_error);
+        let other: Error = other_error.into();
+        assert_ne!(other, other);
     }
 
     #[test]
     fn smoke() {
         use crate::enums::{AlertDescription, ContentType, HandshakeType};
-        use sct;
 
         let all = vec![
             Error::InappropriateMessage {
@@ -672,7 +651,6 @@ mod tests {
             super::PeerMisbehaved::UnsolicitedCertExtension.into(),
             Error::AlertReceived(AlertDescription::ExportRestriction),
             super::CertificateError::Expired.into(),
-            Error::InvalidSct(sct::Error::MalformedSct),
             Error::General("undocumented error".to_string()),
             Error::FailedToGetCurrentTime,
             Error::FailedToGetRandomBytes,
@@ -681,6 +659,7 @@ mod tests {
             Error::NoApplicationProtocol,
             Error::BadMaxFragmentSize,
             Error::InvalidCertRevocationList(CertRevocationListError::BadSignature),
+            Error::Other(OtherError(alloc::sync::Arc::from(Box::from("")))),
         ];
 
         for err in all {

@@ -12,8 +12,44 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-use crate::{calendar, time, Error};
-pub(crate) use ring::io::der::{CONSTRUCTED, CONTEXT_SPECIFIC};
+use core::marker::PhantomData;
+
+use crate::{error::DerTypeId, Error};
+
+#[derive(Debug)]
+pub struct DerIterator<'a, T> {
+    reader: untrusted::Reader<'a>,
+    marker: PhantomData<T>,
+}
+
+impl<'a, T> DerIterator<'a, T> {
+    /// [`DerIterator`] will consume all of the bytes in `input` reading values of type `T`.
+    pub(crate) fn new(input: untrusted::Input<'a>) -> Self {
+        Self {
+            reader: untrusted::Reader::new(input),
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: FromDer<'a>> Iterator for DerIterator<'a, T> {
+    type Item = Result<T, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        (!self.reader.at_end()).then(|| T::from_der(&mut self.reader))
+    }
+}
+
+pub(crate) trait FromDer<'a>: Sized + 'a {
+    /// Parse a value of type `Self` from the given DER-encoded input.
+    fn from_der(reader: &mut untrusted::Reader<'a>) -> Result<Self, Error>;
+
+    const TYPE_ID: DerTypeId;
+}
+
+pub(crate) fn read_all<'a, T: FromDer<'a>>(input: untrusted::Input<'a>) -> Result<T, Error> {
+    input.read_all(Error::TrailingData(T::TYPE_ID), T::from_der)
+}
 
 // Copied (and extended) from ring's src/der.rs
 #[allow(clippy::upper_case_acronyms)]
@@ -36,6 +72,9 @@ pub(crate) enum Tag {
     ContextSpecificConstructed3 = CONTEXT_SPECIFIC | CONSTRUCTED | 3,
 }
 
+pub(crate) const CONSTRUCTED: u8 = 0x20;
+pub(crate) const CONTEXT_SPECIFIC: u8 = 0x80;
+
 impl From<Tag> for usize {
     #[allow(clippy::as_conversions)]
     fn from(tag: Tag) -> Self {
@@ -51,18 +90,6 @@ impl From<Tag> for u8 {
 }
 
 #[inline(always)]
-pub(crate) fn expect_tag_and_get_value<'a>(
-    input: &mut untrusted::Reader<'a>,
-    tag: Tag,
-) -> Result<untrusted::Input<'a>, Error> {
-    let (actual_tag, inner) = read_tag_and_get_value(input)?;
-    if usize::from(tag) != usize::from(actual_tag) {
-        return Err(Error::BadDer);
-    }
-    Ok(inner)
-}
-
-#[inline(always)]
 pub(crate) fn expect_tag_and_get_value_limited<'a>(
     input: &mut untrusted::Reader<'a>,
     tag: Tag,
@@ -75,13 +102,13 @@ pub(crate) fn expect_tag_and_get_value_limited<'a>(
     Ok(inner)
 }
 
-pub(crate) fn nested_limited<'a, R, E: Copy>(
+pub(crate) fn nested_limited<'a, R>(
     input: &mut untrusted::Reader<'a>,
     tag: Tag,
-    error: E,
-    decoder: impl FnOnce(&mut untrusted::Reader<'a>) -> Result<R, E>,
+    error: Error,
+    decoder: impl FnOnce(&mut untrusted::Reader<'a>) -> Result<R, Error>,
     size_limit: usize,
-) -> Result<R, E> {
+) -> Result<R, Error> {
     expect_tag_and_get_value_limited(input, tag, size_limit)
         .map_err(|_| error)?
         .read_all(error, decoder)
@@ -89,35 +116,25 @@ pub(crate) fn nested_limited<'a, R, E: Copy>(
 
 // TODO: investigate taking decoder as a reference to reduce generated code
 // size.
-pub(crate) fn nested<'a, R, E: Copy>(
+pub(crate) fn nested<'a, R>(
     input: &mut untrusted::Reader<'a>,
     tag: Tag,
-    error: E,
-    decoder: impl FnOnce(&mut untrusted::Reader<'a>) -> Result<R, E>,
-) -> Result<R, E> {
+    error: Error,
+    decoder: impl FnOnce(&mut untrusted::Reader<'a>) -> Result<R, Error>,
+) -> Result<R, Error> {
     nested_limited(input, tag, error, decoder, TWO_BYTE_DER_SIZE)
-}
-
-pub(crate) struct Value<'a> {
-    value: untrusted::Input<'a>,
-}
-
-impl<'a> Value<'a> {
-    pub(crate) fn value(&self) -> untrusted::Input<'a> {
-        self.value
-    }
 }
 
 pub(crate) fn expect_tag<'a>(
     input: &mut untrusted::Reader<'a>,
     tag: Tag,
-) -> Result<Value<'a>, Error> {
-    let (actual_tag, value) = read_tag_and_get_value(input)?;
+) -> Result<untrusted::Input<'a>, Error> {
+    let (actual_tag, value) = read_tag_and_get_value_limited(input, TWO_BYTE_DER_SIZE)?;
     if usize::from(tag) != usize::from(actual_tag) {
         return Err(Error::BadDer);
     }
 
-    Ok(Value { value })
+    Ok(value)
 }
 
 #[inline(always)]
@@ -132,7 +149,7 @@ pub(crate) fn read_tag_and_get_value_limited<'a>(
     input: &mut untrusted::Reader<'a>,
     size_limit: usize,
 ) -> Result<(u8, untrusted::Input<'a>), Error> {
-    let tag = input.read_byte()?;
+    let tag = input.read_byte().map_err(end_of_input_err)?;
     if (tag & HIGH_TAG_RANGE_START) == HIGH_TAG_RANGE_START {
         return Err(Error::BadDer); // High tag number form is not allowed.
     }
@@ -140,18 +157,18 @@ pub(crate) fn read_tag_and_get_value_limited<'a>(
     // If the high order bit of the first byte is set to zero then the length
     // is encoded in the seven remaining bits of that byte. Otherwise, those
     // seven bits represent the number of bytes used to encode the length.
-    let length = match input.read_byte()? {
+    let length = match input.read_byte().map_err(end_of_input_err)? {
         n if (n & SHORT_FORM_LEN_MAX) == 0 => usize::from(n),
         LONG_FORM_LEN_ONE_BYTE => {
-            let length_byte = input.read_byte()?;
+            let length_byte = input.read_byte().map_err(end_of_input_err)?;
             if length_byte < SHORT_FORM_LEN_MAX {
                 return Err(Error::BadDer); // Not the canonical encoding.
             }
             usize::from(length_byte)
         }
         LONG_FORM_LEN_TWO_BYTES => {
-            let length_byte_one = usize::from(input.read_byte()?);
-            let length_byte_two = usize::from(input.read_byte()?);
+            let length_byte_one = usize::from(input.read_byte().map_err(end_of_input_err)?);
+            let length_byte_two = usize::from(input.read_byte().map_err(end_of_input_err)?);
             let combined = (length_byte_one << 8) | length_byte_two;
             if combined <= LONG_FORM_LEN_ONE_BYTE_MAX {
                 return Err(Error::BadDer); // Not the canonical encoding.
@@ -159,9 +176,9 @@ pub(crate) fn read_tag_and_get_value_limited<'a>(
             combined
         }
         LONG_FORM_LEN_THREE_BYTES => {
-            let length_byte_one = usize::from(input.read_byte()?);
-            let length_byte_two = usize::from(input.read_byte()?);
-            let length_byte_three = usize::from(input.read_byte()?);
+            let length_byte_one = usize::from(input.read_byte().map_err(end_of_input_err)?);
+            let length_byte_two = usize::from(input.read_byte().map_err(end_of_input_err)?);
+            let length_byte_three = usize::from(input.read_byte().map_err(end_of_input_err)?);
             let combined = (length_byte_one << 16) | (length_byte_two << 8) | length_byte_three;
             if combined <= LONG_FORM_LEN_TWO_BYTES_MAX {
                 return Err(Error::BadDer); // Not the canonical encoding.
@@ -169,10 +186,10 @@ pub(crate) fn read_tag_and_get_value_limited<'a>(
             combined
         }
         LONG_FORM_LEN_FOUR_BYTES => {
-            let length_byte_one = usize::from(input.read_byte()?);
-            let length_byte_two = usize::from(input.read_byte()?);
-            let length_byte_three = usize::from(input.read_byte()?);
-            let length_byte_four = usize::from(input.read_byte()?);
+            let length_byte_one = usize::from(input.read_byte().map_err(end_of_input_err)?);
+            let length_byte_two = usize::from(input.read_byte().map_err(end_of_input_err)?);
+            let length_byte_three = usize::from(input.read_byte().map_err(end_of_input_err)?);
+            let length_byte_four = usize::from(input.read_byte().map_err(end_of_input_err)?);
             let combined = (length_byte_one << 24)
                 | (length_byte_two << 16)
                 | (length_byte_three << 8)
@@ -191,7 +208,7 @@ pub(crate) fn read_tag_and_get_value_limited<'a>(
         return Err(Error::BadDer); // The length is larger than the caller accepts.
     }
 
-    let inner = input.read_bytes(length)?;
+    let inner = input.read_bytes(length).map_err(end_of_input_err)?;
     Ok((tag, inner))
 }
 
@@ -245,16 +262,13 @@ const LONG_FORM_LEN_FOUR_BYTES_MAX: usize = 0xff_ff_ff_ff;
 
 // TODO: investigate taking decoder as a reference to reduce generated code
 // size.
-pub(crate) fn nested_of_mut<'a, E>(
+pub(crate) fn nested_of_mut<'a>(
     input: &mut untrusted::Reader<'a>,
     outer_tag: Tag,
     inner_tag: Tag,
-    error: E,
-    mut decoder: impl FnMut(&mut untrusted::Reader<'a>) -> Result<(), E>,
-) -> Result<(), E>
-where
-    E: Copy,
-{
+    error: Error,
+    mut decoder: impl FnMut(&mut untrusted::Reader<'a>) -> Result<(), Error>,
+) -> Result<(), Error> {
     nested(input, outer_tag, error, |outer| {
         loop {
             nested(outer, inner_tag, error, |inner| decoder(inner))?;
@@ -269,13 +283,18 @@ where
 pub(crate) fn bit_string_with_no_unused_bits<'a>(
     input: &mut untrusted::Reader<'a>,
 ) -> Result<untrusted::Input<'a>, Error> {
-    nested(input, Tag::BitString, Error::BadDer, |value| {
-        let unused_bits_at_end = value.read_byte().map_err(|_| Error::BadDer)?;
-        if unused_bits_at_end != 0 {
-            return Err(Error::BadDer);
-        }
-        Ok(value.read_bytes_to_end())
-    })
+    nested(
+        input,
+        Tag::BitString,
+        Error::TrailingData(DerTypeId::BitString),
+        |value| {
+            let unused_bits_at_end = value.read_byte().map_err(|_| Error::BadDer)?;
+            if unused_bits_at_end != 0 {
+                return Err(Error::BadDer);
+            }
+            Ok(value.read_bytes_to_end())
+        },
+    )
 }
 
 pub(crate) struct BitStringFlags<'a> {
@@ -296,16 +315,14 @@ impl<'a> BitStringFlags<'a> {
 }
 
 // ASN.1 BIT STRING fields for sets of flags are encoded in DER with some peculiar details related
-// to padding. Notably this means we expect a Tag::BitString, a length, an indicator of the number
-// of bits of padding, and then the actual bit values. See this Stack Overflow discussion[0], and
-// ITU X690-0207[1] Section 8.6 and Section 11.2 for more information.
+// to padding. Notably this means we expect an indicator of the number of bits of padding, and then
+// the actual bit values. See this Stack Overflow discussion[0], and ITU X690-0207[1] Section 8.6
+// and Section 11.2 for more information.
 //
 // [0]: https://security.stackexchange.com/a/10396
 // [1]: https://www.itu.int/ITU-T/studygroups/com17/languages/X.690-0207.pdf
-pub(crate) fn bit_string_flags<'a>(
-    input: &mut untrusted::Reader<'a>,
-) -> Result<BitStringFlags<'a>, Error> {
-    expect_tag_and_get_value(input, Tag::BitString)?.read_all(Error::BadDer, |bit_string| {
+pub(crate) fn bit_string_flags(input: untrusted::Input) -> Result<BitStringFlags<'_>, Error> {
+    input.read_all(Error::BadDer, |bit_string| {
         // ITU X690-0207 11.2:
         //   "The initial octet shall encode, as an unsigned binary integer with bit 1 as the least
         //   significant bit, the number of unused bits in the final subsequent octet.
@@ -331,78 +348,69 @@ pub(crate) fn bit_string_flags<'a>(
     })
 }
 
-// Like mozilla::pkix, we accept the nonconformant explicit encoding of
-// the default value (false) for compatibility with real-world certificates.
-pub(crate) fn optional_boolean(input: &mut untrusted::Reader) -> Result<bool, Error> {
-    if !input.peek(Tag::Boolean.into()) {
-        return Ok(false);
-    }
-    nested(input, Tag::Boolean, Error::BadDer, |input| {
-        match input.read_byte() {
-            Ok(0xff) => Ok(true),
-            Ok(0x00) => Ok(false),
+impl<'a> FromDer<'a> for u8 {
+    fn from_der(reader: &mut untrusted::Reader<'a>) -> Result<Self, Error> {
+        match *nonnegative_integer(reader)?.as_slice_less_safe() {
+            [b] => Ok(b),
             _ => Err(Error::BadDer),
         }
-    })
-}
-
-pub(crate) fn small_nonnegative_integer(input: &mut untrusted::Reader) -> Result<u8, Error> {
-    ring::io::der::small_nonnegative_integer(input).map_err(|_| Error::BadDer)
-}
-
-pub(crate) fn time_choice(input: &mut untrusted::Reader) -> Result<time::Time, Error> {
-    let is_utc_time = input.peek(Tag::UTCTime.into());
-    let expected_tag = if is_utc_time {
-        Tag::UTCTime
-    } else {
-        Tag::GeneralizedTime
-    };
-
-    fn read_digit(inner: &mut untrusted::Reader) -> Result<u64, Error> {
-        const DIGIT: core::ops::RangeInclusive<u8> = b'0'..=b'9';
-        let b = inner.read_byte().map_err(|_| Error::BadDerTime)?;
-        if DIGIT.contains(&b) {
-            return Ok(u64::from(b - DIGIT.start()));
-        }
-        Err(Error::BadDerTime)
     }
 
-    fn read_two_digits(inner: &mut untrusted::Reader, min: u64, max: u64) -> Result<u64, Error> {
-        let hi = read_digit(inner)?;
-        let lo = read_digit(inner)?;
-        let value = (hi * 10) + lo;
-        if value < min || value > max {
-            return Err(Error::BadDerTime);
+    const TYPE_ID: DerTypeId = DerTypeId::U8;
+}
+
+pub(crate) fn nonnegative_integer<'a>(
+    input: &mut untrusted::Reader<'a>,
+) -> Result<untrusted::Input<'a>, Error> {
+    let value = expect_tag(input, Tag::Integer)?;
+    match value
+        .as_slice_less_safe()
+        .split_first()
+        .ok_or(Error::BadDer)?
+    {
+        // Zero or leading zero.
+        (0, rest) => {
+            match rest.first() {
+                // Zero
+                None => Ok(value),
+                // Necessary leading zero.
+                Some(&second) if second & 0x80 == 0x80 => Ok(untrusted::Input::from(rest)),
+                // Unnecessary leading zero.
+                _ => Err(Error::BadDer),
+            }
         }
-        Ok(value)
+        // Positive value with no leading zero.
+        (first, _) if first & 0x80 == 0x00 => Ok(value),
+        // Negative value.
+        (_, _) => Err(Error::BadDer),
+    }
+}
+
+pub(crate) fn end_of_input_err(_: untrusted::EndOfInput) -> Error {
+    Error::BadDer
+}
+
+// Like mozilla::pkix, we accept the nonconformant explicit encoding of
+// the default value (false) for compatibility with real-world certificates.
+impl<'a> FromDer<'a> for bool {
+    fn from_der(reader: &mut untrusted::Reader<'a>) -> Result<Self, Error> {
+        if !reader.peek(Tag::Boolean.into()) {
+            return Ok(false);
+        }
+
+        nested(
+            reader,
+            Tag::Boolean,
+            Error::TrailingData(Self::TYPE_ID),
+            |input| match input.read_byte() {
+                Ok(0xff) => Ok(true),
+                Ok(0x00) => Ok(false),
+                _ => Err(Error::BadDer),
+            },
+        )
     }
 
-    nested(input, expected_tag, Error::BadDer, |value| {
-        let (year_hi, year_lo) = if is_utc_time {
-            let lo = read_two_digits(value, 0, 99)?;
-            let hi = if lo >= 50 { 19 } else { 20 };
-            (hi, lo)
-        } else {
-            let hi = read_two_digits(value, 0, 99)?;
-            let lo = read_two_digits(value, 0, 99)?;
-            (hi, lo)
-        };
-
-        let year = (year_hi * 100) + year_lo;
-        let month = read_two_digits(value, 1, 12)?;
-        let days_in_month = calendar::days_in_month(year, month);
-        let day_of_month = read_two_digits(value, 1, days_in_month)?;
-        let hours = read_two_digits(value, 0, 23)?;
-        let minutes = read_two_digits(value, 0, 59)?;
-        let seconds = read_two_digits(value, 0, 59)?;
-
-        let time_zone = value.read_byte().map_err(|_| Error::BadDerTime)?;
-        if time_zone != b'Z' {
-            return Err(Error::BadDerTime);
-        }
-
-        calendar::time_from_ymdhms_utc(year, month, day_of_month, hours, minutes, seconds)
-    })
+    const TYPE_ID: DerTypeId = DerTypeId::Bool;
 }
 
 macro_rules! oid {
@@ -414,27 +422,29 @@ macro_rules! oid {
 
 #[cfg(test)]
 mod tests {
+    use super::DerTypeId;
+
     #[test]
     fn test_optional_boolean() {
-        use super::{optional_boolean, Error};
+        use super::{Error, FromDer};
 
         // Empty input results in false
-        assert!(!optional_boolean(&mut bytes_reader(&[])).unwrap());
+        assert!(!bool::from_der(&mut bytes_reader(&[])).unwrap());
 
         // Optional, so another data type results in false
-        assert!(!optional_boolean(&mut bytes_reader(&[0x05, 0x00])).unwrap());
+        assert!(!bool::from_der(&mut bytes_reader(&[0x05, 0x00])).unwrap());
 
         // Only 0x00 and 0xff are accepted values
         assert_eq!(
-            optional_boolean(&mut bytes_reader(&[0x01, 0x01, 0x42])).unwrap_err(),
-            Error::BadDer,
+            Err(Error::BadDer),
+            bool::from_der(&mut bytes_reader(&[0x01, 0x01, 0x42]))
         );
 
         // True
-        assert!(optional_boolean(&mut bytes_reader(&[0x01, 0x01, 0xff])).unwrap());
+        assert!(bool::from_der(&mut bytes_reader(&[0x01, 0x01, 0xff])).unwrap());
 
         // False
-        assert!(!optional_boolean(&mut bytes_reader(&[0x01, 0x01, 0x00])).unwrap());
+        assert!(!bool::from_der(&mut bytes_reader(&[0x01, 0x01, 0x00])).unwrap());
     }
 
     #[test]
@@ -444,19 +454,19 @@ mod tests {
         // Unexpected type
         assert_eq!(
             bit_string_with_no_unused_bits(&mut bytes_reader(&[0x01, 0x01, 0xff])).unwrap_err(),
-            Error::BadDer,
+            Error::TrailingData(DerTypeId::BitString),
         );
 
         // Unexpected nonexistent type
         assert_eq!(
             bit_string_with_no_unused_bits(&mut bytes_reader(&[0x42, 0xff, 0xff])).unwrap_err(),
-            Error::BadDer,
+            Error::TrailingData(DerTypeId::BitString),
         );
 
         // Unexpected empty input
         assert_eq!(
             bit_string_with_no_unused_bits(&mut bytes_reader(&[])).unwrap_err(),
-            Error::BadDer,
+            Error::TrailingData(DerTypeId::BitString),
         );
 
         // Valid input with non-zero unused bits
@@ -627,59 +637,38 @@ mod tests {
         }
     }
 
-    #[allow(clippy::as_conversions)] // infallible.
-    const BITSTRING_TAG: u8 = super::Tag::BitString as u8;
-
     #[test]
     fn misencoded_bit_string_flags() {
         use super::{bit_string_flags, Error};
 
-        let mut bad_padding_example = untrusted::Reader::new(untrusted::Input::from(&[
-            BITSTRING_TAG, // BitString
-            0x2,           // 2 bytes of content.
-            0x08,          // 8 bit of padding (illegal!).
-            0x06,          // 1 byte of bit flags asserting bits 5 and 6.
-        ]));
+        let bad_padding_example = untrusted::Input::from(&[
+            0x08, // 8 bit of padding (illegal!).
+            0x06, // 1 byte of bit flags asserting bits 5 and 6.
+        ]);
         assert!(matches!(
-            bit_string_flags(&mut bad_padding_example),
+            bit_string_flags(bad_padding_example),
             Err(Error::BadDer)
         ));
 
-        let mut bad_padding_example = untrusted::Reader::new(untrusted::Input::from(&[
-            BITSTRING_TAG, // BitString
-            0x2,           // 2 bytes of content.
-            0x01,          // 1 bit of padding.
-                           // No flags value (illegal with padding!).
-        ]));
+        let bad_padding_example = untrusted::Input::from(&[
+            0x01, // 1 bit of padding.
+                 // No flags value (illegal with padding!).
+        ]);
         assert!(matches!(
-            bit_string_flags(&mut bad_padding_example),
+            bit_string_flags(bad_padding_example),
             Err(Error::BadDer)
         ));
-
-        let mut trailing_zeroes = untrusted::Reader::new(untrusted::Input::from(&[
-            BITSTRING_TAG, // BitString
-            0x2,           // 2 bytes of content.
-            0x01,          // 1 bit of padding.
-            0xFF,          // Flag data with
-            0x00,          // trailing zeros.
-        ]));
-        assert!(matches!(
-            bit_string_flags(&mut trailing_zeroes),
-            Err(Error::BadDer)
-        ))
     }
 
     #[test]
     fn valid_bit_string_flags() {
         use super::bit_string_flags;
 
-        let mut example_key_usage = untrusted::Reader::new(untrusted::Input::from(&[
-            BITSTRING_TAG, // BitString
-            0x2,           // 2 bytes of content.
-            0x01,          // 1 bit of padding.
-            0x06,          // 1 byte of bit flags asserting bits 5 and 6.
-        ]));
-        let res = bit_string_flags(&mut example_key_usage).unwrap();
+        let example_key_usage = untrusted::Input::from(&[
+            0x01, // 1 bit of padding.
+            0x06, // 1 byte of bit flags asserting bits 5 and 6.
+        ]);
+        let res = bit_string_flags(example_key_usage).unwrap();
 
         assert!(!res.bit_set(0));
         assert!(!res.bit_set(1));
@@ -693,5 +682,94 @@ mod tests {
         assert!(!res.bit_set(8));
         // Bits outside the range of values shouldn't be considered set.
         assert!(!res.bit_set(256));
+    }
+
+    #[test]
+    fn test_small_nonnegative_integer() {
+        use super::{Error, FromDer, Tag};
+
+        for value in 0..=127 {
+            let data = [Tag::Integer.into(), 1, value];
+            let mut rd = untrusted::Reader::new(untrusted::Input::from(&data));
+            assert_eq!(u8::from_der(&mut rd), Ok(value),);
+        }
+
+        for value in 128..=255 {
+            let data = [Tag::Integer.into(), 2, 0x00, value];
+            let mut rd = untrusted::Reader::new(untrusted::Input::from(&data));
+            assert_eq!(u8::from_der(&mut rd), Ok(value),);
+        }
+
+        // not an integer
+        assert_eq!(
+            u8::from_der(&mut untrusted::Reader::new(untrusted::Input::from(&[
+                Tag::Sequence.into(),
+                1,
+                1
+            ]))),
+            Err(Error::BadDer)
+        );
+
+        // negative
+        assert_eq!(
+            u8::from_der(&mut untrusted::Reader::new(untrusted::Input::from(&[
+                Tag::Integer.into(),
+                1,
+                0xff
+            ]))),
+            Err(Error::BadDer)
+        );
+
+        // positive but too large
+        assert_eq!(
+            u8::from_der(&mut untrusted::Reader::new(untrusted::Input::from(&[
+                Tag::Integer.into(),
+                2,
+                0x01,
+                0x00
+            ]))),
+            Err(Error::BadDer)
+        );
+
+        // unnecessary leading zero
+        assert_eq!(
+            u8::from_der(&mut untrusted::Reader::new(untrusted::Input::from(&[
+                Tag::Integer.into(),
+                2,
+                0x00,
+                0x05
+            ]))),
+            Err(Error::BadDer)
+        );
+
+        // truncations
+        assert_eq!(
+            u8::from_der(&mut untrusted::Reader::new(untrusted::Input::from(&[]))),
+            Err(Error::BadDer)
+        );
+
+        assert_eq!(
+            u8::from_der(&mut untrusted::Reader::new(untrusted::Input::from(&[
+                Tag::Integer.into(),
+            ]))),
+            Err(Error::BadDer)
+        );
+
+        assert_eq!(
+            u8::from_der(&mut untrusted::Reader::new(untrusted::Input::from(&[
+                Tag::Integer.into(),
+                1,
+            ]))),
+            Err(Error::BadDer)
+        );
+
+        assert_eq!(
+            u8::from_der(&mut untrusted::Reader::new(untrusted::Input::from(&[
+                Tag::Integer.into(),
+                2,
+                0
+            ]))),
+            Err(Error::BadDer)
+        );
     }
 }

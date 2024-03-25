@@ -1,7 +1,7 @@
 use crate::conn::{ConnectionCommon, SideData};
 
+use core::ops::{Deref, DerefMut};
 use std::io::{IoSlice, Read, Result, Write};
-use std::ops::{Deref, DerefMut};
 
 /// This type implements `io::Read` and `io::Write`, encapsulating
 /// a Connection `C` and an underlying transport `T`, such as a socket.
@@ -166,6 +166,11 @@ where
     /// Get a mutable reference to the underlying socket
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.sock
+    }
+
+    /// Extract the `conn` and `sock` parts from the `StreamOwned`
+    pub fn into_parts(self) -> (C, T) {
+        (self.conn, self.sock)
     }
 }
 

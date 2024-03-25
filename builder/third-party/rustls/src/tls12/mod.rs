@@ -1,166 +1,59 @@
-use crate::cipher::{MessageDecrypter, MessageEncrypter};
 use crate::common_state::{CommonState, Side};
 use crate::conn::ConnectionRandoms;
-use crate::enums::{AlertDescription, CipherSuite, SignatureScheme};
+use crate::crypto;
+use crate::crypto::cipher::{AeadKey, MessageDecrypter, MessageEncrypter, Tls12AeadAlgorithm};
+use crate::crypto::hash;
+use crate::enums::{AlertDescription, SignatureScheme};
 use crate::error::{Error, InvalidMessage};
-use crate::kx;
 use crate::msgs::codec::{Codec, Reader};
 use crate::msgs::handshake::KeyExchangeAlgorithm;
-use crate::suites::{BulkAlgorithm, CipherSuiteCommon, SupportedCipherSuite};
-#[cfg(feature = "secret_extraction")]
-use crate::suites::{ConnectionTrafficSecrets, PartiallyExtractedSecrets};
+use crate::suites::{CipherSuiteCommon, PartiallyExtractedSecrets, SupportedCipherSuite};
 
-use ring::aead;
-use ring::digest::Digest;
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::fmt;
 
-use std::fmt;
-
-mod cipher;
-pub(crate) use cipher::{AesGcm, ChaCha20Poly1305, Tls12AeadAlgorithm};
-
-mod prf;
-
-/// The TLS1.2 ciphersuite TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256.
-pub static TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256: SupportedCipherSuite =
-    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
-        common: CipherSuiteCommon {
-            suite: CipherSuite::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-            bulk: BulkAlgorithm::Chacha20Poly1305,
-            aead_algorithm: &ring::aead::CHACHA20_POLY1305,
-        },
-        kx: KeyExchangeAlgorithm::ECDHE,
-        sign: TLS12_ECDSA_SCHEMES,
-        fixed_iv_len: 12,
-        explicit_nonce_len: 0,
-        aead_alg: &ChaCha20Poly1305,
-        hmac_algorithm: ring::hmac::HMAC_SHA256,
-    });
-
-/// The TLS1.2 ciphersuite TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-pub static TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256: SupportedCipherSuite =
-    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
-        common: CipherSuiteCommon {
-            suite: CipherSuite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-            bulk: BulkAlgorithm::Chacha20Poly1305,
-            aead_algorithm: &ring::aead::CHACHA20_POLY1305,
-        },
-        kx: KeyExchangeAlgorithm::ECDHE,
-        sign: TLS12_RSA_SCHEMES,
-        fixed_iv_len: 12,
-        explicit_nonce_len: 0,
-        aead_alg: &ChaCha20Poly1305,
-        hmac_algorithm: ring::hmac::HMAC_SHA256,
-    });
-
-/// The TLS1.2 ciphersuite TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-pub static TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256: SupportedCipherSuite =
-    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
-        common: CipherSuiteCommon {
-            suite: CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-            bulk: BulkAlgorithm::Aes128Gcm,
-            aead_algorithm: &ring::aead::AES_128_GCM,
-        },
-        kx: KeyExchangeAlgorithm::ECDHE,
-        sign: TLS12_RSA_SCHEMES,
-        fixed_iv_len: 4,
-        explicit_nonce_len: 8,
-        aead_alg: &AesGcm,
-        hmac_algorithm: ring::hmac::HMAC_SHA256,
-    });
-
-/// The TLS1.2 ciphersuite TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-pub static TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384: SupportedCipherSuite =
-    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
-        common: CipherSuiteCommon {
-            suite: CipherSuite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-            bulk: BulkAlgorithm::Aes256Gcm,
-            aead_algorithm: &ring::aead::AES_256_GCM,
-        },
-        kx: KeyExchangeAlgorithm::ECDHE,
-        sign: TLS12_RSA_SCHEMES,
-        fixed_iv_len: 4,
-        explicit_nonce_len: 8,
-        aead_alg: &AesGcm,
-        hmac_algorithm: ring::hmac::HMAC_SHA384,
-    });
-
-/// The TLS1.2 ciphersuite TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-pub static TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256: SupportedCipherSuite =
-    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
-        common: CipherSuiteCommon {
-            suite: CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-            bulk: BulkAlgorithm::Aes128Gcm,
-            aead_algorithm: &ring::aead::AES_128_GCM,
-        },
-        kx: KeyExchangeAlgorithm::ECDHE,
-        sign: TLS12_ECDSA_SCHEMES,
-        fixed_iv_len: 4,
-        explicit_nonce_len: 8,
-        aead_alg: &AesGcm,
-        hmac_algorithm: ring::hmac::HMAC_SHA256,
-    });
-
-/// The TLS1.2 ciphersuite TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-pub static TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384: SupportedCipherSuite =
-    SupportedCipherSuite::Tls12(&Tls12CipherSuite {
-        common: CipherSuiteCommon {
-            suite: CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-            bulk: BulkAlgorithm::Aes256Gcm,
-            aead_algorithm: &ring::aead::AES_256_GCM,
-        },
-        kx: KeyExchangeAlgorithm::ECDHE,
-        sign: TLS12_ECDSA_SCHEMES,
-        fixed_iv_len: 4,
-        explicit_nonce_len: 8,
-        aead_alg: &AesGcm,
-        hmac_algorithm: ring::hmac::HMAC_SHA384,
-    });
-
-static TLS12_ECDSA_SCHEMES: &[SignatureScheme] = &[
-    SignatureScheme::ED25519,
-    SignatureScheme::ECDSA_NISTP521_SHA512,
-    SignatureScheme::ECDSA_NISTP384_SHA384,
-    SignatureScheme::ECDSA_NISTP256_SHA256,
-];
-
-static TLS12_RSA_SCHEMES: &[SignatureScheme] = &[
-    SignatureScheme::RSA_PSS_SHA512,
-    SignatureScheme::RSA_PSS_SHA384,
-    SignatureScheme::RSA_PSS_SHA256,
-    SignatureScheme::RSA_PKCS1_SHA512,
-    SignatureScheme::RSA_PKCS1_SHA384,
-    SignatureScheme::RSA_PKCS1_SHA256,
-];
+use zeroize::Zeroize;
 
 /// A TLS 1.2 cipher suite supported by rustls.
 pub struct Tls12CipherSuite {
     /// Common cipher suite fields.
     pub common: CipherSuiteCommon,
-    pub(crate) hmac_algorithm: ring::hmac::Algorithm,
+
+    /// How to compute the TLS1.2 PRF for the suite's hash function.
+    ///
+    /// If you have a TLS1.2 PRF implementation, you should directly implement the [`crypto::tls12::Prf`] trait.
+    ///
+    /// If not, you can implement the [`crypto::hmac::Hmac`] trait (and associated), and then use
+    /// [`crypto::tls12::PrfUsingHmac`].
+    pub prf_provider: &'static dyn crypto::tls12::Prf,
+
     /// How to exchange/agree keys.
+    ///
+    /// In TLS1.2, the key exchange method (eg, Elliptic Curve Diffie-Hellman with Ephemeral keys -- ECDHE)
+    /// is baked into the cipher suite, but the details to achieve it are negotiated separately.
+    ///
+    /// This controls how protocol messages (like the `ClientKeyExchange` message) are interpreted
+    /// once this cipher suite has been negotiated.
     pub kx: KeyExchangeAlgorithm,
 
     /// How to sign messages for authentication.
+    ///
+    /// This is a set of [`SignatureScheme`]s that are usable once this cipher suite has been
+    /// negotiated.
+    ///
+    /// The precise scheme used is then chosen from this set by the selected authentication key.
     pub sign: &'static [SignatureScheme],
 
-    /// How long the fixed part of the 'IV' is.
-    ///
-    /// This isn't usually an IV, but we continue the
-    /// terminology misuse to match the standard.
-    pub fixed_iv_len: usize,
-
-    /// This is a non-standard extension which extends the
-    /// key block to provide an initial explicit nonce offset,
-    /// in a deterministic and safe way.  GCM needs this,
-    /// chacha20poly1305 works this way by design.
-    pub explicit_nonce_len: usize,
-
-    pub(crate) aead_alg: &'static dyn Tls12AeadAlgorithm,
+    /// How to produce a [`MessageDecrypter`] or [`MessageEncrypter`]
+    /// from raw key material.
+    pub aead_alg: &'static dyn Tls12AeadAlgorithm,
 }
 
 impl Tls12CipherSuite {
-    /// Resolve the set of supported `SignatureScheme`s from the
-    /// offered `SupportedSignatureSchemes`.  If we return an empty
+    /// Resolve the set of supported [`SignatureScheme`]s from the
+    /// offered signature schemes.  If we return an empty
     /// set, the handshake terminates.
     pub fn resolve_sig_schemes(&self, offered: &[SignatureScheme]) -> Vec<SignatureScheme> {
         self.sign
@@ -168,11 +61,6 @@ impl Tls12CipherSuite {
             .filter(|pref| offered.contains(pref))
             .cloned()
             .collect()
-    }
-
-    /// Which hash function to use with this suite.
-    pub(crate) fn hash_algorithm(&self) -> &'static ring::digest::Algorithm {
-        self.hmac_algorithm.digest_algorithm()
     }
 }
 
@@ -192,7 +80,6 @@ impl fmt::Debug for Tls12CipherSuite {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Tls12CipherSuite")
             .field("suite", &self.common.suite)
-            .field("bulk", &self.common.bulk)
             .finish()
     }
 }
@@ -206,9 +93,9 @@ pub(crate) struct ConnectionSecrets {
 
 impl ConnectionSecrets {
     pub(crate) fn from_key_exchange(
-        kx: kx::KeyExchange,
+        kx: Box<dyn crypto::ActiveKeyExchange>,
         peer_pub_key: &[u8],
-        ems_seed: Option<Digest>,
+        ems_seed: Option<hash::Output>,
         randoms: ConnectionRandoms,
         suite: &'static Tls12CipherSuite,
     ) -> Result<Self, Error> {
@@ -226,15 +113,19 @@ impl ConnectionSecrets {
             ),
         };
 
-        kx.complete(peer_pub_key, |secret| {
-            prf::prf(
+        // The API contract for for_key_exchange is that the caller guarantees `label` and `seed`
+        // slice parameters are non-empty.
+        // `label` is guaranteed non-empty because it's assigned from a `&str` above.
+        // `seed.as_ref()` is guaranteed non-empty by documentation on the AsRef impl.
+        ret.suite
+            .prf_provider
+            .for_key_exchange(
                 &mut ret.master_secret,
-                suite.hmac_algorithm,
-                secret,
+                kx,
+                peer_pub_key,
                 label.as_bytes(),
                 seed.as_ref(),
-            );
-        })?;
+            )?;
 
         Ok(ret)
     }
@@ -254,31 +145,18 @@ impl ConnectionSecrets {
         ret
     }
 
-    /// Make a `MessageCipherPair` based on the given supported ciphersuite `scs`,
+    /// Make a `MessageCipherPair` based on the given supported ciphersuite `self.suite`,
     /// and the session's `secrets`.
     pub(crate) fn make_cipher_pair(&self, side: Side) -> MessageCipherPair {
-        fn split_key<'a>(
-            key_block: &'a [u8],
-            alg: &'static aead::Algorithm,
-        ) -> (aead::LessSafeKey, &'a [u8]) {
-            // Might panic if the key block is too small.
-            let (key, rest) = key_block.split_at(alg.key_len());
-            // Won't panic because its only prerequisite is that `key` is `alg.key_len()` bytes long.
-            let key = aead::UnboundKey::new(alg, key).unwrap();
-            (aead::LessSafeKey::new(key), rest)
-        }
-
         // Make a key block, and chop it up.
-        // nb. we don't implement any ciphersuites with nonzero mac_key_len.
+        // Note: we don't implement any ciphersuites with nonzero mac_key_len.
         let key_block = self.make_key_block();
+        let shape = self.suite.aead_alg.key_block_shape();
 
-        let suite = self.suite;
-        let scs = &suite.common;
-
-        let (client_write_key, key_block) = split_key(&key_block, scs.aead_algorithm);
-        let (server_write_key, key_block) = split_key(key_block, scs.aead_algorithm);
-        let (client_write_iv, key_block) = key_block.split_at(suite.fixed_iv_len);
-        let (server_write_iv, extra) = key_block.split_at(suite.fixed_iv_len);
+        let (client_write_key, key_block) = key_block.split_at(shape.enc_key_len);
+        let (server_write_key, key_block) = key_block.split_at(shape.enc_key_len);
+        let (client_write_iv, key_block) = key_block.split_at(shape.fixed_iv_len);
+        let (server_write_iv, extra) = key_block.split_at(shape.fixed_iv_len);
 
         let (write_key, write_iv, read_key, read_iv) = match side {
             Side::Client => (
@@ -296,30 +174,27 @@ impl ConnectionSecrets {
         };
 
         (
-            suite
+            self.suite
                 .aead_alg
-                .decrypter(read_key, read_iv),
-            suite
+                .decrypter(AeadKey::new(read_key), read_iv),
+            self.suite
                 .aead_alg
-                .encrypter(write_key, write_iv, extra),
+                .encrypter(AeadKey::new(write_key), write_iv, extra),
         )
     }
 
     fn make_key_block(&self) -> Vec<u8> {
-        let suite = &self.suite;
-        let common = &self.suite.common;
+        let shape = self.suite.aead_alg.key_block_shape();
 
-        let len =
-            (common.aead_algorithm.key_len() + suite.fixed_iv_len) * 2 + suite.explicit_nonce_len;
+        let len = (shape.enc_key_len + shape.fixed_iv_len) * 2 + shape.explicit_nonce_len;
 
         let mut out = vec![0u8; len];
 
         // NOTE: opposite order to above for no good reason.
         // Don't design security protocols on drugs, kids.
         let randoms = join_randoms(&self.randoms.server, &self.randoms.client);
-        prf::prf(
+        self.suite.prf_provider.for_secret(
             &mut out,
-            self.suite.hmac_algorithm,
             &self.master_secret,
             b"key expansion",
             &randoms,
@@ -332,30 +207,28 @@ impl ConnectionSecrets {
         self.suite
     }
 
-    pub(crate) fn get_master_secret(&self) -> Vec<u8> {
-        let mut ret = Vec::new();
-        ret.extend_from_slice(&self.master_secret);
-        ret
+    pub(crate) fn master_secret(&self) -> &[u8] {
+        &self.master_secret[..]
     }
 
-    fn make_verify_data(&self, handshake_hash: &Digest, label: &[u8]) -> Vec<u8> {
+    fn make_verify_data(&self, handshake_hash: &hash::Output, label: &[u8]) -> Vec<u8> {
         let mut out = vec![0u8; 12];
 
-        prf::prf(
+        self.suite.prf_provider.for_secret(
             &mut out,
-            self.suite.hmac_algorithm,
             &self.master_secret,
             label,
             handshake_hash.as_ref(),
         );
+
         out
     }
 
-    pub(crate) fn client_verify_data(&self, handshake_hash: &Digest) -> Vec<u8> {
+    pub(crate) fn client_verify_data(&self, handshake_hash: &hash::Output) -> Vec<u8> {
         self.make_verify_data(handshake_hash, b"client finished")
     }
 
-    pub(crate) fn server_verify_data(&self, handshake_hash: &Digest) -> Vec<u8> {
+    pub(crate) fn server_verify_data(&self, handshake_hash: &hash::Output) -> Vec<u8> {
         self.make_verify_data(handshake_hash, b"server finished")
     }
 
@@ -374,91 +247,31 @@ impl ConnectionSecrets {
             randoms.extend_from_slice(context);
         }
 
-        prf::prf(
-            output,
-            self.suite.hmac_algorithm,
-            &self.master_secret,
-            label,
-            &randoms,
-        );
+        self.suite
+            .prf_provider
+            .for_secret(output, &self.master_secret, label, &randoms);
     }
 
-    #[cfg(feature = "secret_extraction")]
     pub(crate) fn extract_secrets(&self, side: Side) -> Result<PartiallyExtractedSecrets, Error> {
         // Make a key block, and chop it up
         let key_block = self.make_key_block();
+        let shape = self.suite.aead_alg.key_block_shape();
 
-        let suite = self.suite;
-        let algo = suite.common.aead_algorithm;
+        let (client_key, key_block) = key_block.split_at(shape.enc_key_len);
+        let (server_key, key_block) = key_block.split_at(shape.enc_key_len);
+        let (client_iv, key_block) = key_block.split_at(shape.fixed_iv_len);
+        let (server_iv, explicit_nonce) = key_block.split_at(shape.fixed_iv_len);
 
-        let (client_key, key_block) = key_block.split_at(algo.key_len());
-        let (server_key, key_block) = key_block.split_at(algo.key_len());
-        let (client_iv, key_block) = key_block.split_at(suite.fixed_iv_len);
-        let (server_iv, extra) = key_block.split_at(suite.fixed_iv_len);
-
-        // A key/IV pair (fixed IV len is 4 for GCM, 12 for Chacha)
-        struct Pair<'a> {
-            key: &'a [u8],
-            iv: &'a [u8],
-        }
-
-        let client_pair = Pair {
-            key: client_key,
-            iv: client_iv,
-        };
-        let server_pair = Pair {
-            key: server_key,
-            iv: server_iv,
-        };
-
-        let (client_secrets, server_secrets) = if algo == &ring::aead::AES_128_GCM {
-            let extract = |pair: Pair| -> ConnectionTrafficSecrets {
-                let mut key = [0u8; 16];
-                key.copy_from_slice(pair.key);
-
-                let mut salt = [0u8; 4];
-                salt.copy_from_slice(pair.iv);
-
-                let mut iv = [0u8; 8];
-                iv.copy_from_slice(&extra[..8]);
-
-                ConnectionTrafficSecrets::Aes128Gcm { key, salt, iv }
-            };
-
-            (extract(client_pair), extract(server_pair))
-        } else if algo == &ring::aead::AES_256_GCM {
-            let extract = |pair: Pair| -> ConnectionTrafficSecrets {
-                let mut key = [0u8; 32];
-                key.copy_from_slice(pair.key);
-
-                let mut salt = [0u8; 4];
-                salt.copy_from_slice(pair.iv);
-
-                let mut iv = [0u8; 8];
-                iv.copy_from_slice(&extra[..8]);
-
-                ConnectionTrafficSecrets::Aes256Gcm { key, salt, iv }
-            };
-
-            (extract(client_pair), extract(server_pair))
-        } else if algo == &ring::aead::CHACHA20_POLY1305 {
-            let extract = |pair: Pair| -> ConnectionTrafficSecrets {
-                let mut key = [0u8; 32];
-                key.copy_from_slice(pair.key);
-
-                let mut iv = [0u8; 12];
-                iv.copy_from_slice(pair.iv);
-
-                ConnectionTrafficSecrets::Chacha20Poly1305 { key, iv }
-            };
-
-            (extract(client_pair), extract(server_pair))
-        } else {
-            return Err(Error::General(format!(
-                "exporting secrets for {:?}: unimplemented",
-                algo
-            )));
-        };
+        let client_secrets = self.suite.aead_alg.extract_keys(
+            AeadKey::new(client_key),
+            client_iv,
+            explicit_nonce,
+        )?;
+        let server_secrets = self.suite.aead_alg.extract_keys(
+            AeadKey::new(server_key),
+            server_iv,
+            explicit_nonce,
+        )?;
 
         let (tx, rx) = match side {
             Side::Client => (client_secrets, server_secrets),
@@ -468,15 +281,24 @@ impl ConnectionSecrets {
     }
 }
 
+impl Drop for ConnectionSecrets {
+    fn drop(&mut self) {
+        self.master_secret.zeroize();
+    }
+}
+
 enum Seed {
-    Ems(Digest),
+    Ems(hash::Output),
     Randoms([u8; 64]),
 }
 
 impl AsRef<[u8]> for Seed {
+    /// This is guaranteed to return a non-empty slice.
     fn as_ref(&self) -> &[u8] {
         match self {
+            // seed is a hash::Output, which is a fixed, non-zero length array.
             Self::Ems(seed) => seed.as_ref(),
+            // randoms is a fixed, non-zero length array.
             Self::Randoms(randoms) => randoms.as_ref(),
         }
     }
@@ -508,27 +330,28 @@ pub(crate) fn decode_ecdh_params<T: Codec>(
 
 pub(crate) const DOWNGRADE_SENTINEL: [u8; 8] = [0x44, 0x4f, 0x57, 0x4e, 0x47, 0x52, 0x44, 0x01];
 
-#[cfg(test)]
+#[cfg(all(test, any(feature = "ring", feature = "aws_lc_rs")))]
 mod tests {
     use super::*;
     use crate::common_state::{CommonState, Side};
-    use crate::msgs::handshake::{ClientECDHParams, ServerECDHParams};
+    use crate::msgs::handshake::{ClientEcdhParams, ServerEcdhParams};
+    use crate::test_provider::kx_group::X25519;
 
     #[test]
     fn server_ecdhe_remaining_bytes() {
-        let key = kx::KeyExchange::start(&kx::X25519).unwrap();
-        let server_params = ServerECDHParams::new(key.group(), key.pubkey.as_ref());
+        let key = X25519.start().unwrap();
+        let server_params = ServerEcdhParams::new(&*key);
         let mut server_buf = Vec::new();
         server_params.encode(&mut server_buf);
         server_buf.push(34);
 
         let mut common = CommonState::new(Side::Client);
-        assert!(decode_ecdh_params::<ServerECDHParams>(&mut common, &server_buf).is_err());
+        assert!(decode_ecdh_params::<ServerEcdhParams>(&mut common, &server_buf).is_err());
     }
 
     #[test]
     fn client_ecdhe_invalid() {
         let mut common = CommonState::new(Side::Server);
-        assert!(decode_ecdh_params::<ClientECDHParams>(&mut common, &[34]).is_err());
+        assert!(decode_ecdh_params::<ClientEcdhParams>(&mut common, &[34]).is_err());
     }
 }

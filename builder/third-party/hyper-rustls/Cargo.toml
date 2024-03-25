@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.63"
 name = "hyper-rustls"
-version = "0.24.2"
+version = "0.26.0"
 description = "Rustls+hyper integration for pure rust HTTPS"
 homepage = "https://github.com/rustls/hyper-rustls"
 documentation = "https://docs.rs/hyper-rustls/"
@@ -39,57 +39,72 @@ required-features = [
 [[example]]
 name = "server"
 path = "examples/server.rs"
-required-features = [
-    "tokio-runtime",
-    "acceptor",
-]
+required-features = ["ring"]
 
 [dependencies.futures-util]
 version = "0.3"
 default-features = false
 
 [dependencies.http]
-version = "0.2"
+version = "1"
 
 [dependencies.hyper]
-version = "0.14"
-features = ["client"]
+version = "1"
+default-features = false
+
+[dependencies.hyper-util]
+version = "0.1"
+features = [
+    "client-legacy",
+    "tokio",
+]
 default-features = false
 
 [dependencies.log]
 version = "0.4.4"
 optional = true
 
+[dependencies.pki-types]
+version = "1"
+package = "rustls-pki-types"
+
 [dependencies.rustls]
-version = "0.21.6"
+version = "0.22"
 default-features = false
 
 [dependencies.rustls-native-certs]
-version = "0.6"
+version = "0.7"
 optional = true
 
 [dependencies.tokio]
 version = "1.0"
 
 [dependencies.tokio-rustls]
-version = "0.24.0"
+version = "0.25"
 default-features = false
 
+[dependencies.tower-service]
+version = "0.3"
+
 [dependencies.webpki-roots]
-version = "0.25"
+version = "0.26"
 optional = true
 
-[dev-dependencies.hyper]
-version = "0.14"
-features = ["full"]
+[dev-dependencies.http-body-util]
+version = "0.1"
+
+[dev-dependencies.hyper-util]
+version = "0.1"
+features = ["server-auto"]
+default-features = false
 
 [dev-dependencies.rustls]
-version = "0.21.0"
+version = "0.22"
 features = ["tls12"]
 default-features = false
 
 [dev-dependencies.rustls-pemfile]
-version = "1.0.0"
+version = "2"
 
 [dev-dependencies.tokio]
 version = "1.0"
@@ -101,34 +116,24 @@ features = [
 ]
 
 [features]
-acceptor = [
-    "hyper/server",
-    "tokio-runtime",
-]
 default = [
     "native-tokio",
     "http1",
     "tls12",
     "logging",
-    "acceptor",
+    "ring",
 ]
-http1 = ["hyper/http1"]
-http2 = ["hyper/http2"]
+http1 = ["hyper-util/http1"]
+http2 = ["hyper-util/http2"]
 logging = [
     "log",
     "tokio-rustls/logging",
     "rustls/logging",
 ]
-native-tokio = [
-    "tokio-runtime",
-    "rustls-native-certs",
-]
+native-tokio = ["rustls-native-certs"]
+ring = ["rustls/ring"]
 tls12 = [
     "tokio-rustls/tls12",
     "rustls/tls12",
 ]
-tokio-runtime = ["hyper/runtime"]
-webpki-tokio = [
-    "tokio-runtime",
-    "webpki-roots",
-]
+webpki-tokio = ["webpki-roots"]

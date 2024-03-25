@@ -1,9 +1,10 @@
 //! # Rustls - a modern TLS library
+//!
 //! Rustls is a TLS library that aims to provide a good level of cryptographic security,
 //! requires no configuration to achieve that security, and provides no unsafe features or
-//! obsolete cryptography.
+//! obsolete cryptography by default.
 //!
-//! ## Current features
+//! ## Current functionality (with default crate features)
 //!
 //! * TLS1.2 and TLS1.3.
 //! * ECDSA, Ed25519 or RSA server authentication by clients.
@@ -25,14 +26,6 @@
 //! * Extended master secret support ([RFC7627](https://tools.ietf.org/html/rfc7627)).
 //! * Exporters ([RFC5705](https://tools.ietf.org/html/rfc5705)).
 //! * OCSP stapling by servers.
-//! * SCT stapling by servers.
-//! * SCT verification by clients.
-//!
-//! ## Possible future features
-//!
-//! * PSK support.
-//! * OCSP verification by clients.
-//! * Certificate pinning.
 //!
 //! ## Non-features
 //!
@@ -47,16 +40,21 @@
 //! * Ciphersuites without forward secrecy.
 //! * Renegotiation.
 //! * Kerberos.
-//! * Compression.
+//! * TLS 1.2 protocol compression.
 //! * Discrete-log Diffie-Hellman.
 //! * Automatic protocol version downgrade.
+//! * Using CA certificates directly to authenticate a server/client (often called "self-signed
+//!   certificates"). _Rustls' default certificate verifier does not support using a trust anchor as
+//!   both a CA certificate and an end-entity certificate in order to limit complexity and risk in
+//!   path building. While dangerous, all authentication can be turned off if required --
+//!   see the [example code](https://github.com/rustls/rustls/blob/992e2364a006b2e84a8cf6a7c3eaf0bdb773c9de/examples/src/bin/tlsclient-mio.rs#L318)_.
 //!
 //! There are plenty of other libraries that provide these features should you
 //! need them.
 //!
 //! ### Platform support
 //!
-//! While Rustls itself is platform independent it uses
+//! While Rustls itself is platform independent, by default it uses
 //! [`ring`](https://crates.io/crates/ring) for implementing the cryptography in
 //! TLS. As a result, rustls only runs on platforms
 //! supported by `ring`. At the time of writing, this means 32-bit ARM, Aarch64 (64-bit ARM),
@@ -65,9 +63,18 @@
 //! support WebAssembly.
 //! For more information, see [the supported `ring` target platforms][ring-target-platforms].
 //!
+//! By providing a custom instance of the [`crypto::CryptoProvider`] struct, you
+//! can replace all cryptography dependencies of rustls.  This is a route to being portable
+//! to a wider set of architectures and environments, or compliance requirements.  See the
+//! [`crypto::CryptoProvider`] documentation for more details.
+//!
+//! Specifying `default-features = false` when depending on rustls will remove the
+//! dependency on *ring*.
+//!
 //! Rustls requires Rust 1.61 or later.
 //!
 //! [ring-target-platforms]: https://github.com/briansmith/ring/blob/2e8363b433fa3b3962c877d9ed2e9145612f3160/include/ring-core/target.h#L18-L64
+//! [crypto::CryptoProvider]: https://docs.rs/rustls/latest/rustls/crypto/trait.CryptoProvider.html
 //!
 //! ## Design Overview
 //! ### Rustls does not take care of network IO
@@ -104,61 +111,55 @@
 //! This is the minimum you need to do to make a TLS client connection.
 //!
 //! First we load some root certificates.  These are used to authenticate the server.
-//! The recommended way is to depend on the `webpki_roots` crate which contains
+//! The simplest way is to depend on the [`webpki_roots`] crate which contains
 //! the Mozilla set of root certificates.
 //!
 //! ```rust,no_run
+//! # #[cfg(feature = "ring")] {
 //! let mut root_store = rustls::RootCertStore::empty();
-//! root_store.add_trust_anchors(
+//! root_store.extend(
 //!     webpki_roots::TLS_SERVER_ROOTS
 //!         .iter()
-//!         .map(|ta| {
-//!             rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
-//!                 ta.subject,
-//!                 ta.spki,
-//!                 ta.name_constraints,
-//!             )
-//!         })
+//!         .cloned()
 //! );
+//! # }
 //! ```
+//!
+//! [`webpki_roots`]: https://crates.io/crates/webpki-roots
 //!
 //! Next, we make a `ClientConfig`.  You're likely to make one of these per process,
 //! and use it for all connections made by that process.
 //!
 //! ```rust,no_run
+//! # #[cfg(feature = "ring")] {
 //! # let root_store: rustls::RootCertStore = panic!();
 //! let config = rustls::ClientConfig::builder()
-//!     .with_safe_defaults()
 //!     .with_root_certificates(root_store)
 //!     .with_no_client_auth();
+//! # }
 //! ```
 //!
 //! Now we can make a connection.  You need to provide the server's hostname so we
 //! know what to expect to find in the server's certificate.
 //!
 //! ```rust
+//! # #[cfg(feature = "ring")] {
 //! # use rustls;
 //! # use webpki;
 //! # use std::sync::Arc;
 //! # let mut root_store = rustls::RootCertStore::empty();
-//! # root_store.add_trust_anchors(
+//! # root_store.extend(
 //! #  webpki_roots::TLS_SERVER_ROOTS
 //! #      .iter()
-//! #      .map(|ta| {
-//! #          rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
-//! #              ta.subject,
-//! #              ta.spki,
-//! #              ta.name_constraints,
-//! #          )
-//! #      })
+//! #      .cloned()
 //! # );
 //! # let config = rustls::ClientConfig::builder()
-//! #     .with_safe_defaults()
 //! #     .with_root_certificates(root_store)
 //! #     .with_no_client_auth();
 //! let rc_config = Arc::new(config);
 //! let example_com = "example.com".try_into().unwrap();
 //! let mut client = rustls::ClientConnection::new(rc_config, example_com);
+//! # }
 //! ```
 //!
 //! Now you should do appropriate IO for the `client` object.  If `client.wants_read()` yields
@@ -185,6 +186,7 @@
 //! errors.
 //!
 //! ```rust,no_run
+//! # #[cfg(feature = "ring")] {
 //! # let mut client = rustls::ClientConnection::new(panic!(), panic!()).unwrap();
 //! # struct Socket { }
 //! # impl Socket {
@@ -226,49 +228,58 @@
 //!
 //!   socket.wait_for_something_to_happen();
 //! }
+//! # }
 //! ```
 //!
 //! # Examples
-//! [`tlsserver`](https://github.com/rustls/rustls/blob/main/examples/src/bin/tlsserver-mio.rs)
-//! and [`tlsclient`](https://github.com/rustls/rustls/blob/main/examples/src/bin/tlsclient-mio.rs)
-//! are full worked examples.  These both use mio.
+//!
+//! [`tlsserver-mio`](https://github.com/rustls/rustls/blob/main/examples/src/bin/tlsserver-mio.rs)
+//! and [`tlsclient-mio`](https://github.com/rustls/rustls/blob/main/examples/src/bin/tlsclient-mio.rs)
+//! are full worked examples using [`mio`].
+//!
+//! [`mio`]: https://docs.rs/mio/latest/mio/
 //!
 //! # Crate features
 //! Here's a list of what features are exposed by the rustls crate and what
 //! they mean.
 //!
-//! - `logging`: this makes the rustls crate depend on the `log` crate.
-//!   rustls outputs interesting protocol-level messages at `trace!` and `debug!`
-//!   level, and protocol-level errors at `warn!` and `error!` level.  The log
-//!   messages do not contain secret key data, and so are safe to archive without
-//!   affecting session security.  This feature is in the default set.
+//! - `ring` (enabled by default): makes the rustls crate depend on the *ring* crate, which is
+//!    used for cryptography by default. Without this feature, these items must be provided
+//!    externally to the core rustls crate: see [`CryptoProvider`].
 //!
-//! - `dangerous_configuration`: this feature enables a `dangerous()` method on
-//!   `ClientConfig` and `ServerConfig` that allows setting inadvisable options,
-//!   such as replacing the certificate verification process.  Applications
-//!   requesting this feature should be reviewed carefully.
+//! - `aws_lc_rs`: makes the rustls crate depend on the aws-lc-rs crate,
+//!   which can be used for cryptography as an alternative to *ring*.
+//!   Use `rustls::crypto::aws_lc_rs::default_provider()` as a `CryptoProvider`
+//!   when making a `ClientConfig` or `ServerConfig` to use aws-lc-rs
 //!
-//! - `quic`: this feature exposes additional constructors and functions
-//!   for using rustls as a TLS library for QUIC.  See the `quic` module for
-//!   details of these.  You will only need this if you're writing a QUIC
-//!   implementation.
+//!   Note that aws-lc-rs has additional build-time dependencies like cmake.
+//!   See [the documentation](https://aws.github.io/aws-lc-rs/requirements/index.html) for details.
 //!
-//! - `tls12`: enables support for TLS version 1.2. This feature is in the default
-//!   set. Note that, due to the additive nature of Cargo features and because it
-//!   is enabled by default, other crates in your dependency graph could re-enable
-//!   it for your application. If you want to disable TLS 1.2 for security reasons,
-//!   consider explicitly enabling TLS 1.3 only in the config builder API.
+//! - `tls12` (enabled by default): enable support for TLS version 1.2. Note that, due to the
+//!   additive nature of Cargo features and because it is enabled by default, other crates
+//!   in your dependency graph could re-enable it for your application. If you want to disable
+//!   TLS 1.2 for security reasons, consider explicitly enabling TLS 1.3 only in the config
+//!   builder API.
 //!
-//! - `read_buf`: When building with Rust Nightly, adds support for the unstable
+//! - `logging` (enabled by default): make the rustls crate depend on the `log` crate.
+//!   rustls outputs interesting protocol-level messages at `trace!` and `debug!` level,
+//!   and protocol-level errors at `warn!` and `error!` level.  The log messages do not
+//!   contain secret key data, and so are safe to archive without affecting session security.
+//!
+//! - `read_buf`: when building with Rust Nightly, adds support for the unstable
 //!   `std::io::ReadBuf` and related APIs. This reduces costs from initializing
 //!   buffers. Will do nothing on non-Nightly releases.
+//!
 
 // Require docs for public APIs, deny unsafe code, etc.
 #![forbid(unsafe_code, unused_must_use)]
 #![cfg_attr(not(any(read_buf, bench)), forbid(unstable_features))]
 #![deny(
+    clippy::alloc_instead_of_core,
     clippy::clone_on_ref_ptr,
+    clippy::std_instead_of_core,
     clippy::use_self,
+    clippy::upper_case_acronyms,
     trivial_casts,
     trivial_numeric_casts,
     missing_docs,
@@ -295,7 +306,7 @@
     clippy::new_without_default
 )]
 // Enable documentation for all features on docs.rs
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 // XXX: Because of https://github.com/rust-lang/rust/issues/54726, we cannot
 // write `#![rustversion::attr(nightly, feature(read_buf))]` here. Instead,
 // build.rs set `read_buf` for (only) Rust Nightly to get the same effect.
@@ -307,11 +318,24 @@
 #![cfg_attr(read_buf, feature(read_buf))]
 #![cfg_attr(read_buf, feature(core_io_borrowed_buf))]
 #![cfg_attr(bench, feature(test))]
+#![cfg_attr(not(test), no_std)]
+
+extern crate alloc;
+// This `extern crate` plus the `#![no_std]` attribute changes the default prelude from
+// `std::prelude` to `core::prelude`. That forces one to _explicitly_ import (`use`) everything that
+// is in `std::prelude` but not in `core::prelude`. This helps maintain no-std support as even
+// developers that are not interested in, or aware of, no-std support and / or that never run
+// `cargo build --no-default-features` locally will get errors when they rely on `std::prelude` API.
+#[cfg(not(test))]
+extern crate std;
 
 // Import `test` sysroot crate for `Bencher` definitions.
 #[cfg(bench)]
 #[allow(unused_extern_crates)]
 extern crate test;
+
+#[cfg(doc)]
+use crate::crypto::CryptoProvider;
 
 // log for logging (optional).
 #[cfg(feature = "logging")]
@@ -327,11 +351,10 @@ mod log {
 
 #[macro_use]
 mod msgs;
-mod anchors;
-mod cipher;
 mod common_state;
 mod conn;
-mod dns_name;
+/// Crypto provider interface.
+pub mod crypto;
 mod error;
 mod hash_hs;
 mod limited_cache;
@@ -351,36 +374,64 @@ mod check;
 mod bs_debug;
 mod builder;
 mod enums;
-mod key;
 mod key_log;
 mod key_log_file;
-mod kx;
 mod suites;
-mod ticketer;
 mod versions;
+mod webpki;
 
-/// Internal classes which may be useful outside the library.
+/// Internal classes that are used in integration tests.
 /// The contents of this section DO NOT form part of the stable interface.
+#[allow(missing_docs)]
 pub mod internal {
     /// Low-level TLS message parsing and encoding functions.
     pub mod msgs {
-        pub use crate::msgs::*;
+        pub mod base {
+            pub use crate::msgs::base::Payload;
+        }
+        pub mod codec {
+            pub use crate::msgs::codec::{Codec, Reader};
+        }
+        pub mod deframer {
+            pub use crate::msgs::deframer::{DeframerVecBuffer, MessageDeframer};
+        }
+        pub mod enums {
+            pub use crate::msgs::enums::{
+                AlertLevel, Compression, EchVersion, HpkeAead, HpkeKdf, HpkeKem, NamedGroup,
+            };
+        }
+        pub mod fragmenter {
+            pub use crate::msgs::fragmenter::MessageFragmenter;
+        }
+        pub mod handshake {
+            pub use crate::msgs::handshake::{
+                CertificateChain, ClientExtension, ClientHelloPayload, DistinguishedName,
+                EchConfig, EchConfigContents, HandshakeMessagePayload, HandshakePayload,
+                HpkeKeyConfig, HpkeSymmetricCipherSuite, KeyShareEntry, Random, SessionId,
+            };
+        }
+        pub mod message {
+            pub use crate::msgs::message::{Message, MessagePayload, OpaqueMessage, PlainMessage};
+        }
+        pub mod persist {
+            pub use crate::msgs::persist::ServerSessionValue;
+        }
     }
-    /// Low-level TLS message decryption functions.
-    pub mod cipher {
-        pub use crate::cipher::MessageDecrypter;
-    }
-    /// Low-level TLS record layer functions.
+
     pub mod record_layer {
-        pub use crate::record_layer::{Decrypted, RecordLayer};
+        pub use crate::record_layer::RecordLayer;
     }
 }
 
+// Have a (non-public) "test provider" mod which supplies
+// tests that need part of a *ring*-compatible provider module.
+#[cfg(all(any(test, bench), not(feature = "ring"), feature = "aws_lc_rs"))]
+use crate::crypto::aws_lc_rs as test_provider;
+#[cfg(all(any(test, bench), feature = "ring"))]
+use crate::crypto::ring as test_provider;
+
 // The public interface is:
-pub use crate::anchors::{OwnedTrustAnchor, RootCertStore};
-pub use crate::builder::{
-    ConfigBuilder, ConfigSide, WantsCipherSuites, WantsKxGroups, WantsVerifier, WantsVersions,
-};
+pub use crate::builder::{ConfigBuilder, ConfigSide, WantsVerifier, WantsVersions};
 pub use crate::common_state::{CommonState, IoState, Side};
 pub use crate::conn::{Connection, ConnectionCommon, Reader, SideData, Writer};
 pub use crate::enums::{
@@ -388,28 +439,21 @@ pub use crate::enums::{
     SignatureScheme,
 };
 pub use crate::error::{
-    CertRevocationListError, CertificateError, Error, InvalidMessage, PeerIncompatible,
+    CertRevocationListError, CertificateError, Error, InvalidMessage, OtherError, PeerIncompatible,
     PeerMisbehaved,
 };
-pub use crate::key::{Certificate, PrivateKey};
 pub use crate::key_log::{KeyLog, NoKeyLog};
 pub use crate::key_log_file::KeyLogFile;
-pub use crate::kx::{SupportedKxGroup, ALL_KX_GROUPS};
 pub use crate::msgs::enums::NamedGroup;
 pub use crate::msgs::handshake::DistinguishedName;
 pub use crate::stream::{Stream, StreamOwned};
-pub use crate::suites::{
-    BulkAlgorithm, SupportedCipherSuite, ALL_CIPHER_SUITES, DEFAULT_CIPHER_SUITES,
-};
-#[cfg(feature = "secret_extraction")]
-#[cfg_attr(docsrs, doc(cfg(feature = "secret_extraction")))]
-pub use crate::suites::{ConnectionTrafficSecrets, ExtractedSecrets};
-pub use crate::ticketer::Ticketer;
+pub use crate::suites::{ConnectionTrafficSecrets, ExtractedSecrets, SupportedCipherSuite};
 #[cfg(feature = "tls12")]
 pub use crate::tls12::Tls12CipherSuite;
 pub use crate::tls13::Tls13CipherSuite;
 pub use crate::verify::DigitallySignedStruct;
 pub use crate::versions::{SupportedProtocolVersion, ALL_VERSIONS, DEFAULT_VERSIONS};
+pub use crate::webpki::RootCertStore;
 
 /// Items for use in a client.
 pub mod client {
@@ -422,28 +466,30 @@ pub mod client {
     mod tls12;
     mod tls13;
 
-    pub use crate::dns_name::InvalidDnsNameError;
-    pub use builder::{WantsClientCert, WantsTransparencyPolicyOrClientCert};
+    pub use builder::WantsClientCert;
     pub use client_conn::{
         ClientConfig, ClientConnection, ClientConnectionData, ClientSessionStore,
-        ResolvesClientCert, Resumption, ServerName, Tls12Resumption, WriteEarlyData,
+        ResolvesClientCert, Resumption, Tls12Resumption, WriteEarlyData,
     };
     pub use handy::ClientSessionMemoryCache;
 
-    #[cfg(feature = "dangerous_configuration")]
-    pub use crate::verify::{
-        verify_server_cert_signed_by_trust_anchor, verify_server_name,
-        CertificateTransparencyPolicy, HandshakeSignatureValid, ServerCertVerified,
-        ServerCertVerifier, WebPkiVerifier,
+    /// Dangerous configuration that should be audited and used with extreme care.
+    pub mod danger {
+        pub use super::builder::danger::DangerousClientConfigBuilder;
+        pub use super::client_conn::danger::DangerousClientConfig;
+        pub use crate::verify::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
+    }
+
+    pub use crate::webpki::{
+        verify_server_cert_signed_by_trust_anchor, verify_server_name, ServerCertVerifierBuilder,
+        VerifierBuilderError, WebPkiServerVerifier,
     };
-    #[cfg(feature = "dangerous_configuration")]
-    pub use client_conn::danger::DangerousClientConfig;
 
     pub use crate::msgs::persist::Tls12ClientSessionValue;
     pub use crate::msgs::persist::Tls13ClientSessionValue;
 }
 
-pub use client::{ClientConfig, ClientConnection, ServerName};
+pub use client::{ClientConfig, ClientConnection};
 
 /// Items for use in a server.
 pub mod server {
@@ -456,9 +502,9 @@ pub mod server {
     mod tls12;
     mod tls13;
 
-    pub use crate::verify::{
-        AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth,
-        UnparsedCertRevocationList,
+    pub use crate::verify::NoClientAuth;
+    pub use crate::webpki::{
+        ClientCertVerifierBuilder, ParsedCertificate, VerifierBuilderError, WebPkiClientVerifier,
     };
     pub use builder::WantsServerCert;
     pub use handy::ResolvesServerCertUsingSni;
@@ -469,37 +515,13 @@ pub mod server {
     };
     pub use server_conn::{ClientHello, ProducesTickets, ResolvesServerCert};
 
-    #[cfg(feature = "dangerous_configuration")]
-    pub use crate::dns_name::DnsName;
-    #[cfg(feature = "dangerous_configuration")]
-    pub use crate::key::ParsedCertificate;
-    #[cfg(feature = "dangerous_configuration")]
-    pub use crate::verify::{ClientCertVerified, ClientCertVerifier};
+    /// Dangerous configuration that should be audited and used with extreme care.
+    pub mod danger {
+        pub use crate::verify::{ClientCertVerified, ClientCertVerifier};
+    }
 }
 
 pub use server::{ServerConfig, ServerConnection};
-
-/// All defined ciphersuites appear in this module.
-///
-/// [`ALL_CIPHER_SUITES`] is provided as an array of all of these values.
-pub mod cipher_suite {
-    pub use crate::suites::CipherSuiteCommon;
-    #[cfg(feature = "tls12")]
-    pub use crate::tls12::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
-    #[cfg(feature = "tls12")]
-    pub use crate::tls12::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
-    #[cfg(feature = "tls12")]
-    pub use crate::tls12::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256;
-    #[cfg(feature = "tls12")]
-    pub use crate::tls12::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
-    #[cfg(feature = "tls12")]
-    pub use crate::tls12::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384;
-    #[cfg(feature = "tls12")]
-    pub use crate::tls12::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256;
-    pub use crate::tls13::TLS13_AES_128_GCM_SHA256;
-    pub use crate::tls13::TLS13_AES_256_GCM_SHA384;
-    pub use crate::tls13::TLS13_CHACHA20_POLY1305_SHA256;
-}
 
 /// All defined protocol versions appear in this module.
 ///
@@ -510,22 +532,21 @@ pub mod version {
     pub use crate::versions::TLS13;
 }
 
-/// All defined key exchange groups appear in this module.
-///
-/// ALL_KX_GROUPS is provided as an array of all of these values.
-pub mod kx_group {
-    pub use crate::kx::SECP256R1;
-    pub use crate::kx::SECP384R1;
-    pub use crate::kx::X25519;
+/// Re-exports the contents of the [rustls-pki-types](https://docs.rs/rustls-pki-types) crate for easy access
+pub mod pki_types {
+    pub use pki_types::*;
 }
 
-/// Message signing interfaces and implementations.
-pub mod sign;
+/// Message signing interfaces.
+pub mod sign {
+    pub use crate::crypto::signer::{CertifiedKey, Signer, SigningKey};
+}
 
-#[cfg(feature = "quic")]
-#[cfg_attr(docsrs, doc(cfg(feature = "quic")))]
 /// APIs for implementing QUIC TLS
 pub mod quic;
+
+/// APIs for implementing TLS tickets
+pub mod ticketer;
 
 /// This is the rustls manual.
 pub mod manual;

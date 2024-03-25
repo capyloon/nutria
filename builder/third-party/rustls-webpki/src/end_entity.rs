@@ -12,14 +12,17 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-#[cfg(feature = "alloc")]
-use crate::subject_name::GeneralDnsNameRef;
-use crate::{
-    cert, signed_data, subject_name, verify_cert, CertRevocationList, Error, KeyUsage,
-    SignatureAlgorithm, SubjectNameRef, Time, TrustAnchor,
+use core::ops::Deref;
+
+use pki_types::{
+    CertificateDer, ServerName, SignatureVerificationAlgorithm, TrustAnchor, UnixTime,
 };
-#[allow(deprecated)]
-use crate::{TlsClientTrustAnchors, TlsServerTrustAnchors};
+
+use crate::crl::RevocationOptions;
+use crate::error::Error;
+use crate::subject_name::{verify_dns_names, verify_ip_address_names, NameIterator};
+use crate::verify_cert::{self, KeyUsage, VerifiedPath};
+use crate::{cert, signed_data};
 
 /// An end-entity certificate.
 ///
@@ -56,160 +59,83 @@ pub struct EndEntityCert<'a> {
     inner: cert::Cert<'a>,
 }
 
-impl<'a> TryFrom<&'a [u8]> for EndEntityCert<'a> {
+impl<'a> TryFrom<&'a CertificateDer<'a>> for EndEntityCert<'a> {
     type Error = Error;
 
     /// Parse the ASN.1 DER-encoded X.509 encoding of the certificate
     /// `cert_der`.
-    fn try_from(cert_der: &'a [u8]) -> Result<Self, Self::Error> {
+    fn try_from(cert: &'a CertificateDer<'a>) -> Result<Self, Self::Error> {
         Ok(Self {
-            inner: cert::Cert::from_der(
-                untrusted::Input::from(cert_der),
-                cert::EndEntityOrCa::EndEntity,
-            )?,
+            inner: cert::Cert::from_der(untrusted::Input::from(cert.as_ref()))?,
         })
     }
 }
 
 impl<'a> EndEntityCert<'a> {
-    pub(super) fn inner(&self) -> &cert::Cert {
-        &self.inner
-    }
-
-    fn verify_is_valid_cert(
-        &self,
-        supported_sig_algs: &[&SignatureAlgorithm],
-        trust_anchors: &[TrustAnchor],
-        intermediate_certs: &[&[u8]],
-        time: Time,
-        eku: KeyUsage,
-        crls: &[&dyn CertRevocationList],
-    ) -> Result<(), Error> {
-        verify_cert::build_chain(
-            &verify_cert::ChainOptions {
-                eku,
-                supported_sig_algs,
-                trust_anchors,
-                intermediate_certs,
-                crls,
-            },
-            &self.inner,
-            time,
-        )
-    }
-
     /// Verifies that the end-entity certificate is valid for use against the
     /// specified Extended Key Usage (EKU).
     ///
     /// * `supported_sig_algs` is the list of signature algorithms that are
     ///   trusted for use in certificate signatures; the end-entity certificate's
     ///   public key is not validated against this list.
-    /// * `trust_anchors` is the list of root CAs to trust
+    /// * `trust_anchors` is the list of root CAs to trust in the built path.
     /// * `intermediate_certs` is the sequence of intermediate certificates that
-    ///   the server sent in the TLS handshake.
+    ///   a peer sent for the purpose of path building.
     /// * `time` is the time for which the validation is effective (usually the
     ///   current time).
     /// * `usage` is the intended usage of the certificate, indicating what kind
     ///   of usage we're verifying the certificate for.
     /// * `crls` is the list of certificate revocation lists to check
     ///   the certificate against.
-    pub fn verify_for_usage(
-        &self,
-        supported_sig_algs: &[&SignatureAlgorithm],
-        trust_anchors: &[TrustAnchor],
-        intermediate_certs: &[&[u8]],
-        time: Time,
+    /// * `verify_path` is an optional verification function for path candidates.
+    ///
+    /// If successful, yields a `VerifiedPath` type that can be used to inspect a verified chain
+    /// of certificates that leads from the `end_entity` to one of the `self.trust_anchors`.
+    ///
+    /// `verify_path` will only be called for potentially verified paths, that is, paths that
+    /// have been verified up to the trust anchor. As such, `verify_path()` cannot be used to
+    /// verify a path that doesn't satisfy the constraints listed above; it can only be used to
+    /// reject a path that does satisfy the aforementioned constraints. If `verify_path` returns
+    /// an error, path building will continue in order to try other options.
+    #[allow(clippy::too_many_arguments)]
+    pub fn verify_for_usage<'p>(
+        &'p self,
+        supported_sig_algs: &[&dyn SignatureVerificationAlgorithm],
+        trust_anchors: &'p [TrustAnchor],
+        intermediate_certs: &'p [CertificateDer<'p>],
+        time: UnixTime,
         usage: KeyUsage,
-        crls: &[&dyn CertRevocationList],
-    ) -> Result<(), Error> {
-        self.verify_is_valid_cert(
+        revocation: Option<RevocationOptions<'_>>,
+        verify_path: Option<&dyn Fn(&VerifiedPath<'_>) -> Result<(), Error>>,
+    ) -> Result<VerifiedPath<'p>, Error> {
+        verify_cert::ChainOptions {
+            eku: usage,
             supported_sig_algs,
             trust_anchors,
             intermediate_certs,
-            time,
-            usage,
-            crls,
-        )
-    }
-
-    /// Verifies that the end-entity certificate is valid for use by a TLS
-    /// server.
-    ///
-    /// `supported_sig_algs` is the list of signature algorithms that are
-    /// trusted for use in certificate signatures; the end-entity certificate's
-    /// public key is not validated against this list. `trust_anchors` is the
-    /// list of root CAs to trust. `intermediate_certs` is the sequence of
-    /// intermediate certificates that the server sent in the TLS handshake.
-    /// `time` is the time for which the validation is effective (usually the
-    /// current time).
-    #[allow(deprecated)]
-    #[deprecated(
-        since = "0.101.2",
-        note = "The per-usage trust anchor representations and verification functions are deprecated in \
-        favor of the general-purpose `TrustAnchor` type and `EndEntity::verify_for_usage` function. \
-        The new `verify_for_usage` function expresses trust anchor and end entity purpose with the \
-        key usage argument."
-    )]
-    pub fn verify_is_valid_tls_server_cert(
-        &self,
-        supported_sig_algs: &[&SignatureAlgorithm],
-        &TlsServerTrustAnchors(trust_anchors): &TlsServerTrustAnchors,
-        intermediate_certs: &[&[u8]],
-        time: Time,
-    ) -> Result<(), Error> {
-        self.verify_is_valid_cert(
-            supported_sig_algs,
-            trust_anchors,
-            intermediate_certs,
-            time,
-            KeyUsage::server_auth(),
-            &[],
-        )
-    }
-
-    /// Verifies that the end-entity certificate is valid for use by a TLS
-    /// client.
-    ///
-    /// `supported_sig_algs` is the list of signature algorithms that are
-    /// trusted for use in certificate signatures; the end-entity certificate's
-    /// public key is not validated against this list. `trust_anchors` is the
-    /// list of root CAs to trust. `intermediate_certs` is the sequence of
-    /// intermediate certificates that the client sent in the TLS handshake.
-    /// `cert` is the purported end-entity certificate of the client. `time` is
-    /// the time for which the validation is effective (usually the current
-    /// time).
-    #[allow(deprecated)]
-    #[deprecated(
-        since = "0.101.2",
-        note = "The per-usage trust anchor representations and verification functions are deprecated in \
-        favor of the general-purpose `TrustAnchor` type and `EndEntity::verify_for_usage` function. \
-        The new `verify_for_usage` function expresses trust anchor and end entity purpose with the \
-        key usage argument."
-    )]
-    pub fn verify_is_valid_tls_client_cert(
-        &self,
-        supported_sig_algs: &[&SignatureAlgorithm],
-        &TlsClientTrustAnchors(trust_anchors): &TlsClientTrustAnchors,
-        intermediate_certs: &[&[u8]],
-        time: Time,
-        crls: &[&dyn CertRevocationList],
-    ) -> Result<(), Error> {
-        self.verify_is_valid_cert(
-            supported_sig_algs,
-            trust_anchors,
-            intermediate_certs,
-            time,
-            KeyUsage::client_auth(),
-            crls,
-        )
+            revocation,
+        }
+        .build_chain(self, time, verify_path)
     }
 
     /// Verifies that the certificate is valid for the given Subject Name.
     pub fn verify_is_valid_for_subject_name(
         &self,
-        subject_name: SubjectNameRef,
+        server_name: &ServerName<'_>,
     ) -> Result<(), Error> {
-        subject_name::verify_cert_subject_name(self, subject_name)
+        match server_name {
+            ServerName::DnsName(dns_name) => verify_dns_names(
+                dns_name,
+                NameIterator::new(Some(self.inner.subject), self.inner.subject_alt_name),
+            ),
+            // IP addresses are not compared against the subject field;
+            // only against Subject Alternative Names.
+            ServerName::IpAddress(ip_address) => verify_ip_address_names(
+                ip_address,
+                NameIterator::new(None, self.inner.subject_alt_name),
+            ),
+            _ => Err(Error::UnsupportedNameType),
+        }
     }
 
     /// Verifies the signature `signature` of message `msg` using the
@@ -223,7 +149,7 @@ impl<'a> EndEntityCert<'a> {
     /// `DigitallySigned.signature` and `signature_alg` corresponds to TLS's
     /// `DigitallySigned.algorithm` of TLS type `SignatureAndHashAlgorithm`. In
     /// TLS 1.2 a single `SignatureAndHashAlgorithm` may map to multiple
-    /// `SignatureAlgorithm`s. For example, a TLS 1.2
+    /// `SignatureVerificationAlgorithm`s. For example, a TLS 1.2
     /// `SignatureAndHashAlgorithm` of (ECDSA, SHA-256) may map to any or all
     /// of {`ECDSA_P256_SHA256`, `ECDSA_P384_SHA256`}, depending on how the TLS
     /// implementation is configured.
@@ -231,30 +157,27 @@ impl<'a> EndEntityCert<'a> {
     /// For current TLS 1.3 drafts, `signature_alg` corresponds to TLS's
     /// `algorithm` fields of type `SignatureScheme`. There is (currently) a
     /// one-to-one correspondence between TLS 1.3's `SignatureScheme` and
-    /// `SignatureAlgorithm`.
+    /// `SignatureVerificationAlgorithm`.
     pub fn verify_signature(
         &self,
-        signature_alg: &SignatureAlgorithm,
+        signature_alg: &dyn SignatureVerificationAlgorithm,
         msg: &[u8],
         signature: &[u8],
     ) -> Result<(), Error> {
         signed_data::verify_signature(
             signature_alg,
-            self.inner.spki.value(),
+            self.inner.spki,
             untrusted::Input::from(msg),
             untrusted::Input::from(signature),
         )
     }
+}
 
-    /// Returns a list of the DNS names provided in the subject alternative names extension
-    ///
-    /// This function must not be used to implement custom DNS name verification.
-    /// Verification functions are already provided as `verify_is_valid_for_dns_name`
-    /// and `verify_is_valid_for_at_least_one_dns_name`.
-    #[cfg(feature = "alloc")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
-    pub fn dns_names(&'a self) -> Result<impl Iterator<Item = GeneralDnsNameRef<'a>>, Error> {
-        subject_name::list_cert_dns_names(self)
+impl<'a> Deref for EndEntityCert<'a> {
+    type Target = cert::Cert<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
@@ -271,22 +194,22 @@ mod tests {
     fn printable_string_common_name() {
         const DNS_NAME: &str = "test.example.com";
 
-        let issuer = test_utils::make_issuer("Test", None);
+        let issuer = test_utils::make_issuer("Test");
 
         let ee_cert_der = {
-            let mut params = rcgen::CertificateParams::new(vec![DNS_NAME.to_string()]);
+            let mut params = test_utils::end_entity_params(vec![DNS_NAME.to_string()]);
             // construct a certificate that uses `PrintableString` as the
             // common name value, rather than `UTF8String`.
             params.distinguished_name.push(
                 rcgen::DnType::CommonName,
                 rcgen::DnValue::PrintableString("example.com".to_string()),
             );
-            params.is_ca = rcgen::IsCa::ExplicitNoCa;
-            params.alg = test_utils::RCGEN_SIGNATURE_ALG;
             let cert = rcgen::Certificate::from_params(params)
                 .expect("failed to make ee cert (this is a test bug)");
-            cert.serialize_der_with_signer(&issuer)
-                .expect("failed to serialize signed ee cert (this is a test bug)")
+            let bytes = cert
+                .serialize_der_with_signer(&issuer)
+                .expect("failed to serialize signed ee cert (this is a test bug)");
+            CertificateDer::from(bytes)
         };
 
         expect_dns_name(&ee_cert_der, DNS_NAME);
@@ -296,20 +219,21 @@ mod tests {
     // end-entity cert where the common name is an empty SEQUENCE.
     #[test]
     fn empty_sequence_common_name() {
-        // handcrafted cert DER produced using `ascii2der`, since `rcgen` is
-        // unwilling to generate this particular weird cert.
-        let ee_cert_der = include_bytes!("../tests/misc/empty_sequence_common_name.der").as_slice();
-        expect_dns_name(ee_cert_der, "example.com");
+        let ee_cert_der = {
+            // handcrafted cert DER produced using `ascii2der`, since `rcgen` is
+            // unwilling to generate this particular weird cert.
+            let bytes = include_bytes!("../tests/misc/empty_sequence_common_name.der");
+            CertificateDer::from(&bytes[..])
+        };
+        expect_dns_name(&ee_cert_der, "example.com");
     }
 
-    fn expect_dns_name(der: &[u8], name: &str) {
+    fn expect_dns_name(der: &CertificateDer<'_>, name: &str) {
         let cert =
             EndEntityCert::try_from(der).expect("should parse end entity certificate correctly");
 
-        let mut names = cert
-            .dns_names()
-            .expect("should get all DNS names correctly for end entity cert");
-        assert_eq!(names.next().map(<&str>::from), Some(name));
-        assert_eq!(names.next().map(<&str>::from), None);
+        let mut names = cert.valid_dns_names();
+        assert_eq!(names.next(), Some(name));
+        assert_eq!(names.next(), None);
     }
 }

@@ -44,6 +44,7 @@ In a similar pattern to the MAC-then-encrypt problem discussed above, TLSv1.0 (1
 continued to specify use of PKCS#1 encryption, again with incrementally more complex and incorrect advice on countermeasures.
 
 [ROBOT](https://robotattack.org/) (2018) showed that implementations were still vulnerable to these attacks twenty years later.
+[The Marvin Attack](https://people.redhat.com/~hkario/marvin/) (2023) demonstrated the same a further five years later.
 
 rustls does not support RSA key exchange.  TLSv1.3 also removed support.
 
@@ -119,7 +120,8 @@ is an attack against CBC mode ciphersuites in SSLv3.  This was possible in most 
 downgraded to SSLv3 after failed handshakes for later versions.
 
 rustls does not support CBC mode ciphersuites, or SSLv3.  Note that rustls does not need to implement `TLS_FALLBACK_SCSV`
-introduced as a countermeasure because it contains no ability to downgrade to earlier protocol versions.
+introduced as a countermeasure because it contains no ability to downgrade from TLS 1.2 to earlier protocol versions,
+and TLS 1.3 has protocol-level downgrade protection based on the [ServerHello server random value](https://www.rfc-editor.org/rfc/rfc8446#section-4.1.3).
 
 ## GCM nonces
 

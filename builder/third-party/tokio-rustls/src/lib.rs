@@ -36,6 +36,20 @@
 //!
 //! see <https://github.com/tokio-rs/tls/issues/41>
 
+use std::future::Future;
+use std::io;
+#[cfg(unix)]
+use std::os::unix::io::{AsRawFd, RawFd};
+#[cfg(windows)]
+use std::os::windows::io::{AsRawSocket, RawSocket};
+use std::pin::Pin;
+use std::sync::Arc;
+use std::task::{Context, Poll};
+
+pub use rustls;
+use rustls::{ClientConfig, ClientConnection, CommonState, ServerConfig, ServerConnection};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+
 macro_rules! ready {
     ( $e:expr ) => {
         match $e {
@@ -47,22 +61,8 @@ macro_rules! ready {
 
 pub mod client;
 mod common;
+use common::{MidHandshake, TlsState};
 pub mod server;
-
-use common::{MidHandshake, Stream, TlsState};
-use rustls::{ClientConfig, ClientConnection, CommonState, ServerConfig, ServerConnection};
-use std::future::Future;
-use std::io;
-#[cfg(unix)]
-use std::os::unix::io::{AsRawFd, RawFd};
-#[cfg(windows)]
-use std::os::windows::io::{AsRawSocket, RawSocket};
-use std::pin::Pin;
-use std::sync::Arc;
-use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-
-pub use rustls;
 
 /// A wrapper around a `rustls::ClientConfig`, providing an async `connect` method.
 #[derive(Clone)]
@@ -106,14 +106,19 @@ impl TlsConnector {
     }
 
     #[inline]
-    pub fn connect<IO>(&self, domain: rustls::ServerName, stream: IO) -> Connect<IO>
+    pub fn connect<IO>(&self, domain: pki_types::ServerName<'static>, stream: IO) -> Connect<IO>
     where
         IO: AsyncRead + AsyncWrite + Unpin,
     {
         self.connect_with(domain, stream, |_| ())
     }
 
-    pub fn connect_with<IO, F>(&self, domain: rustls::ServerName, stream: IO, f: F) -> Connect<IO>
+    pub fn connect_with<IO, F>(
+        &self,
+        domain: pki_types::ServerName<'static>,
+        stream: IO,
+        f: F,
+    ) -> Connect<IO>
     where
         IO: AsyncRead + AsyncWrite + Unpin,
         F: FnOnce(&mut ClientConnection),
@@ -222,7 +227,7 @@ where
     /// let (stream, _) = listener.accept().await.unwrap();
     ///
     /// let acceptor = tokio_rustls::LazyConfigAcceptor::new(rustls::server::Acceptor::default(), stream);
-    /// futures_util::pin_mut!(acceptor);
+    /// tokio::pin!(acceptor);
     ///
     /// match acceptor.as_mut().await {
     ///     Ok(start) => {

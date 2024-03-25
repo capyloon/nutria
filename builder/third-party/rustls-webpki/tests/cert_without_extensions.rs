@@ -12,11 +12,12 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+use pki_types::CertificateDer;
+
 #[test]
 fn cert_without_extensions_test() {
     // Check the certificate is valid with
     // `openssl x509 -in cert_without_extensions.der -inform DER -text -noout`
-    const CERT_WITHOUT_EXTENSIONS_DER: &[u8] = include_bytes!("cert_without_extensions.der");
-
-    assert!(webpki::EndEntityCert::try_from(CERT_WITHOUT_EXTENSIONS_DER).is_ok());
+    let ca = CertificateDer::from(&include_bytes!("cert_without_extensions.der")[..]);
+    assert!(webpki::EndEntityCert::try_from(&ca).is_ok());
 }

@@ -15,7 +15,7 @@
 //! - Plain bodies, [JSON](#json), [urlencoded](#forms), [multipart]
 //! - Customizable [redirect policy](#redirect-policies)
 //! - HTTP [Proxies](#proxies)
-//! - Uses system-native [TLS](#tls)
+//! - Uses [TLS](#tls) by default
 //! - Cookies
 //!
 //! The [`reqwest::Client`][client] is asynchronous. For applications wishing
@@ -26,6 +26,11 @@
 //!
 //! - [The Rust Cookbook](https://rust-lang-nursery.github.io/rust-cookbook/web/clients.html)
 //! - [Reqwest Repository Examples](https://github.com/seanmonstar/reqwest/tree/master/examples)
+//!
+//! ## Commercial Support
+//!
+//! For private advice, support, reviews, access to the maintainer, and the
+//! like, reach out for [commercial support][sponsor].
 //!
 //! ## Making a GET request
 //!
@@ -38,7 +43,7 @@
 //!     .text()
 //!     .await?;
 //!
-//! println!("body = {:?}", body);
+//! println!("body = {body:?}");
 //! # Ok(())
 //! # }
 //! ```
@@ -149,16 +154,17 @@
 //!
 //! ## TLS
 //!
-//! By default, a `Client` will make use of system-native transport layer
-//! security to connect to HTTPS destinations. This means schannel on Windows,
-//! Security-Framework on macOS, and OpenSSL on Linux.
+//! A `Client` will use transport layer security (TLS) by default to connect to
+//! HTTPS destinations.
 //!
-//! - Additional X509 certificates can be configured on a `ClientBuilder` with the
-//!   [`Certificate`] type.
+//! - Additional server certificates can be configured on a `ClientBuilder`
+//!   with the [`Certificate`] type.
 //! - Client certificates can be added to a `ClientBuilder` with the
 //!   [`Identity`] type.
 //! - Various parts of TLS can also be configured or even disabled on the
 //!   `ClientBuilder`.
+//!
+//! See more details in the [`tls`] module.
 //!
 //! ## WASM
 //!
@@ -172,6 +178,7 @@
 //! The following are a list of [Cargo features][cargo-features] that can be
 //! enabled or disabled:
 //!
+//! - **http2** *(enabled by default)*: Enables HTTP/2 support.
 //! - **default-tls** *(enabled by default)*: Provides TLS support to connect
 //!   over HTTPS.
 //! - **native-tls**: Enables TLS functionality provided by `native-tls`.
@@ -186,6 +193,7 @@
 //! - **rustls-tls-native-roots**: Enables TLS functionality provided by `rustls`,
 //!   while using root certificates from the `rustls-native-certs` crate.
 //! - **blocking**: Provides the [blocking][] client API.
+//! - **charset** *(enabled by default)*: Improved support for decoding text.
 //! - **cookies**: Provides cookie session support.
 //! - **gzip**: Provides response body gzip decompression.
 //! - **brotli**: Provides response body brotli decompression.
@@ -194,7 +202,7 @@
 //! - **multipart**: Provides functionality for multipart forms.
 //! - **stream**: Adds support for `futures::Stream`.
 //! - **socks**: Provides SOCKS5 proxy support.
-//! - **trust-dns**: Enables a trust-dns async resolver instead of default
+//! - **hickory-dns**: Enables a hickory-dns async resolver instead of default
 //!   threadpool using `getaddrinfo`.
 //!
 //! ## Unstable Features
@@ -214,7 +222,11 @@
 //! RUSTFLAGS="--cfg reqwest_unstable" cargo build
 //! ```
 //!
-//! [hyper]: http://hyper.rs
+//! ## Sponsors
+//!
+//! Support this project by becoming a [sponsor][].
+//!
+//! [hyper]: https://hyper.rs
 //! [blocking]: ./blocking/index.html
 //! [client]: ./struct.Client.html
 //! [response]: ./struct.Response.html
@@ -224,6 +236,7 @@
 //! [redirect]: crate::redirect
 //! [Proxy]: ./struct.Proxy.html
 //! [cargo-features]: https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section
+//! [sponsor]: https://seanmonstar.com/sponsor
 
 #[cfg(all(feature = "http3", not(reqwest_unstable)))]
 compile_error!(
@@ -312,6 +325,9 @@ fn _assert_impls() {
 
     assert_send::<Error>();
     assert_sync::<Error>();
+
+    assert_send::<Body>();
+    assert_sync::<Body>();
 }
 
 if_hyper! {

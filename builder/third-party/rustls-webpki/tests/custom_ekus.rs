@@ -1,24 +1,34 @@
-#![cfg(feature = "alloc")]
+#![cfg(all(feature = "alloc", any(feature = "ring", feature = "aws_lc_rs")))]
 
-use webpki::KeyUsage;
+use core::time::Duration;
+
+use pki_types::{CertificateDer, UnixTime};
+use webpki::{anchor_from_trusted_cert, KeyUsage};
 
 fn check_cert(
     ee: &[u8],
     ca: &[u8],
     eku: KeyUsage,
-    time: webpki::Time,
+    time: UnixTime,
     result: Result<(), webpki::Error>,
 ) {
-    let anchors = [webpki::TrustAnchor::try_from_cert_der(ca).unwrap()];
-    let algs = &[
-        &webpki::RSA_PKCS1_2048_8192_SHA256,
-        &webpki::ECDSA_P256_SHA256,
-    ];
+    let ca = CertificateDer::from(ca);
+    let anchors = [anchor_from_trusted_cert(&ca).unwrap()];
 
-    let cert = webpki::EndEntityCert::try_from(ee).unwrap();
+    let ee = CertificateDer::from(ee);
+    let cert = webpki::EndEntityCert::try_from(&ee).unwrap();
 
     assert_eq!(
-        cert.verify_for_usage(algs, &anchors, &[], time, eku, &[]),
+        cert.verify_for_usage(
+            webpki::ALL_VERIFICATION_ALGS,
+            &anchors,
+            &[],
+            time,
+            eku,
+            None,
+            None,
+        )
+        .map(|_| ()),
         result
     );
 }
@@ -26,7 +36,7 @@ fn check_cert(
 #[test]
 pub fn verify_custom_eku_mdoc() {
     let err = Err(webpki::Error::RequiredEkuNotFound);
-    let time = webpki::Time::from_seconds_since_unix_epoch(1609459200); //  Jan 1 01:00:00 CET 2021
+    let time = UnixTime::since_unix_epoch(Duration::from_secs(1_609_459_200)); //  Jan 1 01:00:00 CET 2021
 
     let ee = include_bytes!("misc/mdoc_eku.ee.der");
     let ca = include_bytes!("misc/mdoc_eku.ca.der");
@@ -40,7 +50,7 @@ pub fn verify_custom_eku_mdoc() {
 
 #[test]
 pub fn verify_custom_eku_client() {
-    let time = webpki::Time::from_seconds_since_unix_epoch(0x1fed_f00d);
+    let time = UnixTime::since_unix_epoch(Duration::from_secs(0x1fed_f00d));
 
     let ee = include_bytes!("client_auth/cert_with_no_eku_accepted_for_client_auth.ee.der");
     let ca = include_bytes!("client_auth/cert_with_no_eku_accepted_for_client_auth.ca.der");

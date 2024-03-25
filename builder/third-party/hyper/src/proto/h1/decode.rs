@@ -5,7 +5,7 @@ use std::task::{Context, Poll};
 use std::usize;
 
 use bytes::Bytes;
-use tracing::{debug, trace};
+use futures_util::ready;
 
 use super::io::MemRead;
 use super::DecodedLength;
@@ -499,9 +499,9 @@ impl StdError for IncompleteBody {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rt::{Read, ReadBuf};
     use std::pin::Pin;
     use std::time::Duration;
-    use tokio::io::{AsyncRead, ReadBuf};
 
     impl<'a> MemRead for &'a [u8] {
         fn read_mem(&mut self, _: &mut Context<'_>, len: usize) -> Poll<io::Result<Bytes>> {
@@ -517,11 +517,11 @@ mod tests {
         }
     }
 
-    impl<'a> MemRead for &'a mut (dyn AsyncRead + Unpin) {
+    impl<'a> MemRead for &'a mut (dyn Read + Unpin) {
         fn read_mem(&mut self, cx: &mut Context<'_>, len: usize) -> Poll<io::Result<Bytes>> {
             let mut v = vec![0; len];
             let mut buf = ReadBuf::new(&mut v);
-            ready!(Pin::new(self).poll_read(cx, &mut buf)?);
+            ready!(Pin::new(self).poll_read(cx, buf.unfilled())?);
             Poll::Ready(Ok(Bytes::copy_from_slice(&buf.filled())))
         }
     }
@@ -544,6 +544,7 @@ mod tests {
     use crate::mock::AsyncIo;
     */
 
+    #[cfg(not(miri))]
     #[tokio::test]
     async fn test_read_chunk_size() {
         use std::io::ErrorKind::{InvalidData, InvalidInput, UnexpectedEof};
@@ -633,6 +634,7 @@ mod tests {
         read_err("f0000000000000003\r\n", InvalidData).await;
     }
 
+    #[cfg(not(miri))]
     #[tokio::test]
     async fn test_read_sized_early_eof() {
         let mut bytes = &b"foo bar"[..];
@@ -642,6 +644,7 @@ mod tests {
         assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof);
     }
 
+    #[cfg(not(miri))]
     #[tokio::test]
     async fn test_read_chunked_early_eof() {
         let mut bytes = &b"\
@@ -654,6 +657,7 @@ mod tests {
         assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof);
     }
 
+    #[cfg(not(miri))]
     #[tokio::test]
     async fn test_read_chunked_single_read() {
         let mut mock_buf = &b"10\r\n1234567890abcdef\r\n0\r\n"[..];
@@ -702,6 +706,7 @@ mod tests {
         assert_eq!(e.kind(), io::ErrorKind::InvalidInput);
     }
 
+    #[cfg(not(miri))]
     #[tokio::test]
     async fn test_read_chunked_after_eof() {
         let mut mock_buf = &b"10\r\n1234567890abcdef\r\n0\r\n\r\n"[..];
@@ -727,7 +732,7 @@ mod tests {
     async fn read_async(mut decoder: Decoder, content: &[u8], block_at: usize) -> String {
         let mut outs = Vec::new();
 
-        let mut ins = if block_at == 0 {
+        let mut ins = crate::common::io::Compat::new(if block_at == 0 {
             tokio_test::io::Builder::new()
                 .wait(Duration::from_millis(10))
                 .read(content)
@@ -738,9 +743,9 @@ mod tests {
                 .wait(Duration::from_millis(10))
                 .read(&content[block_at..])
                 .build()
-        };
+        });
 
-        let mut ins = &mut ins as &mut (dyn AsyncRead + Unpin);
+        let mut ins = &mut ins as &mut (dyn Read + Unpin);
 
         loop {
             let buf = decoder
@@ -766,12 +771,14 @@ mod tests {
         }
     }
 
+    #[cfg(not(miri))]
     #[tokio::test]
     async fn test_read_length_async() {
         let content = "foobar";
         all_async_cases(content, content, Decoder::length(content.len() as u64)).await;
     }
 
+    #[cfg(not(miri))]
     #[tokio::test]
     async fn test_read_chunked_async() {
         let content = "3\r\nfoo\r\n3\r\nbar\r\n0\r\n\r\n";
@@ -779,13 +786,14 @@ mod tests {
         all_async_cases(content, expected, Decoder::chunked()).await;
     }
 
+    #[cfg(not(miri))]
     #[tokio::test]
     async fn test_read_eof_async() {
         let content = "foobar";
         all_async_cases(content, content, Decoder::eof()).await;
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(all(feature = "nightly", not(miri)))]
     #[bench]
     fn bench_decode_chunked_1kb(b: &mut test::Bencher) {
         let rt = new_runtime();
@@ -809,7 +817,7 @@ mod tests {
         });
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(all(feature = "nightly", not(miri)))]
     #[bench]
     fn bench_decode_length_1kb(b: &mut test::Bencher) {
         let rt = new_runtime();

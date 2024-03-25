@@ -12,156 +12,37 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-#[cfg(feature = "alloc")]
-use alloc::string::String;
 use core::fmt::Write;
 
+use pki_types::{DnsName, InvalidDnsNameError};
+
+use super::verify::{GeneralName, NameIterator};
 use crate::Error;
 
-/// A DNS Name suitable for use in the TLS Server Name Indication (SNI)
-/// extension and/or for use as the reference hostname for which to verify a
-/// certificate.
-///
-/// A `DnsName` is guaranteed to be syntactically valid. The validity rules are
-/// specified in [RFC 5280 Section 7.2], except that underscores are also
-/// allowed. `DnsName`s do not include wildcard labels.
-///
-/// `DnsName` stores a copy of the input it was constructed from in a `String`
-/// and so it is only available when the `alloc` default feature is enabled.
-///
-/// [RFC 5280 Section 7.2]: https://tools.ietf.org/html/rfc5280#section-7.2
-///
-/// Requires the `alloc` feature.
-#[cfg(feature = "alloc")]
-#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub struct DnsName(String);
+pub(crate) fn verify_dns_names(
+    reference: &DnsName<'_>,
+    mut names: NameIterator<'_>,
+) -> Result<(), Error> {
+    let dns_name = untrusted::Input::from(reference.as_ref().as_bytes());
+    names
+        .find_map(|result| {
+            let name = match result {
+                Ok(name) => name,
+                Err(err) => return Some(Err(err)),
+            };
 
-#[cfg(feature = "alloc")]
-#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
-impl DnsName {
-    /// Returns a `DnsNameRef` that refers to this `DnsName`.
-    pub fn as_ref(&self) -> DnsNameRef {
-        DnsNameRef(self.0.as_bytes())
-    }
-}
+            let presented_id = match name {
+                GeneralName::DnsName(presented) => presented,
+                _ => return None,
+            };
 
-#[cfg(feature = "alloc")]
-#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
-impl AsRef<str> for DnsName {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
-/// A reference to a DNS Name suitable for use in the TLS Server Name Indication
-/// (SNI) extension and/or for use as the reference hostname for which to verify
-/// a certificate.
-///
-/// A `DnsNameRef` is guaranteed to be syntactically valid. The validity rules
-/// are specified in [RFC 5280 Section 7.2], except that underscores are also
-/// allowed. `DnsNameRef`s do not include wildcard labels.
-///
-/// [RFC 5280 Section 7.2]: https://tools.ietf.org/html/rfc5280#section-7.2
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub struct DnsNameRef<'a>(pub(crate) &'a [u8]);
-
-impl AsRef<str> for DnsNameRef<'_> {
-    #[inline]
-    fn as_ref(&self) -> &str {
-        // The unwrap won't fail because DnsNameRef are guaranteed to be ASCII
-        // and ASCII is a subset of UTF-8.
-        core::str::from_utf8(self.0).unwrap()
-    }
-}
-
-/// An error indicating that a `DnsNameRef` could not built because the input
-/// is not a syntactically-valid DNS Name.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct InvalidDnsNameError;
-
-impl core::fmt::Display for InvalidDnsNameError {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-#[cfg(feature = "std")]
-#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-impl ::std::error::Error for InvalidDnsNameError {}
-
-impl<'a> DnsNameRef<'a> {
-    /// Constructs a `DnsNameRef` from the given input if the input is a
-    /// syntactically-valid DNS name.
-    pub fn try_from_ascii(dns_name: &'a [u8]) -> Result<Self, InvalidDnsNameError> {
-        if !is_valid_dns_id(
-            untrusted::Input::from(dns_name),
-            IdRole::Reference,
-            AllowWildcards::No,
-        ) {
-            return Err(InvalidDnsNameError);
-        }
-
-        Ok(Self(dns_name))
-    }
-
-    /// Constructs a `DnsNameRef` from the given input if the input is a
-    /// syntactically-valid DNS name.
-    pub fn try_from_ascii_str(dns_name: &'a str) -> Result<Self, InvalidDnsNameError> {
-        Self::try_from_ascii(dns_name.as_bytes())
-    }
-
-    /// Constructs a `DnsName` from this `DnsNameRef`
-    #[cfg(feature = "alloc")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
-    pub fn to_owned(&self) -> DnsName {
-        // DnsNameRef is already guaranteed to be valid ASCII, which is a
-        // subset of UTF-8.
-        let s: &str = (*self).into();
-        DnsName(s.to_ascii_lowercase())
-    }
-}
-
-impl core::fmt::Debug for DnsNameRef<'_> {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
-        f.write_str("DnsNameRef(\"")?;
-
-        // Convert each byte of the underlying ASCII string to a `char` and
-        // downcase it prior to formatting it. We avoid self.clone().to_owned()
-        // since it requires allocation.
-        for &ch in self.0 {
-            f.write_char(char::from(ch).to_ascii_lowercase())?;
-        }
-
-        f.write_str("\")")
-    }
-}
-
-impl<'a> From<DnsNameRef<'a>> for &'a str {
-    fn from(DnsNameRef(d): DnsNameRef<'a>) -> Self {
-        // The unwrap won't fail because DnsNameRefs are guaranteed to be ASCII
-        // and ASCII is a subset of UTF-8.
-        core::str::from_utf8(d).unwrap()
-    }
-}
-
-/// A DNS name that may be either a DNS name identifier presented by a server (which may include
-/// wildcards), or a DNS name identifier referenced by a client for matching purposes (wildcards
-/// not permitted).
-pub enum GeneralDnsNameRef<'name> {
-    /// a reference to a DNS name that may be used for matching purposes.
-    DnsName(DnsNameRef<'name>),
-    /// a reference to a presented DNS name that may include a wildcard.
-    Wildcard(WildcardDnsNameRef<'name>),
-}
-
-impl<'a> From<GeneralDnsNameRef<'a>> for &'a str {
-    fn from(d: GeneralDnsNameRef<'a>) -> Self {
-        match d {
-            GeneralDnsNameRef::DnsName(name) => name.into(),
-            GeneralDnsNameRef::Wildcard(name) => name.into(),
-        }
-    }
+            match presented_id_matches_reference_id(presented_id, IdRole::Reference, dns_name) {
+                Ok(true) => Some(Ok(())),
+                Ok(false) | Err(Error::MalformedDnsIdentifier) => None,
+                Err(e) => Some(Err(e)),
+            }
+        })
+        .unwrap_or(Err(Error::CertNotValidForName))
 }
 
 /// A reference to a DNS Name presented by a server that may include a wildcard.
@@ -177,16 +58,16 @@ impl<'a> From<GeneralDnsNameRef<'a>> for &'a str {
 /// [RFC 5280 Section 7.2]: https://tools.ietf.org/html/rfc5280#section-7.2
 /// [RFC 6125 Section 4.1]: https://www.rfc-editor.org/rfc/rfc6125#section-4.1
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub struct WildcardDnsNameRef<'a>(&'a [u8]);
+pub(crate) struct WildcardDnsNameRef<'a>(&'a [u8]);
 
 impl<'a> WildcardDnsNameRef<'a> {
     /// Constructs a `WildcardDnsNameRef` from the given input if the input is a
     /// syntactically-valid DNS name.
-    pub fn try_from_ascii(dns_name: &'a [u8]) -> Result<Self, InvalidDnsNameError> {
+    pub(crate) fn try_from_ascii(dns_name: &'a [u8]) -> Result<Self, InvalidDnsNameError> {
         if !is_valid_dns_id(
             untrusted::Input::from(dns_name),
             IdRole::Reference,
-            AllowWildcards::Yes,
+            Wildcards::Allow,
         ) {
             return Err(InvalidDnsNameError);
         }
@@ -194,10 +75,11 @@ impl<'a> WildcardDnsNameRef<'a> {
         Ok(Self(dns_name))
     }
 
-    /// Constructs a `WildcardDnsNameRef` from the given input if the input is a
-    /// syntactically-valid DNS name.
-    pub fn try_from_ascii_str(dns_name: &'a str) -> Result<Self, InvalidDnsNameError> {
-        Self::try_from_ascii(dns_name.as_bytes())
+    /// Yields a reference to the DNS name as a `&str`.
+    pub(crate) fn as_str(&self) -> &'a str {
+        // The unwrap won't fail because a `WildcardDnsNameRef` is guaranteed to be ASCII and
+        // ASCII is a subset of UTF-8.
+        core::str::from_utf8(self.0).unwrap()
     }
 }
 
@@ -214,45 +96,6 @@ impl core::fmt::Debug for WildcardDnsNameRef<'_> {
 
         f.write_str("\")")
     }
-}
-
-impl<'a> From<WildcardDnsNameRef<'a>> for &'a str {
-    fn from(WildcardDnsNameRef(d): WildcardDnsNameRef<'a>) -> Self {
-        // The unwrap won't fail because WildcardDnsNameRef are guaranteed to be ASCII
-        // and ASCII is a subset of UTF-8.
-        core::str::from_utf8(d).unwrap()
-    }
-}
-
-impl AsRef<str> for WildcardDnsNameRef<'_> {
-    #[inline]
-    fn as_ref(&self) -> &str {
-        // The unwrap won't fail because WildcardDnsNameRef are guaranteed to be ASCII
-        // and ASCII is a subset of UTF-8.
-        core::str::from_utf8(self.0).unwrap()
-    }
-}
-
-pub(super) fn presented_id_matches_reference_id(
-    presented_dns_id: untrusted::Input,
-    reference_dns_id: untrusted::Input,
-) -> Result<bool, Error> {
-    presented_id_matches_reference_id_internal(
-        presented_dns_id,
-        IdRole::Reference,
-        reference_dns_id,
-    )
-}
-
-pub(super) fn presented_id_matches_constraint(
-    presented_dns_id: untrusted::Input,
-    reference_dns_id: untrusted::Input,
-) -> Result<bool, Error> {
-    presented_id_matches_reference_id_internal(
-        presented_dns_id,
-        IdRole::NameConstraint,
-        reference_dns_id,
-    )
 }
 
 // We assume that both presented_dns_id and reference_dns_id are encoded in
@@ -371,16 +214,16 @@ pub(super) fn presented_id_matches_constraint(
 // [4] Feedback on the lack of clarify in the definition that never got
 //     incorporated into the spec:
 //     https://www.ietf.org/mail-archive/web/pkix/current/msg21192.html
-fn presented_id_matches_reference_id_internal(
+pub(super) fn presented_id_matches_reference_id(
     presented_dns_id: untrusted::Input,
     reference_dns_id_role: IdRole,
     reference_dns_id: untrusted::Input,
 ) -> Result<bool, Error> {
-    if !is_valid_dns_id(presented_dns_id, IdRole::Presented, AllowWildcards::Yes) {
+    if !is_valid_dns_id(presented_dns_id, IdRole::Presented, Wildcards::Allow) {
         return Err(Error::MalformedDnsIdentifier);
     }
 
-    if !is_valid_dns_id(reference_dns_id, reference_dns_id_role, AllowWildcards::No) {
+    if !is_valid_dns_id(reference_dns_id, reference_dns_id_role, Wildcards::Deny) {
         return Err(match reference_dns_id_role {
             IdRole::NameConstraint => Error::MalformedNameConstraint,
             _ => Error::MalformedDnsIdentifier,
@@ -511,13 +354,13 @@ fn ascii_lower(b: u8) -> u8 {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum AllowWildcards {
-    No,
-    Yes,
+enum Wildcards {
+    Deny,
+    Allow,
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum IdRole {
+pub(super) enum IdRole {
     Reference,
     Presented,
     NameConstraint,
@@ -536,7 +379,7 @@ enum IdRole {
 fn is_valid_dns_id(
     hostname: untrusted::Input,
     id_role: IdRole,
-    allow_wildcards: AllowWildcards,
+    allow_wildcards: Wildcards,
 ) -> bool {
     // https://blogs.msdn.microsoft.com/oldnewthing/20120412-00/?p=7873/
     if hostname.len() > 253 {
@@ -557,7 +400,7 @@ fn is_valid_dns_id(
     // Only presented IDs are allowed to have wildcard labels. And, like
     // Chromium, be stricter than RFC 6125 requires by insisting that a
     // wildcard label consist only of '*'.
-    let is_wildcard = allow_wildcards == AllowWildcards::Yes && input.peek(b'*');
+    let is_wildcard = allow_wildcards == Wildcards::Allow && input.peek(b'*');
     let mut is_first_byte = !is_wildcard;
     if is_wildcard {
         if input.read_byte() != Ok(b'*') || input.read_byte() != Ok(b'.') {
@@ -1028,6 +871,7 @@ mod tests {
         for &(presented, reference, expected_result) in PRESENTED_MATCHES_REFERENCE {
             let actual_result = presented_id_matches_reference_id(
                 untrusted::Input::from(presented),
+                IdRole::Reference,
                 untrusted::Input::from(reference),
             );
             assert_eq!(
@@ -1102,8 +946,9 @@ mod tests {
     #[test]
     fn presented_matches_constraint_test() {
         for &(presented, constraint, expected_result) in PRESENTED_MATCHES_CONSTRAINT {
-            let actual_result = presented_id_matches_constraint(
+            let actual_result = presented_id_matches_reference_id(
                 untrusted::Input::from(presented),
+                IdRole::NameConstraint,
                 untrusted::Input::from(constraint),
             );
             assert_eq!(

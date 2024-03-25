@@ -1,7 +1,6 @@
 #![cfg(not(target_arch = "wasm32"))]
 mod support;
 
-use futures_util::stream::StreamExt;
 use support::server;
 
 #[cfg(feature = "json")]
@@ -131,19 +130,23 @@ async fn response_json() {
 
 #[tokio::test]
 async fn body_pipe_response() {
+    use http_body_util::BodyExt;
     let _ = env_logger::try_init();
 
-    let server = server::http(move |mut req| async move {
+    let server = server::http(move |req| async move {
         if req.uri() == "/get" {
             http::Response::new("pipe me".into())
         } else {
             assert_eq!(req.uri(), "/pipe");
             assert_eq!(req.headers()["transfer-encoding"], "chunked");
 
-            let mut full: Vec<u8> = Vec::new();
-            while let Some(item) = req.body_mut().next().await {
-                full.extend(&*item.unwrap());
-            }
+            let full: Vec<u8> = req
+                .into_body()
+                .collect()
+                .await
+                .expect("must succeed")
+                .to_bytes()
+                .to_vec();
 
             assert_eq!(full, b"pipe me");
 
@@ -180,8 +183,7 @@ async fn overridden_dns_resolution_with_gai() {
 
     let overridden_domain = "rust-lang.org";
     let url = format!(
-        "http://{}:{}/domain_override",
-        overridden_domain,
+        "http://{overridden_domain}:{}/domain_override",
         server.addr().port()
     );
     let client = reqwest::Client::builder()
@@ -203,8 +205,7 @@ async fn overridden_dns_resolution_with_gai_multiple() {
 
     let overridden_domain = "rust-lang.org";
     let url = format!(
-        "http://{}:{}/domain_override",
-        overridden_domain,
+        "http://{overridden_domain}:{}/domain_override",
         server.addr().port()
     );
     // the server runs on IPv4 localhost, so provide both IPv4 and IPv6 and let the happy eyeballs
@@ -230,21 +231,20 @@ async fn overridden_dns_resolution_with_gai_multiple() {
     assert_eq!("Hello", text);
 }
 
-#[cfg(feature = "trust-dns")]
+#[cfg(feature = "hickory-dns")]
 #[tokio::test]
-async fn overridden_dns_resolution_with_trust_dns() {
+async fn overridden_dns_resolution_with_hickory_dns() {
     let _ = env_logger::builder().is_test(true).try_init();
     let server = server::http(move |_req| async { http::Response::new("Hello".into()) });
 
     let overridden_domain = "rust-lang.org";
     let url = format!(
-        "http://{}:{}/domain_override",
-        overridden_domain,
+        "http://{overridden_domain}:{}/domain_override",
         server.addr().port()
     );
     let client = reqwest::Client::builder()
         .resolve(overridden_domain, server.addr())
-        .trust_dns(true)
+        .hickory_dns(true)
         .build()
         .expect("client builder");
     let req = client.get(&url);
@@ -255,16 +255,15 @@ async fn overridden_dns_resolution_with_trust_dns() {
     assert_eq!("Hello", text);
 }
 
-#[cfg(feature = "trust-dns")]
+#[cfg(feature = "hickory-dns")]
 #[tokio::test]
-async fn overridden_dns_resolution_with_trust_dns_multiple() {
+async fn overridden_dns_resolution_with_hickory_dns_multiple() {
     let _ = env_logger::builder().is_test(true).try_init();
     let server = server::http(move |_req| async { http::Response::new("Hello".into()) });
 
     let overridden_domain = "rust-lang.org";
     let url = format!(
-        "http://{}:{}/domain_override",
-        overridden_domain,
+        "http://{overridden_domain}:{}/domain_override",
         server.addr().port()
     );
     // the server runs on IPv4 localhost, so provide both IPv4 and IPv6 and let the happy eyeballs
@@ -280,7 +279,7 @@ async fn overridden_dns_resolution_with_trust_dns_multiple() {
                 server.addr(),
             ],
         )
-        .trust_dns(true)
+        .hickory_dns(true)
         .build()
         .expect("client builder");
     let req = client.get(&url);
@@ -324,7 +323,6 @@ fn use_preconfigured_rustls_default() {
 
     let root_cert_store = rustls::RootCertStore::empty();
     let tls = rustls::ClientConfig::builder()
-        .with_safe_defaults()
         .with_root_certificates(root_cert_store)
         .with_no_client_auth();
 
@@ -437,4 +435,76 @@ async fn test_tls_info() {
         .expect("response");
     let tls_info = resp.extensions().get::<reqwest::tls::TlsInfo>();
     assert!(tls_info.is_none());
+}
+
+// NOTE: using the default "curernt_thread" runtime here would cause the test to
+// fail, because the only thread would block until `panic_rx` receives a
+// notification while the client needs to be driven to get the graceful shutdown
+// done.
+#[cfg(feature = "http2")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn highly_concurrent_requests_to_http2_server_with_low_max_concurrent_streams() {
+    let client = reqwest::Client::builder()
+        .http2_prior_knowledge()
+        .build()
+        .unwrap();
+
+    let server = server::http_with_config(
+        move |req| async move {
+            assert_eq!(req.version(), http::Version::HTTP_2);
+            http::Response::default()
+        },
+        |builder| {
+            builder.http2().max_concurrent_streams(1);
+        },
+    );
+
+    let url = format!("http://{}", server.addr());
+
+    let futs = (0..100).map(|_| {
+        let client = client.clone();
+        let url = url.clone();
+        async move {
+            let res = client.get(&url).send().await.unwrap();
+            assert_eq!(res.status(), reqwest::StatusCode::OK);
+        }
+    });
+    futures_util::future::join_all(futs).await;
+}
+
+#[cfg(feature = "http2")]
+#[tokio::test]
+async fn highly_concurrent_requests_to_slow_http2_server_with_low_max_concurrent_streams() {
+    use support::delay_server;
+
+    let client = reqwest::Client::builder()
+        .http2_prior_knowledge()
+        .build()
+        .unwrap();
+
+    let server = delay_server::Server::new(
+        move |req| async move {
+            assert_eq!(req.version(), http::Version::HTTP_2);
+            http::Response::default()
+        },
+        |http| {
+            http.http2().max_concurrent_streams(1);
+        },
+        std::time::Duration::from_secs(2),
+    )
+    .await;
+
+    let url = format!("http://{}", server.addr());
+
+    let futs = (0..100).map(|_| {
+        let client = client.clone();
+        let url = url.clone();
+        async move {
+            let res = client.get(&url).send().await.unwrap();
+            assert_eq!(res.status(), reqwest::StatusCode::OK);
+        }
+    });
+    futures_util::future::join_all(futs).await;
+
+    server.shutdown().await;
 }

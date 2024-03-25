@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "http-body"
-version = "0.4.6"
+version = "1.0.0"
 authors = [
     "Carl Lerche <me@carllerche.com>",
     "Lucio Franco <luciofranco14@gmail.com>",
@@ -27,19 +27,10 @@ keywords = ["http"]
 categories = ["web-programming"]
 license = "MIT"
 repository = "https://github.com/hyperium/http-body"
+resolver = "2"
 
 [dependencies.bytes]
 version = "1"
 
 [dependencies.http]
-version = "0.2"
-
-[dependencies.pin-project-lite]
-version = "0.2"
-
-[dev-dependencies.tokio]
 version = "1"
-features = [
-    "macros",
-    "rt",
-]

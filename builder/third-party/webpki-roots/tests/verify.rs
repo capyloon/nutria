@@ -1,7 +1,9 @@
+use core::time::Duration;
 use std::convert::TryFrom;
 
+use pki_types::{CertificateDer, SignatureVerificationAlgorithm, UnixTime, ServerName};
 use rcgen::{BasicConstraints, Certificate, CertificateParams, DnType, IsCa, KeyUsagePurpose};
-use webpki::{EndEntityCert, Error, KeyUsage, SubjectNameRef, Time};
+use webpki::{anchor_from_trusted_cert, EndEntityCert, Error, KeyUsage};
 use x509_parser::extensions::{GeneralName, NameConstraints as X509ParserNameConstraints};
 use x509_parser::prelude::FromDer;
 
@@ -9,15 +11,17 @@ use webpki_roots::TLS_SERVER_ROOTS;
 
 #[test]
 fn name_constraints() {
-    for name_constraints in TLS_SERVER_ROOTS.iter().filter_map(|ta| ta.name_constraints) {
-        let time = Time::from_seconds_since_unix_epoch(0x40000000); // Time matching rcgen default.
-        let test_case = ConstraintTest::new(name_constraints);
-        let trust_anchors =
-            &[webpki::TrustAnchor::try_from_cert_der(&test_case.trust_anchor).unwrap()];
+    for name_constraints in TLS_SERVER_ROOTS
+        .iter()
+        .filter_map(|ta| ta.name_constraints.as_ref())
+    {
+        let time = UnixTime::since_unix_epoch(Duration::from_secs(0x40000000)); // Time matching rcgen default.
+        let test_case = ConstraintTest::new(name_constraints.as_ref());
+        let trust_anchors = &[anchor_from_trusted_cert(&test_case.trust_anchor).unwrap()];
 
         // Each permitted EE should verify without error.
         for permitted_ee in test_case.permitted_certs {
-            webpki::EndEntityCert::try_from(permitted_ee.as_slice())
+            webpki::EndEntityCert::try_from(&permitted_ee)
                 .unwrap()
                 .verify_for_usage(
                     ALL_ALGORITHMS,
@@ -25,32 +29,33 @@ fn name_constraints() {
                     &[],
                     time,
                     KeyUsage::server_auth(),
-                    &[],
+                    None,
+                    None,
                 )
                 .unwrap();
         }
 
         // Each forbidden EE should fail to verify with the expected name constraint error.
         for forbidden_ee in test_case.forbidden_certs {
-            let result = webpki::EndEntityCert::try_from(forbidden_ee.as_slice())
-                .unwrap()
-                .verify_for_usage(
-                    ALL_ALGORITHMS,
-                    trust_anchors,
-                    &[],
-                    time,
-                    KeyUsage::server_auth(),
-                    &[],
-                );
+            let ee = EndEntityCert::try_from(&forbidden_ee).unwrap();
+            let result = ee.verify_for_usage(
+                ALL_ALGORITHMS,
+                trust_anchors,
+                &[],
+                time,
+                KeyUsage::server_auth(),
+                None,
+                None,
+            );
             assert!(matches!(result, Err(Error::NameConstraintViolation)));
         }
     }
 }
 
 struct ConstraintTest {
-    trust_anchor: Vec<u8>,
-    permitted_certs: Vec<Vec<u8>>,
-    forbidden_certs: Vec<Vec<u8>>,
+    trust_anchor: CertificateDer<'static>,
+    permitted_certs: Vec<CertificateDer<'static>>,
+    forbidden_certs: Vec<CertificateDer<'static>>,
 }
 
 impl ConstraintTest {
@@ -69,7 +74,7 @@ impl ConstraintTest {
         trust_anchor.name_constraints = Some(name_constraints.clone());
         let trust_anchor = Certificate::from_params(trust_anchor).unwrap();
 
-        let certs_for_subtrees = |suffix| -> Vec<Vec<u8>> {
+        let certs_for_subtrees = |suffix| {
             name_constraints
                 .permitted_subtrees
                 .iter()
@@ -84,7 +89,7 @@ impl ConstraintTest {
         };
 
         Self {
-            trust_anchor: trust_anchor.serialize_der().unwrap(),
+            trust_anchor: CertificateDer::from(trust_anchor.serialize_der().unwrap()),
             // For each permitted subtree in the name constraints, issue an end entity certificate
             // that contains a DNS name matching the permitted subtree base.
             permitted_certs: certs_for_subtrees(""),
@@ -95,14 +100,16 @@ impl ConstraintTest {
     }
 }
 
-fn rcgen_ee_for_name(name: String, issuer: &Certificate) -> Vec<u8> {
+fn rcgen_ee_for_name(name: String, issuer: &Certificate) -> CertificateDer<'static> {
     let mut ee = CertificateParams::new(vec![name.clone()]);
     ee.distinguished_name.push(DnType::CommonName, name);
     ee.is_ca = IsCa::NoCa;
-    Certificate::from_params(ee)
-        .unwrap()
-        .serialize_der_with_signer(issuer)
-        .unwrap()
+    CertificateDer::from(
+        Certificate::from_params(ee)
+            .unwrap()
+            .serialize_der_with_signer(issuer)
+            .unwrap(),
+    )
 }
 
 /// Convert the webpki trust anchor DER encoding of name constraints to rcgen NameConstraints.
@@ -154,45 +161,38 @@ fn rcgen_name_constraints(der: &[u8]) -> rcgen::NameConstraints {
 
 #[test]
 fn tubitak_name_constraint_works() {
-    let root = include_bytes!("data/tubitak/root.der");
-    let inter = include_bytes!("data/tubitak/inter.der");
-    let subj = include_bytes!("data/tubitak/subj.der");
+    let root = CertificateDer::from(&include_bytes!("data/tubitak/root.der")[..]);
+    let inter = CertificateDer::from(&include_bytes!("data/tubitak/inter.der")[..]);
+    let subj = CertificateDer::from(&include_bytes!("data/tubitak/subj.der")[..]);
 
-    let roots = TLS_SERVER_ROOTS
-        .iter()
-        .map(|ta| webpki::TrustAnchor {
-            subject: ta.subject,
-            spki: ta.spki,
-            name_constraints: ta.name_constraints,
-        })
-        .collect::<Vec<_>>();
-
-    let now = Time::from_seconds_since_unix_epoch(1493668479);
-    let cert = EndEntityCert::try_from(&subj[..]).unwrap();
+    let roots = [anchor_from_trusted_cert(&root).unwrap().to_owned()];
+    let now = UnixTime::since_unix_epoch(Duration::from_secs(1493668479));
+    let cert = EndEntityCert::try_from(&subj).unwrap();
     cert.verify_for_usage(
         ALL_ALGORITHMS,
         &roots,
-        &[&inter[..], &root[..]],
+        &[inter, root],
         now,
         KeyUsage::server_auth(),
-        &[],
+        None,
+        None,
     )
     .unwrap();
 
-    let subject = SubjectNameRef::try_from_ascii_str("testssl.kamusm.gov.tr").unwrap();
-    cert.verify_is_valid_for_subject_name(subject).unwrap();
+    let subject = ServerName::try_from("testssl.kamusm.gov.tr").unwrap();
+    cert.verify_is_valid_for_subject_name(&subject).unwrap();
 }
 
-static ALL_ALGORITHMS: &[&webpki::SignatureAlgorithm] = &[
-    &webpki::ECDSA_P256_SHA256,
-    &webpki::ECDSA_P256_SHA384,
-    &webpki::ECDSA_P384_SHA256,
-    &webpki::ECDSA_P384_SHA384,
-    &webpki::RSA_PKCS1_2048_8192_SHA256,
-    &webpki::RSA_PKCS1_2048_8192_SHA384,
-    &webpki::RSA_PKCS1_2048_8192_SHA512,
-    &webpki::RSA_PKCS1_3072_8192_SHA384,
-    &webpki::RSA_PSS_2048_8192_SHA256_LEGACY_KEY,
-    &webpki::RSA_PSS_2048_8192_SHA384_LEGACY_KEY,
-    &webpki::RSA_PSS_2048_8192_SHA512_LEGACY_KEY,
+static ALL_ALGORITHMS: &[&dyn SignatureVerificationAlgorithm] = &[
+    webpki::ring::ECDSA_P256_SHA256,
+    webpki::ring::ECDSA_P256_SHA384,
+    webpki::ring::ECDSA_P384_SHA256,
+    webpki::ring::ECDSA_P384_SHA384,
+    webpki::ring::RSA_PKCS1_2048_8192_SHA256,
+    webpki::ring::RSA_PKCS1_2048_8192_SHA384,
+    webpki::ring::RSA_PKCS1_2048_8192_SHA512,
+    webpki::ring::RSA_PKCS1_3072_8192_SHA384,
+    webpki::ring::RSA_PSS_2048_8192_SHA256_LEGACY_KEY,
+    webpki::ring::RSA_PSS_2048_8192_SHA384_LEGACY_KEY,
+    webpki::ring::RSA_PSS_2048_8192_SHA512_LEGACY_KEY,
 ];

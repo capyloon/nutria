@@ -1,23 +1,24 @@
 //! HTTP/2 client connections
 
-use std::error::Error as StdError;
+use std::error::Error;
 use std::fmt;
 use std::future::Future;
 use std::marker::PhantomData;
-use std::marker::Unpin;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use crate::rt::{Read, Write};
+use futures_util::ready;
 use http::{Request, Response};
-use tokio::io::{AsyncRead, AsyncWrite};
 
 use super::super::dispatch;
-use crate::body::{Body as IncomingBody, HttpBody as Body};
-use crate::common::exec::{BoxSendFuture, Exec};
+use crate::body::{Body, Incoming as IncomingBody};
+use crate::common::time::Time;
 use crate::proto;
-use crate::rt::Executor;
+use crate::rt::bounds::Http2ClientConnExec;
+use crate::rt::Timer;
 
 /// The sender side of an established connection.
 pub struct SendRequest<B> {
@@ -37,20 +38,26 @@ impl<B> Clone for SendRequest<B> {
 /// In most cases, this should just be spawned into an executor, so that it
 /// can process incoming and outgoing messages, notice hangups, and the like.
 #[must_use = "futures do nothing unless polled"]
-pub struct Connection<T, B>
+pub struct Connection<T, B, E>
 where
-    T: AsyncRead + AsyncWrite + Send + 'static,
+    T: Read + Write + 'static + Unpin,
     B: Body + 'static,
+    E: Http2ClientConnExec<B, T> + Unpin,
+    B::Error: Into<Box<dyn Error + Send + Sync>>,
 {
-    inner: (PhantomData<T>, proto::h2::ClientTask<B>),
+    inner: (PhantomData<T>, proto::h2::ClientTask<B, E, T>),
 }
 
 /// A builder to configure an HTTP connection.
 ///
 /// After setting options, the builder is used to create a handshake future.
+///
+/// **Note**: The default values of options are *not considered stable*. They
+/// are subject to change at any time.
 #[derive(Clone, Debug)]
-pub struct Builder {
-    pub(super) exec: Exec,
+pub struct Builder<Ex> {
+    pub(super) exec: Ex,
+    pub(super) timer: Time,
     h2_builder: proto::h2::client::Config,
 }
 
@@ -58,13 +65,16 @@ pub struct Builder {
 ///
 /// This is a shortcut for `Builder::new().handshake(io)`.
 /// See [`client::conn`](crate::client::conn) for more.
-pub async fn handshake<E, T, B>(exec: E, io: T) -> crate::Result<(SendRequest<B>, Connection<T, B>)>
+pub async fn handshake<E, T, B>(
+    exec: E,
+    io: T,
+) -> crate::Result<(SendRequest<B>, Connection<T, B, E>)>
 where
-    E: Executor<BoxSendFuture> + Send + Sync + 'static,
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    T: Read + Write + Unpin + 'static,
     B: Body + 'static,
     B::Data: Send,
-    B::Error: Into<Box<dyn StdError + Send + Sync>>,
+    B::Error: Into<Box<dyn Error + Send + Sync>>,
+    E: Http2ClientConnExec<B, T> + Unpin + Clone,
 {
     Builder::new(exec).handshake(io).await
 }
@@ -90,22 +100,19 @@ impl<B> SendRequest<B> {
         futures_util::future::poll_fn(|cx| self.poll_ready(cx)).await
     }
 
-    /*
-    pub(super) async fn when_ready(self) -> crate::Result<Self> {
-        let mut me = Some(self);
-        future::poll_fn(move |cx| {
-            ready!(me.as_mut().unwrap().poll_ready(cx))?;
-            Poll::Ready(Ok(me.take().unwrap()))
-        })
-        .await
-    }
-
-    pub(super) fn is_ready(&self) -> bool {
+    /// Checks if the connection is currently ready to send a request.
+    ///
+    /// # Note
+    ///
+    /// This is mostly a hint. Due to inherent latency of networks, it is
+    /// possible that even after checking this is ready, sending a request
+    /// may still fail because the connection was closed in the meantime.
+    pub fn is_ready(&self) -> bool {
         self.dispatch.is_ready()
     }
-    */
 
-    pub(super) fn is_closed(&self) -> bool {
+    /// Checks if the connection side has been closed.
+    pub fn is_closed(&self) -> bool {
         self.dispatch.is_closed()
     }
 }
@@ -145,7 +152,7 @@ where
                     Err(_canceled) => panic!("dispatch dropped without returning error"),
                 },
                 Err(_req) => {
-                    tracing::debug!("connection was not ready");
+                    debug!("connection was not ready");
 
                     Err(crate::Error::new_canceled().with("connection was not ready"))
                 }
@@ -173,7 +180,7 @@ where
                 }))
             }
             Err(req) => {
-                tracing::debug!("connection was not ready");
+                debug!("connection was not ready");
                 let err = crate::Error::new_canceled().with("connection was not ready");
                 Either::Right(future::err((err, Some(req))))
             }
@@ -190,12 +197,13 @@ impl<B> fmt::Debug for SendRequest<B> {
 
 // ===== impl Connection
 
-impl<T, B> Connection<T, B>
+impl<T, B, E> Connection<T, B, E>
 where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    B: Body + Unpin + Send + 'static,
+    T: Read + Write + Unpin + 'static,
+    B: Body + Unpin + 'static,
     B::Data: Send,
-    B::Error: Into<Box<dyn StdError + Send + Sync>>,
+    B::Error: Into<Box<dyn Error + Send + Sync>>,
+    E: Http2ClientConnExec<B, T> + Unpin,
 {
     /// Returns whether the [extended CONNECT protocol][1] is enabled or not.
     ///
@@ -211,22 +219,26 @@ where
     }
 }
 
-impl<T, B> fmt::Debug for Connection<T, B>
+impl<T, B, E> fmt::Debug for Connection<T, B, E>
 where
-    T: AsyncRead + AsyncWrite + fmt::Debug + Send + 'static,
+    T: Read + Write + fmt::Debug + 'static + Unpin,
     B: Body + 'static,
+    E: Http2ClientConnExec<B, T> + Unpin,
+    B::Error: Into<Box<dyn Error + Send + Sync>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Connection").finish()
     }
 }
 
-impl<T, B> Future for Connection<T, B>
+impl<T, B, E> Future for Connection<T, B, E>
 where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    B: Body + Send + 'static,
+    T: Read + Write + Unpin + 'static,
+    B: Body + 'static + Unpin,
     B::Data: Send,
-    B::Error: Into<Box<dyn StdError + Send + Sync>>,
+    E: Unpin,
+    B::Error: Into<Box<dyn Error + Send + Sync>>,
+    E: Http2ClientConnExec<B, T> + 'static + Send + Sync + Unpin,
 {
     type Output = crate::Result<()>;
 
@@ -241,26 +253,26 @@ where
 
 // ===== impl Builder
 
-impl Builder {
+impl<Ex> Builder<Ex>
+where
+    Ex: Clone,
+{
     /// Creates a new connection builder.
     #[inline]
-    pub fn new<E>(exec: E) -> Builder
-    where
-        E: Executor<BoxSendFuture> + Send + Sync + 'static,
-    {
-        use std::sync::Arc;
+    pub fn new(exec: Ex) -> Builder<Ex> {
         Builder {
-            exec: Exec::Executor(Arc::new(exec)),
+            exec,
+            timer: Time::Empty,
             h2_builder: Default::default(),
         }
     }
 
-    /// Provide an executor to execute background HTTP2 tasks.
-    pub fn executor<E>(&mut self, exec: E) -> &mut Builder
+    /// Provide a timer to execute background HTTP2 tasks.
+    pub fn timer<M>(&mut self, timer: M) -> &mut Builder<Ex>
     where
-        E: Executor<BoxSendFuture> + Send + Sync + 'static,
+        M: Timer + Send + Sync + 'static,
     {
-        self.exec = Exec::Executor(Arc::new(exec));
+        self.timer = Time::Timer(Arc::new(timer));
         self
     }
 
@@ -271,7 +283,7 @@ impl Builder {
     ///
     /// If not set, hyper will use a default.
     ///
-    /// [spec]: https://http2.github.io/http2-spec/#SETTINGS_INITIAL_WINDOW_SIZE
+    /// [spec]: https://httpwg.org/specs/rfc9113.html#SETTINGS_INITIAL_WINDOW_SIZE
     pub fn initial_stream_window_size(&mut self, sz: impl Into<Option<u32>>) -> &mut Self {
         if let Some(sz) = sz.into() {
             self.h2_builder.adaptive_window = false;
@@ -290,6 +302,19 @@ impl Builder {
             self.h2_builder.adaptive_window = false;
             self.h2_builder.initial_conn_window_size = sz;
         }
+        self
+    }
+
+    /// Sets the initial maximum of locally initiated (send) streams.
+    ///
+    /// This value will be overwritten by the value included in the initial
+    /// SETTINGS frame received from the peer as part of a [connection preface].
+    ///
+    /// The default value is determined by the `h2` crate, but may change.
+    ///
+    /// [connection preface]: https://httpwg.org/specs/rfc9113.html#preface
+    pub fn initial_max_send_streams(&mut self, initial: impl Into<Option<usize>>) -> &mut Self {
+        self.h2_builder.initial_max_send_streams = initial.into();
         self
     }
 
@@ -327,7 +352,6 @@ impl Builder {
     /// Pass `None` to disable HTTP2 keep-alive.
     ///
     /// Default is currently disabled.
-    #[cfg(feature = "runtime")]
     pub fn keep_alive_interval(&mut self, interval: impl Into<Option<Duration>>) -> &mut Self {
         self.h2_builder.keep_alive_interval = interval.into();
         self
@@ -339,7 +363,6 @@ impl Builder {
     /// be closed. Does nothing if `keep_alive_interval` is disabled.
     ///
     /// Default is 20 seconds.
-    #[cfg(feature = "runtime")]
     pub fn keep_alive_timeout(&mut self, timeout: Duration) -> &mut Self {
         self.h2_builder.keep_alive_timeout = timeout;
         self
@@ -353,7 +376,6 @@ impl Builder {
     /// disabled.
     ///
     /// Default is `false`.
-    #[cfg(feature = "runtime")]
     pub fn keep_alive_while_idle(&mut self, enabled: bool) -> &mut Self {
         self.h2_builder.keep_alive_while_idle = enabled;
         self
@@ -393,20 +415,22 @@ impl Builder {
     pub fn handshake<T, B>(
         &self,
         io: T,
-    ) -> impl Future<Output = crate::Result<(SendRequest<B>, Connection<T, B>)>>
+    ) -> impl Future<Output = crate::Result<(SendRequest<B>, Connection<T, B, Ex>)>>
     where
-        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        T: Read + Write + Unpin + 'static,
         B: Body + 'static,
         B::Data: Send,
-        B::Error: Into<Box<dyn StdError + Send + Sync>>,
+        B::Error: Into<Box<dyn Error + Send + Sync>>,
+        Ex: Http2ClientConnExec<B, T> + Unpin,
     {
         let opts = self.clone();
 
         async move {
-            tracing::trace!("client handshake HTTP/1");
+            trace!("client handshake HTTP/2");
 
             let (tx, rx) = dispatch::channel();
-            let h2 = proto::h2::client::handshake(io, rx, &opts.h2_builder, opts.exec).await?;
+            let h2 = proto::h2::client::handshake(io, rx, &opts.h2_builder, opts.exec, opts.timer)
+                .await?;
             Ok((
                 SendRequest {
                     dispatch: tx.unbound(),

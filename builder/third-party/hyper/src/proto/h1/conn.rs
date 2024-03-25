@@ -1,31 +1,32 @@
 use std::fmt;
 use std::io;
-use std::marker::PhantomData;
-use std::marker::Unpin;
+use std::marker::{PhantomData, Unpin};
 use std::pin::Pin;
 use std::task::{Context, Poll};
-#[cfg(all(feature = "server", feature = "runtime"))]
+#[cfg(feature = "server")]
 use std::time::Duration;
 
+use crate::rt::{Read, Write};
 use bytes::{Buf, Bytes};
-use http::header::{HeaderValue, CONNECTION};
+use futures_util::ready;
+use http::header::{HeaderValue, CONNECTION, TE};
 use http::{HeaderMap, Method, Version};
 use httparse::ParserConfig;
-use tokio::io::{AsyncRead, AsyncWrite};
-#[cfg(all(feature = "server", feature = "runtime"))]
-use tokio::time::Sleep;
-use tracing::{debug, error, trace};
 
 use super::io::Buffered;
 use super::{Decoder, Encode, EncodedBuf, Encoder, Http1Transaction, ParseContext, Wants};
 use crate::body::DecodedLength;
+#[cfg(feature = "server")]
+use crate::common::time::Time;
 use crate::headers::connection_keep_alive;
 use crate::proto::{BodyLength, MessageHead};
+#[cfg(feature = "server")]
+use crate::rt::Sleep;
 
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 /// This handles a connection, which will have been established over an
-/// `AsyncRead + AsyncWrite` (like a socket), and will likely include multiple
+/// `Read + Write` (like a socket), and will likely include multiple
 /// `Transaction`s over HTTP.
 ///
 /// The connection will determine when a message begins and ends as well as
@@ -39,7 +40,7 @@ pub(crate) struct Conn<I, B, T> {
 
 impl<I, B, T> Conn<I, B, T>
 where
-    I: AsyncRead + AsyncWrite + Unpin,
+    I: Read + Write + Unpin,
     B: Buf,
     T: Http1Transaction,
 {
@@ -53,12 +54,15 @@ where
                 keep_alive: KA::Busy,
                 method: None,
                 h1_parser_config: ParserConfig::default(),
-                #[cfg(all(feature = "server", feature = "runtime"))]
+                h1_max_headers: None,
+                #[cfg(feature = "server")]
                 h1_header_read_timeout: None,
-                #[cfg(all(feature = "server", feature = "runtime"))]
+                #[cfg(feature = "server")]
                 h1_header_read_timeout_fut: None,
-                #[cfg(all(feature = "server", feature = "runtime"))]
+                #[cfg(feature = "server")]
                 h1_header_read_timeout_running: false,
+                #[cfg(feature = "server")]
+                timer: Time::Empty,
                 preserve_header_case: false,
                 #[cfg(feature = "ffi")]
                 preserve_header_order: false,
@@ -66,8 +70,6 @@ where
                 h09_responses: false,
                 #[cfg(feature = "ffi")]
                 on_informational: None,
-                #[cfg(feature = "ffi")]
-                raw_headers: false,
                 notify_read: false,
                 reading: Reading::Init,
                 writing: Writing::Init,
@@ -75,9 +77,15 @@ where
                 // We assume a modern world where the remote speaks HTTP/1.1.
                 // If they tell us otherwise, we'll downgrade in `read_head`.
                 version: Version::HTTP_11,
+                allow_trailer_fields: false,
             },
             _marker: PhantomData,
         }
+    }
+
+    #[cfg(feature = "server")]
+    pub(crate) fn set_timer(&mut self, timer: Time) {
+        self.state.timer = timer;
     }
 
     #[cfg(feature = "server")]
@@ -125,7 +133,11 @@ where
         self.state.h09_responses = true;
     }
 
-    #[cfg(all(feature = "server", feature = "runtime"))]
+    pub(crate) fn set_http1_max_headers(&mut self, val: usize) {
+        self.state.h1_max_headers = Some(val);
+    }
+
+    #[cfg(feature = "server")]
     pub(crate) fn set_http1_header_read_timeout(&mut self, val: Duration) {
         self.state.h1_header_read_timeout = Some(val);
     }
@@ -133,11 +145,6 @@ where
     #[cfg(feature = "server")]
     pub(crate) fn set_allow_half_close(&mut self) {
         self.state.allow_half_close = true;
-    }
-
-    #[cfg(feature = "ffi")]
-    pub(crate) fn set_raw_headers(&mut self, enabled: bool) {
-        self.state.raw_headers = enabled;
     }
 
     pub(crate) fn into_inner(self) -> (I, Bytes) {
@@ -169,10 +176,17 @@ where
     }
 
     pub(crate) fn can_read_body(&self) -> bool {
-        match self.state.reading {
-            Reading::Body(..) | Reading::Continue(..) => true,
-            _ => false,
-        }
+        matches!(
+            self.state.reading,
+            Reading::Body(..) | Reading::Continue(..)
+        )
+    }
+
+    #[cfg(feature = "server")]
+    pub(crate) fn has_initial_read_write_state(&self) -> bool {
+        matches!(self.state.reading, Reading::Init)
+            && matches!(self.state.writing, Writing::Init)
+            && self.io.read_buf().is_empty()
     }
 
     fn should_error_on_eof(&self) -> bool {
@@ -198,20 +212,21 @@ where
                 cached_headers: &mut self.state.cached_headers,
                 req_method: &mut self.state.method,
                 h1_parser_config: self.state.h1_parser_config.clone(),
-                #[cfg(all(feature = "server", feature = "runtime"))]
+                h1_max_headers: self.state.h1_max_headers,
+                #[cfg(feature = "server")]
                 h1_header_read_timeout: self.state.h1_header_read_timeout,
-                #[cfg(all(feature = "server", feature = "runtime"))]
+                #[cfg(feature = "server")]
                 h1_header_read_timeout_fut: &mut self.state.h1_header_read_timeout_fut,
-                #[cfg(all(feature = "server", feature = "runtime"))]
+                #[cfg(feature = "server")]
                 h1_header_read_timeout_running: &mut self.state.h1_header_read_timeout_running,
+                #[cfg(feature = "server")]
+                timer: self.state.timer.clone(),
                 preserve_header_case: self.state.preserve_header_case,
                 #[cfg(feature = "ffi")]
                 preserve_header_order: self.state.preserve_header_order,
                 h09_responses: self.state.h09_responses,
                 #[cfg(feature = "ffi")]
                 on_informational: &mut self.state.on_informational,
-                #[cfg(feature = "ffi")]
-                raw_headers: self.state.raw_headers,
             }
         )) {
             Ok(msg) => msg,
@@ -250,12 +265,19 @@ where
             if !T::should_read_first() {
                 self.try_keep_alive(cx);
             }
-        } else if msg.expect_continue {
+        } else if msg.expect_continue && msg.head.version.gt(&Version::HTTP_10) {
             self.state.reading = Reading::Continue(Decoder::new(msg.decode));
             wants = wants.add(Wants::EXPECT);
         } else {
             self.state.reading = Reading::Body(Decoder::new(msg.decode));
         }
+
+        self.state.allow_trailer_fields = msg
+            .head
+            .headers
+            .get(TE)
+            .map(|te_header| te_header == "trailers")
+            .unwrap_or(false);
 
         Poll::Ready(Some(Ok((msg.head, msg.decode, wants))))
     }
@@ -429,7 +451,7 @@ where
 
         let result = ready!(self.io.poll_read_from_io(cx));
         Poll::Ready(result.map_err(|e| {
-            trace!("force_io_read; io error = {:?}", e);
+            trace!(error = %e, "force_io_read; io error");
             self.state.close();
             e
         }))
@@ -518,24 +540,6 @@ where
             } else {
                 Writing::KeepAlive
             };
-        }
-    }
-
-    pub(crate) fn write_full_msg(&mut self, head: MessageHead<T::Outgoing>, body: B) {
-        if let Some(encoder) =
-            self.encode_head(head, Some(BodyLength::Known(body.remaining() as u64)))
-        {
-            let is_last = encoder.is_last();
-            // Make sure we don't write a body if we weren't actually allowed
-            // to do so, like because its a HEAD request.
-            if !encoder.is_eof() {
-                encoder.danger_full_buf(body, self.io.write_buf());
-            }
-            self.state.writing = if is_last {
-                Writing::Closed
-            } else {
-                Writing::KeepAlive
-            }
         }
     }
 
@@ -651,6 +655,31 @@ where
         self.state.writing = state;
     }
 
+    pub(crate) fn write_trailers(&mut self, trailers: HeaderMap) {
+        if T::is_server() && !self.state.allow_trailer_fields {
+            debug!("trailers not allowed to be sent");
+            return;
+        }
+        debug_assert!(self.can_write_body() && self.can_buffer_body());
+
+        match self.state.writing {
+            Writing::Body(ref encoder) => {
+                if let Some(enc_buf) =
+                    encoder.encode_trailers(trailers, self.state.title_case_headers)
+                {
+                    self.io.buffer(enc_buf);
+
+                    self.state.writing = if encoder.is_last() || encoder.is_close_delimited() {
+                        Writing::Closed
+                    } else {
+                        Writing::KeepAlive
+                    };
+                }
+            }
+            _ => unreachable!("write_trailers invalid state: {:?}", self.state.writing),
+        }
+    }
+
     pub(crate) fn write_body_and_end(&mut self, chunk: B) {
         debug_assert!(self.can_write_body() && self.can_buffer_body());
         // empty chunks should be discarded at Dispatcher level
@@ -757,7 +786,9 @@ where
 
         // If still in Reading::Body, just give up
         match self.state.reading {
-            Reading::Init | Reading::KeepAlive => trace!("body drained"),
+            Reading::Init | Reading::KeepAlive => {
+                trace!("body drained")
+            }
             _ => self.close_read(),
         }
     }
@@ -822,12 +853,15 @@ struct State {
     /// a body or not.
     method: Option<Method>,
     h1_parser_config: ParserConfig,
-    #[cfg(all(feature = "server", feature = "runtime"))]
+    h1_max_headers: Option<usize>,
+    #[cfg(feature = "server")]
     h1_header_read_timeout: Option<Duration>,
-    #[cfg(all(feature = "server", feature = "runtime"))]
-    h1_header_read_timeout_fut: Option<Pin<Box<Sleep>>>,
-    #[cfg(all(feature = "server", feature = "runtime"))]
+    #[cfg(feature = "server")]
+    h1_header_read_timeout_fut: Option<Pin<Box<dyn Sleep>>>,
+    #[cfg(feature = "server")]
     h1_header_read_timeout_running: bool,
+    #[cfg(feature = "server")]
+    timer: Time,
     preserve_header_case: bool,
     #[cfg(feature = "ffi")]
     preserve_header_order: bool,
@@ -838,8 +872,6 @@ struct State {
     /// received.
     #[cfg(feature = "ffi")]
     on_informational: Option<crate::ffi::OnInformational>,
-    #[cfg(feature = "ffi")]
-    raw_headers: bool,
     /// Set to true when the Dispatcher should poll read operations
     /// again. See the `maybe_notify` method for more.
     notify_read: bool,
@@ -851,6 +883,8 @@ struct State {
     upgrade: Option<crate::upgrade::Pending>,
     /// Either HTTP/1.0 or 1.1 connection
     version: Version,
+    /// Flag to track if trailer fields are allowed to be sent
+    allow_trailer_fields: bool,
 }
 
 #[derive(Debug)]
@@ -912,17 +946,12 @@ impl std::ops::BitAndAssign<bool> for KA {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 enum KA {
     Idle,
+    #[default]
     Busy,
     Disabled,
-}
-
-impl Default for KA {
-    fn default() -> KA {
-        KA::Busy
-    }
 }
 
 impl KA {
@@ -964,11 +993,7 @@ impl State {
     }
 
     fn wants_keep_alive(&self) -> bool {
-        if let KA::Disabled = self.keep_alive.status() {
-            false
-        } else {
-            true
-        }
+        !matches!(self.keep_alive.status(), KA::Disabled)
     }
 
     fn try_keep_alive<T: Http1Transaction>(&mut self) {
@@ -1048,16 +1073,17 @@ impl State {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "nightly")]
+    #[cfg(all(feature = "nightly", not(miri)))]
     #[bench]
     fn bench_read_head_short(b: &mut ::test::Bencher) {
         use super::*;
+        use crate::common::io::Compat;
         let s = b"GET / HTTP/1.1\r\nHost: localhost:8080\r\n\r\n";
         let len = s.len();
         b.bytes = len as u64;
 
         // an empty IO, we'll be skipping and using the read buffer anyways
-        let io = tokio_test::io::Builder::new().build();
+        let io = Compat(tokio_test::io::Builder::new().build());
         let mut conn = Conn::<_, bytes::Bytes, crate::proto::h1::ServerTransaction>::new(io);
         *conn.io.read_buf_mut() = ::bytes::BytesMut::from(&s[..]);
         conn.state.cached_headers = Some(HeaderMap::with_capacity(2));

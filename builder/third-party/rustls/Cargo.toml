@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.61"
 name = "rustls"
-version = "0.21.10"
+version = "0.22.2"
 build = "build.rs"
 autobenches = false
 description = "Rustls is a modern TLS library written in Rust."
@@ -26,6 +26,12 @@ categories = [
 license = "Apache-2.0 OR ISC OR MIT"
 repository = "https://github.com/rustls/rustls"
 
+[package.metadata.cargo_check_external_types]
+allowed_external_types = [
+    "rustls_pki_types",
+    "rustls_pki_types::*",
+]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = [
@@ -36,10 +42,7 @@ rustdoc-args = [
 [[example]]
 name = "bogo_shim"
 path = "examples/internal/bogo_shim.rs"
-required-features = [
-    "dangerous_configuration",
-    "quic",
-]
+required-features = ["tls12"]
 
 [[example]]
 name = "bench"
@@ -49,24 +52,37 @@ path = "examples/internal/bench.rs"
 name = "benchmarks"
 path = "benches/benchmarks.rs"
 harness = false
+required-features = ["ring"]
+
+[dependencies.aws-lc-rs]
+version = "1.5"
+optional = true
 
 [dependencies.log]
 version = "0.4.4"
 optional = true
 
+[dependencies.pki-types]
+version = "1"
+features = ["std"]
+package = "rustls-pki-types"
+
 [dependencies.ring]
 version = "0.17"
+optional = true
 
-[dependencies.sct]
-version = "0.7.0"
+[dependencies.subtle]
+version = "2.5.0"
+default-features = false
 
 [dependencies.webpki]
-version = "0.101.7"
-features = [
-    "alloc",
-    "std",
-]
+version = "0.102.1"
+features = ["std"]
+default-features = false
 package = "rustls-webpki"
+
+[dependencies.zeroize]
+version = "1.6.0"
 
 [dev-dependencies.base64]
 version = "0.21"
@@ -81,23 +97,29 @@ version = "0.10"
 version = "0.4.4"
 
 [dev-dependencies.rustls-pemfile]
-version = "1.0.3"
+version = "2"
 
 [dev-dependencies.webpki-roots]
-version = "0.25.0"
+version = "0.26"
 
 [build-dependencies.rustversion]
 version = "1.0.6"
 optional = true
 
 [features]
-dangerous_configuration = []
+aws_lc_rs = [
+    "dep:aws-lc-rs",
+    "webpki/aws_lc_rs",
+]
 default = [
     "logging",
+    "ring",
     "tls12",
 ]
 logging = ["log"]
-quic = []
 read_buf = ["rustversion"]
-secret_extraction = []
+ring = [
+    "dep:ring",
+    "webpki/ring",
+]
 tls12 = []

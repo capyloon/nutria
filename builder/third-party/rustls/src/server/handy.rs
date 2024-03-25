@@ -1,15 +1,22 @@
-use crate::dns_name::DnsNameRef;
 use crate::error::Error;
-use crate::key;
 use crate::limited_cache;
+use crate::msgs::handshake::CertificateChain;
 use crate::server;
 use crate::server::ClientHello;
 use crate::sign;
+use crate::webpki::{verify_server_name, ParsedCertificate};
 
-use std::collections;
-use std::sync::{Arc, Mutex};
+use pki_types::{DnsName, ServerName};
+
+use alloc::string::{String, ToString};
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::fmt::{Debug, Formatter};
+use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// Something which never stores sessions.
+#[derive(Debug)]
 pub struct NoServerSessionStorage {}
 
 impl server::StoresServerSessions for NoServerSessionStorage {
@@ -71,7 +78,15 @@ impl server::StoresServerSessions for ServerSessionMemoryCache {
     }
 }
 
+impl Debug for ServerSessionMemoryCache {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ServerSessionMemoryCache")
+            .finish()
+    }
+}
+
 /// Something which never produces tickets.
+#[derive(Debug)]
 pub(super) struct NeverProducesTickets {}
 
 impl server::ProducesTickets for NeverProducesTickets {
@@ -90,43 +105,33 @@ impl server::ProducesTickets for NeverProducesTickets {
 }
 
 /// Something which always resolves to the same cert chain.
+#[derive(Debug)]
 pub(super) struct AlwaysResolvesChain(Arc<sign::CertifiedKey>);
 
 impl AlwaysResolvesChain {
-    /// Creates an `AlwaysResolvesChain`, auto-detecting the underlying private
-    /// key type and encoding.
-    pub(super) fn new(
-        chain: Vec<key::Certificate>,
-        priv_key: &key::PrivateKey,
-    ) -> Result<Self, Error> {
-        let key = sign::any_supported_type(priv_key)
-            .map_err(|_| Error::General("invalid private key".into()))?;
-        Ok(Self(Arc::new(sign::CertifiedKey::new(chain, key))))
+    /// Creates an `AlwaysResolvesChain`, using the supplied key and certificate chain.
+    pub(super) fn new(private_key: Arc<dyn sign::SigningKey>, chain: CertificateChain) -> Self {
+        Self(Arc::new(sign::CertifiedKey::new(chain.0, private_key)))
     }
 
-    /// Creates an `AlwaysResolvesChain`, auto-detecting the underlying private
-    /// key type and encoding.
+    /// Creates an `AlwaysResolvesChain`, using the supplied key, certificate chain and OCSP response.
     ///
-    /// If non-empty, the given OCSP response and SCTs are attached.
+    /// If non-empty, the given OCSP response is attached.
     pub(super) fn new_with_extras(
-        chain: Vec<key::Certificate>,
-        priv_key: &key::PrivateKey,
+        private_key: Arc<dyn sign::SigningKey>,
+        chain: CertificateChain,
         ocsp: Vec<u8>,
-        scts: Vec<u8>,
-    ) -> Result<Self, Error> {
-        let mut r = Self::new(chain, priv_key)?;
+    ) -> Self {
+        let mut r = Self::new(private_key, chain);
 
         {
             let cert = Arc::make_mut(&mut r.0);
             if !ocsp.is_empty() {
                 cert.ocsp = Some(ocsp);
             }
-            if !scts.is_empty() {
-                cert.sct_list = Some(scts);
-            }
         }
 
-        Ok(r)
+        r
     }
 }
 
@@ -138,15 +143,16 @@ impl server::ResolvesServerCert for AlwaysResolvesChain {
 
 /// Something that resolves do different cert chains/keys based
 /// on client-supplied server name (via SNI).
+#[derive(Debug)]
 pub struct ResolvesServerCertUsingSni {
-    by_name: collections::HashMap<String, Arc<sign::CertifiedKey>>,
+    by_name: HashMap<String, Arc<sign::CertifiedKey>>,
 }
 
 impl ResolvesServerCertUsingSni {
     /// Create a new and empty (i.e., knows no certificates) resolver.
     pub fn new() -> Self {
         Self {
-            by_name: collections::HashMap::new(),
+            by_name: HashMap::new(),
         }
     }
 
@@ -156,9 +162,12 @@ impl ResolvesServerCertUsingSni {
     /// it's not valid for the supplied certificate, or if the certificate
     /// chain is syntactically faulty.
     pub fn add(&mut self, name: &str, ck: sign::CertifiedKey) -> Result<(), Error> {
-        let checked_name = DnsNameRef::try_from(name)
-            .map_err(|_| Error::General("Bad DNS name".into()))
-            .map(|dns| dns.to_lowercase_owned())?;
+        let server_name = {
+            let checked_name = DnsName::try_from(name)
+                .map_err(|_| Error::General("Bad DNS name".into()))
+                .map(|name| name.to_lowercase_owned())?;
+            ServerName::DnsName(checked_name)
+        };
 
         // Check the certificate chain for validity:
         // - it should be non-empty list
@@ -169,36 +178,14 @@ impl ResolvesServerCertUsingSni {
         // These checks are not security-sensitive.  They are the
         // *server* attempting to detect accidental misconfiguration.
 
-        // Always reject an empty certificate chain.
-        let end_entity_cert = ck.end_entity_cert().map_err(|_| {
-            Error::General("No end-entity certificate in certificate chain".to_string())
-        })?;
+        ck.end_entity_cert()
+            .and_then(ParsedCertificate::try_from)
+            .and_then(|cert| verify_server_name(&cert, &server_name))?;
 
-        // Reject syntactically-invalid end-entity certificates.
-        let end_entity_cert =
-            webpki::EndEntityCert::try_from(end_entity_cert.as_ref()).map_err(|_| {
-                Error::General(
-                    "End-entity certificate in certificate chain is syntactically invalid"
-                        .to_string(),
-                )
-            })?;
-
-        // Note that this doesn't fully validate that the certificate is valid; it only validates that the name is one
-        // that the certificate is valid for, if the certificate is
-        // valid.
-        let general_error =
-            || Error::General("The server certificate is not valid for the given name".to_string());
-
-        let name = webpki::DnsNameRef::try_from_ascii(checked_name.as_ref().as_bytes())
-            .map_err(|_| general_error())?;
-
-        end_entity_cert
-            .verify_is_valid_for_subject_name(webpki::SubjectNameRef::DnsName(name))
-            .map_err(|_| general_error())?;
-
-        let as_str: &str = checked_name.as_ref();
-        self.by_name
-            .insert(as_str.to_string(), Arc::new(ck));
+        if let ServerName::DnsName(name) = server_name {
+            self.by_name
+                .insert(name.as_ref().to_string(), Arc::new(ck));
+        }
         Ok(())
     }
 }
@@ -215,7 +202,7 @@ impl server::ResolvesServerCert for ResolvesServerCertUsingSni {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::server::ProducesTickets;
     use crate::server::ResolvesServerCert;
@@ -304,7 +291,7 @@ mod test {
     #[test]
     fn test_resolvesservercertusingsni_handles_unknown_name() {
         let rscsni = ResolvesServerCertUsingSni::new();
-        let name = DnsNameRef::try_from("hello.com")
+        let name = DnsName::try_from("hello.com")
             .unwrap()
             .to_owned();
         assert!(rscsni

@@ -3,24 +3,23 @@ use crate::bs_debug;
 use crate::check::inappropriate_handshake_message;
 use crate::common_state::{CommonState, State};
 use crate::conn::ConnectionRandoms;
+use crate::crypto::ActiveKeyExchange;
 use crate::enums::{AlertDescription, CipherSuite, ContentType, HandshakeType, ProtocolVersion};
 use crate::error::{Error, PeerIncompatible, PeerMisbehaved};
 use crate::hash_hs::HandshakeHashBuffer;
-use crate::kx;
 #[cfg(feature = "logging")]
 use crate::log::{debug, trace};
 use crate::msgs::base::Payload;
 use crate::msgs::enums::{Compression, ExtensionType};
 use crate::msgs::enums::{ECPointFormat, PSKKeyExchangeMode};
 use crate::msgs::handshake::ConvertProtocolNameList;
-use crate::msgs::handshake::{CertificateStatusRequest, ClientSessionTicket, Sct};
+use crate::msgs::handshake::{CertificateStatusRequest, ClientSessionTicket};
 use crate::msgs::handshake::{ClientExtension, HasServerExtensions};
 use crate::msgs::handshake::{ClientHelloPayload, HandshakeMessagePayload, HandshakePayload};
 use crate::msgs::handshake::{HelloRetryRequest, KeyShareEntry};
 use crate::msgs::handshake::{Random, SessionId};
 use crate::msgs::message::{Message, MessagePayload};
 use crate::msgs::persist;
-use crate::ticketer::TimeBase;
 use crate::tls13::key_schedule::KeyScheduleEarly;
 use crate::SupportedCipherSuite;
 
@@ -29,19 +28,25 @@ use super::tls12;
 use super::Tls12Resumption;
 use crate::client::client_conn::ClientConnectionData;
 use crate::client::common::ClientHelloDetails;
-use crate::client::{tls13, ClientConfig, ServerName};
+use crate::client::{tls13, ClientConfig};
 
-use std::ops::Deref;
-use std::sync::Arc;
+use pki_types::{ServerName, UnixTime};
+
+use alloc::borrow::ToOwned;
+use alloc::boxed::Box;
+use alloc::sync::Arc;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::ops::Deref;
 
 pub(super) type NextState = Box<dyn State<ClientConnectionData>>;
 pub(super) type NextStateOrError = Result<NextState, Error>;
 pub(super) type ClientContext<'a> = crate::common_state::Context<'a, ClientConnectionData>;
 
 fn find_session(
-    server_name: &ServerName,
+    server_name: &ServerName<'static>,
     config: &ClientConfig,
-    #[cfg(feature = "quic")] cx: &mut ClientContext<'_>,
+    cx: &mut ClientContext<'_>,
 ) -> Option<persist::Retrieved<ClientSessionValue>> {
     #[allow(clippy::let_and_return, clippy::unnecessary_lazy_evaluations)]
     let found = config
@@ -63,7 +68,7 @@ fn find_session(
             None
         })
         .and_then(|resuming| {
-            let retrieved = persist::Retrieved::new(resuming, TimeBase::now().ok()?);
+            let retrieved = persist::Retrieved::new(resuming, UnixTime::now());
             match retrieved.has_expired() {
                 false => Some(retrieved),
                 true => None,
@@ -74,7 +79,6 @@ fn find_session(
             None
         });
 
-    #[cfg(feature = "quic")]
     if let Some(resuming) = &found {
         if cx.common.is_quic() {
             cx.common.quic.params = resuming
@@ -87,7 +91,7 @@ fn find_session(
 }
 
 pub(super) fn start_handshake(
-    server_name: ServerName,
+    server_name: ServerName<'static>,
     extra_exts: Vec<ClientExtension>,
     config: Arc<ClientConfig>,
     cx: &mut ClientContext<'_>,
@@ -100,12 +104,7 @@ pub(super) fn start_handshake(
         transcript_buffer.set_client_auth_enabled();
     }
 
-    let mut resuming = find_session(
-        &server_name,
-        &config,
-        #[cfg(feature = "quic")]
-        cx,
-    );
+    let mut resuming = find_session(&server_name, &config, cx);
 
     let key_share = if config.supports_version(ProtocolVersion::TLSv1_3) {
         Some(tls13::initial_key_share(&config, &server_name)?)
@@ -122,7 +121,7 @@ pub(super) fn start_handshake(
             // we're  doing an abbreviated handshake.  See section 3.4 in
             // RFC5077.
             if !inner.ticket().is_empty() {
-                inner.session_id = SessionId::random()?;
+                inner.session_id = SessionId::random(config.provider.secure_random)?;
             }
             session_id = Some(inner.session_id);
         }
@@ -138,21 +137,21 @@ pub(super) fn start_handshake(
         Some(session_id) => session_id,
         None if cx.common.is_quic() => SessionId::empty(),
         None if !config.supports_version(ProtocolVersion::TLSv1_3) => SessionId::empty(),
-        None => SessionId::random()?,
+        None => SessionId::random(config.provider.secure_random)?,
     };
 
-    let may_send_sct_list = config.verifier.request_scts();
+    let random = Random::new(config.provider.secure_random)?;
+
     Ok(emit_client_hello_for_retry(
         transcript_buffer,
         None,
         key_share,
         extra_exts,
-        may_send_sct_list,
         None,
         ClientHelloInput {
             config,
             resuming,
-            random: Random::new()?,
+            random,
             #[cfg(feature = "tls12")]
             using_ems: false,
             sent_tls13_fake_ccs: false,
@@ -168,7 +167,7 @@ struct ExpectServerHello {
     input: ClientHelloInput,
     transcript_buffer: HandshakeHashBuffer,
     early_key_schedule: Option<KeyScheduleEarly>,
-    offered_key_share: Option<kx::KeyExchange>,
+    offered_key_share: Option<Box<dyn ActiveKeyExchange>>,
     suite: Option<SupportedCipherSuite>,
 }
 
@@ -186,15 +185,14 @@ struct ClientHelloInput {
     sent_tls13_fake_ccs: bool,
     hello: ClientHelloDetails,
     session_id: SessionId,
-    server_name: ServerName,
+    server_name: ServerName<'static>,
 }
 
 fn emit_client_hello_for_retry(
     mut transcript_buffer: HandshakeHashBuffer,
     retryreq: Option<&HelloRetryRequest>,
-    key_share: Option<kx::KeyExchange>,
+    key_share: Option<Box<dyn ActiveKeyExchange>>,
     extra_exts: Vec<ClientExtension>,
-    may_send_sct_list: bool,
     suite: Option<SupportedCipherSuite>,
     mut input: ClientHelloInput,
     cx: &mut ClientContext<'_>,
@@ -217,12 +215,13 @@ fn emit_client_hello_for_retry(
 
     let mut exts = vec![
         ClientExtension::SupportedVersions(supported_versions),
-        ClientExtension::ECPointFormats(ECPointFormat::SUPPORTED.to_vec()),
+        ClientExtension::EcPointFormats(ECPointFormat::SUPPORTED.to_vec()),
         ClientExtension::NamedGroups(
             config
+                .provider
                 .kx_groups
                 .iter()
-                .map(|skxg| skxg.name)
+                .map(|skxg| skxg.name())
                 .collect(),
         ),
         ClientExtension::SignatureAlgorithms(
@@ -234,17 +233,14 @@ fn emit_client_hello_for_retry(
         ClientExtension::CertificateStatusRequest(CertificateStatusRequest::build_ocsp()),
     ];
 
-    if let (Some(sni_name), true) = (input.server_name.for_sni(), config.enable_sni) {
-        exts.push(ClientExtension::make_sni(sni_name));
-    }
-
-    if may_send_sct_list {
-        exts.push(ClientExtension::SignedCertificateTimestampRequest);
+    if let (ServerName::DnsName(dns), true) = (&input.server_name, config.enable_sni) {
+        // We only want to send the SNI extension if the server name contains a DNS name.
+        exts.push(ClientExtension::make_sni(dns));
     }
 
     if let Some(key_share) = &key_share {
         debug_assert!(support_tls13);
-        let key_share = KeyShareEntry::new(key_share.group(), key_share.pubkey.as_ref());
+        let key_share = KeyShareEntry::new(key_share.group(), key_share.pub_key());
         exts.push(ClientExtension::KeyShare(vec![key_share]));
     }
 
@@ -282,9 +278,13 @@ fn emit_client_hello_for_retry(
         .collect();
 
     let mut cipher_suites: Vec<_> = config
+        .provider
         .cipher_suites
         .iter()
-        .map(|cs| cs.suite())
+        .filter_map(|cs| match cs.usable_for_protocol(cx.common.protocol) {
+            true => Some(cs.suite()),
+            false => None,
+        })
         .collect();
     // We don't do renegotiation at all, in fact.
     cipher_suites.push(CipherSuite::TLS_EMPTY_RENEGOTIATION_INFO_SCSV);
@@ -453,20 +453,17 @@ pub(super) fn process_alpn_protocol(
         }
     }
 
-    #[cfg(feature = "quic")]
-    {
-        // RFC 9001 says: "While ALPN only specifies that servers use this alert, QUIC clients MUST
-        // use error 0x0178 to terminate a connection when ALPN negotiation fails." We judge that
-        // the user intended to use ALPN (rather than some out-of-band protocol negotiation
-        // mechanism) iff any ALPN protocols were configured. This defends against badly-behaved
-        // servers which accept a connection that requires an application-layer protocol they do not
-        // understand.
-        if common.is_quic() && common.alpn_protocol.is_none() && !config.alpn_protocols.is_empty() {
-            return Err(common.send_fatal_alert(
-                AlertDescription::NoApplicationProtocol,
-                Error::NoApplicationProtocol,
-            ));
-        }
+    // RFC 9001 says: "While ALPN only specifies that servers use this alert, QUIC clients MUST
+    // use error 0x0178 to terminate a connection when ALPN negotiation fails." We judge that
+    // the user intended to use ALPN (rather than some out-of-band protocol negotiation
+    // mechanism) iff any ALPN protocols were configured. This defends against badly-behaved
+    // servers which accept a connection that requires an application-layer protocol they do not
+    // understand.
+    if common.is_quic() && common.alpn_protocol.is_none() && !config.alpn_protocols.is_empty() {
+        return Err(common.send_fatal_alert(
+            AlertDescription::NoApplicationProtocol,
+            Error::NoApplicationProtocol,
+        ));
     }
 
     debug!(
@@ -477,13 +474,6 @@ pub(super) fn process_alpn_protocol(
             .map(|v| bs_debug::BsDebug(v))
     );
     Ok(())
-}
-
-pub(super) fn sct_list_is_invalid(scts: &[Sct]) -> bool {
-    scts.is_empty()
-        || scts
-            .iter()
-            .any(|sct| sct.as_ref().is_empty())
 }
 
 impl State<ClientConnectionData> for ExpectServerHello {
@@ -621,7 +611,7 @@ impl State<ClientConnectionData> for ExpectServerHello {
         // Start our handshake hash, and input the server-hello.
         let mut transcript = self
             .transcript_buffer
-            .start_hash(suite.hash_algorithm());
+            .start_hash(suite.hash_provider());
         transcript.add_message(&m);
 
         let randoms = ConnectionRandoms::new(self.input.random, server_hello.random);
@@ -813,7 +803,7 @@ impl ExpectServerHelloOrHelloRetryRequest {
         let transcript = self
             .next
             .transcript_buffer
-            .start_hash(cs.hash_algorithm());
+            .start_hash(cs.hash_provider());
         let mut transcript_buffer = transcript.into_hrr_buffer();
         transcript_buffer.add_message(&m);
 
@@ -822,21 +812,20 @@ impl ExpectServerHelloOrHelloRetryRequest {
             cx.data.early_data.rejected();
         }
 
-        let may_send_sct_list = self
-            .next
-            .input
-            .hello
-            .server_may_send_sct_list();
-
         let key_share = match req_group {
             Some(group) if group != offered_key_share.group() => {
-                let group = kx::KeyExchange::choose(group, &config.kx_groups).ok_or_else(|| {
-                    cx.common.send_fatal_alert(
-                        AlertDescription::IllegalParameter,
-                        PeerMisbehaved::IllegalHelloRetryRequestWithUnofferedNamedGroup,
-                    )
-                })?;
-                kx::KeyExchange::start(group).ok_or(Error::FailedToGetRandomBytes)?
+                let skxg = match config.find_kx_group(group) {
+                    Some(skxg) => skxg,
+                    None => {
+                        return Err(cx.common.send_fatal_alert(
+                            AlertDescription::IllegalParameter,
+                            PeerMisbehaved::IllegalHelloRetryRequestWithUnofferedNamedGroup,
+                        ));
+                    }
+                };
+
+                skxg.start()
+                    .map_err(|_| Error::FailedToGetRandomBytes)?
             }
             _ => offered_key_share,
         };
@@ -846,7 +835,6 @@ impl ExpectServerHelloOrHelloRetryRequest {
             Some(hrr),
             Some(key_share),
             self.extra_exts,
-            may_send_sct_list,
             Some(cs),
             self.next.input,
             cx,

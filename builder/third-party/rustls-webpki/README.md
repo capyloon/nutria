@@ -41,6 +41,7 @@ Limitations
 webpki offers a minimal feature set tailored to the needs of Rustls. Notably it
 does not offer:
 
+* Support for self-signed certificates
 * Certificate or keypair generation
 * Access to arbitrary certificate extensions
 * Parsing/representation of certificate subjects, or human-friendly display of

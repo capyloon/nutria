@@ -1,3 +1,5 @@
+#![cfg(feature = "ring")]
+
 //! Tests of [`rustls::KeyLogFile`] that require us to set environment variables.
 //!
 //!                                 vvvv
@@ -49,7 +51,7 @@ fn serialized(f: impl FnOnce()) {
     });
     let mutex = unsafe { MUTEX.as_mut() };
 
-    let _guard = mutex.unwrap().lock().unwrap();
+    let _guard = mutex.unwrap().get_mut().unwrap();
 
     // XXX: NOT thread safe.
     env::set_var("SSLKEYLOGFILE", "./sslkeylogfile.txt");

@@ -1,12 +1,15 @@
 use crate::enums::ProtocolVersion;
 use crate::enums::{AlertDescription, ContentType, HandshakeType};
-use crate::error::{Error, InvalidMessage};
+use crate::error::{Error, InvalidMessage, PeerMisbehaved};
 use crate::msgs::alert::AlertMessagePayload;
 use crate::msgs::base::Payload;
 use crate::msgs::ccs::ChangeCipherSpecPayload;
 use crate::msgs::codec::{Codec, Reader};
 use crate::msgs::enums::AlertLevel;
+use crate::msgs::fragmenter::MAX_FRAGMENT_LEN;
 use crate::msgs::handshake::HandshakeMessagePayload;
+
+use alloc::vec::Vec;
 
 #[derive(Debug)]
 pub enum MessagePayload {
@@ -73,14 +76,42 @@ impl MessagePayload {
 /// This type owns all memory for its interior parts. It is used to read/write from/to I/O
 /// buffers as well as for fragmenting, joining and encryption/decryption. It can be converted
 /// into a `Message` by decoding the payload.
+///
+/// # Decryption
+/// Internally the message payload is stored as a `Vec<u8>`; this can by mutably borrowed with
+/// [`OpaqueMessage::payload_mut()`].  This is useful for decrypting a message in-place.
+/// After the message is decrypted, call [`OpaqueMessage::into_plain_message()`] or
+/// [`OpaqueMessage::into_tls13_unpadded_message()`] (depending on the
+/// protocol version).
 #[derive(Clone, Debug)]
 pub struct OpaqueMessage {
     pub typ: ContentType,
     pub version: ProtocolVersion,
-    pub payload: Payload,
+    payload: Payload,
 }
 
 impl OpaqueMessage {
+    /// Construct a new `OpaqueMessage` from constituent fields.
+    ///
+    /// `body` is moved into the `payload` field.
+    pub fn new(typ: ContentType, version: ProtocolVersion, body: Vec<u8>) -> Self {
+        Self {
+            typ,
+            version,
+            payload: Payload::new(body),
+        }
+    }
+
+    /// Access the message payload as a slice.
+    pub fn payload(&self) -> &[u8] {
+        &self.payload.0
+    }
+
+    /// Access the message payload as a mutable `Vec<u8>`.
+    pub fn payload_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.payload.0
+    }
+
     /// `MessageError` allows callers to distinguish between valid prefixes (might
     /// become valid if we read more data) and invalid data.
     pub fn read(r: &mut Reader) -> Result<Self, MessageError> {
@@ -146,6 +177,30 @@ impl OpaqueMessage {
         }
     }
 
+    /// For TLS1.3 (only), checks the length msg.payload is valid and removes the padding.
+    ///
+    /// Returns an error if the message (pre-unpadding) is too long, or the padding is invalid,
+    /// or the message (post-unpadding) is too long.
+    pub fn into_tls13_unpadded_message(mut self) -> Result<PlainMessage, Error> {
+        let payload = &mut self.payload.0;
+
+        if payload.len() > MAX_FRAGMENT_LEN + 1 {
+            return Err(Error::PeerSentOversizedRecord);
+        }
+
+        self.typ = unpad_tls13(payload);
+        if self.typ == ContentType::Unknown(0) {
+            return Err(PeerMisbehaved::IllegalTlsInnerPlaintext.into());
+        }
+
+        if payload.len() > MAX_FRAGMENT_LEN {
+            return Err(Error::PeerSentOversizedRecord);
+        }
+
+        self.version = ProtocolVersion::TLSv1_3;
+        Ok(self.into_plain_message())
+    }
+
     /// This is the maximum on-the-wire size of a TLSCiphertext.
     /// That's 2^14 payload bytes, a header, and a 2KB allowance
     /// for ciphertext overheads.
@@ -156,6 +211,21 @@ impl OpaqueMessage {
 
     /// Maximum on-wire message size.
     pub const MAX_WIRE_SIZE: usize = (Self::MAX_PAYLOAD + Self::HEADER_SIZE) as usize;
+}
+
+/// `v` is a message payload, immediately post-decryption.  This function
+/// removes zero padding bytes, until a non-zero byte is encountered which is
+/// the content type, which is returned.  See RFC8446 s5.2.
+///
+/// ContentType(0) is returned if the message payload is empty or all zeroes.
+fn unpad_tls13(v: &mut Vec<u8>) -> ContentType {
+    loop {
+        match v.pop() {
+            Some(0) => {}
+            Some(content_type) => return ContentType::from(content_type),
+            None => return ContentType::Unknown(0),
+        }
+    }
 }
 
 impl From<Message> for PlainMessage {

@@ -3,13 +3,14 @@
 </p>
 
 <p align="center">
-Rustls is a modern TLS library written in Rust.  It uses <a href = "https://github.com/briansmith/ring"><em>ring</em></a> for cryptography and <a href = "https://github.com/rustls/webpki">webpki</a> for certificate
-verification.
+Rustls is a modern TLS library written in Rust.
 </p>
 
 # Status
-Rustls is mature and widely used. While most of the API surface is stable, we expect the next
-few releases will make further changes as needed to accomodate new features or performance improvements.
+
+Rustls is used in production at many organizations and projects. We aim to maintain
+reasonable API surface stability but the API may evolve as we make changes to accomodate
+new features or performance improvements.
 
 If you'd like to help out, please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -18,19 +19,22 @@ If you'd like to help out, please see [CONTRIBUTING.md](CONTRIBUTING.md).
 [![Documentation](https://docs.rs/rustls/badge.svg)](https://docs.rs/rustls/)
 [![Chat](https://img.shields.io/discord/976380008299917365?logo=discord)](https://discord.gg/MCSB76RU96)
 
-## Release history
+## Changelog
 
-Release history can be found [on GitHub](https://github.com/rustls/rustls/releases).
+The detailed list of changes in each release can be found at
+https://github.com/rustls/rustls/releases.
 
 # Documentation
-Lives here: https://docs.rs/rustls/
+
+https://docs.rs/rustls/
 
 # Approach
+
 Rustls is a TLS library that aims to provide a good level of cryptographic security,
 requires no configuration to achieve that security, and provides no unsafe features or
-obsolete cryptography.
+obsolete cryptography by default.
 
-## Current features
+## Current functionality (with default crate features)
 
 * TLS1.2 and TLS1.3.
 * ECDSA, Ed25519 or RSA server authentication by clients.
@@ -52,14 +56,6 @@ obsolete cryptography.
 * Extended master secret support ([RFC7627](https://tools.ietf.org/html/rfc7627)).
 * Exporters ([RFC5705](https://tools.ietf.org/html/rfc5705)).
 * OCSP stapling by servers.
-* SCT stapling by servers.
-* SCT verification by clients.
-
-## Possible future features
-
-* PSK support.
-* OCSP verification by clients.
-* Certificate pinning.
 
 ## Non-features
 
@@ -74,16 +70,21 @@ rustls does not and will not support:
 * Ciphersuites without forward secrecy.
 * Renegotiation.
 * Kerberos.
-* Compression.
+* TLS 1.2 protocol compression.
 * Discrete-log Diffie-Hellman.
 * Automatic protocol version downgrade.
+* Using CA certificates directly to authenticate a server/client (often called "self-signed
+certificates"). _Rustls' default certificate verifier does not support using a trust anchor as
+both a CA certificate and an end-entity certificate in order to limit complexity and risk in
+path building. While dangerous, all authentication can be turned off if required --
+see the [example code](https://github.com/rustls/rustls/blob/992e2364a006b2e84a8cf6a7c3eaf0bdb773c9de/examples/src/bin/tlsclient-mio.rs#L318)_.
 
 There are plenty of other libraries that provide these features should you
 need them.
 
 ### Platform support
 
-While Rustls itself is platform independent it uses
+While Rustls itself is platform independent, by default it uses
 [`ring`](https://crates.io/crates/ring) for implementing the cryptography in
 TLS. As a result, rustls only runs on platforms
 supported by `ring`. At the time of writing, this means 32-bit ARM, Aarch64 (64-bit ARM),
@@ -92,9 +93,18 @@ x86, x86-64, LoongArch64, 32-bit & 64-bit Little Endian MIPS, 32-bit PowerPC (Bi
 support WebAssembly.
 For more information, see [the supported `ring` target platforms][ring-target-platforms].
 
+By providing a custom instance of the [`crypto::CryptoProvider`] struct, you
+can replace all cryptography dependencies of rustls.  This is a route to being portable
+to a wider set of architectures and environments, or compliance requirements.  See the
+[`crypto::CryptoProvider`] documentation for more details.
+
+Specifying `default-features = false` when depending on rustls will remove the
+dependency on *ring*.
+
 Rustls requires Rust 1.61 or later.
 
 [ring-target-platforms]: https://github.com/briansmith/ring/blob/2e8363b433fa3b3962c877d9ed2e9145612f3160/include/ring-core/target.h#L18-L64
+[crypto::CryptoProvider]: https://docs.rs/rustls/latest/rustls/crypto/trait.CryptoProvider.html
 
 # Example code
 There are two example programs which use
@@ -195,6 +205,8 @@ Options:
                         to certificate.  Optional.
     --auth CERTFILE     Enable client authentication, and accept certificates
                         signed by those roots provided in CERTFILE.
+    --crl CRLFILE ...   Perform client certificate revocation checking using the DER-encoded
+                        CRLFILE. May be used multiple times.
     --require-auth      Send a fatal alert if the client does not complete client
                         authentication.
     --resumption        Support session resumption.
@@ -236,6 +248,19 @@ Rustls is distributed under the following three licenses:
 These are included as LICENSE-APACHE, LICENSE-MIT and LICENSE-ISC
 respectively.  You may use this software under the terms of any
 of these licenses, at your option.
+
+# Project Membership
+
+- Joe Birr-Pixton ([@ctz], Project Founder - full-time funded by [Prossimo])
+- Dirkjan Ochtman ([@djc], Co-maintainer)
+- Daniel McCarney ([@cpu], Co-maintainer - full-time funded by [Prossimo])
+- Josh Aas ([@bdaehlie], Project Management)
+
+[@ctz]: https://github.com/ctz
+[@djc]: https://github.com/djc
+[@cpu]: https://github.com/cpu
+[@bdaehlie]: https://github.com/bdaehlie
+[Prossimo]: https://www.memorysafety.org/initiative/rustls/
 
 # Code of conduct
 

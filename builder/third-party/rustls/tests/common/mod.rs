@@ -1,20 +1,28 @@
 #![allow(dead_code)]
+#![cfg(any(feature = "ring", feature = "aws_lc_rs"))]
 
 use std::io;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
+use pki_types::{CertificateDer, CertificateRevocationListDer, PrivateKeyDer, ServerName};
+use webpki::anchor_from_trusted_cert;
+
+use rustls::client::{ServerCertVerifierBuilder, WebPkiServerVerifier};
 use rustls::internal::msgs::codec::Reader;
 use rustls::internal::msgs::message::{Message, OpaqueMessage, PlainMessage};
-use rustls::server::{
-    AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, UnparsedCertRevocationList,
-};
+use rustls::server::{ClientCertVerifierBuilder, WebPkiClientVerifier};
 use rustls::Connection;
 use rustls::Error;
 use rustls::RootCertStore;
-use rustls::{Certificate, PrivateKey};
 use rustls::{ClientConfig, ClientConnection};
 use rustls::{ConnectionCommon, ServerConfig, ServerConnection, SideData};
+
+#[cfg(all(not(feature = "ring"), feature = "aws_lc_rs"))]
+pub use rustls::crypto::aws_lc_rs as provider;
+#[cfg(feature = "ring")]
+pub use rustls::crypto::ring as provider;
+use rustls::crypto::CryptoProvider;
 
 macro_rules! embed_files {
     (
@@ -39,25 +47,65 @@ macro_rules! embed_files {
 }
 
 embed_files! {
-    (ECDSA_CA_CERT, "ecdsa", "ca.cert");
-    (ECDSA_CA_DER, "ecdsa", "ca.der");
-    (ECDSA_CA_KEY, "ecdsa", "ca.key");
-    (ECDSA_CLIENT_CERT, "ecdsa", "client.cert");
-    (ECDSA_CLIENT_CHAIN, "ecdsa", "client.chain");
-    (ECDSA_CLIENT_FULLCHAIN, "ecdsa", "client.fullchain");
-    (ECDSA_CLIENT_KEY, "ecdsa", "client.key");
-    (ECDSA_CLIENT_REQ, "ecdsa", "client.req");
-    (ECDSA_CLIENT_CRL_PEM, "ecdsa", "client.revoked.crl.pem");
-    (ECDSA_END_CERT, "ecdsa", "end.cert");
-    (ECDSA_END_CHAIN, "ecdsa", "end.chain");
-    (ECDSA_END_FULLCHAIN, "ecdsa", "end.fullchain");
-    (ECDSA_END_KEY, "ecdsa", "end.key");
-    (ECDSA_END_REQ, "ecdsa", "end.req");
-    (ECDSA_INTER_CERT, "ecdsa", "inter.cert");
-    (ECDSA_INTER_KEY, "ecdsa", "inter.key");
-    (ECDSA_INTER_REQ, "ecdsa", "inter.req");
-    (ECDSA_NISTP256_PEM, "ecdsa", "nistp256.pem");
-    (ECDSA_NISTP384_PEM, "ecdsa", "nistp384.pem");
+    (ECDSA_P256_CA_CERT, "ecdsa-p256", "ca.cert");
+    (ECDSA_P256_CA_DER, "ecdsa-p256", "ca.der");
+    (ECDSA_P256_CA_KEY, "ecdsa-p256", "ca.key");
+    (ECDSA_P256_CLIENT_CERT, "ecdsa-p256", "client.cert");
+    (ECDSA_P256_CLIENT_CHAIN, "ecdsa-p256", "client.chain");
+    (ECDSA_P256_CLIENT_FULLCHAIN, "ecdsa-p256", "client.fullchain");
+    (ECDSA_P256_CLIENT_KEY, "ecdsa-p256", "client.key");
+    (ECDSA_P256_CLIENT_REQ, "ecdsa-p256", "client.req");
+    (ECDSA_P256_END_CRL_PEM, "ecdsa-p256", "end.revoked.crl.pem");
+    (ECDSA_P256_CLIENT_CRL_PEM, "ecdsa-p256", "client.revoked.crl.pem");
+    (ECDSA_P256_INTERMEDIATE_CRL_PEM, "ecdsa-p256", "inter.revoked.crl.pem");
+    (ECDSA_P256_END_CERT, "ecdsa-p256", "end.cert");
+    (ECDSA_P256_END_CHAIN, "ecdsa-p256", "end.chain");
+    (ECDSA_P256_END_FULLCHAIN, "ecdsa-p256", "end.fullchain");
+    (ECDSA_P256_END_KEY, "ecdsa-p256", "end.key");
+    (ECDSA_P256_END_REQ, "ecdsa-p256", "end.req");
+    (ECDSA_P256_INTER_CERT, "ecdsa-p256", "inter.cert");
+    (ECDSA_P256_INTER_KEY, "ecdsa-p256", "inter.key");
+    (ECDSA_P256_INTER_REQ, "ecdsa-p256", "inter.req");
+
+    (ECDSA_P384_CA_CERT, "ecdsa-p384", "ca.cert");
+    (ECDSA_P384_CA_DER, "ecdsa-p384", "ca.der");
+    (ECDSA_P384_CA_KEY, "ecdsa-p384", "ca.key");
+    (ECDSA_P384_CLIENT_CERT, "ecdsa-p384", "client.cert");
+    (ECDSA_P384_CLIENT_CHAIN, "ecdsa-p384", "client.chain");
+    (ECDSA_P384_CLIENT_FULLCHAIN, "ecdsa-p384", "client.fullchain");
+    (ECDSA_P384_CLIENT_KEY, "ecdsa-p384", "client.key");
+    (ECDSA_P384_CLIENT_REQ, "ecdsa-p384", "client.req");
+    (ECDSA_P384_END_CRL_PEM, "ecdsa-p384", "end.revoked.crl.pem");
+    (ECDSA_P384_CLIENT_CRL_PEM, "ecdsa-p384", "client.revoked.crl.pem");
+    (ECDSA_P384_INTERMEDIATE_CRL_PEM, "ecdsa-p384", "inter.revoked.crl.pem");
+    (ECDSA_P384_END_CERT, "ecdsa-p384", "end.cert");
+    (ECDSA_P384_END_CHAIN, "ecdsa-p384", "end.chain");
+    (ECDSA_P384_END_FULLCHAIN, "ecdsa-p384", "end.fullchain");
+    (ECDSA_P384_END_KEY, "ecdsa-p384", "end.key");
+    (ECDSA_P384_END_REQ, "ecdsa-p384", "end.req");
+    (ECDSA_P384_INTER_CERT, "ecdsa-p384", "inter.cert");
+    (ECDSA_P384_INTER_KEY, "ecdsa-p384", "inter.key");
+    (ECDSA_P384_INTER_REQ, "ecdsa-p384", "inter.req");
+
+    (ECDSA_P521_CA_CERT, "ecdsa-p521", "ca.cert");
+    (ECDSA_P521_CA_DER, "ecdsa-p521", "ca.der");
+    (ECDSA_P521_CA_KEY, "ecdsa-p521", "ca.key");
+    (ECDSA_P521_CLIENT_CERT, "ecdsa-p521", "client.cert");
+    (ECDSA_P521_CLIENT_CHAIN, "ecdsa-p521", "client.chain");
+    (ECDSA_P521_CLIENT_FULLCHAIN, "ecdsa-p521", "client.fullchain");
+    (ECDSA_P521_CLIENT_KEY, "ecdsa-p521", "client.key");
+    (ECDSA_P521_CLIENT_REQ, "ecdsa-p521", "client.req");
+    (ECDSA_P521_END_CRL_PEM, "ecdsa-p521", "end.revoked.crl.pem");
+    (ECDSA_P521_CLIENT_CRL_PEM, "ecdsa-p521", "client.revoked.crl.pem");
+    (ECDSA_P521_INTERMEDIATE_CRL_PEM, "ecdsa-p521", "inter.revoked.crl.pem");
+    (ECDSA_P521_END_CERT, "ecdsa-p521", "end.cert");
+    (ECDSA_P521_END_CHAIN, "ecdsa-p521", "end.chain");
+    (ECDSA_P521_END_FULLCHAIN, "ecdsa-p521", "end.fullchain");
+    (ECDSA_P521_END_KEY, "ecdsa-p521", "end.key");
+    (ECDSA_P521_END_REQ, "ecdsa-p521", "end.req");
+    (ECDSA_P521_INTER_CERT, "ecdsa-p521", "inter.cert");
+    (ECDSA_P521_INTER_KEY, "ecdsa-p521", "inter.key");
+    (ECDSA_P521_INTER_REQ, "ecdsa-p521", "inter.req");
 
     (EDDSA_CA_CERT, "eddsa", "ca.cert");
     (EDDSA_CA_DER, "eddsa", "ca.der");
@@ -67,7 +115,9 @@ embed_files! {
     (EDDSA_CLIENT_FULLCHAIN, "eddsa", "client.fullchain");
     (EDDSA_CLIENT_KEY, "eddsa", "client.key");
     (EDDSA_CLIENT_REQ, "eddsa", "client.req");
+    (EDDSA_END_CRL_PEM, "eddsa", "end.revoked.crl.pem");
     (EDDSA_CLIENT_CRL_PEM, "eddsa", "client.revoked.crl.pem");
+    (EDDSA_INTERMEDIATE_CRL_PEM, "eddsa", "inter.revoked.crl.pem");
     (EDDSA_END_CERT, "eddsa", "end.cert");
     (EDDSA_END_CHAIN, "eddsa", "end.chain");
     (EDDSA_END_FULLCHAIN, "eddsa", "end.fullchain");
@@ -86,7 +136,9 @@ embed_files! {
     (RSA_CLIENT_KEY, "rsa", "client.key");
     (RSA_CLIENT_REQ, "rsa", "client.req");
     (RSA_CLIENT_RSA, "rsa", "client.rsa");
+    (RSA_END_CRL_PEM, "rsa", "end.revoked.crl.pem");
     (RSA_CLIENT_CRL_PEM, "rsa", "client.revoked.crl.pem");
+    (RSA_INTERMEDIATE_CRL_PEM, "rsa", "inter.revoked.crl.pem");
     (RSA_END_CERT, "rsa", "end.cert");
     (RSA_END_CHAIN, "rsa", "end.chain");
     (RSA_END_FULLCHAIN, "rsa", "end.fullchain");
@@ -193,65 +245,160 @@ where
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum KeyType {
     Rsa,
-    Ecdsa,
+    EcdsaP256,
+    EcdsaP384,
+    EcdsaP521,
     Ed25519,
 }
 
-pub static ALL_KEY_TYPES: [KeyType; 3] = [KeyType::Rsa, KeyType::Ecdsa, KeyType::Ed25519];
+pub static ALL_KEY_TYPES: &[KeyType] = &[
+    KeyType::Rsa,
+    KeyType::EcdsaP256,
+    KeyType::EcdsaP384,
+    #[cfg(all(not(feature = "ring"), feature = "aws_lc_rs"))]
+    KeyType::EcdsaP521,
+    KeyType::Ed25519,
+];
 
 impl KeyType {
     fn bytes_for(&self, part: &str) -> &'static [u8] {
         match self {
             Self::Rsa => bytes_for("rsa", part),
-            Self::Ecdsa => bytes_for("ecdsa", part),
+            Self::EcdsaP256 => bytes_for("ecdsa-p256", part),
+            Self::EcdsaP384 => bytes_for("ecdsa-p384", part),
+            Self::EcdsaP521 => bytes_for("ecdsa-p521", part),
             Self::Ed25519 => bytes_for("eddsa", part),
         }
     }
 
-    pub fn get_chain(&self) -> Vec<Certificate> {
+    pub fn get_chain(&self) -> Vec<CertificateDer<'static>> {
         rustls_pemfile::certs(&mut io::BufReader::new(self.bytes_for("end.fullchain")))
-            .unwrap()
-            .iter()
-            .map(|v| Certificate(v.clone()))
+            .map(|result| result.unwrap())
             .collect()
     }
 
-    pub fn get_key(&self) -> PrivateKey {
-        PrivateKey(
+    pub fn get_key(&self) -> PrivateKeyDer<'static> {
+        PrivateKeyDer::Pkcs8(
             rustls_pemfile::pkcs8_private_keys(&mut io::BufReader::new(self.bytes_for("end.key")))
-                .unwrap()[0]
-                .clone(),
+                .next()
+                .unwrap()
+                .unwrap(),
         )
     }
 
-    pub fn get_client_chain(&self) -> Vec<Certificate> {
+    pub fn get_client_chain(&self) -> Vec<CertificateDer<'static>> {
         rustls_pemfile::certs(&mut io::BufReader::new(self.bytes_for("client.fullchain")))
-            .unwrap()
-            .iter()
-            .map(|v| Certificate(v.clone()))
+            .map(|result| result.unwrap())
             .collect()
     }
 
-    pub fn client_crl(&self) -> UnparsedCertRevocationList {
-        UnparsedCertRevocationList(
-            rustls_pemfile::crls(&mut io::BufReader::new(
-                self.bytes_for("client.revoked.crl.pem"),
+    pub fn end_entity_crl(&self) -> CertificateRevocationListDer<'static> {
+        self.get_crl("end")
+    }
+
+    pub fn client_crl(&self) -> CertificateRevocationListDer<'static> {
+        self.get_crl("client")
+    }
+
+    pub fn intermediate_crl(&self) -> CertificateRevocationListDer<'static> {
+        self.get_crl("inter")
+    }
+
+    fn get_client_key(&self) -> PrivateKeyDer<'static> {
+        PrivateKeyDer::Pkcs8(
+            rustls_pemfile::pkcs8_private_keys(&mut io::BufReader::new(
+                self.bytes_for("client.key"),
             ))
+            .next()
             .unwrap()
-            .into_iter()
-            .next() // We only expect one CRL.
             .unwrap(),
         )
     }
 
-    fn get_client_key(&self) -> PrivateKey {
-        PrivateKey(
-            rustls_pemfile::pkcs8_private_keys(&mut io::BufReader::new(
-                self.bytes_for("client.key"),
-            ))
-            .unwrap()[0]
-                .clone(),
-        )
+    fn get_crl(&self, role: &str) -> CertificateRevocationListDer<'static> {
+        rustls_pemfile::crls(&mut io::BufReader::new(
+            self.bytes_for(&format!("{role}.revoked.crl.pem")),
+        ))
+        .map(|result| result.unwrap())
+        .next() // We only expect one CRL.
+        .unwrap()
+    }
+
+    pub fn ca_distinguished_name(&self) -> &'static [u8] {
+        match self {
+            KeyType::Rsa => &b"0\x1a1\x180\x16\x06\x03U\x04\x03\x0c\x0fponytown RSA CA"[..],
+            KeyType::EcdsaP256 => {
+                &b"0\x211\x1f0\x1d\x06\x03U\x04\x03\x0c\x16ponytown ECDSA p256 CA"[..]
+            }
+            KeyType::EcdsaP384 => {
+                &b"0\x211\x1f0\x1d\x06\x03U\x04\x03\x0c\x16ponytown ECDSA p384 CA"[..]
+            }
+            KeyType::EcdsaP521 => {
+                &b"0\x211\x1f0\x1d\x06\x03U\x04\x03\x0c\x16ponytown ECDSA p521 CA"[..]
+            }
+            KeyType::Ed25519 => &b"0\x1c1\x1a0\x18\x06\x03U\x04\x03\x0c\x11ponytown EdDSA CA"[..],
+        }
+    }
+}
+
+pub fn server_config_builder() -> rustls::ConfigBuilder<ServerConfig, rustls::WantsVerifier> {
+    // ensure `ServerConfig::builder()` is covered, even though it is
+    // equivalent to `builder_with_provider(provider::provider().into())`.
+    #[cfg(feature = "ring")]
+    {
+        rustls::ServerConfig::builder()
+    }
+    #[cfg(not(feature = "ring"))]
+    {
+        rustls::ServerConfig::builder_with_provider(provider::default_provider().into())
+            .with_safe_default_protocol_versions()
+            .unwrap()
+    }
+}
+
+pub fn server_config_builder_with_versions(
+    versions: &[&'static rustls::SupportedProtocolVersion],
+) -> rustls::ConfigBuilder<ServerConfig, rustls::WantsVerifier> {
+    #[cfg(feature = "ring")]
+    {
+        rustls::ServerConfig::builder_with_protocol_versions(versions)
+    }
+    #[cfg(not(feature = "ring"))]
+    {
+        rustls::ServerConfig::builder_with_provider(provider::default_provider().into())
+            .with_protocol_versions(versions)
+            .unwrap()
+    }
+}
+
+pub fn client_config_builder() -> rustls::ConfigBuilder<ClientConfig, rustls::WantsVerifier> {
+    // ensure `ClientConfig::builder()` is covered, even though it is
+    // equivalent to `builder_with_provider(provider::provider().into())`.
+    #[cfg(feature = "ring")]
+    {
+        rustls::ClientConfig::builder()
+    }
+
+    #[cfg(not(feature = "ring"))]
+    {
+        rustls::ClientConfig::builder_with_provider(provider::default_provider().into())
+            .with_safe_default_protocol_versions()
+            .unwrap()
+    }
+}
+
+pub fn client_config_builder_with_versions(
+    versions: &[&'static rustls::SupportedProtocolVersion],
+) -> rustls::ConfigBuilder<ClientConfig, rustls::WantsVerifier> {
+    #[cfg(feature = "ring")]
+    {
+        rustls::ClientConfig::builder_with_protocol_versions(versions)
+    }
+    #[cfg(not(feature = "ring"))]
+    {
+        rustls::ClientConfig::builder_with_provider(provider::default_provider().into())
+            .with_protocol_versions(versions)
+            .unwrap()
     }
 }
 
@@ -265,82 +412,83 @@ pub fn finish_server_config(
 }
 
 pub fn make_server_config(kt: KeyType) -> ServerConfig {
-    finish_server_config(kt, ServerConfig::builder().with_safe_defaults())
+    finish_server_config(kt, server_config_builder())
 }
 
 pub fn make_server_config_with_versions(
     kt: KeyType,
     versions: &[&'static rustls::SupportedProtocolVersion],
 ) -> ServerConfig {
-    finish_server_config(
-        kt,
-        ServerConfig::builder()
-            .with_safe_default_cipher_suites()
-            .with_safe_default_kx_groups()
-            .with_protocol_versions(versions)
-            .unwrap(),
-    )
+    finish_server_config(kt, server_config_builder_with_versions(versions))
 }
 
 pub fn make_server_config_with_kx_groups(
     kt: KeyType,
-    kx_groups: &[&'static rustls::SupportedKxGroup],
+    kx_groups: Vec<&'static dyn rustls::crypto::SupportedKxGroup>,
 ) -> ServerConfig {
     finish_server_config(
         kt,
-        ServerConfig::builder()
-            .with_safe_default_cipher_suites()
-            .with_kx_groups(kx_groups)
-            .with_safe_default_protocol_versions()
-            .unwrap(),
+        ServerConfig::builder_with_provider(
+            CryptoProvider {
+                kx_groups,
+                ..provider::default_provider()
+            }
+            .into(),
+        )
+        .with_safe_default_protocol_versions()
+        .unwrap(),
     )
 }
 
-pub fn get_client_root_store(kt: KeyType) -> RootCertStore {
-    let mut roots = kt.get_chain();
-    // drop server cert
-    roots.drain(0..1);
-    let mut client_auth_roots = RootCertStore::empty();
-    for root in roots {
-        client_auth_roots.add(&root).unwrap();
+pub fn get_client_root_store(kt: KeyType) -> Arc<RootCertStore> {
+    // The key type's chain file contains the DER encoding of the EE cert, the intermediate cert,
+    // and the root trust anchor. We want only the trust anchor to build the root cert store.
+    let chain = kt.get_chain();
+    let trust_anchor = chain.last().unwrap();
+    RootCertStore {
+        roots: vec![anchor_from_trusted_cert(trust_anchor)
+            .unwrap()
+            .to_owned()],
     }
-    client_auth_roots
+    .into()
 }
 
 pub fn make_server_config_with_mandatory_client_auth_crls(
     kt: KeyType,
-    crls: Vec<UnparsedCertRevocationList>,
+    crls: Vec<CertificateRevocationListDer<'static>>,
 ) -> ServerConfig {
-    let client_auth_roots = get_client_root_store(kt);
-
-    let client_auth = AllowAnyAuthenticatedClient::new(client_auth_roots)
-        .with_crls(crls)
-        .unwrap();
-
-    ServerConfig::builder()
-        .with_safe_defaults()
-        .with_client_cert_verifier(Arc::new(client_auth))
-        .with_single_cert(kt.get_chain(), kt.get_key())
-        .unwrap()
+    make_server_config_with_client_verifier(
+        kt,
+        webpki_client_verifier_builder(get_client_root_store(kt)).with_crls(crls),
+    )
 }
 
 pub fn make_server_config_with_mandatory_client_auth(kt: KeyType) -> ServerConfig {
-    make_server_config_with_mandatory_client_auth_crls(kt, Vec::new())
+    make_server_config_with_client_verifier(
+        kt,
+        webpki_client_verifier_builder(get_client_root_store(kt)),
+    )
 }
 
 pub fn make_server_config_with_optional_client_auth(
     kt: KeyType,
-    crls: Vec<UnparsedCertRevocationList>,
+    crls: Vec<CertificateRevocationListDer<'static>>,
 ) -> ServerConfig {
-    let client_auth_roots = get_client_root_store(kt);
+    make_server_config_with_client_verifier(
+        kt,
+        webpki_client_verifier_builder(get_client_root_store(kt))
+            .with_crls(crls)
+            .allow_unknown_revocation_status()
+            .allow_unauthenticated(),
+    )
+}
 
-    let client_auth = AllowAnyAnonymousOrAuthenticatedClient::new(client_auth_roots)
-        .with_crls(crls)
-        .unwrap();
-
-    ServerConfig::builder()
-        .with_safe_defaults()
-        .with_client_cert_verifier(Arc::new(client_auth))
+pub fn make_server_config_with_client_verifier(
+    kt: KeyType,
+    verifier_builder: ClientCertVerifierBuilder,
+) -> ServerConfig {
+    server_config_builder()
+        .with_client_cert_verifier(verifier_builder.build().unwrap())
         .with_single_cert(kt.get_chain(), kt.get_key())
         .unwrap()
 }
@@ -351,7 +499,9 @@ pub fn finish_client_config(
 ) -> ClientConfig {
     let mut root_store = RootCertStore::empty();
     let mut rootbuf = io::BufReader::new(kt.bytes_for("ca.cert"));
-    root_store.add_parsable_certificates(&rustls_pemfile::certs(&mut rootbuf).unwrap());
+    root_store.add_parsable_certificates(
+        rustls_pemfile::certs(&mut rootbuf).map(|result| result.unwrap()),
+    );
 
     config
         .with_root_certificates(root_store)
@@ -364,7 +514,10 @@ pub fn finish_client_config_with_creds(
 ) -> ClientConfig {
     let mut root_store = RootCertStore::empty();
     let mut rootbuf = io::BufReader::new(kt.bytes_for("ca.cert"));
-    root_store.add_parsable_certificates(&rustls_pemfile::certs(&mut rootbuf).unwrap());
+    // Passing a reference here just for testing.
+    root_store.add_parsable_certificates(
+        rustls_pemfile::certs(&mut rootbuf).map(|result| result.unwrap()),
+    );
 
     config
         .with_root_certificates(root_store)
@@ -373,18 +526,22 @@ pub fn finish_client_config_with_creds(
 }
 
 pub fn make_client_config(kt: KeyType) -> ClientConfig {
-    finish_client_config(kt, ClientConfig::builder().with_safe_defaults())
+    finish_client_config(kt, client_config_builder())
 }
 
 pub fn make_client_config_with_kx_groups(
     kt: KeyType,
-    kx_groups: &[&'static rustls::SupportedKxGroup],
+    kx_groups: Vec<&'static dyn rustls::crypto::SupportedKxGroup>,
 ) -> ClientConfig {
-    let builder = ClientConfig::builder()
-        .with_safe_default_cipher_suites()
-        .with_kx_groups(kx_groups)
-        .with_safe_default_protocol_versions()
-        .unwrap();
+    let builder = ClientConfig::builder_with_provider(
+        CryptoProvider {
+            kx_groups,
+            ..provider::default_provider()
+        }
+        .into(),
+    )
+    .with_safe_default_protocol_versions()
+    .unwrap();
     finish_client_config(kt, builder)
 }
 
@@ -392,28 +549,52 @@ pub fn make_client_config_with_versions(
     kt: KeyType,
     versions: &[&'static rustls::SupportedProtocolVersion],
 ) -> ClientConfig {
-    let builder = ClientConfig::builder()
-        .with_safe_default_cipher_suites()
-        .with_safe_default_kx_groups()
-        .with_protocol_versions(versions)
-        .unwrap();
-    finish_client_config(kt, builder)
+    finish_client_config(kt, client_config_builder_with_versions(versions))
 }
 
 pub fn make_client_config_with_auth(kt: KeyType) -> ClientConfig {
-    finish_client_config_with_creds(kt, ClientConfig::builder().with_safe_defaults())
+    finish_client_config_with_creds(kt, client_config_builder())
 }
 
 pub fn make_client_config_with_versions_with_auth(
     kt: KeyType,
     versions: &[&'static rustls::SupportedProtocolVersion],
 ) -> ClientConfig {
-    let builder = ClientConfig::builder()
-        .with_safe_default_cipher_suites()
-        .with_safe_default_kx_groups()
-        .with_protocol_versions(versions)
-        .unwrap();
-    finish_client_config_with_creds(kt, builder)
+    finish_client_config_with_creds(kt, client_config_builder_with_versions(versions))
+}
+
+pub fn make_client_config_with_verifier(
+    versions: &[&'static rustls::SupportedProtocolVersion],
+    verifier_builder: ServerCertVerifierBuilder,
+) -> ClientConfig {
+    client_config_builder_with_versions(versions)
+        .dangerous()
+        .with_custom_certificate_verifier(verifier_builder.build().unwrap())
+        .with_no_client_auth()
+}
+
+pub fn webpki_client_verifier_builder(roots: Arc<RootCertStore>) -> ClientCertVerifierBuilder {
+    #[cfg(feature = "ring")]
+    {
+        WebPkiClientVerifier::builder(roots)
+    }
+
+    #[cfg(not(feature = "ring"))]
+    {
+        WebPkiClientVerifier::builder_with_provider(roots, provider::default_provider().into())
+    }
+}
+
+pub fn webpki_server_verifier_builder(roots: Arc<RootCertStore>) -> ServerCertVerifierBuilder {
+    #[cfg(feature = "ring")]
+    {
+        WebPkiServerVerifier::builder(roots)
+    }
+
+    #[cfg(not(feature = "ring"))]
+    {
+        WebPkiServerVerifier::builder_with_provider(roots, provider::default_provider().into())
+    }
 }
 
 pub fn make_pair(kt: KeyType) -> (ClientConnection, ServerConnection) {
@@ -432,7 +613,7 @@ pub fn make_pair_for_arc_configs(
     server_config: &Arc<ServerConfig>,
 ) -> (ClientConnection, ServerConnection) {
     (
-        ClientConnection::new(Arc::clone(client_config), dns_name("localhost")).unwrap(),
+        ClientConnection::new(Arc::clone(client_config), server_name("localhost")).unwrap(),
         ServerConnection::new(Arc::clone(server_config)).unwrap(),
     )
 }
@@ -506,7 +687,7 @@ pub fn do_handshake_until_both_error(
     }
 }
 
-pub fn dns_name(name: &'static str) -> rustls::ServerName {
+pub fn server_name(name: &'static str) -> ServerName<'static> {
     name.try_into().unwrap()
 }
 

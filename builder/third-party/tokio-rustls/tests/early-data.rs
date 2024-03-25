@@ -1,8 +1,5 @@
 #![cfg(feature = "early-data")]
 
-use futures_util::{future, future::Future, ready};
-use rustls::RootCertStore;
-use std::convert::TryFrom;
 use std::io::{self, BufRead, BufReader, Cursor};
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -11,15 +8,14 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::thread;
 use std::time::Duration;
+
+use futures_util::{future, future::Future, ready};
+use rustls::{self, ClientConfig, RootCertStore};
 use tokio::io::{split, AsyncRead, AsyncWriteExt, ReadBuf};
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
-use tokio_rustls::{
-    client::TlsStream,
-    rustls::{self, ClientConfig, OwnedTrustAnchor},
-    TlsConnector,
-};
+use tokio_rustls::{client::TlsStream, TlsConnector};
 
 struct Read1<T>(T);
 
@@ -48,7 +44,7 @@ async fn send(
 ) -> io::Result<TlsStream<TcpStream>> {
     let connector = TlsConnector::from(config).early_data(true);
     let stream = TcpStream::connect(&addr).await?;
-    let domain = rustls::ServerName::try_from("foobar.com").unwrap();
+    let domain = pki_types::ServerName::try_from("foobar.com").unwrap();
 
     let stream = connector.connect(domain, stream).await?;
     let (mut rd, mut wd) = split(stream);
@@ -132,24 +128,15 @@ async fn test_0rtt() -> io::Result<()> {
     wait_for_server(format!("127.0.0.1:{}", server_port).as_str()).await;
 
     let mut chain = BufReader::new(Cursor::new(include_str!("end.chain")));
-    let certs = rustls_pemfile::certs(&mut chain).unwrap();
-    let trust_anchors = certs.iter().map(|cert| {
-        let ta = webpki::TrustAnchor::try_from_cert_der(&cert[..]).unwrap();
-        OwnedTrustAnchor::from_subject_spki_name_constraints(
-            ta.subject,
-            ta.spki,
-            ta.name_constraints,
-        )
-    });
     let mut root_store = RootCertStore::empty();
-    root_store.add_server_trust_anchors(trust_anchors);
-    let mut config = rustls::ClientConfig::builder()
-        .with_safe_default_cipher_suites()
-        .with_safe_default_kx_groups()
-        .with_protocol_versions(&[&rustls::version::TLS13])
-        .unwrap()
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
+    for cert in rustls_pemfile::certs(&mut chain) {
+        root_store.add(cert.unwrap()).unwrap();
+    }
+
+    let mut config =
+        rustls::ClientConfig::builder_with_protocol_versions(&[&rustls::version::TLS13])
+            .with_root_certificates(root_store)
+            .with_no_client_auth();
     config.enable_early_data = true;
     let config = Arc::new(config);
     let addr = SocketAddr::from(([127, 0, 0, 1], server_port));

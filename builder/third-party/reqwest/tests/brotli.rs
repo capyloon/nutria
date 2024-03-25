@@ -19,7 +19,6 @@ async fn test_brotli_empty_body() {
 
         http::Response::builder()
             .header("content-encoding", "br")
-            .header("content-length", 100)
             .body(Default::default())
             .unwrap()
     });
@@ -90,7 +89,7 @@ async fn brotli_case(response_size: usize, chunk_size: usize) {
 
     let content: String = (0..response_size)
         .into_iter()
-        .map(|i| format!("test {}", i))
+        .map(|i| format!("test {i}"))
         .collect();
 
     let mut encoder = brotli_crate::CompressorReader::new(content.as_bytes(), 4096, 5, 20);
@@ -125,7 +124,7 @@ async fn brotli_case(response_size: usize, chunk_size: usize) {
                     Some((chunk, (brotlied, pos + 1)))
                 });
 
-            let body = hyper::Body::wrap_stream(stream.map(Ok::<_, std::convert::Infallible>));
+            let body = reqwest::Body::wrap_stream(stream.map(Ok::<_, std::convert::Infallible>));
 
             http::Response::builder()
                 .header("content-encoding", "br")

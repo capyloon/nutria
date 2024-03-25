@@ -120,8 +120,14 @@ pub enum Error {
     /// does not match the algorithm in the signature of the certificate.
     SignatureAlgorithmMismatch,
 
+    /// Trailing data was found while parsing DER-encoded input for the named type.
+    TrailingData(DerTypeId),
+
     /// A valid issuer for the certificate could not be found.
     UnknownIssuer,
+
+    /// The certificate's revocation status could not be determined.
+    UnknownRevocationStatus,
 
     /// The certificate is not a v3 X.509 certificate.
     ///
@@ -131,6 +137,10 @@ pub enum Error {
 
     /// The certificate contains an unsupported critical extension.
     UnsupportedCriticalExtension,
+
+    /// The CRL contains an issuing distribution point with no distribution point name,
+    /// or a distribution point name relative to an issuer.
+    UnsupportedCrlIssuingDistributionPoint,
 
     /// The CRL is not a v2 X.509 CRL.
     ///
@@ -146,8 +156,14 @@ pub enum Error {
     /// The CRL contains unsupported "indirect" entries.
     UnsupportedIndirectCrl,
 
+    /// The `ServerName` contained an unsupported type of value.
+    UnsupportedNameType,
+
     /// The revocation reason is not in the set of supported revocation reasons.
     UnsupportedRevocationReason,
+
+    /// The CRL is partitioned by revocation reasons.
+    UnsupportedRevocationReasonsPartitioning,
 
     /// The signature algorithm for a signature over a CRL is not in the set of supported
     /// signature algorithms given.
@@ -197,7 +213,7 @@ impl Error {
             // Errors related to certificate validity
             Error::CertNotValidYet | Error::CertExpired => 290,
             Error::CertNotValidForName => 280,
-            Error::CertRevoked => 270,
+            Error::CertRevoked | Error::UnknownRevocationStatus => 270,
             Error::InvalidCrlSignatureForPublicKey | Error::InvalidSignatureForPublicKey => 260,
             Error::SignatureAlgorithmMismatch => 250,
             Error::RequiredEkuNotFound => 240,
@@ -221,16 +237,16 @@ impl Error {
             Error::UnsupportedCrlVersion => 120,
             Error::UnsupportedDeltaCrl => 110,
             Error::UnsupportedIndirectCrl => 100,
+            Error::UnsupportedNameType => 95,
             Error::UnsupportedRevocationReason => 90,
-            // Reserved for webpki 0.102.0+ usages:
-            // Error::UnsupportedRevocationReasonsPartitioning => 80,
-            // Error::UnsupportedCrlIssuingDistributionPoint => 70,
+            Error::UnsupportedRevocationReasonsPartitioning => 80,
+            Error::UnsupportedCrlIssuingDistributionPoint => 70,
             Error::MaximumPathDepthExceeded => 61,
 
             // Errors related to malformed data.
             Error::MalformedDnsIdentifier => 60,
             Error::MalformedNameConstraint => 50,
-            Error::MalformedExtensions => 40,
+            Error::MalformedExtensions | Error::TrailingData(_) => 40,
             Error::ExtensionValueInvalid => 30,
 
             // Generic DER errors.
@@ -278,11 +294,37 @@ impl fmt::Display for Error {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl ::std::error::Error for Error {}
 
-impl From<untrusted::EndOfInput> for Error {
-    fn from(_: untrusted::EndOfInput) -> Self {
-        Error::BadDer
-    }
+/// Trailing data was found while parsing DER-encoded input for the named type.
+#[allow(missing_docs)]
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DerTypeId {
+    BitString,
+    Bool,
+    Certificate,
+    CertificateExtensions,
+    CertificateTbsCertificate,
+    CertRevocationList,
+    CertRevocationListExtension,
+    CrlDistributionPoint,
+    CommonNameInner,
+    CommonNameOuter,
+    DistributionPointName,
+    Extension,
+    GeneralName,
+    RevocationReason,
+    Signature,
+    SignatureAlgorithm,
+    SignedData,
+    SubjectPublicKeyInfo,
+    Time,
+    TrustAnchorV1,
+    TrustAnchorV1TbsCertificate,
+    U8,
+    RevokedCertificate,
+    RevokedCertificateExtension,
+    RevokedCertEntry,
+    IssuingDistributionPoint,
 }

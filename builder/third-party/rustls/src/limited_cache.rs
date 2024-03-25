@@ -1,7 +1,8 @@
-use std::borrow::Borrow;
+use alloc::collections::VecDeque;
+use core::borrow::Borrow;
+use core::hash::Hash;
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, VecDeque};
-use std::hash::Hash;
+use std::collections::HashMap;
 
 /// A HashMap-alike, which never gets larger than a specified
 /// capacity, and evicts the oldest insertion to maintain this.
@@ -20,7 +21,7 @@ pub(crate) struct LimitedCache<K: Clone + Hash + Eq, V> {
 
 impl<K, V> LimitedCache<K, V>
 where
-    K: Eq + Hash + Clone + std::fmt::Debug,
+    K: Eq + Hash + Clone + core::fmt::Debug,
     V: Default,
 {
     /// Create a new LimitedCache with the given rough capacity.
@@ -56,7 +57,7 @@ where
     pub(crate) fn insert(&mut self, k: K, v: V) {
         let inserted_new_item = match self.map.entry(k) {
             Entry::Occupied(mut old) => {
-                // nb. does not freshen entry in `oldest`
+                // Note: does not freshen entry in `oldest`
                 old.insert(v);
                 false
             }
@@ -115,7 +116,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     type Test = super::LimitedCache<String, usize>;
 
     #[test]
