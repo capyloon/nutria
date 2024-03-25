@@ -297,8 +297,10 @@ impl Item {
         self.as_table_like().is_some()
     }
 
-    /// Returns the location within the original document
-    pub(crate) fn span(&self) -> Option<std::ops::Range<usize>> {
+    /// The location within the original document
+    ///
+    /// This generally requires an [`ImDocument`][crate::ImDocument].
+    pub fn span(&self) -> Option<std::ops::Range<usize>> {
         match self {
             Item::None => None,
             Item::Value(v) => v.span(),
@@ -389,4 +391,11 @@ pub fn table() -> Item {
 /// Returns an empty array of tables.
 pub fn array() -> Item {
     Item::ArrayOfTables(ArrayOfTables::new())
+}
+
+#[test]
+#[cfg(feature = "parse")]
+#[cfg(feature = "display")]
+fn string_roundtrip() {
+    value("hello").to_string().parse::<Item>().unwrap();
 }

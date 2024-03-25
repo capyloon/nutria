@@ -10,8 +10,9 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
+rust-version = "1.56.0"
 name = "brotli"
-version = "3.4.0"
+version = "3.5.0"
 authors = [
     "Daniel Reiter Horn <danielrh@dropbox.com>",
     "The Brotli Authors",
@@ -28,7 +29,11 @@ keywords = [
     "huffman",
     "nostd",
 ]
-license = "BSD-3-Clause/MIT"
+categories = [
+    "compression",
+    "no-std",
+]
+license = "BSD-3-Clause OR MIT"
 repository = "https://github.com/dropbox/rust-brotli"
 
 [profile.release]
@@ -69,6 +74,7 @@ external-literal-probability = []
 ffi-api = []
 pass-through-ffi-panics = []
 seccomp = ["brotli-decompressor/seccomp"]
+simd = []
 std = [
     "alloc-stdlib",
     "brotli-decompressor/std",

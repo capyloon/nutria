@@ -98,7 +98,7 @@
 //! [`fastrand-contrib`]: https://crates.io/crates/fastrand-contrib
 //! [`getrandom`]: https://crates.io/crates/getrandom
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
@@ -111,6 +111,8 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 use core::convert::{TryFrom, TryInto};
 use core::ops::{Bound, RangeBounds};
@@ -284,10 +286,7 @@ impl Rng {
     #[inline]
     #[must_use = "this creates a new instance of `Rng`; if you want to initialize the thread-local generator, use `fastrand::seed()` instead"]
     pub fn with_seed(seed: u64) -> Self {
-        let mut rng = Rng(0);
-
-        rng.seed(seed);
-        rng
+        Rng(seed)
     }
 
     /// Clones the generator by deterministically deriving a new generator based on the initial

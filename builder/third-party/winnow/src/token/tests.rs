@@ -10,7 +10,7 @@ use crate::error::ErrorKind;
 use crate::error::InputError;
 use crate::error::Needed;
 use crate::stream::AsChar;
-use crate::token::tag;
+use crate::token::literal;
 use crate::unpeek;
 use crate::IResult;
 use crate::Parser;
@@ -98,6 +98,137 @@ fn complete_take_until() {
 }
 
 #[test]
+fn complete_take_until_empty() {
+    fn take_until_empty(i: &str) -> IResult<&str, &str> {
+        take_until(0, "").parse_peek(i)
+    }
+    assert_eq!(take_until_empty(""), Ok(("", "")));
+    assert_eq!(take_until_empty("end"), Ok(("end", "")));
+}
+
+#[test]
+fn complete_literal_case_insensitive() {
+    fn caseless_bytes(i: &[u8]) -> IResult<&[u8], &[u8]> {
+        literal(Caseless("ABcd")).parse_peek(i)
+    }
+    assert_eq!(
+        caseless_bytes(&b"aBCdefgh"[..]),
+        Ok((&b"efgh"[..], &b"aBCd"[..]))
+    );
+    assert_eq!(
+        caseless_bytes(&b"abcdefgh"[..]),
+        Ok((&b"efgh"[..], &b"abcd"[..]))
+    );
+    assert_eq!(
+        caseless_bytes(&b"ABCDefgh"[..]),
+        Ok((&b"efgh"[..], &b"ABCD"[..]))
+    );
+    assert_eq!(
+        caseless_bytes(&b"ab"[..]),
+        Err(ErrMode::Backtrack(error_position!(
+            &&b"ab"[..],
+            ErrorKind::Tag
+        )))
+    );
+    assert_eq!(
+        caseless_bytes(&b"Hello"[..]),
+        Err(ErrMode::Backtrack(error_position!(
+            &&b"Hello"[..],
+            ErrorKind::Tag
+        )))
+    );
+    assert_eq!(
+        caseless_bytes(&b"Hel"[..]),
+        Err(ErrMode::Backtrack(error_position!(
+            &&b"Hel"[..],
+            ErrorKind::Tag
+        )))
+    );
+
+    fn caseless_str(i: &str) -> IResult<&str, &str> {
+        literal(Caseless("ABcd")).parse_peek(i)
+    }
+    assert_eq!(caseless_str("aBCdefgh"), Ok(("efgh", "aBCd")));
+    assert_eq!(caseless_str("abcdefgh"), Ok(("efgh", "abcd")));
+    assert_eq!(caseless_str("ABCDefgh"), Ok(("efgh", "ABCD")));
+    assert_eq!(
+        caseless_str("ab"),
+        Err(ErrMode::Backtrack(error_position!(&"ab", ErrorKind::Tag)))
+    );
+    assert_eq!(
+        caseless_str("Hello"),
+        Err(ErrMode::Backtrack(error_position!(
+            &"Hello",
+            ErrorKind::Tag
+        )))
+    );
+    assert_eq!(
+        caseless_str("Hel"),
+        Err(ErrMode::Backtrack(error_position!(&"Hel", ErrorKind::Tag)))
+    );
+
+    fn matches_kelvin(i: &str) -> IResult<&str, &str> {
+        literal(Caseless("k")).parse_peek(i)
+    }
+    assert_eq!(
+        matches_kelvin("K"),
+        Err(ErrMode::Backtrack(error_position!(&"K", ErrorKind::Tag)))
+    );
+
+    fn is_kelvin(i: &str) -> IResult<&str, &str> {
+        literal(Caseless("K")).parse_peek(i)
+    }
+    assert_eq!(
+        is_kelvin("k"),
+        Err(ErrMode::Backtrack(error_position!(&"k", ErrorKind::Tag)))
+    );
+}
+
+#[test]
+fn complete_literal_fixed_size_array() {
+    fn test(i: &[u8]) -> IResult<&[u8], &[u8]> {
+        literal([0x42]).parse_peek(i)
+    }
+    fn test2(i: &[u8]) -> IResult<&[u8], &[u8]> {
+        literal(&[0x42]).parse_peek(i)
+    }
+
+    let input = &[0x42, 0x00][..];
+    assert_eq!(test(input), Ok((&b"\x00"[..], &b"\x42"[..])));
+    assert_eq!(test2(input), Ok((&b"\x00"[..], &b"\x42"[..])));
+}
+
+#[test]
+fn complete_literal_char() {
+    fn test(i: &[u8]) -> IResult<&[u8], &[u8]> {
+        literal('B').parse_peek(i)
+    }
+    assert_eq!(test(&[0x42, 0x00][..]), Ok((&b"\x00"[..], &b"\x42"[..])));
+    assert_eq!(
+        test(&[b'A', b'\0'][..]),
+        Err(ErrMode::Backtrack(error_position!(
+            &&b"A\0"[..],
+            ErrorKind::Tag
+        )))
+    );
+}
+
+#[test]
+fn complete_literal_byte() {
+    fn test(i: &[u8]) -> IResult<&[u8], &[u8]> {
+        literal(b'B').parse_peek(i)
+    }
+    assert_eq!(test(&[0x42, 0x00][..]), Ok((&b"\x00"[..], &b"\x42"[..])));
+    assert_eq!(
+        test(&[b'A', b'\0'][..]),
+        Err(ErrMode::Backtrack(error_position!(
+            &&b"A\0"[..],
+            ErrorKind::Tag
+        )))
+    );
+}
+
+#[test]
 fn partial_any_str() {
     use super::any;
     assert_eq!(
@@ -134,7 +265,7 @@ fn partial_one_of_test() {
 
 #[test]
 fn char_byteslice() {
-    fn f(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, u8> {
+    fn f(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, char> {
         'c'.parse_peek(i)
     }
 
@@ -143,12 +274,12 @@ fn char_byteslice() {
         f(Partial::new(a)),
         Err(ErrMode::Backtrack(error_position!(
             &Partial::new(a),
-            ErrorKind::Verify
+            ErrorKind::Tag
         )))
     );
 
     let b = &b"cde"[..];
-    assert_eq!(f(Partial::new(b)), Ok((Partial::new(&b"de"[..]), b'c')));
+    assert_eq!(f(Partial::new(b)), Ok((Partial::new(&b"de"[..]), 'c')));
 }
 
 #[test]
@@ -162,7 +293,7 @@ fn char_str() {
         f(Partial::new(a)),
         Err(ErrMode::Backtrack(error_position!(
             &Partial::new(a),
-            ErrorKind::Verify
+            ErrorKind::Tag
         )))
     );
 
@@ -600,85 +731,106 @@ fn partial_recognize_take_while0() {
     );
 }
 
-#[cfg(feature = "alloc")]
 #[test]
-fn partial_case_insensitive() {
-    fn test(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
-        tag(Caseless("ABcd")).parse_peek(i)
+fn partial_literal_case_insensitive() {
+    fn caseless_bytes(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
+        literal(Caseless("ABcd")).parse_peek(i)
     }
     assert_eq!(
-        test(Partial::new(&b"aBCdefgh"[..])),
+        caseless_bytes(Partial::new(&b"aBCdefgh"[..])),
         Ok((Partial::new(&b"efgh"[..]), &b"aBCd"[..]))
     );
     assert_eq!(
-        test(Partial::new(&b"abcdefgh"[..])),
+        caseless_bytes(Partial::new(&b"abcdefgh"[..])),
         Ok((Partial::new(&b"efgh"[..]), &b"abcd"[..]))
     );
     assert_eq!(
-        test(Partial::new(&b"ABCDefgh"[..])),
+        caseless_bytes(Partial::new(&b"ABCDefgh"[..])),
         Ok((Partial::new(&b"efgh"[..]), &b"ABCD"[..]))
     );
     assert_eq!(
-        test(Partial::new(&b"ab"[..])),
+        caseless_bytes(Partial::new(&b"ab"[..])),
         Err(ErrMode::Incomplete(Needed::new(2)))
     );
     assert_eq!(
-        test(Partial::new(&b"Hello"[..])),
+        caseless_bytes(Partial::new(&b"Hello"[..])),
         Err(ErrMode::Backtrack(error_position!(
             &Partial::new(&b"Hello"[..]),
             ErrorKind::Tag
         )))
     );
     assert_eq!(
-        test(Partial::new(&b"Hel"[..])),
+        caseless_bytes(Partial::new(&b"Hel"[..])),
         Err(ErrMode::Backtrack(error_position!(
             &Partial::new(&b"Hel"[..]),
             ErrorKind::Tag
         )))
     );
 
-    fn test2(i: Partial<&str>) -> IResult<Partial<&str>, &str> {
-        tag(Caseless("ABcd")).parse_peek(i)
+    fn caseless_str(i: Partial<&str>) -> IResult<Partial<&str>, &str> {
+        literal(Caseless("ABcd")).parse_peek(i)
     }
     assert_eq!(
-        test2(Partial::new("aBCdefgh")),
+        caseless_str(Partial::new("aBCdefgh")),
         Ok((Partial::new("efgh"), "aBCd"))
     );
     assert_eq!(
-        test2(Partial::new("abcdefgh")),
+        caseless_str(Partial::new("abcdefgh")),
         Ok((Partial::new("efgh"), "abcd"))
     );
     assert_eq!(
-        test2(Partial::new("ABCDefgh")),
+        caseless_str(Partial::new("ABCDefgh")),
         Ok((Partial::new("efgh"), "ABCD"))
     );
     assert_eq!(
-        test2(Partial::new("ab")),
+        caseless_str(Partial::new("ab")),
         Err(ErrMode::Incomplete(Needed::new(2)))
     );
     assert_eq!(
-        test2(Partial::new("Hello")),
+        caseless_str(Partial::new("Hello")),
         Err(ErrMode::Backtrack(error_position!(
             &Partial::new("Hello"),
             ErrorKind::Tag
         )))
     );
     assert_eq!(
-        test2(Partial::new("Hel")),
+        caseless_str(Partial::new("Hel")),
         Err(ErrMode::Backtrack(error_position!(
             &Partial::new("Hel"),
+            ErrorKind::Tag
+        )))
+    );
+
+    fn matches_kelvin(i: Partial<&str>) -> IResult<Partial<&str>, &str> {
+        literal(Caseless("k")).parse_peek(i)
+    }
+    assert_eq!(
+        matches_kelvin(Partial::new("K")),
+        Err(ErrMode::Backtrack(error_position!(
+            &Partial::new("K"),
+            ErrorKind::Tag
+        )))
+    );
+
+    fn is_kelvin(i: Partial<&str>) -> IResult<Partial<&str>, &str> {
+        literal(Caseless("K")).parse_peek(i)
+    }
+    assert_eq!(
+        is_kelvin(Partial::new("k")),
+        Err(ErrMode::Backtrack(error_position!(
+            &Partial::new("k"),
             ErrorKind::Tag
         )))
     );
 }
 
 #[test]
-fn partial_tag_fixed_size_array() {
+fn partial_literal_fixed_size_array() {
     fn test(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
-        tag([0x42]).parse_peek(i)
+        literal([0x42]).parse_peek(i)
     }
     fn test2(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, &[u8]> {
-        tag(&[0x42]).parse_peek(i)
+        literal(&[0x42]).parse_peek(i)
     }
     let input = Partial::new(&[0x42, 0x00][..]);
     assert_eq!(test(input), Ok((Partial::new(&b"\x00"[..]), &b"\x42"[..])));

@@ -28,6 +28,73 @@ Released YYYY-MM-DD.
 
 --------------------------------------------------------------------------------
 
+## 3.15.4
+
+Released 2024-03-07.
+
+### Added
+
+* Added the `bumpalo::collections::Vec::extend_from_slices_copy` method, which
+  is a faster way to extend a vec from multiple slices when the element is
+  `Copy` than calling `extend_from_slice_copy` N times.
+
+--------------------------------------------------------------------------------
+
+## 3.15.3
+
+Released 2024-02-22.
+
+### Added
+
+* Added additional performance improvements to `bumpalo::collections::Vec`
+  related to reserving capacity.
+
+--------------------------------------------------------------------------------
+
+## 3.15.2
+
+Released 2024-02-21.
+
+### Added
+
+* Add a `bumpalo::collections::Vec::extend_from_slice_copy` method. This doesn't
+  exist on the standard library's `Vec` but they have access to specialization,
+  so their regular `extend_from_slice` has a specialization for `Copy`
+  types. Using this new method for `Copy` types is a ~80x performance
+  improvement over the plain `extend_from_slice` method.
+
+--------------------------------------------------------------------------------
+
+## 3.15.1
+
+Released 2024-02-20.
+
+### Fixed
+
+* Fixed the MSRV listed in `Cargo.toml`, whose update was forgotten when the
+  MSRV bumped in release 3.15.0.
+
+--------------------------------------------------------------------------------
+
+## 3.15.0
+
+Released 2024-02-15.
+
+### Changed
+
+* The minimum supported Rust version (MSRV) is now 1.73.0.
+* `bumpalo::collections::String::push_str` and
+  `bumpalo::collections::String::from_str_in` received significant performance
+  improvements.
+* Allocator trait methods are now marked `#[inline]`, increasing performance for
+  some callers.
+
+### Fixed
+
+* Fixed an edge-case bug in the `Allocator::shrink` method.
+
+--------------------------------------------------------------------------------
+
 ## 3.14.0
 
 Released 2023-09-14.

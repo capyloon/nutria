@@ -18,7 +18,7 @@ use super::{
     quic::Sample,
 };
 use crate::{
-    bits::BitLength,
+    bits::{BitLength, FromUsizeBytes},
     c, cpu,
     endian::BigEndian,
     error,
@@ -29,7 +29,6 @@ use core::ops::RangeFrom;
 #[derive(Clone)]
 pub(super) struct Key {
     inner: AES_KEY,
-    cpu_features: cpu::Features,
 }
 
 macro_rules! set_encrypt_key {
@@ -50,7 +49,7 @@ fn set_encrypt_key(
 ) -> Result<(), error::Unspecified> {
     // Unusually, in this case zero means success and non-zero means failure.
     #[allow(clippy::cast_possible_truncation)]
-    if 0 == unsafe { f(bytes.as_ptr(), key_bits.as_usize_bits() as c::uint, key) } {
+    if 0 == unsafe { f(bytes.as_ptr(), key_bits.as_bits() as c::uint, key) } {
         Ok(())
     } else {
         Err(error::Unspecified)
@@ -166,21 +165,17 @@ impl Key {
                 set_encrypt_key!(vpaes_set_encrypt_key, bytes, key_bits, &mut key)?
             }
 
-            #[cfg(not(target_arch = "aarch64"))]
             Implementation::NOHW => {
                 set_encrypt_key!(aes_nohw_set_encrypt_key, bytes, key_bits, &mut key)?
             }
         };
 
-        Ok(Self {
-            inner: key,
-            cpu_features,
-        })
+        Ok(Self { inner: key })
     }
 
     #[inline]
-    pub fn encrypt_block(&self, a: Block) -> Block {
-        match detect_implementation(self.cpu_features) {
+    pub fn encrypt_block(&self, a: Block, cpu_features: cpu::Features) -> Block {
+        match detect_implementation(cpu_features) {
             #[cfg(any(
                 target_arch = "aarch64",
                 target_arch = "arm",
@@ -197,14 +192,13 @@ impl Key {
             ))]
             Implementation::VPAES_BSAES => encrypt_block!(vpaes_encrypt, a, self),
 
-            #[cfg(not(target_arch = "aarch64"))]
             Implementation::NOHW => encrypt_block!(aes_nohw_encrypt, a, self),
         }
     }
 
     #[inline]
-    pub fn encrypt_iv_xor_block(&self, iv: Iv, input: Block) -> Block {
-        let encrypted_iv = self.encrypt_block(iv.into_block_less_safe());
+    pub fn encrypt_iv_xor_block(&self, iv: Iv, input: Block, cpu_features: cpu::Features) -> Block {
+        let encrypted_iv = self.encrypt_block(iv.into_block_less_safe(), cpu_features);
         encrypted_iv ^ input
     }
 
@@ -214,12 +208,13 @@ impl Key {
         in_out: &mut [u8],
         src: RangeFrom<usize>,
         ctr: &mut Counter,
+        cpu_features: cpu::Features,
     ) {
         let in_out_len = in_out[src.clone()].len();
 
         assert_eq!(in_out_len % BLOCK_LEN, 0);
 
-        match detect_implementation(self.cpu_features) {
+        match detect_implementation(cpu_features) {
             #[cfg(any(
                 target_arch = "aarch64",
                 target_arch = "arm",
@@ -271,11 +266,10 @@ impl Key {
             #[cfg(target_arch = "x86")]
             Implementation::VPAES_BSAES => {
                 super::shift::shift_full_blocks(in_out, src, |input| {
-                    self.encrypt_iv_xor_block(ctr.increment(), Block::from(input))
+                    self.encrypt_iv_xor_block(ctr.increment(), Block::from(input), cpu_features)
                 });
             }
 
-            #[cfg(not(target_arch = "aarch64"))]
             Implementation::NOHW => {
                 ctr32_encrypt_blocks!(aes_nohw_ctr32_encrypt_blocks, in_out, src, &self.inner, ctr)
             }
@@ -283,7 +277,7 @@ impl Key {
     }
 
     pub fn new_mask(&self, sample: Sample) -> [u8; 5] {
-        let block = self.encrypt_block(Block::from(&sample));
+        let block = self.encrypt_block(Block::from(&sample), cpu::features());
 
         let mut out: [u8; 5] = [0; 5];
         out.copy_from_slice(&block.as_ref()[..5]);
@@ -291,16 +285,13 @@ impl Key {
         out
     }
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
     #[must_use]
-    pub fn is_aes_hw(&self) -> bool {
-        matches!(
-            detect_implementation(self.cpu_features),
-            Implementation::HWAES
-        )
+    pub fn is_aes_hw(&self, cpu_features: cpu::Features) -> bool {
+        matches!(detect_implementation(cpu_features), Implementation::HWAES)
     }
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
     #[must_use]
     pub(super) fn inner_less_safe(&self) -> &AES_KEY {
         &self.inner
@@ -387,7 +378,6 @@ pub enum Implementation {
     ))]
     VPAES_BSAES = 2,
 
-    #[cfg(not(target_arch = "aarch64"))]
     NOHW = 3,
 }
 
@@ -401,14 +391,16 @@ fn detect_implementation(cpu_features: cpu::Features) -> Implementation {
     )))]
     let _cpu_features = cpu_features;
 
-    #[cfg(any(
-        target_arch = "aarch64",
-        target_arch = "arm",
-        target_arch = "x86_64",
-        target_arch = "x86"
-    ))]
+    #[cfg(any(target_arch = "aarch64", target_arch = "arm"))]
     {
-        if cpu::intel::AES.available(cpu_features) || cpu::arm::AES.available(cpu_features) {
+        if cpu::arm::AES.available(cpu_features) {
+            return Implementation::HWAES;
+        }
+    }
+
+    #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
+    {
+        if cpu::intel::AES.available(cpu_features) {
             return Implementation::HWAES;
         }
     }
@@ -420,19 +412,13 @@ fn detect_implementation(cpu_features: cpu::Features) -> Implementation {
         }
     }
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(any(target_arch = "aarch64", target_arch = "arm"))]
     {
         if cpu::arm::NEON.available(cpu_features) {
             return Implementation::VPAES_BSAES;
         }
     }
 
-    #[cfg(target_arch = "aarch64")]
-    {
-        Implementation::VPAES_BSAES
-    }
-
-    #[cfg(not(target_arch = "aarch64"))]
     {
         Implementation::NOHW
     }
@@ -445,6 +431,7 @@ mod tests {
 
     #[test]
     pub fn test_aes() {
+        let cpu_features = cpu::features();
         test::run(test_file!("aes_tests.txt"), |section, test_case| {
             assert_eq!(section, "");
             let key = consume_key(test_case, "Key");
@@ -453,7 +440,7 @@ mod tests {
             let expected_output = test_case.consume_bytes("Output");
 
             let block = Block::from(input);
-            let output = key.encrypt_block(block);
+            let output = key.encrypt_block(block, cpu_features);
             assert_eq!(output.as_ref(), &expected_output[..]);
 
             Ok(())

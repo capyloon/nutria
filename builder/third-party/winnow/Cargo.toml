@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.64.0"
 name = "winnow"
-version = "0.5.35"
+version = "0.6.5"
 include = [
     "build.rs",
     "src/**/*",
@@ -255,4 +255,6 @@ unstable-doc = [
     "alloc",
     "std",
     "simd",
+    "unstable-recover",
 ]
+unstable-recover = []

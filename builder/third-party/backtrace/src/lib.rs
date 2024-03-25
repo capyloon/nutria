@@ -134,6 +134,12 @@ cfg_if::cfg_if! {
     }
 }
 
+cfg_if::cfg_if! {
+    if #[cfg(all(target_env = "sgx", target_vendor = "fortanix", not(feature = "std")))] {
+        pub use self::backtrace::set_image_base;
+    }
+}
+
 #[allow(dead_code)]
 struct Bomb {
     enabled: bool,
@@ -153,11 +159,12 @@ impl Drop for Bomb {
 mod lock {
     use std::boxed::Box;
     use std::cell::Cell;
+    use std::ptr;
     use std::sync::{Mutex, MutexGuard, Once};
 
     pub struct LockGuard(Option<MutexGuard<'static, ()>>);
 
-    static mut LOCK: *mut Mutex<()> = 0 as *mut _;
+    static mut LOCK: *mut Mutex<()> = ptr::null_mut();
     static INIT: Once = Once::new();
     thread_local!(static LOCK_HELD: Cell<bool> = Cell::new(false));
 
@@ -186,7 +193,14 @@ mod lock {
     }
 }
 
-#[cfg(all(windows, not(target_vendor = "uwp")))]
+#[cfg(all(
+    windows,
+    any(
+        target_env = "msvc",
+        all(target_env = "gnu", any(target_arch = "x86", target_arch = "arm"))
+    ),
+    not(target_vendor = "uwp")
+))]
 mod dbghelp;
 #[cfg(windows)]
 mod windows;

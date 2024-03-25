@@ -15,7 +15,7 @@ use crate::quick_check::IsNormalized;
 use crate::quick_check::IsNormalized::*;
 
 #[allow(unused)]
-pub const UNICODE_VERSION: (u8, u8, u8) = (15, 0, 0);
+pub const UNICODE_VERSION: (u8, u8, u8) = (15, 1, 0);
 
 pub(crate) const CANONICAL_COMBINING_CLASS_SALT: &[u16] = &[
     0x0,
@@ -33841,14 +33841,13 @@ pub fn is_public_assigned(c: char) -> bool {
         | '\u{2E80}'..='\u{2E99}'
         | '\u{2E9B}'..='\u{2EF3}'
         | '\u{2F00}'..='\u{2FD5}'
-        | '\u{2FF0}'..='\u{2FFB}'
-        | '\u{3000}'..='\u{303F}'
+        | '\u{2FF0}'..='\u{303F}'
         | '\u{3041}'..='\u{3096}'
         | '\u{3099}'..='\u{30FF}'
         | '\u{3105}'..='\u{312F}'
         | '\u{3131}'..='\u{318E}'
         | '\u{3190}'..='\u{31E3}'
-        | '\u{31F0}'..='\u{321E}'
+        | '\u{31EF}'..='\u{321E}'
         | '\u{3220}'..='\u{A48C}'
         | '\u{A490}'..='\u{A4C6}'
         | '\u{A4D0}'..='\u{A62B}'
@@ -34271,6 +34270,7 @@ pub fn is_public_assigned(c: char) -> bool {
         | '\u{2B740}'..='\u{2B81D}'
         | '\u{2B820}'..='\u{2CEA1}'
         | '\u{2CEB0}'..='\u{2EBE0}'
+        | '\u{2EBF0}'..='\u{2EE5D}'
         | '\u{2F800}'..='\u{2FA1D}'
         | '\u{30000}'..='\u{3134A}'
         | '\u{31350}'..='\u{323AF}'

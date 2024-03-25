@@ -7,18 +7,22 @@
 //!
 //! However, we should probably not let this show in the public API or docs.
 
+mod entry;
 mod raw;
+
+pub mod raw_entry_v1;
 
 use hashbrown::raw::RawTable;
 
-use crate::vec::{Drain, Vec};
+use crate::vec::{self, Vec};
 use crate::TryReserveError;
-use core::fmt;
 use core::mem;
 use core::ops::RangeBounds;
 
 use crate::util::simplify_range;
 use crate::{Bucket, Entries, Equivalent, HashValue};
+
+pub use entry::{Entry, IndexedEntry, OccupiedEntry, VacantEntry};
 
 /// Core of the map that does not depend on S
 pub(crate) struct IndexMapCore<K, V> {
@@ -78,12 +82,13 @@ where
     }
 }
 
-impl<K, V> fmt::Debug for IndexMapCore<K, V>
+#[cfg(feature = "test_debug")]
+impl<K, V> core::fmt::Debug for IndexMapCore<K, V>
 where
-    K: fmt::Debug,
-    V: fmt::Debug,
+    K: core::fmt::Debug,
+    V: core::fmt::Debug,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("IndexMapCore")
             .field("indices", &raw::DebugIndices(&self.indices))
             .field("entries", &self.entries)
@@ -160,7 +165,7 @@ impl<K, V> IndexMapCore<K, V> {
         }
     }
 
-    pub(crate) fn drain<R>(&mut self, range: R) -> Drain<'_, Bucket<K, V>>
+    pub(crate) fn drain<R>(&mut self, range: R) -> vec::Drain<'_, Bucket<K, V>>
     where
         R: RangeBounds<usize>,
     {
@@ -190,6 +195,28 @@ impl<K, V> IndexMapCore<K, V> {
         let mut indices = RawTable::with_capacity(entries.len());
         raw::insert_bulk_no_grow(&mut indices, &entries);
         Self { indices, entries }
+    }
+
+    pub(crate) fn split_splice<R>(&mut self, range: R) -> (Self, vec::IntoIter<Bucket<K, V>>)
+    where
+        R: RangeBounds<usize>,
+    {
+        let range = simplify_range(range, self.len());
+        self.erase_indices(range.start, self.entries.len());
+        let entries = self.entries.split_off(range.end);
+        let drained = self.entries.split_off(range.start);
+
+        let mut indices = RawTable::with_capacity(entries.len());
+        raw::insert_bulk_no_grow(&mut indices, &entries);
+        (Self { indices, entries }, drained.into_iter())
+    }
+
+    /// Append from another map without checking whether items already exist.
+    pub(crate) fn append_unchecked(&mut self, other: &mut Self) {
+        self.reserve(other.len());
+        raw::insert_bulk_no_grow(&mut self.indices, &other.entries);
+        self.entries.append(&mut other.entries);
+        other.indices.clear();
     }
 
     /// Reserve capacity for `additional` more key-value pairs.
@@ -284,6 +311,17 @@ impl<K, V> IndexMapCore<K, V> {
         self.entries.push(Bucket { hash, key, value });
     }
 
+    /// Insert a key-value pair in `entries` at a particular index,
+    /// *without* checking whether it already exists.
+    fn insert_entry(&mut self, index: usize, hash: HashValue, key: K, value: V) {
+        if self.entries.len() == self.entries.capacity() {
+            // Reserve our own capacity synced to the indices,
+            // rather than letting `Vec::insert` just double it.
+            self.reserve_entries(1);
+        }
+        self.entries.insert(index, Bucket { hash, key, value });
+    }
+
     /// Return the index in `entries` where an equivalent key can be found
     pub(crate) fn get_index_of<Q>(&self, hash: HashValue, key: &Q) -> Option<usize>
     where
@@ -305,6 +343,56 @@ impl<K, V> IndexMapCore<K, V> {
                 (i, None)
             }
         }
+    }
+
+    /// Same as `insert_full`, except it also replaces the key
+    pub(crate) fn replace_full(
+        &mut self,
+        hash: HashValue,
+        key: K,
+        value: V,
+    ) -> (usize, Option<(K, V)>)
+    where
+        K: Eq,
+    {
+        match self.find_or_insert(hash, &key) {
+            Ok(i) => {
+                let entry = &mut self.entries[i];
+                let kv = (
+                    mem::replace(&mut entry.key, key),
+                    mem::replace(&mut entry.value, value),
+                );
+                (i, Some(kv))
+            }
+            Err(i) => {
+                debug_assert_eq!(i, self.entries.len());
+                self.push_entry(hash, key, value);
+                (i, None)
+            }
+        }
+    }
+
+    fn insert_unique(&mut self, hash: HashValue, key: K, value: V) -> usize {
+        let i = self.indices.len();
+        self.indices.insert(hash.get(), i, get_hash(&self.entries));
+        debug_assert_eq!(i, self.entries.len());
+        self.push_entry(hash, key, value);
+        i
+    }
+
+    fn shift_insert_unique(&mut self, index: usize, hash: HashValue, key: K, value: V) {
+        let end = self.indices.len();
+        assert!(index <= end);
+        // Increment others first so we don't have duplicate indices.
+        self.increment_indices(index, end);
+        let entries = &*self.entries;
+        self.indices.insert(hash.get(), index, move |&i| {
+            // Adjust for the incremented indices to find hashes.
+            debug_assert_ne!(i, index);
+            let i = if i < index { i } else { i - 1 };
+            entries[i].hash.get()
+        });
+        self.insert_entry(index, hash, key, value);
     }
 
     /// Remove an entry by shifting all entries that follow it
@@ -545,218 +633,10 @@ impl<K, V> IndexMapCore<K, V> {
     }
 }
 
-/// Entry for an existing key-value pair or a vacant location to
-/// insert one.
-pub enum Entry<'a, K, V> {
-    /// Existing slot with equivalent key.
-    Occupied(OccupiedEntry<'a, K, V>),
-    /// Vacant slot (no equivalent key in the map).
-    Vacant(VacantEntry<'a, K, V>),
-}
-
-impl<'a, K, V> Entry<'a, K, V> {
-    /// Inserts the given default value in the entry if it is vacant and returns a mutable
-    /// reference to it. Otherwise a mutable reference to an already existent value is returned.
-    ///
-    /// Computes in **O(1)** time (amortized average).
-    pub fn or_insert(self, default: V) -> &'a mut V {
-        match self {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(default),
-        }
-    }
-
-    /// Inserts the result of the `call` function in the entry if it is vacant and returns a mutable
-    /// reference to it. Otherwise a mutable reference to an already existent value is returned.
-    ///
-    /// Computes in **O(1)** time (amortized average).
-    pub fn or_insert_with<F>(self, call: F) -> &'a mut V
-    where
-        F: FnOnce() -> V,
-    {
-        match self {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(call()),
-        }
-    }
-
-    /// Inserts the result of the `call` function with a reference to the entry's key if it is
-    /// vacant, and returns a mutable reference to the new value. Otherwise a mutable reference to
-    /// an already existent value is returned.
-    ///
-    /// Computes in **O(1)** time (amortized average).
-    pub fn or_insert_with_key<F>(self, call: F) -> &'a mut V
-    where
-        F: FnOnce(&K) -> V,
-    {
-        match self {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => {
-                let value = call(&entry.key);
-                entry.insert(value)
-            }
-        }
-    }
-
-    /// Gets a reference to the entry's key, either within the map if occupied,
-    /// or else the new key that was used to find the entry.
-    pub fn key(&self) -> &K {
-        match *self {
-            Entry::Occupied(ref entry) => entry.key(),
-            Entry::Vacant(ref entry) => entry.key(),
-        }
-    }
-
-    /// Return the index where the key-value pair exists or will be inserted.
-    pub fn index(&self) -> usize {
-        match *self {
-            Entry::Occupied(ref entry) => entry.index(),
-            Entry::Vacant(ref entry) => entry.index(),
-        }
-    }
-
-    /// Modifies the entry if it is occupied.
-    pub fn and_modify<F>(self, f: F) -> Self
-    where
-        F: FnOnce(&mut V),
-    {
-        match self {
-            Entry::Occupied(mut o) => {
-                f(o.get_mut());
-                Entry::Occupied(o)
-            }
-            x => x,
-        }
-    }
-
-    /// Inserts a default-constructed value in the entry if it is vacant and returns a mutable
-    /// reference to it. Otherwise a mutable reference to an already existent value is returned.
-    ///
-    /// Computes in **O(1)** time (amortized average).
-    pub fn or_default(self) -> &'a mut V
-    where
-        V: Default,
-    {
-        match self {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(V::default()),
-        }
-    }
-}
-
-impl<K: fmt::Debug, V: fmt::Debug> fmt::Debug for Entry<'_, K, V> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Entry::Vacant(ref v) => f.debug_tuple(stringify!(Entry)).field(v).finish(),
-            Entry::Occupied(ref o) => f.debug_tuple(stringify!(Entry)).field(o).finish(),
-        }
-    }
-}
-
-pub use self::raw::OccupiedEntry;
-
-// Extra methods that don't threaten the unsafe encapsulation.
-impl<K, V> OccupiedEntry<'_, K, V> {
-    /// Sets the value of the entry to `value`, and returns the entry's old value.
-    pub fn insert(&mut self, value: V) -> V {
-        mem::replace(self.get_mut(), value)
-    }
-
-    /// Remove the key, value pair stored in the map for this entry, and return the value.
-    ///
-    /// **NOTE:** This is equivalent to `.swap_remove()`.
-    pub fn remove(self) -> V {
-        self.swap_remove()
-    }
-
-    /// Remove the key, value pair stored in the map for this entry, and return the value.
-    ///
-    /// Like `Vec::swap_remove`, the pair is removed by swapping it with the
-    /// last element of the map and popping it off. **This perturbs
-    /// the position of what used to be the last element!**
-    ///
-    /// Computes in **O(1)** time (average).
-    pub fn swap_remove(self) -> V {
-        self.swap_remove_entry().1
-    }
-
-    /// Remove the key, value pair stored in the map for this entry, and return the value.
-    ///
-    /// Like `Vec::remove`, the pair is removed by shifting all of the
-    /// elements that follow it, preserving their relative order.
-    /// **This perturbs the index of all of those elements!**
-    ///
-    /// Computes in **O(n)** time (average).
-    pub fn shift_remove(self) -> V {
-        self.shift_remove_entry().1
-    }
-
-    /// Remove and return the key, value pair stored in the map for this entry
-    ///
-    /// **NOTE:** This is equivalent to `.swap_remove_entry()`.
-    pub fn remove_entry(self) -> (K, V) {
-        self.swap_remove_entry()
-    }
-}
-
-impl<K: fmt::Debug, V: fmt::Debug> fmt::Debug for OccupiedEntry<'_, K, V> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct(stringify!(OccupiedEntry))
-            .field("key", self.key())
-            .field("value", self.get())
-            .finish()
-    }
-}
-
-/// A view into a vacant entry in a `IndexMap`.
-/// It is part of the [`Entry`] enum.
-///
-/// [`Entry`]: enum.Entry.html
-pub struct VacantEntry<'a, K, V> {
-    map: &'a mut IndexMapCore<K, V>,
-    hash: HashValue,
-    key: K,
-}
-
-impl<'a, K, V> VacantEntry<'a, K, V> {
-    /// Gets a reference to the key that was used to find the entry.
-    pub fn key(&self) -> &K {
-        &self.key
-    }
-
-    /// Takes ownership of the key, leaving the entry vacant.
-    pub fn into_key(self) -> K {
-        self.key
-    }
-
-    /// Return the index where the key-value pair will be inserted.
-    pub fn index(&self) -> usize {
-        self.map.indices.len()
-    }
-
-    /// Inserts the entry's key and the given value into the map, and returns a mutable reference
-    /// to the value.
-    pub fn insert(self, value: V) -> &'a mut V {
-        let i = self.index();
-        let Self { map, hash, key } = self;
-        map.indices.insert(hash.get(), i, get_hash(&map.entries));
-        debug_assert_eq!(i, map.entries.len());
-        map.push_entry(hash, key, value);
-        &mut map.entries[i].value
-    }
-}
-
-impl<K: fmt::Debug, V> fmt::Debug for VacantEntry<'_, K, V> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple(stringify!(VacantEntry))
-            .field(self.key())
-            .finish()
-    }
-}
-
 #[test]
 fn assert_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<IndexMapCore<i32, i32>>();
     assert_send_sync::<Entry<'_, i32, i32>>();
+    assert_send_sync::<IndexedEntry<'_, i32, i32>>();
 }

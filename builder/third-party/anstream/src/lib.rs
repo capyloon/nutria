@@ -3,7 +3,7 @@
 //! *A portmanteau of "ansi stream"*
 //!
 //! [`AutoStream`] always accepts [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code),
-//! adapting to the user's terminal's capabilities.
+//! [adapting to the user's terminal's capabilities][AutoStream].
 //!
 //! Benefits
 //! - Allows the caller to not be concerned with the terminal's capabilities

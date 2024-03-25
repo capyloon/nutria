@@ -15,6 +15,12 @@
 As of Rust 1.70, most users should use the [`IsTerminal`] trait in the Rust
 standard library instead of this crate.
 
+On Unix platforms, this crate now uses libc, so that the implementation
+matches what's in std. Users wishing to use the rustix-based implementation
+can use the [rustix-is-terminal] crate instead.
+
+[rustix-is-terminal]: https://crates.io/crates/rustix-is-terminal
+
 <hr>
 
 is-terminal is a simple utility that answers one question:

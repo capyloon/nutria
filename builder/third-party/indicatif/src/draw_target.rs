@@ -1,4 +1,6 @@
 use std::io;
+use std::ops::{Add, AddAssign, Sub};
+use std::slice::SliceIndex;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::thread::panicking;
 use std::time::Duration;
@@ -14,7 +16,8 @@ use crate::TermLike;
 
 /// Target for draw operations
 ///
-/// This tells a progress bar or a multi progress object where to paint to.
+/// This tells a [`ProgressBar`](crate::ProgressBar) or a
+/// [`MultiProgress`](crate::MultiProgress) object where to paint to.
 /// The draw target is a stateful wrapper over a drawing destination and
 /// internally optimizes how often the state is painted to the output
 /// device.
@@ -66,12 +69,12 @@ impl ProgressDrawTarget {
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
     ///
-    /// Will panic if refresh_rate is `0`.
+    /// Will panic if `refresh_rate` is `0`.
     pub fn term(term: Term, refresh_rate: u8) -> Self {
         Self {
             kind: TargetKind::Term {
                 term,
-                last_line_count: 0,
+                last_line_count: VisualLines::default(),
                 rate_limiter: RateLimiter::new(refresh_rate),
                 draw_state: DrawState::default(),
             },
@@ -83,7 +86,7 @@ impl ProgressDrawTarget {
         Self {
             kind: TargetKind::TermLike {
                 inner: term_like,
-                last_line_count: 0,
+                last_line_count: VisualLines::default(),
                 rate_limiter: None,
                 draw_state: DrawState::default(),
             },
@@ -96,7 +99,7 @@ impl ProgressDrawTarget {
         Self {
             kind: TargetKind::TermLike {
                 inner: term_like,
-                last_line_count: 0,
+                last_line_count: VisualLines::default(),
                 rate_limiter: Option::from(RateLimiter::new(refresh_rate)),
                 draw_state: DrawState::default(),
             },
@@ -126,12 +129,12 @@ impl ProgressDrawTarget {
     }
 
     /// Returns the current width of the draw target.
-    pub(crate) fn width(&self) -> u16 {
+    pub(crate) fn width(&self) -> Option<u16> {
         match self.kind {
-            TargetKind::Term { ref term, .. } => term.size().1,
+            TargetKind::Term { ref term, .. } => Some(term.size().1),
             TargetKind::Multi { ref state, .. } => state.read().unwrap().width(),
-            TargetKind::Hidden => 0,
-            TargetKind::TermLike { ref inner, .. } => inner.width(),
+            TargetKind::TermLike { ref inner, .. } => Some(inner.width()),
+            TargetKind::Hidden => None,
         }
     }
 
@@ -227,7 +230,7 @@ impl ProgressDrawTarget {
 enum TargetKind {
     Term {
         term: Term,
-        last_line_count: usize,
+        last_line_count: VisualLines,
         rate_limiter: RateLimiter,
         draw_state: DrawState,
     },
@@ -238,7 +241,7 @@ enum TargetKind {
     Hidden,
     TermLike {
         inner: Box<dyn TermLike>,
-        last_line_count: usize,
+        last_line_count: VisualLines,
         rate_limiter: Option<RateLimiter>,
         draw_state: DrawState,
     },
@@ -247,7 +250,7 @@ enum TargetKind {
 impl TargetKind {
     /// Adjust `last_line_count` such that the next draw operation keeps/clears additional lines
     fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
-        let last_line_count: &mut usize = match self {
+        let last_line_count = match self {
             Self::Term {
                 last_line_count, ..
             } => last_line_count,
@@ -267,7 +270,7 @@ impl TargetKind {
 pub(crate) enum Drawable<'a> {
     Term {
         term: &'a Term,
-        last_line_count: &'a mut usize,
+        last_line_count: &'a mut VisualLines,
         draw_state: &'a mut DrawState,
     },
     Multi {
@@ -278,7 +281,7 @@ pub(crate) enum Drawable<'a> {
     },
     TermLike {
         term_like: &'a dyn TermLike,
-        last_line_count: &'a mut usize,
+        last_line_count: &'a mut VisualLines,
         draw_state: &'a mut DrawState,
     },
 }
@@ -286,7 +289,7 @@ pub(crate) enum Drawable<'a> {
 impl<'a> Drawable<'a> {
     /// Adjust `last_line_count` such that the next draw operation keeps/clears additional lines
     pub(crate) fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
-        let last_line_count: &mut usize = match self {
+        let last_line_count: &mut VisualLines = match self {
             Drawable::Term {
                 last_line_count, ..
             } => last_line_count,
@@ -343,9 +346,9 @@ impl<'a> Drawable<'a> {
 
 pub(crate) enum LineAdjust {
     /// Adds to `last_line_count` so that the next draw also clears those lines
-    Clear(usize),
+    Clear(VisualLines),
     /// Subtracts from `last_line_count` so that the next draw retains those lines
-    Keep(usize),
+    Keep(VisualLines),
 }
 
 pub(crate) struct DrawStateWrapper<'a> {
@@ -449,7 +452,9 @@ const MAX_BURST: u8 = 20;
 pub(crate) struct DrawState {
     /// The lines to print (can contain ANSI codes)
     pub(crate) lines: Vec<String>,
-    /// The number of lines that shouldn't be reaped by the next tick.
+    /// The number [`Self::lines`] entries that shouldn't be reaped by the next tick.
+    ///
+    /// Note that this number may be different than the number of visual lines required to draw [`Self::lines`].
     pub(crate) orphan_lines_count: usize,
     /// True if we should move the cursor up when possible instead of clearing lines.
     pub(crate) move_cursor: bool,
@@ -461,17 +466,17 @@ impl DrawState {
     fn draw_to_term(
         &mut self,
         term: &(impl TermLike + ?Sized),
-        last_line_count: &mut usize,
+        last_line_count: &mut VisualLines,
     ) -> io::Result<()> {
         if panicking() {
             return Ok(());
         }
 
         if !self.lines.is_empty() && self.move_cursor {
-            term.move_cursor_up(*last_line_count)?;
+            term.move_cursor_up(last_line_count.as_usize())?;
         } else {
             // Fork of console::clear_last_lines that assumes that the last line doesn't contain a '\n'
-            let n = *last_line_count;
+            let n = last_line_count.as_usize();
             term.move_cursor_up(n.saturating_sub(1))?;
             for i in 0..n {
                 term.clear_line()?;
@@ -482,23 +487,27 @@ impl DrawState {
             term.move_cursor_up(n.saturating_sub(1))?;
         }
 
+        let width = term.width() as usize;
+        let visual_lines = self.visual_line_count(.., width);
         let shift = match self.alignment {
-            MultiProgressAlignment::Bottom if self.lines.len() < *last_line_count => {
-                let shift = *last_line_count - self.lines.len();
-                for _ in 0..shift {
+            MultiProgressAlignment::Bottom if visual_lines < *last_line_count => {
+                let shift = *last_line_count - visual_lines;
+                for _ in 0..shift.as_usize() {
                     term.write_line("")?;
                 }
                 shift
             }
-            _ => 0,
+            _ => VisualLines::default(),
         };
 
         let term_height = term.height() as usize;
         let term_width = term.width() as usize;
         let len = self.lines.len();
-        let mut real_len = 0;
-        let mut last_line_filler = 0;
         debug_assert!(self.orphan_lines_count <= self.lines.len());
+        let orphan_visual_line_count =
+            self.visual_line_count(..self.orphan_lines_count, term_width);
+        let mut real_len = VisualLines::default();
+        let mut last_line_filler = 0;
         for (idx, line) in self.lines.iter().enumerate() {
             let line_width = console::measure_text_width(line);
             let diff = if line.is_empty() {
@@ -514,13 +523,16 @@ impl DrawState {
                 // new line. If the line is measured to be len = 0, we will
                 // subtract with overflow later.
                 usize::max(terminal_len, 1)
-            };
-            // Don't consider orphan lines when comparing to terminal height.
-            debug_assert!(idx <= real_len);
-            if self.orphan_lines_count <= idx
-                && real_len - self.orphan_lines_count + diff > term_height
-            {
-                break;
+            }
+            .into();
+            // Have all orphan lines been drawn?
+            if self.orphan_lines_count <= idx {
+                // If so, then `real_len` should be at least `orphan_visual_line_count`.
+                debug_assert!(orphan_visual_line_count <= real_len);
+                // Don't consider orphan lines when comparing to terminal height.
+                if real_len - orphan_visual_line_count + diff > term_height.into() {
+                    break;
+                }
             }
             real_len += diff;
             if idx != 0 {
@@ -536,7 +548,7 @@ impl DrawState {
         term.write_str(&" ".repeat(last_line_filler))?;
 
         term.flush()?;
-        *last_line_count = real_len - self.orphan_lines_count + shift;
+        *last_line_count = real_len - orphan_visual_line_count + shift;
         Ok(())
     }
 
@@ -544,6 +556,74 @@ impl DrawState {
         self.lines.clear();
         self.orphan_lines_count = 0;
     }
+
+    pub(crate) fn visual_line_count(
+        &self,
+        range: impl SliceIndex<[String], Output = [String]>,
+        width: usize,
+    ) -> VisualLines {
+        visual_line_count(&self.lines[range], width)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) struct VisualLines(usize);
+
+impl VisualLines {
+    pub(crate) fn saturating_add(&self, other: Self) -> Self {
+        Self(self.0.saturating_add(other.0))
+    }
+
+    pub(crate) fn saturating_sub(&self, other: Self) -> Self {
+        Self(self.0.saturating_sub(other.0))
+    }
+
+    pub(crate) fn as_usize(&self) -> usize {
+        self.0
+    }
+}
+
+impl Add for VisualLines {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl AddAssign for VisualLines {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl<T: Into<usize>> From<T> for VisualLines {
+    fn from(value: T) -> Self {
+        Self(value.into())
+    }
+}
+
+impl Sub for VisualLines {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+/// Calculate the number of visual lines in the given lines, after
+/// accounting for line wrapping and non-printable characters.
+pub(crate) fn visual_line_count(lines: &[impl AsRef<str>], width: usize) -> VisualLines {
+    let mut real_lines = 0;
+    for line in lines {
+        let effective_line_length = console::measure_text_width(line.as_ref());
+        real_lines += usize::max(
+            (effective_line_length as f64 / width as f64).ceil() as usize,
+            1,
+        );
+    }
+
+    real_lines.into()
 }
 
 #[cfg(test)]
@@ -557,5 +637,92 @@ mod tests {
         let pb = mp.add(ProgressBar::new(100));
         assert!(mp.is_hidden());
         assert!(pb.is_hidden());
+    }
+
+    #[test]
+    fn real_line_count_test() {
+        #[derive(Debug)]
+        struct Case {
+            lines: &'static [&'static str],
+            expectation: usize,
+            width: usize,
+        }
+
+        let lines_and_expectations = [
+            Case {
+                lines: &["1234567890"],
+                expectation: 1,
+                width: 10,
+            },
+            Case {
+                lines: &["1234567890"],
+                expectation: 2,
+                width: 5,
+            },
+            Case {
+                lines: &["1234567890"],
+                expectation: 3,
+                width: 4,
+            },
+            Case {
+                lines: &["1234567890"],
+                expectation: 4,
+                width: 3,
+            },
+            Case {
+                lines: &["1234567890", "", "1234567890"],
+                expectation: 3,
+                width: 10,
+            },
+            Case {
+                lines: &["1234567890", "", "1234567890"],
+                expectation: 5,
+                width: 5,
+            },
+            Case {
+                lines: &["1234567890", "", "1234567890"],
+                expectation: 7,
+                width: 4,
+            },
+            Case {
+                lines: &["aaaaaaaaaaaaa", "", "bbbbbbbbbbbbbbbbb", "", "ccccccc"],
+                expectation: 8,
+                width: 7,
+            },
+            Case {
+                lines: &["", "", "", "", ""],
+                expectation: 5,
+                width: 6,
+            },
+            Case {
+                // These lines contain only ANSI escape sequences, so they should only count as 1 line
+                lines: &["\u{1b}[1m\u{1b}[1m\u{1b}[1m", "\u{1b}[1m\u{1b}[1m\u{1b}[1m"],
+                expectation: 2,
+                width: 5,
+            },
+            Case {
+                // These lines contain  ANSI escape sequences and two effective chars, so they should only count as 1 line still
+                lines: &[
+                    "a\u{1b}[1m\u{1b}[1m\u{1b}[1ma",
+                    "a\u{1b}[1m\u{1b}[1m\u{1b}[1ma",
+                ],
+                expectation: 2,
+                width: 5,
+            },
+            Case {
+                // These lines contain ANSI escape sequences and six effective chars, so they should count as 2 lines each
+                lines: &[
+                    "aa\u{1b}[1m\u{1b}[1m\u{1b}[1mabcd",
+                    "aa\u{1b}[1m\u{1b}[1m\u{1b}[1mabcd",
+                ],
+                expectation: 4,
+                width: 5,
+            },
+        ];
+
+        for case in lines_and_expectations.iter() {
+            let result = super::visual_line_count(case.lines, case.width);
+            assert_eq!(result, case.expectation.into(), "case: {:?}", case);
+        }
     }
 }

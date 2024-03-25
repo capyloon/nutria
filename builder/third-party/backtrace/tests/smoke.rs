@@ -1,5 +1,27 @@
 use backtrace::Frame;
+use std::ptr;
 use std::thread;
+
+fn get_actual_fn_pointer(fp: usize) -> usize {
+    // On AIX, the function name references a function descriptor.
+    // A function descriptor consists of (See https://reviews.llvm.org/D62532)
+    // * The address of the entry point of the function.
+    // * The TOC base address for the function.
+    // * The environment pointer.
+    // Deref `fp` directly so that we can get the address of `fp`'s
+    // entry point in text section.
+    //
+    // For TOC, one can find more information in
+    // https://www.ibm.com/docs/en/aix/7.2?topic=program-understanding-programming-toc
+    if cfg!(target_os = "aix") {
+        unsafe {
+            let actual_fn_entry = *(fp as *const usize);
+            actual_fn_entry
+        }
+    } else {
+        fp
+    }
+}
 
 #[test]
 // FIXME: shouldn't ignore this test on i686-msvc, unsure why it's failing
@@ -20,7 +42,7 @@ fn smoke_test_frames() {
         // Various platforms have various bits of weirdness about their
         // backtraces. To find a good starting spot let's search through the
         // frames
-        let target = frame_4 as usize;
+        let target = get_actual_fn_pointer(frame_4 as usize);
         let offset = v
             .iter()
             .map(|frame| frame.symbol_address() as usize)
@@ -39,7 +61,7 @@ fn smoke_test_frames() {
 
         assert_frame(
             frames.next().unwrap(),
-            frame_4 as usize,
+            get_actual_fn_pointer(frame_4 as usize),
             "frame_4",
             "tests/smoke.rs",
             start_line + 6,
@@ -47,7 +69,7 @@ fn smoke_test_frames() {
         );
         assert_frame(
             frames.next().unwrap(),
-            frame_3 as usize,
+            get_actual_fn_pointer(frame_3 as usize),
             "frame_3",
             "tests/smoke.rs",
             start_line + 3,
@@ -55,7 +77,7 @@ fn smoke_test_frames() {
         );
         assert_frame(
             frames.next().unwrap(),
-            frame_2 as usize,
+            get_actual_fn_pointer(frame_2 as usize),
             "frame_2",
             "tests/smoke.rs",
             start_line + 2,
@@ -63,7 +85,7 @@ fn smoke_test_frames() {
         );
         assert_frame(
             frames.next().unwrap(),
-            frame_1 as usize,
+            get_actual_fn_pointer(frame_1 as usize),
             "frame_1",
             "tests/smoke.rs",
             start_line + 1,
@@ -71,7 +93,7 @@ fn smoke_test_frames() {
         );
         assert_frame(
             frames.next().unwrap(),
-            smoke_test_frames as usize,
+            get_actual_fn_pointer(smoke_test_frames as usize),
             "smoke_test_frames",
             "",
             0,
@@ -90,16 +112,16 @@ fn smoke_test_frames() {
         backtrace::resolve_frame(frame, |sym| {
             print!("symbol  ip:{:?} address:{:?} ", frame.ip(), frame.symbol_address());
             if let Some(name) = sym.name() {
-                print!("name:{} ", name);
+                print!("name:{name} ");
             }
             if let Some(file) = sym.filename() {
                 print!("file:{} ", file.display());
             }
             if let Some(lineno) = sym.lineno() {
-                print!("lineno:{} ", lineno);
+                print!("lineno:{lineno} ");
             }
             if let Some(colno) = sym.colno() {
-                print!("colno:{} ", colno);
+                print!("colno:{colno} ");
             }
             println!();
         });
@@ -150,9 +172,7 @@ fn smoke_test_frames() {
         if cfg!(debug_assertions) {
             assert!(
                 name.contains(expected_name),
-                "didn't find `{}` in `{}`",
-                expected_name,
-                name
+                "didn't find `{expected_name}` in `{name}`"
             );
         }
 
@@ -164,18 +184,13 @@ fn smoke_test_frames() {
             if !expected_file.is_empty() {
                 assert!(
                     file.ends_with(expected_file),
-                    "{:?} didn't end with {:?}",
-                    file,
-                    expected_file
+                    "{file:?} didn't end with {expected_file:?}"
                 );
             }
             if expected_line != 0 {
                 assert!(
                     line == expected_line,
-                    "bad line number on frame for `{}`: {} != {}",
-                    expected_name,
-                    line,
-                    expected_line
+                    "bad line number on frame for `{expected_name}`: {line} != {expected_line}"
                 );
             }
 
@@ -185,10 +200,7 @@ fn smoke_test_frames() {
                 if expected_col != 0 {
                     assert!(
                         col == expected_col,
-                        "bad column number on frame for `{}`: {} != {}",
-                        expected_name,
-                        col,
-                        expected_col
+                        "bad column number on frame for `{expected_name}`: {col} != {expected_col}",
                     );
                 }
             }
@@ -253,16 +265,16 @@ fn sp_smoke_test() {
         assert!(refs.len() < 5);
 
         let x = refs.len();
-        refs.push(&x as *const _ as usize);
+        refs.push(ptr::addr_of!(x) as usize);
 
         if refs.len() < 5 {
             recursive_stack_references(refs);
-            eprintln!("exiting: {}", x);
+            eprintln!("exiting: {x}");
             return;
         }
 
         backtrace::trace(make_trace_closure(refs));
-        eprintln!("exiting: {}", x);
+        eprintln!("exiting: {x}");
     }
 
     // NB: the following `make_*` functions are pulled out of line, rather than
@@ -284,7 +296,7 @@ fn sp_smoke_test() {
                     sym.name()
                         .and_then(|name| name.as_str())
                         .map_or(false, |name| {
-                            eprintln!("name = {}", name);
+                            eprintln!("name = {name}");
                             name.contains("recursive_stack_references")
                         })
             });

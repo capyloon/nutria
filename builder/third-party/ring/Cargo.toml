@@ -13,10 +13,10 @@
 edition = "2021"
 rust-version = "1.61.0"
 name = "ring"
-version = "0.17.7"
+version = "0.17.8"
 authors = ["Brian Smith <brian@briansmith.org>"]
 build = "build.rs"
-links = "ring_core_0_17_7"
+links = "ring_core_0_17_8"
 include = [
     "LICENSE",
     "Cargo.toml",
@@ -75,6 +75,7 @@ include = [
     "crypto/fipsmodule/modes/asm/ghash-x86.pl",
     "crypto/fipsmodule/modes/asm/ghash-x86_64.pl",
     "crypto/fipsmodule/modes/asm/ghashv8-armx.pl",
+    "crypto/fipsmodule/modes/asm/aesv8-gcm-armv8.pl",
     "crypto/fipsmodule/sha/asm/sha256-armv4.pl",
     "crypto/fipsmodule/sha/asm/sha512-armv4.pl",
     "crypto/fipsmodule/sha/asm/sha512-armv8.pl",
@@ -190,6 +191,10 @@ rpath = false
 [lib]
 name = "ring"
 
+[dependencies.cfg-if]
+version = "1.0.0"
+default-features = false
+
 [dependencies.getrandom]
 version = "0.2.10"
 
@@ -220,7 +225,7 @@ version = "0.2.148"
 default-features = false
 
 [target."cfg(all(target_arch = \"aarch64\", target_os = \"windows\"))".dependencies.windows-sys]
-version = "0.48"
+version = "0.52"
 features = [
     "Win32_Foundation",
     "Win32_System_Threading",

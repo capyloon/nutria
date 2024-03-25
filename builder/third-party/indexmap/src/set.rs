@@ -1,12 +1,16 @@
-//! A hash set implemented using `IndexMap`
+//! A hash set implemented using [`IndexMap`]
 
 mod iter;
+mod mutable;
 mod slice;
 
 #[cfg(test)]
 mod tests;
 
-pub use self::iter::{Difference, Drain, Intersection, IntoIter, Iter, SymmetricDifference, Union};
+pub use self::iter::{
+    Difference, Drain, Intersection, IntoIter, Iter, Splice, SymmetricDifference, Union,
+};
+pub use self::mutable::MutableValues;
 pub use self::slice::Slice;
 
 #[cfg(feature = "rayon")]
@@ -31,8 +35,9 @@ type Bucket<T> = super::Bucket<T, ()>;
 /// A hash set where the iteration order of the values is independent of their
 /// hash values.
 ///
-/// The interface is closely compatible with the standard `HashSet`, but also
-/// has additional features.
+/// The interface is closely compatible with the standard
+/// [`HashSet`][std::collections::HashSet],
+/// but also has additional features.
 ///
 /// # Order
 ///
@@ -43,11 +48,12 @@ type Bucket<T> = super::Bucket<T, ()>;
 /// already present.
 ///
 /// All iterators traverse the set *in order*.  Set operation iterators like
-/// `union` produce a concatenated order, as do their matching "bitwise"
+/// [`IndexSet::union`] produce a concatenated order, as do their matching "bitwise"
 /// operators.  See their documentation for specifics.
 ///
 /// The insertion order is preserved, with **notable exceptions** like the
-/// `.remove()` or `.swap_remove()` methods. Methods such as `.sort_by()` of
+/// [`.remove()`][Self::remove] or [`.swap_remove()`][Self::swap_remove] methods.
+/// Methods such as [`.sort_by()`][Self::sort_by] of
 /// course result in a new order, depending on the sorting order.
 ///
 /// # Indices
@@ -129,13 +135,15 @@ impl<T, S> fmt::Debug for IndexSet<T, S>
 where
     T: fmt::Debug,
 {
+    #[cfg(not(feature = "test_debug"))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if cfg!(not(feature = "test_debug")) {
-            f.debug_set().entries(self.iter()).finish()
-        } else {
-            // Let the inner `IndexMap` print all of its details
-            f.debug_struct("IndexSet").field("map", &self.map).finish()
-        }
+        f.debug_set().entries(self.iter()).finish()
+    }
+
+    #[cfg(feature = "test_debug")]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Let the inner `IndexMap` print all of its details
+        f.debug_struct("IndexSet").field("map", &self.map).finish()
     }
 }
 
@@ -232,7 +240,7 @@ impl<T, S> IndexSet<T, S> {
     /// Clears the `IndexSet` in the given index range, returning those values
     /// as a drain iterator.
     ///
-    /// The range may be any type that implements `RangeBounds<usize>`,
+    /// The range may be any type that implements [`RangeBounds<usize>`],
     /// including all of the `std::ops::Range*` types, or even a tuple pair of
     /// `Bound` start and end values. To drain the set entirely, use `RangeFull`
     /// like `set.drain(..)`.
@@ -264,13 +272,7 @@ impl<T, S> IndexSet<T, S> {
             map: self.map.split_off(at),
         }
     }
-}
 
-impl<T, S> IndexSet<T, S>
-where
-    T: Hash + Eq,
-    S: BuildHasher,
-{
     /// Reserve capacity for `additional` more values.
     ///
     /// Computes in **O(n)** time.
@@ -322,7 +324,13 @@ where
     pub fn shrink_to(&mut self, min_capacity: usize) {
         self.map.shrink_to(min_capacity);
     }
+}
 
+impl<T, S> IndexSet<T, S>
+where
+    T: Hash + Eq,
+    S: BuildHasher,
+{
     /// Insert the value into the set.
     ///
     /// If an equivalent item already exists in the set, it returns
@@ -347,6 +355,68 @@ where
     pub fn insert_full(&mut self, value: T) -> (usize, bool) {
         let (index, existing) = self.map.insert_full(value, ());
         (index, existing.is_none())
+    }
+
+    /// Insert the value into the set at its ordered position among sorted values.
+    ///
+    /// This is equivalent to finding the position with
+    /// [`binary_search`][Self::binary_search], and if needed calling
+    /// [`shift_insert`][Self::shift_insert] for a new value.
+    ///
+    /// If the sorted item is found in the set, it returns the index of that
+    /// existing item and `false`, without any change. Otherwise, it inserts the
+    /// new item and returns its sorted index and `true`.
+    ///
+    /// If the existing items are **not** already sorted, then the insertion
+    /// index is unspecified (like [`slice::binary_search`]), but the value
+    /// is moved to or inserted at that position regardless.
+    ///
+    /// Computes in **O(n)** time (average). Instead of repeating calls to
+    /// `insert_sorted`, it may be faster to call batched [`insert`][Self::insert]
+    /// or [`extend`][Self::extend] and only call [`sort`][Self::sort] or
+    /// [`sort_unstable`][Self::sort_unstable] once.
+    pub fn insert_sorted(&mut self, value: T) -> (usize, bool)
+    where
+        T: Ord,
+    {
+        let (index, existing) = self.map.insert_sorted(value, ());
+        (index, existing.is_none())
+    }
+
+    /// Insert the value into the set at the given index.
+    ///
+    /// If an equivalent item already exists in the set, it returns
+    /// `false` leaving the original value in the set, but moving it to
+    /// the new position in the set. Otherwise, it inserts the new
+    /// item at the given index and returns `true`.
+    ///
+    /// ***Panics*** if `index` is out of bounds.
+    ///
+    /// Computes in **O(n)** time (average).
+    pub fn shift_insert(&mut self, index: usize, value: T) -> bool {
+        self.map.shift_insert(index, value, ()).is_none()
+    }
+
+    /// Adds a value to the set, replacing the existing value, if any, that is
+    /// equal to the given one, without altering its insertion order. Returns
+    /// the replaced value.
+    ///
+    /// Computes in **O(1)** time (average).
+    pub fn replace(&mut self, value: T) -> Option<T> {
+        self.replace_full(value).1
+    }
+
+    /// Adds a value to the set, replacing the existing value, if any, that is
+    /// equal to the given one, without altering its insertion order. Returns
+    /// the index of the item and its replaced value.
+    ///
+    /// Computes in **O(1)** time (average).
+    pub fn replace_full(&mut self, value: T) -> (usize, Option<T>) {
+        let hash = self.map.hash(&value);
+        match self.map.core.replace_full(hash, value, ()) {
+            (i, Some((replaced, ()))) => (i, Some(replaced)),
+            (i, None) => (i, None),
+        }
     }
 
     /// Return an iterator over the values that are in `self` but not `other`.
@@ -395,12 +465,54 @@ where
         Union::new(self, other)
     }
 
+    /// Creates a splicing iterator that replaces the specified range in the set
+    /// with the given `replace_with` iterator and yields the removed items.
+    /// `replace_with` does not need to be the same length as `range`.
+    ///
+    /// The `range` is removed even if the iterator is not consumed until the
+    /// end. It is unspecified how many elements are removed from the set if the
+    /// `Splice` value is leaked.
+    ///
+    /// The input iterator `replace_with` is only consumed when the `Splice`
+    /// value is dropped. If a value from the iterator matches an existing entry
+    /// in the set (outside of `range`), then the original will be unchanged.
+    /// Otherwise, the new value will be inserted in the replaced `range`.
+    ///
+    /// ***Panics*** if the starting point is greater than the end point or if
+    /// the end point is greater than the length of the set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use indexmap::IndexSet;
+    ///
+    /// let mut set = IndexSet::from([0, 1, 2, 3, 4]);
+    /// let new = [5, 4, 3, 2, 1];
+    /// let removed: Vec<_> = set.splice(2..4, new).collect();
+    ///
+    /// // 1 and 4 kept their positions, while 5, 3, and 2 were newly inserted.
+    /// assert!(set.into_iter().eq([0, 1, 5, 3, 2, 4]));
+    /// assert_eq!(removed, &[2, 3]);
+    /// ```
+    pub fn splice<R, I>(&mut self, range: R, replace_with: I) -> Splice<'_, I::IntoIter, T, S>
+    where
+        R: RangeBounds<usize>,
+        I: IntoIterator<Item = T>,
+    {
+        Splice::new(self, range, replace_with.into_iter())
+    }
+}
+
+impl<T, S> IndexSet<T, S>
+where
+    S: BuildHasher,
+{
     /// Return `true` if an equivalent to `value` exists in the set.
     ///
     /// Computes in **O(1)** time (average).
-    pub fn contains<Q: ?Sized>(&self, value: &Q) -> bool
+    pub fn contains<Q>(&self, value: &Q) -> bool
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.map.contains_key(value)
     }
@@ -409,17 +521,17 @@ where
     /// else `None`.
     ///
     /// Computes in **O(1)** time (average).
-    pub fn get<Q: ?Sized>(&self, value: &Q) -> Option<&T>
+    pub fn get<Q>(&self, value: &Q) -> Option<&T>
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.map.get_key_value(value).map(|(x, &())| x)
     }
 
     /// Return item index and value
-    pub fn get_full<Q: ?Sized>(&self, value: &Q) -> Option<(usize, &T)>
+    pub fn get_full<Q>(&self, value: &Q) -> Option<(usize, &T)>
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.map.get_full(value).map(|(i, x, &())| (i, x))
     }
@@ -427,81 +539,56 @@ where
     /// Return item index, if it exists in the set
     ///
     /// Computes in **O(1)** time (average).
-    pub fn get_index_of<Q: ?Sized>(&self, value: &Q) -> Option<usize>
+    pub fn get_index_of<Q>(&self, value: &Q) -> Option<usize>
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.map.get_index_of(value)
     }
 
-    /// Adds a value to the set, replacing the existing value, if any, that is
-    /// equal to the given one, without altering its insertion order. Returns
-    /// the replaced value.
-    ///
-    /// Computes in **O(1)** time (average).
-    pub fn replace(&mut self, value: T) -> Option<T> {
-        self.replace_full(value).1
-    }
-
-    /// Adds a value to the set, replacing the existing value, if any, that is
-    /// equal to the given one, without altering its insertion order. Returns
-    /// the index of the item and its replaced value.
-    ///
-    /// Computes in **O(1)** time (average).
-    pub fn replace_full(&mut self, value: T) -> (usize, Option<T>) {
-        use super::map::Entry::*;
-
-        match self.map.entry(value) {
-            Vacant(e) => {
-                let index = e.index();
-                e.insert(());
-                (index, None)
-            }
-            Occupied(e) => (e.index(), Some(e.replace_key())),
-        }
-    }
-
     /// Remove the value from the set, and return `true` if it was present.
     ///
-    /// **NOTE:** This is equivalent to `.swap_remove(value)`, if you want
-    /// to preserve the order of the values in the set, use `.shift_remove(value)`.
-    ///
-    /// Computes in **O(1)** time (average).
-    pub fn remove<Q: ?Sized>(&mut self, value: &Q) -> bool
+    /// **NOTE:** This is equivalent to [`.swap_remove(value)`][Self::swap_remove], replacing this
+    /// value's position with the last element, and it is deprecated in favor of calling that
+    /// explicitly. If you need to preserve the relative order of the values in the set, use
+    /// [`.shift_remove(value)`][Self::shift_remove] instead.
+    #[deprecated(note = "`remove` disrupts the set order -- \
+        use `swap_remove` or `shift_remove` for explicit behavior.")]
+    pub fn remove<Q>(&mut self, value: &Q) -> bool
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.swap_remove(value)
     }
 
     /// Remove the value from the set, and return `true` if it was present.
     ///
-    /// Like `Vec::swap_remove`, the value is removed by swapping it with the
+    /// Like [`Vec::swap_remove`], the value is removed by swapping it with the
     /// last element of the set and popping it off. **This perturbs
     /// the position of what used to be the last element!**
     ///
     /// Return `false` if `value` was not in the set.
     ///
     /// Computes in **O(1)** time (average).
-    pub fn swap_remove<Q: ?Sized>(&mut self, value: &Q) -> bool
+    pub fn swap_remove<Q>(&mut self, value: &Q) -> bool
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.map.swap_remove(value).is_some()
     }
 
     /// Remove the value from the set, and return `true` if it was present.
     ///
-    /// Like `Vec::remove`, the value is removed by shifting all of the
+    /// Like [`Vec::remove`], the value is removed by shifting all of the
     /// elements that follow it, preserving their relative order.
     /// **This perturbs the index of all of those elements!**
     ///
     /// Return `false` if `value` was not in the set.
     ///
     /// Computes in **O(n)** time (average).
-    pub fn shift_remove<Q: ?Sized>(&mut self, value: &Q) -> bool
+    pub fn shift_remove<Q>(&mut self, value: &Q) -> bool
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.map.shift_remove(value).is_some()
     }
@@ -509,14 +596,15 @@ where
     /// Removes and returns the value in the set, if any, that is equal to the
     /// given one.
     ///
-    /// **NOTE:** This is equivalent to `.swap_take(value)`, if you need to
-    /// preserve the order of the values in the set, use `.shift_take(value)`
-    /// instead.
-    ///
-    /// Computes in **O(1)** time (average).
-    pub fn take<Q: ?Sized>(&mut self, value: &Q) -> Option<T>
+    /// **NOTE:** This is equivalent to [`.swap_take(value)`][Self::swap_take], replacing this
+    /// value's position with the last element, and it is deprecated in favor of calling that
+    /// explicitly. If you need to preserve the relative order of the values in the set, use
+    /// [`.shift_take(value)`][Self::shift_take] instead.
+    #[deprecated(note = "`take` disrupts the set order -- \
+        use `swap_take` or `shift_take` for explicit behavior.")]
+    pub fn take<Q>(&mut self, value: &Q) -> Option<T>
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.swap_take(value)
     }
@@ -524,16 +612,16 @@ where
     /// Removes and returns the value in the set, if any, that is equal to the
     /// given one.
     ///
-    /// Like `Vec::swap_remove`, the value is removed by swapping it with the
+    /// Like [`Vec::swap_remove`], the value is removed by swapping it with the
     /// last element of the set and popping it off. **This perturbs
     /// the position of what used to be the last element!**
     ///
     /// Return `None` if `value` was not in the set.
     ///
     /// Computes in **O(1)** time (average).
-    pub fn swap_take<Q: ?Sized>(&mut self, value: &Q) -> Option<T>
+    pub fn swap_take<Q>(&mut self, value: &Q) -> Option<T>
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.map.swap_remove_entry(value).map(|(x, ())| x)
     }
@@ -541,48 +629,50 @@ where
     /// Removes and returns the value in the set, if any, that is equal to the
     /// given one.
     ///
-    /// Like `Vec::remove`, the value is removed by shifting all of the
+    /// Like [`Vec::remove`], the value is removed by shifting all of the
     /// elements that follow it, preserving their relative order.
     /// **This perturbs the index of all of those elements!**
     ///
     /// Return `None` if `value` was not in the set.
     ///
     /// Computes in **O(n)** time (average).
-    pub fn shift_take<Q: ?Sized>(&mut self, value: &Q) -> Option<T>
+    pub fn shift_take<Q>(&mut self, value: &Q) -> Option<T>
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.map.shift_remove_entry(value).map(|(x, ())| x)
     }
 
     /// Remove the value from the set return it and the index it had.
     ///
-    /// Like `Vec::swap_remove`, the value is removed by swapping it with the
+    /// Like [`Vec::swap_remove`], the value is removed by swapping it with the
     /// last element of the set and popping it off. **This perturbs
     /// the position of what used to be the last element!**
     ///
     /// Return `None` if `value` was not in the set.
-    pub fn swap_remove_full<Q: ?Sized>(&mut self, value: &Q) -> Option<(usize, T)>
+    pub fn swap_remove_full<Q>(&mut self, value: &Q) -> Option<(usize, T)>
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.map.swap_remove_full(value).map(|(i, x, ())| (i, x))
     }
 
     /// Remove the value from the set return it and the index it had.
     ///
-    /// Like `Vec::remove`, the value is removed by shifting all of the
+    /// Like [`Vec::remove`], the value is removed by shifting all of the
     /// elements that follow it, preserving their relative order.
     /// **This perturbs the index of all of those elements!**
     ///
     /// Return `None` if `value` was not in the set.
-    pub fn shift_remove_full<Q: ?Sized>(&mut self, value: &Q) -> Option<(usize, T)>
+    pub fn shift_remove_full<Q>(&mut self, value: &Q) -> Option<(usize, T)>
     where
-        Q: Hash + Equivalent<T>,
+        Q: ?Sized + Hash + Equivalent<T>,
     {
         self.map.shift_remove_full(value).map(|(i, x, ())| (i, x))
     }
+}
 
+impl<T, S> IndexSet<T, S> {
     /// Remove the last value
     ///
     /// This preserves the order of the remaining elements.
@@ -607,6 +697,10 @@ where
     }
 
     /// Sort the set’s values by their default ordering.
+    ///
+    /// This is a stable sort -- but equivalent values should not normally coexist in
+    /// a set at all, so [`sort_unstable`][Self::sort_unstable] is preferred
+    /// because it is generally faster and doesn't allocate auxiliary memory.
     ///
     /// See [`sort_by`](Self::sort_by) for details.
     pub fn sort(&mut self)
@@ -751,9 +845,7 @@ where
     pub fn reverse(&mut self) {
         self.map.reverse()
     }
-}
 
-impl<T, S> IndexSet<T, S> {
     /// Returns a slice of all the values in the set.
     ///
     /// Computes in **O(1)** time.
@@ -806,7 +898,7 @@ impl<T, S> IndexSet<T, S> {
     ///
     /// Valid indices are *0 <= index < self.len()*
     ///
-    /// Like `Vec::swap_remove`, the value is removed by swapping it with the
+    /// Like [`Vec::swap_remove`], the value is removed by swapping it with the
     /// last element of the set and popping it off. **This perturbs
     /// the position of what used to be the last element!**
     ///
@@ -819,7 +911,7 @@ impl<T, S> IndexSet<T, S> {
     ///
     /// Valid indices are *0 <= index < self.len()*
     ///
-    /// Like `Vec::remove`, the value is removed by shifting all of the
+    /// Like [`Vec::remove`], the value is removed by shifting all of the
     /// elements that follow it, preserving their relative order.
     /// **This perturbs the index of all of those elements!**
     ///
@@ -844,12 +936,14 @@ impl<T, S> IndexSet<T, S> {
     /// Swaps the position of two values in the set.
     ///
     /// ***Panics*** if `a` or `b` are out of bounds.
+    ///
+    /// Computes in **O(1)** time (average).
     pub fn swap_indices(&mut self, a: usize, b: usize) {
         self.map.swap_indices(a, b)
     }
 }
 
-/// Access `IndexSet` values at indexed positions.
+/// Access [`IndexSet`] values at indexed positions.
 ///
 /// # Examples
 ///
@@ -948,7 +1042,7 @@ impl<T, S> Default for IndexSet<T, S>
 where
     S: Default,
 {
-    /// Return an empty `IndexSet`
+    /// Return an empty [`IndexSet`]
     fn default() -> Self {
         IndexSet {
             map: IndexMap::default(),

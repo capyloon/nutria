@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.60.0"
 name = "uuid"
-version = "1.7.0"
+version = "1.8.0"
 authors = [
     "Ashley Mannix<ashleymannix@live.com.au>",
     "Christopher Armstrong",
@@ -132,11 +132,7 @@ version = "2"
 optional = true
 
 [dependencies.uuid-macro-internal]
-version = "1.7.0"
-optional = true
-
-[dependencies.wasm-bindgen]
-version = "0.2"
+version = "1.8.0"
 optional = true
 
 [dependencies.zerocopy]
@@ -191,6 +187,10 @@ v7 = [
     "rng",
 ]
 v8 = []
+
+[target."cfg(all(target_arch = \"wasm32\", target_vendor = \"unknown\", target_os = \"unknown\"))".dependencies.wasm-bindgen]
+version = "0.2"
+optional = true
 
 [target."cfg(all(target_arch = \"wasm32\", target_vendor = \"unknown\", target_os = \"unknown\"))".dev-dependencies.wasm-bindgen-test]
 version = "0.3"

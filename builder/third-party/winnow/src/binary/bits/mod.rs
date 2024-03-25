@@ -46,16 +46,19 @@ const BYTE: usize = u8::BITS as usize;
 /// assert_eq!(parsed.0, 0x01);
 /// assert_eq!(parsed.1, 0x23);
 /// ```
-pub fn bits<I, O, E1, E2, P>(mut parser: P) -> impl Parser<I, O, E2>
+pub fn bits<Input, Output, BitError, ByteError, ParseNext>(
+    mut parser: ParseNext,
+) -> impl Parser<Input, Output, ByteError>
 where
-    E1: ParserError<(I, usize)> + ErrorConvert<E2>,
-    E2: ParserError<I>,
-    I: Stream + Clone,
-    P: Parser<(I, usize), O, E1>,
+    BitError: ParserError<(Input, usize)> + ErrorConvert<ByteError>,
+    ByteError: ParserError<Input>,
+    (Input, usize): Stream,
+    Input: Stream + Clone,
+    ParseNext: Parser<(Input, usize), Output, BitError>,
 {
     trace(
         "bits",
-        unpeek(move |input: I| {
+        unpeek(move |input: Input| {
             match parser.parse_peek((input, 0)) {
                 Ok(((rest, offset), result)) => {
                     // If the next byte has been partially read, it will be sliced away as well.
@@ -105,16 +108,18 @@ where
 ///
 /// assert_eq!(parse(input), Ok(( stream(&[]), (0x01, 0x23, &[0xff, 0xff][..]) )));
 /// ```
-pub fn bytes<I, O, E1, E2, P>(mut parser: P) -> impl Parser<(I, usize), O, E2>
+pub fn bytes<Input, Output, ByteError, BitError, ParseNext>(
+    mut parser: ParseNext,
+) -> impl Parser<(Input, usize), Output, BitError>
 where
-    E1: ParserError<I> + ErrorConvert<E2>,
-    E2: ParserError<(I, usize)>,
-    I: Stream<Token = u8> + Clone,
-    P: Parser<I, O, E1>,
+    ByteError: ParserError<Input> + ErrorConvert<BitError>,
+    BitError: ParserError<(Input, usize)>,
+    Input: Stream<Token = u8> + Clone,
+    ParseNext: Parser<Input, Output, ByteError>,
 {
     trace(
         "bytes",
-        unpeek(move |(input, offset): (I, usize)| {
+        unpeek(move |(input, offset): (Input, usize)| {
             let (inner, _) = if offset % BYTE != 0 {
                 input.peek_slice(1 + offset / BYTE)
             } else {
@@ -129,7 +134,7 @@ where
                 Err(ErrMode::Incomplete(Needed::Size(sz))) => {
                     Err(match sz.get().checked_mul(BYTE) {
                         Some(v) => ErrMode::Incomplete(Needed::new(v)),
-                        None => ErrMode::Cut(E2::assert(
+                        None => ErrMode::Cut(BitError::assert(
                             &i,
                             "overflow in turning needed bytes into needed bits",
                         )),
@@ -142,6 +147,18 @@ where
 }
 
 /// Parse taking `count` bits
+///
+/// # Effective Signature
+///
+/// Assuming you are parsing a `(&[u8], usize)` bit [Stream]:
+/// ```rust
+/// # use winnow::prelude::*;;
+/// # use winnow::error::ContextError;
+/// pub fn take<'i>(count: usize) -> impl Parser<(&'i [u8], usize), u8, ContextError>
+/// # {
+/// #     winnow::binary::bits::take(count)
+/// # }
+/// ```
 ///
 /// # Example
 /// ```rust
@@ -173,17 +190,18 @@ where
 /// assert_eq!(parser((stream(&[0b00010010]), 0), 12), Err(winnow::error::ErrMode::Backtrack(InputError::new((stream(&[0b00010010]), 0), ErrorKind::Eof))));
 /// ```
 #[inline(always)]
-pub fn take<I, O, C, E: ParserError<(I, usize)>>(count: C) -> impl Parser<(I, usize), O, E>
+pub fn take<Input, Output, Count, Error>(count: Count) -> impl Parser<(Input, usize), Output, Error>
 where
-    I: Stream<Token = u8> + AsBytes + StreamIsPartial + Clone,
-    C: ToUsize,
-    O: From<u8> + AddAssign + Shl<usize, Output = O> + Shr<usize, Output = O>,
+    Input: Stream<Token = u8> + AsBytes + StreamIsPartial + Clone,
+    Output: From<u8> + AddAssign + Shl<usize, Output = Output> + Shr<usize, Output = Output>,
+    Count: ToUsize,
+    Error: ParserError<(Input, usize)>,
 {
     let count = count.to_usize();
     trace(
         "take",
-        unpeek(move |input: (I, usize)| {
-            if <I as StreamIsPartial>::is_partial_supported() {
+        unpeek(move |input: (Input, usize)| {
+            if <Input as StreamIsPartial>::is_partial_supported() {
                 take_::<_, _, _, true>(input, count)
             } else {
                 take_::<_, _, _, false>(input, count)
@@ -248,13 +266,25 @@ where
 
 /// Parse taking `count` bits and comparing them to `pattern`
 ///
+/// # Effective Signature
+///
+/// Assuming you are parsing a `(&[u8], usize)` bit [Stream]:
+/// ```rust
+/// # use winnow::prelude::*;;
+/// # use winnow::error::ContextError;
+/// pub fn pattern<'i>(pattern: u8, count: usize) -> impl Parser<(&'i [u8], usize), u8, ContextError>
+/// # {
+/// #     winnow::binary::bits::pattern(pattern, count)
+/// # }
+/// ```
+///
 /// # Example
 ///
 /// ```rust
 /// # use winnow::prelude::*;
 /// # use winnow::Bytes;
 /// # use winnow::error::{InputError, ErrorKind};
-/// use winnow::binary::bits::tag;
+/// use winnow::binary::bits::pattern;
 ///
 /// type Stream<'i> = &'i Bytes;
 ///
@@ -265,8 +295,8 @@ where
 /// /// Compare the lowest `count` bits of `input` against the lowest `count` bits of `pattern`.
 /// /// Return Ok and the matching section of `input` if there's a match.
 /// /// Return Err if there's no match.
-/// fn parser(pattern: u8, count: u8, input: (Stream<'_>, usize)) -> IResult<(Stream<'_>, usize), u8> {
-///     tag(pattern, count).parse_peek(input)
+/// fn parser(bits: u8, count: u8, input: (Stream<'_>, usize)) -> IResult<(Stream<'_>, usize), u8> {
+///     pattern(bits, count).parse_peek(input)
 /// }
 ///
 /// // The lowest 4 bits of 0b00001111 match the lowest 4 bits of 0b11111111.
@@ -302,25 +332,30 @@ where
 #[inline(always)]
 #[doc(alias = "literal")]
 #[doc(alias = "just")]
-pub fn tag<I, O, C, E: ParserError<(I, usize)>>(
-    pattern: O,
-    count: C,
-) -> impl Parser<(I, usize), O, E>
+#[doc(alias = "tag")]
+pub fn pattern<Input, Output, Count, Error: ParserError<(Input, usize)>>(
+    pattern: Output,
+    count: Count,
+) -> impl Parser<(Input, usize), Output, Error>
 where
-    I: Stream<Token = u8> + AsBytes + StreamIsPartial + Clone,
-    C: ToUsize,
-    O: From<u8> + AddAssign + Shl<usize, Output = O> + Shr<usize, Output = O> + PartialEq,
+    Input: Stream<Token = u8> + AsBytes + StreamIsPartial + Clone,
+    Count: ToUsize,
+    Output: From<u8>
+        + AddAssign
+        + Shl<usize, Output = Output>
+        + Shr<usize, Output = Output>
+        + PartialEq,
 {
     let count = count.to_usize();
-    trace("tag", move |input: &mut (I, usize)| {
+    trace("pattern", move |input: &mut (Input, usize)| {
         let start = input.checkpoint();
 
         take(count).parse_next(input).and_then(|o| {
             if pattern == o {
                 Ok(o)
             } else {
-                input.reset(start);
-                Err(ErrMode::Backtrack(E::from_error_kind(
+                input.reset(&start);
+                Err(ErrMode::Backtrack(Error::from_error_kind(
                     input,
                     ErrorKind::Tag,
                 )))
@@ -330,6 +365,18 @@ where
 }
 
 /// Parses one specific bit as a bool.
+///
+/// # Effective Signature
+///
+/// Assuming you are parsing a `(&[u8], usize)` bit [Stream]:
+/// ```rust
+/// # use winnow::prelude::*;;
+/// # use winnow::error::ContextError;
+/// pub fn bool(input: &mut (&[u8], usize)) -> PResult<bool>
+/// # {
+/// #     winnow::binary::bits::bool.parse_next(input)
+/// # }
+/// ```
 ///
 /// # Example
 ///
@@ -353,11 +400,13 @@ where
 /// assert_eq!(parse((stream(&[0b10000000]), 1)), Ok(((stream(&[0b10000000]), 2), false)));
 /// ```
 #[doc(alias = "any")]
-pub fn bool<I, E: ParserError<(I, usize)>>(input: &mut (I, usize)) -> PResult<bool, E>
+pub fn bool<Input, Error: ParserError<(Input, usize)>>(
+    input: &mut (Input, usize),
+) -> PResult<bool, Error>
 where
-    I: Stream<Token = u8> + AsBytes + StreamIsPartial + Clone,
+    Input: Stream<Token = u8> + AsBytes + StreamIsPartial + Clone,
 {
-    trace("bool", |input: &mut (I, usize)| {
+    trace("bool", |input: &mut (Input, usize)| {
         let bit: u32 = take(1usize).parse_next(input)?;
         Ok(bit != 0)
     })

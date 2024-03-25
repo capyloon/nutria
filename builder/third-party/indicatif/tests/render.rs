@@ -95,6 +95,39 @@ fn progress_bar_percent_with_no_length() {
 }
 
 #[test]
+fn progress_bar_percent_precise_with_no_length() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let pb = ProgressBar::with_draw_target(
+        None,
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    )
+    .with_style(ProgressStyle::with_template("{wide_bar} {percent_precise}%").unwrap());
+
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb.tick();
+
+    assert_eq!(
+        in_mem.contents(),
+        "░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0.000%"
+    );
+
+    pb.set_length(10);
+
+    pb.inc(1);
+    assert_eq!(
+        in_mem.contents(),
+        "███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 10.000%"
+    );
+
+    pb.finish();
+    assert_eq!(
+        in_mem.contents(),
+        "███████████████████████████████████████████████████████████████████████ 100.000%"
+    );
+}
+
+#[test]
 fn multi_progress_single_bar_and_leave() {
     let in_mem = InMemoryTerm::new(10, 80);
     let mp =
@@ -1794,6 +1827,23 @@ fn orphan_lines_message_above_progress_bar() {
         Some(10),
         ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
     );
+
+    orphan_lines_message_above_progress_bar_test(&pb, &in_mem);
+}
+
+#[test]
+fn orphan_lines_message_above_multi_progress_bar() {
+    let in_mem = InMemoryTerm::new(10, 80);
+
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let pb = mp.add(ProgressBar::new(10));
+
+    orphan_lines_message_above_progress_bar_test(&pb, &in_mem);
+}
+
+fn orphan_lines_message_above_progress_bar_test(pb: &ProgressBar, in_mem: &InMemoryTerm) {
     assert_eq!(in_mem.contents(), String::new());
 
     for i in 0..=10 {

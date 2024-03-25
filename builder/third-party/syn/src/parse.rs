@@ -185,11 +185,11 @@ pub mod discouraged;
 use crate::buffer::{Cursor, TokenBuffer};
 use crate::error;
 use crate::lookahead;
-#[cfg(feature = "proc-macro")]
-use crate::proc_macro;
 use crate::punctuated::Punctuated;
 use crate::token::Token;
-use proc_macro2::{self, Delimiter, Group, Literal, Punct, Span, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Group, Literal, Punct, Span, TokenStream, TokenTree};
+#[cfg(feature = "printing")]
+use quote::ToTokens;
 use std::cell::Cell;
 use std::fmt::{self, Debug, Display};
 #[cfg(feature = "extra-traits")]
@@ -1268,7 +1268,6 @@ pub trait Parser: Sized {
 
     // Not public API.
     #[doc(hidden)]
-    #[cfg(any(feature = "full", feature = "derive"))]
     fn __parse_scoped(self, scope: Span, tokens: TokenStream) -> Result<Self::Output> {
         let _ = scope;
         self.parse2(tokens)
@@ -1300,7 +1299,6 @@ where
         }
     }
 
-    #[cfg(any(feature = "full", feature = "derive"))]
     fn __parse_scoped(self, scope: Span, tokens: TokenStream) -> Result<Self::Output> {
         let buf = TokenBuffer::new2(tokens);
         let cursor = buf.begin();
@@ -1316,7 +1314,6 @@ where
     }
 }
 
-#[cfg(any(feature = "full", feature = "derive"))]
 pub(crate) fn parse_scoped<F: Parser>(f: F, scope: Span, tokens: TokenStream) -> Result<F::Output> {
     f.__parse_scoped(scope, tokens)
 }
@@ -1358,6 +1355,26 @@ impl Parse for Nothing {
         Ok(Nothing)
     }
 }
+
+#[cfg(feature = "printing")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "printing")))]
+impl ToTokens for Nothing {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let _ = tokens;
+    }
+}
+
+#[cfg(feature = "clone-impls")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "clone-impls")))]
+impl Clone for Nothing {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+#[cfg(feature = "clone-impls")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "clone-impls")))]
+impl Copy for Nothing {}
 
 #[cfg(feature = "extra-traits")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "extra-traits")))]

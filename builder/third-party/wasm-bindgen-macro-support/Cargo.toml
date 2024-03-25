@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.57"
 name = "wasm-bindgen-macro-support"
-version = "0.2.90"
+version = "0.2.92"
 authors = ["The wasm-bindgen Developers"]
 description = """
 The part of the implementation of the `#[wasm_bindgen]` attribute that is not in the shared backend crate
@@ -38,10 +38,10 @@ features = [
 ]
 
 [dependencies.wasm-bindgen-backend]
-version = "=0.2.90"
+version = "=0.2.92"
 
 [dependencies.wasm-bindgen-shared]
-version = "=0.2.90"
+version = "=0.2.92"
 
 [features]
 extra-traits = ["syn/extra-traits"]

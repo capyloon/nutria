@@ -1,8 +1,13 @@
 use crate::combinator::trace;
 use crate::combinator::trace_result;
+use crate::combinator::DisplayDebug;
+#[cfg(feature = "unstable-recover")]
+use crate::error::FromRecoverableError;
 use crate::error::{AddContext, ErrMode, ErrorKind, FromExternalError, ParserError};
 use crate::lib::std::borrow::Borrow;
 use crate::lib::std::ops::Range;
+#[cfg(feature = "unstable-recover")]
+use crate::stream::Recover;
 use crate::stream::StreamIsPartial;
 use crate::stream::{Location, Stream};
 use crate::*;
@@ -128,7 +133,7 @@ where
         let start = input.checkpoint();
         let o = self.parser.parse_next(input)?;
         let res = (self.map)(o).map_err(|err| {
-            input.reset(start);
+            input.reset(&start);
             ErrMode::from_external_error(input, ErrorKind::Verify, err)
         });
         trace_result("verify", &res);
@@ -185,7 +190,7 @@ where
         let start = input.checkpoint();
         let o = self.parser.parse_next(input)?;
         let res = (self.map)(o).ok_or_else(|| {
-            input.reset(start);
+            input.reset(&start);
             ErrMode::from_error_kind(input, ErrorKind::Verify)
         });
         trace_result("verify", &res);
@@ -243,7 +248,7 @@ where
         let mut o = self.outer.parse_next(i)?;
         let _ = o.complete();
         let o2 = self.inner.parse_next(&mut o).map_err(|err| {
-            i.reset(start);
+            i.reset(&start);
             err
         })?;
         Ok(o2)
@@ -297,7 +302,7 @@ where
         let start = i.checkpoint();
         let o = self.p.parse_next(i)?;
         let res = o.parse_slice().ok_or_else(|| {
-            i.reset(start);
+            i.reset(&start);
             ErrMode::from_error_kind(i, ErrorKind::Verify)
         });
         trace_result("verify", &res);
@@ -443,7 +448,7 @@ where
         let start = input.checkpoint();
         let o = self.parser.parse_next(input)?;
         let res = (self.filter)(o.borrow()).then_some(o).ok_or_else(|| {
-            input.reset(start);
+            input.reset(&start);
             ErrMode::from_error_kind(input, ErrorKind::Verify)
         });
         trace_result("verify", &res);
@@ -612,7 +617,7 @@ where
         match (self.parser).parse_next(input) {
             Ok(_) => {
                 let offset = input.offset_from(&checkpoint);
-                input.reset(checkpoint);
+                input.reset(&checkpoint);
                 let recognized = input.next_slice(offset);
                 Ok(recognized)
             }
@@ -661,7 +666,7 @@ where
         match (self.parser).parse_next(input) {
             Ok(result) => {
                 let offset = input.offset_from(&checkpoint);
-                input.reset(checkpoint);
+                input.reset(&checkpoint);
                 let recognized = input.next_slice(offset);
                 Ok((result, recognized))
             }
@@ -891,15 +896,201 @@ where
 {
     #[inline]
     fn parse_next(&mut self, i: &mut I) -> PResult<O, E> {
-        #[cfg(feature = "debug")]
-        let name = format!("context={:?}", self.context);
-        #[cfg(not(feature = "debug"))]
-        let name = "context";
-        trace(name, move |i: &mut I| {
+        let context = self.context.clone();
+        trace(DisplayDebug(self.context.clone()), move |i: &mut I| {
+            let start = i.checkpoint();
             (self.parser)
                 .parse_next(i)
-                .map_err(|err| err.add_context(i, self.context.clone()))
+                .map_err(|err| err.add_context(i, &start, context.clone()))
         })
         .parse_next(i)
     }
+}
+
+/// Implementation of [`Parser::retry_after`]
+#[cfg_attr(nightly, warn(rustdoc::missing_doc_code_examples))]
+#[cfg(feature = "unstable-recover")]
+pub struct RetryAfter<P, R, I, O, E>
+where
+    P: Parser<I, O, E>,
+    R: Parser<I, (), E>,
+    I: Stream,
+    I: Recover<E>,
+    E: FromRecoverableError<I, E>,
+{
+    parser: P,
+    recover: R,
+    i: core::marker::PhantomData<I>,
+    o: core::marker::PhantomData<O>,
+    e: core::marker::PhantomData<E>,
+}
+
+#[cfg(feature = "unstable-recover")]
+impl<P, R, I, O, E> RetryAfter<P, R, I, O, E>
+where
+    P: Parser<I, O, E>,
+    R: Parser<I, (), E>,
+    I: Stream,
+    I: Recover<E>,
+    E: FromRecoverableError<I, E>,
+{
+    #[inline(always)]
+    pub(crate) fn new(parser: P, recover: R) -> Self {
+        Self {
+            parser,
+            recover,
+            i: Default::default(),
+            o: Default::default(),
+            e: Default::default(),
+        }
+    }
+}
+
+#[cfg(feature = "unstable-recover")]
+impl<P, R, I, O, E> Parser<I, O, E> for RetryAfter<P, R, I, O, E>
+where
+    P: Parser<I, O, E>,
+    R: Parser<I, (), E>,
+    I: Stream,
+    I: Recover<E>,
+    E: FromRecoverableError<I, E>,
+{
+    #[inline(always)]
+    fn parse_next(&mut self, i: &mut I) -> PResult<O, E> {
+        if I::is_recovery_supported() {
+            retry_after_inner(&mut self.parser, &mut self.recover, i)
+        } else {
+            self.parser.parse_next(i)
+        }
+    }
+}
+
+#[cfg(feature = "unstable-recover")]
+fn retry_after_inner<P, R, I, O, E>(parser: &mut P, recover: &mut R, i: &mut I) -> PResult<O, E>
+where
+    P: Parser<I, O, E>,
+    R: Parser<I, (), E>,
+    I: Stream,
+    I: Recover<E>,
+    E: FromRecoverableError<I, E>,
+{
+    loop {
+        let token_start = i.checkpoint();
+        let mut err = match parser.parse_next(i) {
+            Ok(o) => {
+                return Ok(o);
+            }
+            Err(ErrMode::Incomplete(e)) => return Err(ErrMode::Incomplete(e)),
+            Err(err) => err,
+        };
+        let err_start = i.checkpoint();
+        let err_start_eof_offset = i.eof_offset();
+        if recover.parse_next(i).is_ok() {
+            let i_eof_offset = i.eof_offset();
+            if err_start_eof_offset == i_eof_offset {
+                // Didn't advance so bubble the error up
+            } else if let Err(err_) = i.record_err(&token_start, &err_start, err) {
+                err = err_;
+            } else {
+                continue;
+            }
+        }
+
+        i.reset(&err_start);
+        err = err.map(|err| E::from_recoverable_error(&token_start, &err_start, i, err));
+        return Err(err);
+    }
+}
+
+/// Implementation of [`Parser::resume_after`]
+#[cfg(feature = "unstable-recover")]
+#[cfg_attr(nightly, warn(rustdoc::missing_doc_code_examples))]
+pub struct ResumeAfter<P, R, I, O, E>
+where
+    P: Parser<I, O, E>,
+    R: Parser<I, (), E>,
+    I: Stream,
+    I: Recover<E>,
+    E: FromRecoverableError<I, E>,
+{
+    parser: P,
+    recover: R,
+    i: core::marker::PhantomData<I>,
+    o: core::marker::PhantomData<O>,
+    e: core::marker::PhantomData<E>,
+}
+
+#[cfg(feature = "unstable-recover")]
+impl<P, R, I, O, E> ResumeAfter<P, R, I, O, E>
+where
+    P: Parser<I, O, E>,
+    R: Parser<I, (), E>,
+    I: Stream,
+    I: Recover<E>,
+    E: FromRecoverableError<I, E>,
+{
+    #[inline(always)]
+    pub(crate) fn new(parser: P, recover: R) -> Self {
+        Self {
+            parser,
+            recover,
+            i: Default::default(),
+            o: Default::default(),
+            e: Default::default(),
+        }
+    }
+}
+
+#[cfg(feature = "unstable-recover")]
+impl<P, R, I, O, E> Parser<I, Option<O>, E> for ResumeAfter<P, R, I, O, E>
+where
+    P: Parser<I, O, E>,
+    R: Parser<I, (), E>,
+    I: Stream,
+    I: Recover<E>,
+    E: FromRecoverableError<I, E>,
+{
+    #[inline(always)]
+    fn parse_next(&mut self, i: &mut I) -> PResult<Option<O>, E> {
+        if I::is_recovery_supported() {
+            resume_after_inner(&mut self.parser, &mut self.recover, i)
+        } else {
+            self.parser.parse_next(i).map(Some)
+        }
+    }
+}
+
+#[cfg(feature = "unstable-recover")]
+fn resume_after_inner<P, R, I, O, E>(
+    parser: &mut P,
+    recover: &mut R,
+    i: &mut I,
+) -> PResult<Option<O>, E>
+where
+    P: Parser<I, O, E>,
+    R: Parser<I, (), E>,
+    I: Stream,
+    I: Recover<E>,
+    E: FromRecoverableError<I, E>,
+{
+    let token_start = i.checkpoint();
+    let mut err = match parser.parse_next(i) {
+        Ok(o) => {
+            return Ok(Some(o));
+        }
+        Err(ErrMode::Incomplete(e)) => return Err(ErrMode::Incomplete(e)),
+        Err(err) => err,
+    };
+    let err_start = i.checkpoint();
+    if recover.parse_next(i).is_ok() {
+        if let Err(err_) = i.record_err(&token_start, &err_start, err) {
+            err = err_;
+        } else {
+            return Ok(None);
+        }
+    }
+
+    i.reset(&err_start);
+    err = err.map(|err| E::from_recoverable_error(&token_start, &err_start, i, err));
+    Err(err)
 }

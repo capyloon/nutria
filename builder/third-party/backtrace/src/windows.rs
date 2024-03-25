@@ -7,7 +7,7 @@
 //! This module largely exists to integrate into libstd itself where winapi is
 //! not currently available.
 
-#![allow(bad_style, dead_code)]
+#![allow(bad_style, dead_code, unused)]
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "verify-winapi")] {
@@ -19,6 +19,9 @@ cfg_if::cfg_if! {
         pub use self::winapi::PUNWIND_HISTORY_TABLE;
         #[cfg(target_pointer_width = "64")]
         pub use self::winapi::PRUNTIME_FUNCTION;
+        pub use self::winapi::PEXCEPTION_ROUTINE;
+        #[cfg(target_pointer_width = "64")]
+        pub use self::winapi::PKNONVOLATILE_CONTEXT_POINTERS;
 
         mod winapi {
             pub use winapi::ctypes::*;
@@ -35,6 +38,32 @@ cfg_if::cfg_if! {
             pub use winapi::um::tlhelp32::*;
             pub use winapi::um::winbase::*;
             pub use winapi::um::winnt::*;
+
+            // Work around winapi not having this function on aarch64.
+            #[cfg(target_arch = "aarch64")]
+            #[link(name = "kernel32")]
+            extern "system" {
+                pub fn RtlVirtualUnwind(
+                    HandlerType: ULONG,
+                    ImageBase: ULONG64,
+                    ControlPc: ULONG64,
+                    FunctionEntry: PRUNTIME_FUNCTION,
+                    ContextRecord: PCONTEXT,
+                    HandlerData: *mut PVOID,
+                    EstablisherFrame: PULONG64,
+                    ContextPointers: PKNONVOLATILE_CONTEXT_POINTERS
+                ) -> PEXCEPTION_ROUTINE;
+            }
+
+            // winapi doesn't have this type
+            pub type PENUMLOADED_MODULES_CALLBACKW64 = Option<
+            unsafe extern "system" fn(
+                modulename: PCWSTR,
+                modulebase: DWORD64,
+                modulesize: ULONG,
+                usercontext: PVOID,
+            ) -> BOOL,
+        >;
         }
     } else {
         pub use core::ffi::c_void;
@@ -45,6 +74,9 @@ cfg_if::cfg_if! {
         pub type PRUNTIME_FUNCTION = *mut c_void;
         #[cfg(target_pointer_width = "64")]
         pub type PUNWIND_HISTORY_TABLE = *mut c_void;
+        pub type PEXCEPTION_ROUTINE = *mut c_void;
+        #[cfg(target_pointer_width = "64")]
+        pub type PKNONVOLATILE_CONTEXT_POINTERS = *mut c_void;
     }
 }
 
@@ -269,6 +301,7 @@ ffi! {
     pub type PTRANSLATE_ADDRESS_ROUTINE64 = Option<
         unsafe extern "system" fn(hProcess: HANDLE, hThread: HANDLE, lpaddr: LPADDRESS64) -> DWORD64,
     >;
+    pub type PENUMLOADED_MODULES_CALLBACKW64 = Option<unsafe extern "system" fn(modulename: PCWSTR, modulebase: DWORD64, modulesize: ULONG, usercontext: PVOID) -> BOOL>;
     pub type PGET_MODULE_BASE_ROUTINE64 =
         Option<unsafe extern "system" fn(hProcess: HANDLE, Address: DWORD64) -> DWORD64>;
     pub type PFUNCTION_TABLE_ACCESS_ROUTINE64 =
@@ -359,6 +392,7 @@ ffi! {
     pub type LPCSTR = *const i8;
     pub type PWSTR = *mut u16;
     pub type WORD = u16;
+    pub type USHORT = u16;
     pub type ULONG = u32;
     pub type ULONG64 = u64;
     pub type WCHAR = u16;
@@ -370,6 +404,8 @@ ffi! {
     pub type LPVOID = *mut c_void;
     pub type LPCVOID = *const c_void;
     pub type LPMODULEENTRY32W = *mut MODULEENTRY32W;
+    pub type PULONG = *mut ULONG;
+    pub type PULONG64 = *mut ULONG64;
 
     #[link(name = "kernel32")]
     extern "system" {
@@ -378,23 +414,8 @@ ffi! {
         pub fn RtlCaptureContext(ContextRecord: PCONTEXT) -> ();
         pub fn LoadLibraryA(a: *const i8) -> HMODULE;
         pub fn GetProcAddress(h: HMODULE, name: *const i8) -> FARPROC;
-        pub fn GetModuleHandleA(name: *const i8) -> HMODULE;
-        pub fn OpenProcess(
-            dwDesiredAccess: DWORD,
-            bInheitHandle: BOOL,
-            dwProcessId: DWORD,
-        ) -> HANDLE;
         pub fn GetCurrentProcessId() -> DWORD;
         pub fn CloseHandle(h: HANDLE) -> BOOL;
-        pub fn CreateFileA(
-            lpFileName: LPCSTR,
-            dwDesiredAccess: DWORD,
-            dwShareMode: DWORD,
-            lpSecurityAttributes: LPSECURITY_ATTRIBUTES,
-            dwCreationDisposition: DWORD,
-            dwFlagsAndAttributes: DWORD,
-            hTemplateFile: HANDLE,
-        ) -> HANDLE;
         pub fn CreateMutexA(
             attrs: LPSECURITY_ATTRIBUTES,
             initial: BOOL,
@@ -434,6 +455,28 @@ ffi! {
             hSnapshot: HANDLE,
             lpme: LPMODULEENTRY32W,
         ) -> BOOL;
+        pub fn lstrlenW(lpstring: PCWSTR) -> i32;
+    }
+}
+
+#[cfg(any(
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "arm64ec"
+))]
+ffi! {
+    #[link(name = "kernel32")]
+    extern "system" {
+        pub fn RtlVirtualUnwind(
+            HandlerType: ULONG,
+            ImageBase: ULONG64,
+            ControlPc: ULONG64,
+            FunctionEntry: PRUNTIME_FUNCTION,
+            ContextRecord: PCONTEXT,
+            HandlerData: *mut PVOID,
+            EstablisherFrame: PULONG64,
+            ContextPointers: PKNONVOLATILE_CONTEXT_POINTERS
+        ) -> PEXCEPTION_ROUTINE;
     }
 }
 
@@ -567,7 +610,7 @@ ffi! {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86_64", target_arch = "arm64ec"))]
 ffi! {
     #[repr(C, align(8))]
     pub struct CONTEXT {
@@ -635,7 +678,7 @@ ffi! {
 }
 
 #[repr(C)]
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86_64", target_arch = "arm64ec"))]
 #[derive(Copy, Clone)]
 pub struct FLOATING_SAVE_AREA {
     _Dummy: [u8; 512],

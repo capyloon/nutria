@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.67"
+rust-version = "1.70"
 name = "toml_edit"
-version = "0.21.0"
+version = "0.22.9"
 authors = [
     "Andronik Ordian <write@reusable.software>",
     "Ed Page <eopage@gmail.com>",
@@ -137,7 +137,7 @@ version = "1.0.145"
 optional = true
 
 [dependencies.serde_spanned]
-version = "0.6.4"
+version = "0.6.5"
 features = ["serde"]
 optional = true
 
@@ -145,21 +145,21 @@ optional = true
 version = "0.6.5"
 
 [dependencies.winnow]
-version = "0.5.0"
+version = "0.6.0"
 optional = true
 
 [dev-dependencies.libtest-mimic]
-version = "0.6.0"
+version = "0.7.0"
 
 [dev-dependencies.serde_json]
-version = "1.0.96"
+version = "1.0.114"
 
 [dev-dependencies.snapbox]
-version = "0.4.11"
+version = "0.4.16"
 features = ["harness"]
 
 [dev-dependencies.toml-test-data]
-version = "1.4.0"
+version = "1.8.0"
 
 [dev-dependencies.toml-test-harness]
 version = "0.4.8"

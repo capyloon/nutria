@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.70.0"
+rust-version = "1.74"
 name = "clap_derive"
-version = "4.4.7"
+version = "4.5.3"
 include = [
     "build.rs",
     "src/**/*",
@@ -52,10 +52,10 @@ bench = false
 proc-macro = true
 
 [dependencies.heck]
-version = "0.4.0"
+version = "0.5.0"
 
 [dependencies.proc-macro2]
-version = "1.0.42"
+version = "1.0.69"
 
 [dependencies.quote]
 version = "1.0.9"

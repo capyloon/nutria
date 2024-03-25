@@ -1,8 +1,11 @@
+use super::core::IndexMapCore;
 use super::{Bucket, Entries, IndexMap, Slice};
 
 use alloc::vec::{self, Vec};
 use core::fmt;
+use core::hash::{BuildHasher, Hash};
 use core::iter::FusedIterator;
+use core::ops::{Index, RangeBounds};
 use core::slice;
 
 impl<'a, K, V, S> IntoIterator for &'a IndexMap<K, V, S> {
@@ -32,13 +35,10 @@ impl<K, V, S> IntoIterator for IndexMap<K, V, S> {
     }
 }
 
-/// An iterator over the entries of a `IndexMap`.
+/// An iterator over the entries of an [`IndexMap`].
 ///
-/// This `struct` is created by the [`iter`] method on [`IndexMap`]. See its
-/// documentation for more.
-///
-/// [`iter`]: struct.IndexMap.html#method.iter
-/// [`IndexMap`]: struct.IndexMap.html
+/// This `struct` is created by the [`IndexMap::iter`] method.
+/// See its documentation for more.
 pub struct Iter<'a, K, V> {
     iter: slice::Iter<'a, Bucket<K, V>>,
 }
@@ -95,13 +95,10 @@ impl<K, V> Default for Iter<'_, K, V> {
     }
 }
 
-/// A mutable iterator over the entries of a `IndexMap`.
+/// A mutable iterator over the entries of an [`IndexMap`].
 ///
-/// This `struct` is created by the [`iter_mut`] method on [`IndexMap`]. See its
-/// documentation for more.
-///
-/// [`iter_mut`]: struct.IndexMap.html#method.iter_mut
-/// [`IndexMap`]: struct.IndexMap.html
+/// This `struct` is created by the [`IndexMap::iter_mut`] method.
+/// See its documentation for more.
 pub struct IterMut<'a, K, V> {
     iter: slice::IterMut<'a, Bucket<K, V>>,
 }
@@ -159,13 +156,10 @@ impl<K, V> Default for IterMut<'_, K, V> {
     }
 }
 
-/// An owning iterator over the entries of a `IndexMap`.
+/// An owning iterator over the entries of an [`IndexMap`].
 ///
-/// This `struct` is created by the [`into_iter`] method on [`IndexMap`]
-/// (provided by the `IntoIterator` trait). See its documentation for more.
-///
-/// [`into_iter`]: struct.IndexMap.html#method.into_iter
-/// [`IndexMap`]: struct.IndexMap.html
+/// This `struct` is created by the [`IndexMap::into_iter`] method
+/// (provided by the [`IntoIterator`] trait). See its documentation for more.
 pub struct IntoIter<K, V> {
     iter: vec::IntoIter<Bucket<K, V>>,
 }
@@ -221,13 +215,10 @@ impl<K, V> Default for IntoIter<K, V> {
     }
 }
 
-/// A draining iterator over the entries of a `IndexMap`.
+/// A draining iterator over the entries of an [`IndexMap`].
 ///
-/// This `struct` is created by the [`drain`] method on [`IndexMap`]. See its
-/// documentation for more.
-///
-/// [`drain`]: struct.IndexMap.html#method.drain
-/// [`IndexMap`]: struct.IndexMap.html
+/// This `struct` is created by the [`IndexMap::drain`] method.
+/// See its documentation for more.
 pub struct Drain<'a, K, V> {
     iter: vec::Drain<'a, Bucket<K, V>>,
 }
@@ -268,13 +259,10 @@ impl<K: fmt::Debug, V: fmt::Debug> fmt::Debug for Drain<'_, K, V> {
     }
 }
 
-/// An iterator over the keys of a `IndexMap`.
+/// An iterator over the keys of an [`IndexMap`].
 ///
-/// This `struct` is created by the [`keys`] method on [`IndexMap`]. See its
-/// documentation for more.
-///
-/// [`keys`]: struct.IndexMap.html#method.keys
-/// [`IndexMap`]: struct.IndexMap.html
+/// This `struct` is created by the [`IndexMap::keys`] method.
+/// See its documentation for more.
 pub struct Keys<'a, K, V> {
     iter: slice::Iter<'a, Bucket<K, V>>,
 }
@@ -326,13 +314,77 @@ impl<K, V> Default for Keys<'_, K, V> {
     }
 }
 
-/// An owning iterator over the keys of a `IndexMap`.
+/// Access [`IndexMap`] keys at indexed positions.
 ///
-/// This `struct` is created by the [`into_keys`] method on [`IndexMap`].
+/// While [`Index<usize> for IndexMap`][values] accesses a map's values,
+/// indexing through [`IndexMap::keys`] offers an alternative to access a map's
+/// keys instead.
+///
+/// [values]: IndexMap#impl-Index<usize>-for-IndexMap<K,+V,+S>
+///
+/// Since `Keys` is also an iterator, consuming items from the iterator will
+/// offset the effective indexes. Similarly, if `Keys` is obtained from
+/// [`Slice::keys`], indexes will be interpreted relative to the position of
+/// that slice.
+///
+/// # Examples
+///
+/// ```
+/// use indexmap::IndexMap;
+///
+/// let mut map = IndexMap::new();
+/// for word in "Lorem ipsum dolor sit amet".split_whitespace() {
+///     map.insert(word.to_lowercase(), word.to_uppercase());
+/// }
+///
+/// assert_eq!(map[0], "LOREM");
+/// assert_eq!(map.keys()[0], "lorem");
+/// assert_eq!(map[1], "IPSUM");
+/// assert_eq!(map.keys()[1], "ipsum");
+///
+/// map.reverse();
+/// assert_eq!(map.keys()[0], "amet");
+/// assert_eq!(map.keys()[1], "sit");
+///
+/// map.sort_keys();
+/// assert_eq!(map.keys()[0], "amet");
+/// assert_eq!(map.keys()[1], "dolor");
+///
+/// // Advancing the iterator will offset the indexing
+/// let mut keys = map.keys();
+/// assert_eq!(keys[0], "amet");
+/// assert_eq!(keys.next().map(|s| &**s), Some("amet"));
+/// assert_eq!(keys[0], "dolor");
+/// assert_eq!(keys[1], "ipsum");
+///
+/// // Slices may have an offset as well
+/// let slice = &map[2..];
+/// assert_eq!(slice[0], "IPSUM");
+/// assert_eq!(slice.keys()[0], "ipsum");
+/// ```
+///
+/// ```should_panic
+/// use indexmap::IndexMap;
+///
+/// let mut map = IndexMap::new();
+/// map.insert("foo", 1);
+/// println!("{:?}", map.keys()[10]); // panics!
+/// ```
+impl<'a, K, V> Index<usize> for Keys<'a, K, V> {
+    type Output = K;
+
+    /// Returns a reference to the key at the supplied `index`.
+    ///
+    /// ***Panics*** if `index` is out of bounds.
+    fn index(&self, index: usize) -> &K {
+        &self.iter.as_slice()[index].key
+    }
+}
+
+/// An owning iterator over the keys of an [`IndexMap`].
+///
+/// This `struct` is created by the [`IndexMap::into_keys`] method.
 /// See its documentation for more.
-///
-/// [`IndexMap`]: struct.IndexMap.html
-/// [`into_keys`]: struct.IndexMap.html#method.into_keys
 pub struct IntoKeys<K, V> {
     iter: vec::IntoIter<Bucket<K, V>>,
 }
@@ -378,13 +430,10 @@ impl<K, V> Default for IntoKeys<K, V> {
     }
 }
 
-/// An iterator over the values of a `IndexMap`.
+/// An iterator over the values of an [`IndexMap`].
 ///
-/// This `struct` is created by the [`values`] method on [`IndexMap`]. See its
-/// documentation for more.
-///
-/// [`values`]: struct.IndexMap.html#method.values
-/// [`IndexMap`]: struct.IndexMap.html
+/// This `struct` is created by the [`IndexMap::values`] method.
+/// See its documentation for more.
 pub struct Values<'a, K, V> {
     iter: slice::Iter<'a, Bucket<K, V>>,
 }
@@ -436,13 +485,10 @@ impl<K, V> Default for Values<'_, K, V> {
     }
 }
 
-/// A mutable iterator over the values of a `IndexMap`.
+/// A mutable iterator over the values of an [`IndexMap`].
 ///
-/// This `struct` is created by the [`values_mut`] method on [`IndexMap`]. See its
-/// documentation for more.
-///
-/// [`values_mut`]: struct.IndexMap.html#method.values_mut
-/// [`IndexMap`]: struct.IndexMap.html
+/// This `struct` is created by the [`IndexMap::values_mut`] method.
+/// See its documentation for more.
 pub struct ValuesMut<'a, K, V> {
     iter: slice::IterMut<'a, Bucket<K, V>>,
 }
@@ -488,13 +534,10 @@ impl<K, V> Default for ValuesMut<'_, K, V> {
     }
 }
 
-/// An owning iterator over the values of a `IndexMap`.
+/// An owning iterator over the values of an [`IndexMap`].
 ///
-/// This `struct` is created by the [`into_values`] method on [`IndexMap`].
+/// This `struct` is created by the [`IndexMap::into_values`] method.
 /// See its documentation for more.
-///
-/// [`IndexMap`]: struct.IndexMap.html
-/// [`into_values`]: struct.IndexMap.html#method.into_values
 pub struct IntoValues<K, V> {
     iter: vec::IntoIter<Bucket<K, V>>,
 }
@@ -537,5 +580,134 @@ impl<K, V> Default for IntoValues<K, V> {
         Self {
             iter: Vec::new().into_iter(),
         }
+    }
+}
+
+/// A splicing iterator for `IndexMap`.
+///
+/// This `struct` is created by [`IndexMap::splice()`].
+/// See its documentation for more.
+pub struct Splice<'a, I, K, V, S>
+where
+    I: Iterator<Item = (K, V)>,
+    K: Hash + Eq,
+    S: BuildHasher,
+{
+    map: &'a mut IndexMap<K, V, S>,
+    tail: IndexMapCore<K, V>,
+    drain: vec::IntoIter<Bucket<K, V>>,
+    replace_with: I,
+}
+
+impl<'a, I, K, V, S> Splice<'a, I, K, V, S>
+where
+    I: Iterator<Item = (K, V)>,
+    K: Hash + Eq,
+    S: BuildHasher,
+{
+    pub(super) fn new<R>(map: &'a mut IndexMap<K, V, S>, range: R, replace_with: I) -> Self
+    where
+        R: RangeBounds<usize>,
+    {
+        let (tail, drain) = map.core.split_splice(range);
+        Self {
+            map,
+            tail,
+            drain,
+            replace_with,
+        }
+    }
+}
+
+impl<I, K, V, S> Drop for Splice<'_, I, K, V, S>
+where
+    I: Iterator<Item = (K, V)>,
+    K: Hash + Eq,
+    S: BuildHasher,
+{
+    fn drop(&mut self) {
+        // Finish draining unconsumed items. We don't strictly *have* to do this
+        // manually, since we already split it into separate memory, but it will
+        // match the drop order of `vec::Splice` items this way.
+        let _ = self.drain.nth(usize::MAX);
+
+        // Now insert all the new items. If a key matches an existing entry, it
+        // keeps the original position and only replaces the value, like `insert`.
+        while let Some((key, value)) = self.replace_with.next() {
+            // Since the tail is disjoint, we can try to update it first,
+            // or else insert (update or append) the primary map.
+            let hash = self.map.hash(&key);
+            if let Some(i) = self.tail.get_index_of(hash, &key) {
+                self.tail.as_entries_mut()[i].value = value;
+            } else {
+                self.map.core.insert_full(hash, key, value);
+            }
+        }
+
+        // Finally, re-append the tail
+        self.map.core.append_unchecked(&mut self.tail);
+    }
+}
+
+impl<I, K, V, S> Iterator for Splice<'_, I, K, V, S>
+where
+    I: Iterator<Item = (K, V)>,
+    K: Hash + Eq,
+    S: BuildHasher,
+{
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.drain.next().map(Bucket::key_value)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.drain.size_hint()
+    }
+}
+
+impl<I, K, V, S> DoubleEndedIterator for Splice<'_, I, K, V, S>
+where
+    I: Iterator<Item = (K, V)>,
+    K: Hash + Eq,
+    S: BuildHasher,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.drain.next_back().map(Bucket::key_value)
+    }
+}
+
+impl<I, K, V, S> ExactSizeIterator for Splice<'_, I, K, V, S>
+where
+    I: Iterator<Item = (K, V)>,
+    K: Hash + Eq,
+    S: BuildHasher,
+{
+    fn len(&self) -> usize {
+        self.drain.len()
+    }
+}
+
+impl<I, K, V, S> FusedIterator for Splice<'_, I, K, V, S>
+where
+    I: Iterator<Item = (K, V)>,
+    K: Hash + Eq,
+    S: BuildHasher,
+{
+}
+
+impl<'a, I, K, V, S> fmt::Debug for Splice<'a, I, K, V, S>
+where
+    I: fmt::Debug + Iterator<Item = (K, V)>,
+    K: fmt::Debug + Hash + Eq,
+    V: fmt::Debug,
+    S: BuildHasher,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Follow `vec::Splice` in only printing the drain and replacement
+        f.debug_struct("Splice")
+            .field("drain", &self.drain)
+            .field("replace_with", &self.replace_with)
+            .finish()
     }
 }

@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.36"
 name = "fastrand"
-version = "2.0.1"
+version = "2.0.2"
 authors = ["Stjepan Glavina <stjepang@gmail.com>"]
 exclude = ["/.*"]
 description = "A simple and fast random number generator"

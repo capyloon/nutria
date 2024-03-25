@@ -6,6 +6,15 @@ use crate::StripStream;
 use crate::WinconStream;
 
 /// [`std::io::Write`] that adapts ANSI escape codes to the underlying `Write`s capabilities
+///
+/// This includes
+/// - Stripping colors for non-terminals
+/// - Respecting env variables like [NO_COLOR](https://no-color.org/) or [CLICOLOR](https://bixense.com/clicolors/)
+/// - *(windows)* Falling back to the wincon API where [ENABLE_VIRTUAL_TERMINAL_PROCESSING](https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#output-sequences) is unsupported
+///
+/// You can customize auto-detection by calling into
+/// [anstyle_query](https://docs.rs/anstyle-query/latest/anstyle_query/)
+/// to get a [`ColorChoice`] and then calling [`AutoStream::new(stream, choice)`].
 #[derive(Debug)]
 pub struct AutoStream<S: RawStream> {
     inner: StreamInner<S>,
@@ -24,6 +33,31 @@ where
     S: RawStream,
 {
     /// Runtime control over styling behavior
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "auto")] {
+    /// # use std::io::IsTerminal as _;
+    /// // Like `AutoStream::choice` but without `NO_COLOR`, `CLICOLOR_FORCE`, `CI`
+    /// fn choice(raw: &dyn anstream::stream::RawStream) -> anstream::ColorChoice {
+    ///     let choice = anstream::ColorChoice::global();
+    ///     if choice == anstream::ColorChoice::Auto {
+    ///         if raw.is_terminal() && anstyle_query::term_supports_color() {
+    ///             anstream::ColorChoice::Always
+    ///         } else {
+    ///             anstream::ColorChoice::Never
+    ///         }
+    ///     } else {
+    ///         choice
+    ///     }
+    /// }
+    ///
+    /// let stream = std::io::stdout();
+    /// let choice = choice(&stream);
+    /// let auto = anstream::AutoStream::new(stream, choice);
+    /// # }
+    /// ```
     #[inline]
     pub fn new(raw: S, choice: ColorChoice) -> Self {
         match choice {
@@ -156,13 +190,16 @@ fn choice(raw: &dyn RawStream) -> ColorChoice {
             let clicolor = anstyle_query::clicolor();
             let clicolor_enabled = clicolor.unwrap_or(false);
             let clicolor_disabled = !clicolor.unwrap_or(true);
-            if raw.is_terminal()
-                && !anstyle_query::no_color()
-                && !clicolor_disabled
+            if anstyle_query::no_color() {
+                ColorChoice::Never
+            } else if anstyle_query::clicolor_force() {
+                ColorChoice::Always
+            } else if clicolor_disabled {
+                ColorChoice::Never
+            } else if raw.is_terminal()
                 && (anstyle_query::term_supports_color()
                     || clicolor_enabled
                     || anstyle_query::is_ci())
-                || anstyle_query::clicolor_force()
             {
                 ColorChoice::Always
             } else {

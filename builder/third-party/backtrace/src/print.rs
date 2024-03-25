@@ -219,7 +219,7 @@ impl BacktraceFrameFmt<'_, '_, '_> {
     #[allow(unused_mut)]
     fn print_raw_generic(
         &mut self,
-        mut frame_ip: *mut c_void,
+        frame_ip: *mut c_void,
         symbol_name: Option<SymbolName<'_>>,
         filename: Option<BytesOrWideString<'_>>,
         lineno: Option<u32>,
@@ -233,22 +233,13 @@ impl BacktraceFrameFmt<'_, '_, '_> {
             }
         }
 
-        // To reduce TCB size in Sgx enclave, we do not want to implement symbol
-        // resolution functionality.  Rather, we can print the offset of the
-        // address here, which could be later mapped to correct function.
-        #[cfg(all(feature = "std", target_env = "sgx", target_vendor = "fortanix"))]
-        {
-            let image_base = std::os::fortanix_sgx::mem::image_base();
-            frame_ip = usize::wrapping_sub(frame_ip as usize, image_base as _) as _;
-        }
-
         // Print the index of the frame as well as the optional instruction
         // pointer of the frame. If we're beyond the first symbol of this frame
         // though we just print appropriate whitespace.
         if self.symbol_index == 0 {
             write!(self.fmt.fmt, "{:4}: ", self.fmt.frame_index)?;
             if let PrintFmt::Full = self.fmt.format {
-                write!(self.fmt.fmt, "{:1$?} - ", frame_ip, HEX_WIDTH)?;
+                write!(self.fmt.fmt, "{frame_ip:HEX_WIDTH$?} - ")?;
             }
         } else {
             write!(self.fmt.fmt, "      ")?;
@@ -261,8 +252,8 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         // more information if we're a full backtrace. Here we also handle
         // symbols which don't have a name,
         match (symbol_name, &self.fmt.format) {
-            (Some(name), PrintFmt::Short) => write!(self.fmt.fmt, "{:#}", name)?,
-            (Some(name), PrintFmt::Full) => write!(self.fmt.fmt, "{}", name)?,
+            (Some(name), PrintFmt::Short) => write!(self.fmt.fmt, "{name:#}")?,
+            (Some(name), PrintFmt::Full) => write!(self.fmt.fmt, "{name}")?,
             (None, _) | (_, PrintFmt::__Nonexhaustive) => write!(self.fmt.fmt, "<unknown>")?,
         }
         self.fmt.fmt.write_str("\n")?;
@@ -291,11 +282,11 @@ impl BacktraceFrameFmt<'_, '_, '_> {
         // Delegate to our internal callback to print the filename and then
         // print out the line number.
         (self.fmt.print_path)(self.fmt.fmt, file)?;
-        write!(self.fmt.fmt, ":{}", line)?;
+        write!(self.fmt.fmt, ":{line}")?;
 
         // Add column number, if available.
         if let Some(colno) = colno {
-            write!(self.fmt.fmt, ":{}", colno)?;
+            write!(self.fmt.fmt, ":{colno}")?;
         }
 
         write!(self.fmt.fmt, "\n")?;

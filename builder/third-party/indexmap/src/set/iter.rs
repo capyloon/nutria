@@ -4,6 +4,7 @@ use alloc::vec::{self, Vec};
 use core::fmt;
 use core::hash::{BuildHasher, Hash};
 use core::iter::{Chain, FusedIterator};
+use core::ops::RangeBounds;
 use core::slice::Iter as SliceIter;
 
 impl<'a, T, S> IntoIterator for &'a IndexSet<T, S> {
@@ -24,13 +25,10 @@ impl<T, S> IntoIterator for IndexSet<T, S> {
     }
 }
 
-/// An iterator over the items of a `IndexSet`.
+/// An iterator over the items of an [`IndexSet`].
 ///
-/// This `struct` is created by the [`iter`] method on [`IndexSet`].
+/// This `struct` is created by the [`IndexSet::iter`] method.
 /// See its documentation for more.
-///
-/// [`IndexSet`]: struct.IndexSet.html
-/// [`iter`]: struct.IndexSet.html#method.iter
 pub struct Iter<'a, T> {
     iter: SliceIter<'a, Bucket<T>>,
 }
@@ -86,13 +84,10 @@ impl<T> Default for Iter<'_, T> {
     }
 }
 
-/// An owning iterator over the items of a `IndexSet`.
+/// An owning iterator over the items of an [`IndexSet`].
 ///
-/// This `struct` is created by the [`into_iter`] method on [`IndexSet`]
-/// (provided by the `IntoIterator` trait). See its documentation for more.
-///
-/// [`IndexSet`]: struct.IndexSet.html
-/// [`into_iter`]: struct.IndexSet.html#method.into_iter
+/// This `struct` is created by the [`IndexSet::into_iter`] method
+/// (provided by the [`IntoIterator`] trait). See its documentation for more.
 pub struct IntoIter<T> {
     iter: vec::IntoIter<Bucket<T>>,
 }
@@ -143,13 +138,10 @@ impl<T> Default for IntoIter<T> {
     }
 }
 
-/// A draining iterator over the items of a `IndexSet`.
+/// A draining iterator over the items of an [`IndexSet`].
 ///
-/// This `struct` is created by the [`drain`] method on [`IndexSet`].
+/// This `struct` is created by the [`IndexSet::drain`] method.
 /// See its documentation for more.
-///
-/// [`IndexSet`]: struct.IndexSet.html
-/// [`drain`]: struct.IndexSet.html#method.drain
 pub struct Drain<'a, T> {
     iter: vec::Drain<'a, Bucket<T>>,
 }
@@ -190,13 +182,10 @@ impl<T: fmt::Debug> fmt::Debug for Drain<'_, T> {
     }
 }
 
-/// A lazy iterator producing elements in the difference of `IndexSet`s.
+/// A lazy iterator producing elements in the difference of [`IndexSet`]s.
 ///
-/// This `struct` is created by the [`difference`] method on [`IndexSet`].
+/// This `struct` is created by the [`IndexSet::difference`] method.
 /// See its documentation for more.
-///
-/// [`IndexSet`]: struct.IndexSet.html
-/// [`difference`]: struct.IndexSet.html#method.difference
 pub struct Difference<'a, T, S> {
     iter: Iter<'a, T>,
     other: &'a IndexSet<T, S>,
@@ -273,13 +262,10 @@ where
     }
 }
 
-/// A lazy iterator producing elements in the intersection of `IndexSet`s.
+/// A lazy iterator producing elements in the intersection of [`IndexSet`]s.
 ///
-/// This `struct` is created by the [`intersection`] method on [`IndexSet`].
+/// This `struct` is created by the [`IndexSet::intersection`] method.
 /// See its documentation for more.
-///
-/// [`IndexSet`]: struct.IndexSet.html
-/// [`intersection`]: struct.IndexSet.html#method.intersection
 pub struct Intersection<'a, T, S> {
     iter: Iter<'a, T>,
     other: &'a IndexSet<T, S>,
@@ -356,13 +342,10 @@ where
     }
 }
 
-/// A lazy iterator producing elements in the symmetric difference of `IndexSet`s.
+/// A lazy iterator producing elements in the symmetric difference of [`IndexSet`]s.
 ///
-/// This `struct` is created by the [`symmetric_difference`] method on
-/// [`IndexSet`]. See its documentation for more.
-///
-/// [`IndexSet`]: struct.IndexSet.html
-/// [`symmetric_difference`]: struct.IndexSet.html#method.symmetric_difference
+/// This `struct` is created by the [`IndexSet::symmetric_difference`] method.
+/// See its documentation for more.
 pub struct SymmetricDifference<'a, T, S1, S2> {
     iter: Chain<Difference<'a, T, S2>, Difference<'a, T, S1>>,
 }
@@ -451,13 +434,10 @@ where
     }
 }
 
-/// A lazy iterator producing elements in the union of `IndexSet`s.
+/// A lazy iterator producing elements in the union of [`IndexSet`]s.
 ///
-/// This `struct` is created by the [`union`] method on [`IndexSet`].
+/// This `struct` is created by the [`IndexSet::union`] method.
 /// See its documentation for more.
-///
-/// [`IndexSet`]: struct.IndexSet.html
-/// [`union`]: struct.IndexSet.html#method.union
 pub struct Union<'a, T, S> {
     iter: Chain<Iter<'a, T>, Difference<'a, T, S>>,
 }
@@ -539,5 +519,108 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.clone()).finish()
+    }
+}
+
+/// A splicing iterator for `IndexSet`.
+///
+/// This `struct` is created by [`IndexSet::splice()`].
+/// See its documentation for more.
+pub struct Splice<'a, I, T, S>
+where
+    I: Iterator<Item = T>,
+    T: Hash + Eq,
+    S: BuildHasher,
+{
+    iter: crate::map::Splice<'a, UnitValue<I>, T, (), S>,
+}
+
+impl<'a, I, T, S> Splice<'a, I, T, S>
+where
+    I: Iterator<Item = T>,
+    T: Hash + Eq,
+    S: BuildHasher,
+{
+    pub(super) fn new<R>(set: &'a mut IndexSet<T, S>, range: R, replace_with: I) -> Self
+    where
+        R: RangeBounds<usize>,
+    {
+        Self {
+            iter: set.map.splice(range, UnitValue(replace_with)),
+        }
+    }
+}
+
+impl<I, T, S> Iterator for Splice<'_, I, T, S>
+where
+    I: Iterator<Item = T>,
+    T: Hash + Eq,
+    S: BuildHasher,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.iter.next()?.0)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+
+impl<I, T, S> DoubleEndedIterator for Splice<'_, I, T, S>
+where
+    I: Iterator<Item = T>,
+    T: Hash + Eq,
+    S: BuildHasher,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        Some(self.iter.next_back()?.0)
+    }
+}
+
+impl<I, T, S> ExactSizeIterator for Splice<'_, I, T, S>
+where
+    I: Iterator<Item = T>,
+    T: Hash + Eq,
+    S: BuildHasher,
+{
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
+}
+
+impl<I, T, S> FusedIterator for Splice<'_, I, T, S>
+where
+    I: Iterator<Item = T>,
+    T: Hash + Eq,
+    S: BuildHasher,
+{
+}
+
+struct UnitValue<I>(I);
+
+impl<I: Iterator> Iterator for UnitValue<I> {
+    type Item = (I::Item, ());
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|x| (x, ()))
+    }
+}
+
+impl<'a, I, T, S> fmt::Debug for Splice<'a, I, T, S>
+where
+    I: fmt::Debug + Iterator<Item = T>,
+    T: fmt::Debug + Hash + Eq,
+    S: BuildHasher,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.iter, f)
+    }
+}
+
+impl<I: fmt::Debug> fmt::Debug for UnitValue<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
     }
 }

@@ -39,7 +39,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.7.0"
+//! version = "1.8.0"
 //! features = [
 //!     "v4",                # Lets you generate random UUIDs
 //!     "fast-rng",          # Use a faster (but still sufficiently random) RNG
@@ -141,7 +141,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.7.0"
+//! version = "1.8.0"
 //! features = [
 //!     "v4",
 //!     "v7",
@@ -156,7 +156,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.7.0"
+//! version = "1.8.0"
 //! default-features = false
 //! ```
 //!
@@ -214,7 +214,7 @@
 #![doc(
     html_logo_url = "https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png",
     html_favicon_url = "https://www.rust-lang.org/favicon.ico",
-    html_root_url = "https://docs.rs/uuid/1.7.0"
+    html_root_url = "https://docs.rs/uuid/1.8.0"
 )]
 
 #[cfg(any(feature = "std", test))]
@@ -932,6 +932,13 @@ impl Default for Uuid {
     }
 }
 
+impl AsRef<Uuid> for Uuid {
+    #[inline]
+    fn as_ref(&self) -> &Uuid {
+        self
+    }
+}
+
 impl AsRef<[u8]> for Uuid {
     #[inline]
     fn as_ref(&self) -> &[u8] {
@@ -963,7 +970,7 @@ pub mod serde {
     //! to change the way a [`Uuid`](../struct.Uuid.html) is serialized
     //! and deserialized.
 
-    pub use crate::external::serde_support::compact;
+    pub use crate::external::serde_support::{braced, compact, simple, urn};
 }
 
 #[cfg(test)]
@@ -1745,7 +1752,7 @@ mod tests {
     fn test_as_bytes() {
         let u = new();
         let ub = u.as_bytes();
-        let ur = u.as_ref();
+        let ur: &[u8] = u.as_ref();
 
         assert_eq!(ub.len(), 16);
         assert_eq!(ur.len(), 16);
@@ -1767,7 +1774,7 @@ mod tests {
         use crate::std::{convert::TryInto, vec::Vec};
 
         let u = new();
-        let ub = u.as_ref();
+        let ub: &[u8] = u.as_ref();
 
         let v: Vec<u8> = u.into();
 

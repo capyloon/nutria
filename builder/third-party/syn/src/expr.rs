@@ -1,12 +1,29 @@
-use super::*;
+use crate::attr::Attribute;
+#[cfg(feature = "full")]
+use crate::generics::BoundLifetimes;
+use crate::ident::Ident;
+#[cfg(feature = "full")]
+use crate::lifetime::Lifetime;
+use crate::lit::Lit;
+use crate::mac::Macro;
+use crate::op::{BinOp, UnOp};
+#[cfg(feature = "full")]
+use crate::pat::Pat;
+use crate::path::{AngleBracketedGenericArguments, Path, QSelf};
 use crate::punctuated::Punctuated;
+#[cfg(feature = "full")]
+use crate::stmt::Block;
+use crate::token;
+#[cfg(feature = "full")]
+use crate::ty::ReturnType;
+use crate::ty::Type;
 use proc_macro2::{Span, TokenStream};
 #[cfg(feature = "printing")]
 use quote::IdentFragment;
 #[cfg(feature = "printing")]
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
-#[cfg(feature = "parsing")]
+#[cfg(all(feature = "parsing", feature = "full"))]
 use std::mem;
 
 ast_enum_of_structs! {
@@ -1011,16 +1028,52 @@ mod precedence {
 
 #[cfg(feature = "parsing")]
 pub(crate) mod parsing {
-    use super::precedence::Precedence;
-    use super::*;
+    #[cfg(feature = "full")]
+    use crate::attr;
+    use crate::attr::Attribute;
+    use crate::error::{Error, Result};
+    use crate::expr::precedence::Precedence;
+    #[cfg(feature = "full")]
+    use crate::expr::{
+        requires_terminator, Arm, ExprArray, ExprAssign, ExprAsync, ExprAwait, ExprBlock,
+        ExprBreak, ExprClosure, ExprConst, ExprContinue, ExprForLoop, ExprIf, ExprInfer, ExprLet,
+        ExprLoop, ExprMatch, ExprRange, ExprRepeat, ExprReturn, ExprTry, ExprTryBlock, ExprTuple,
+        ExprUnsafe, ExprWhile, ExprYield, Label, RangeLimits,
+    };
+    use crate::expr::{
+        Expr, ExprBinary, ExprCall, ExprCast, ExprField, ExprGroup, ExprIndex, ExprLit, ExprMacro,
+        ExprMethodCall, ExprParen, ExprPath, ExprReference, ExprStruct, ExprUnary, FieldValue,
+        Index, Member,
+    };
     #[cfg(feature = "full")]
     use crate::ext::IdentExt as _;
+    #[cfg(feature = "full")]
+    use crate::generics::BoundLifetimes;
+    use crate::ident::Ident;
+    #[cfg(feature = "full")]
+    use crate::lifetime::Lifetime;
+    use crate::lit::{Lit, LitFloat, LitInt};
+    use crate::mac::{self, Macro};
+    use crate::op::BinOp;
     use crate::parse::discouraged::Speculative as _;
     #[cfg(feature = "full")]
     use crate::parse::ParseBuffer;
-    use crate::parse::{Parse, ParseStream, Result};
-    use crate::path;
+    use crate::parse::{Parse, ParseStream};
+    #[cfg(feature = "full")]
+    use crate::pat::{Pat, PatType};
+    use crate::path::{self, AngleBracketedGenericArguments, Path, QSelf};
+    use crate::punctuated::Punctuated;
+    #[cfg(feature = "full")]
+    use crate::stmt::Block;
+    use crate::token;
+    use crate::ty;
+    #[cfg(feature = "full")]
+    use crate::ty::{ReturnType, Type};
+    use crate::verbatim;
+    #[cfg(feature = "full")]
+    use proc_macro2::TokenStream;
     use std::cmp::Ordering;
+    use std::mem;
 
     mod kw {
         crate::custom_keyword!(builtin);
@@ -1131,6 +1184,122 @@ pub(crate) mod parsing {
         #[cfg_attr(doc_cfg, doc(cfg(all(feature = "full", feature = "parsing"))))]
         pub fn parse_without_eager_brace(input: ParseStream) -> Result<Expr> {
             ambiguous_expr(input, AllowStruct(false))
+        }
+
+        /// An alternative to the primary `Expr::parse` parser (from the
+        /// [`Parse`] trait) for syntactic positions in which expression
+        /// boundaries are placed more eagerly than done by the typical
+        /// expression grammar. This includes expressions at the head of a
+        /// statement or in the right-hand side of a `match` arm.
+        ///
+        /// Compare the following cases:
+        ///
+        /// 1.
+        ///   ```
+        ///   # let result = ();
+        ///   # let guard = false;
+        ///   # let cond = true;
+        ///   # let f = true;
+        ///   # let g = f;
+        ///   #
+        ///   let _ = match result {
+        ///       () if guard => if cond { f } else { g }
+        ///       () => false,
+        ///   };
+        ///   ```
+        ///
+        /// 2.
+        ///   ```
+        ///   # let cond = true;
+        ///   # let f = ();
+        ///   # let g = f;
+        ///   #
+        ///   let _ = || {
+        ///       if cond { f } else { g }
+        ///       ()
+        ///   };
+        ///   ```
+        ///
+        /// 3.
+        ///   ```
+        ///   # let cond = true;
+        ///   # let f = || ();
+        ///   # let g = f;
+        ///   #
+        ///   let _ = [if cond { f } else { g } ()];
+        ///   ```
+        ///
+        /// The same sequence of tokens `if cond { f } else { g } ()` appears in
+        /// expression position 3 times. The first two syntactic positions use
+        /// eager placement of expression boundaries, and parse as `Expr::If`,
+        /// with the adjacent `()` becoming `Pat::Tuple` or `Expr::Tuple`. In
+        /// contrast, the third case uses standard expression boundaries and
+        /// parses as `Expr::Call`.
+        ///
+        /// As with [`parse_without_eager_brace`], this ambiguity in the Rust
+        /// grammar is independent of precedence.
+        ///
+        /// [`parse_without_eager_brace`]: Self::parse_without_eager_brace
+        #[cfg(feature = "full")]
+        #[cfg_attr(doc_cfg, doc(cfg(all(feature = "full", feature = "parsing"))))]
+        pub fn parse_with_earlier_boundary_rule(input: ParseStream) -> Result<Expr> {
+            let mut attrs = input.call(expr_attrs)?;
+            let mut expr = if input.peek(token::Group) {
+                let allow_struct = AllowStruct(true);
+                let atom = expr_group(input, allow_struct)?;
+                if continue_parsing_early(&atom) {
+                    trailer_helper(input, atom)?
+                } else {
+                    atom
+                }
+            } else if input.peek(Token![if]) {
+                Expr::If(input.parse()?)
+            } else if input.peek(Token![while]) {
+                Expr::While(input.parse()?)
+            } else if input.peek(Token![for])
+                && !(input.peek2(Token![<]) && (input.peek3(Lifetime) || input.peek3(Token![>])))
+            {
+                Expr::ForLoop(input.parse()?)
+            } else if input.peek(Token![loop]) {
+                Expr::Loop(input.parse()?)
+            } else if input.peek(Token![match]) {
+                Expr::Match(input.parse()?)
+            } else if input.peek(Token![try]) && input.peek2(token::Brace) {
+                Expr::TryBlock(input.parse()?)
+            } else if input.peek(Token![unsafe]) {
+                Expr::Unsafe(input.parse()?)
+            } else if input.peek(Token![const]) && input.peek2(token::Brace) {
+                Expr::Const(input.parse()?)
+            } else if input.peek(token::Brace) {
+                Expr::Block(input.parse()?)
+            } else if input.peek(Lifetime) {
+                atom_labeled(input)?
+            } else {
+                let allow_struct = AllowStruct(true);
+                unary_expr(input, allow_struct)?
+            };
+
+            if continue_parsing_early(&expr) {
+                attrs.extend(expr.replace_attrs(Vec::new()));
+                expr.replace_attrs(attrs);
+
+                let allow_struct = AllowStruct(true);
+                return parse_expr(input, expr, allow_struct, Precedence::Any);
+            }
+
+            if input.peek(Token![.]) && !input.peek(Token![..]) || input.peek(Token![?]) {
+                expr = trailer_helper(input, expr)?;
+
+                attrs.extend(expr.replace_attrs(Vec::new()));
+                expr.replace_attrs(attrs);
+
+                let allow_struct = AllowStruct(true);
+                return parse_expr(input, expr, allow_struct, Precedence::Any);
+            }
+
+            attrs.extend(expr.replace_attrs(Vec::new()));
+            expr.replace_attrs(attrs);
+            Ok(expr)
         }
     }
 
@@ -1955,67 +2124,6 @@ pub(crate) mod parsing {
                 len: content.parse()?,
             })
         }
-    }
-
-    #[cfg(feature = "full")]
-    pub(crate) fn expr_early(input: ParseStream) -> Result<Expr> {
-        let mut attrs = input.call(expr_attrs)?;
-        let mut expr = if input.peek(token::Group) {
-            let allow_struct = AllowStruct(true);
-            let atom = expr_group(input, allow_struct)?;
-            if continue_parsing_early(&atom) {
-                trailer_helper(input, atom)?
-            } else {
-                atom
-            }
-        } else if input.peek(Token![if]) {
-            Expr::If(input.parse()?)
-        } else if input.peek(Token![while]) {
-            Expr::While(input.parse()?)
-        } else if input.peek(Token![for])
-            && !(input.peek2(Token![<]) && (input.peek3(Lifetime) || input.peek3(Token![>])))
-        {
-            Expr::ForLoop(input.parse()?)
-        } else if input.peek(Token![loop]) {
-            Expr::Loop(input.parse()?)
-        } else if input.peek(Token![match]) {
-            Expr::Match(input.parse()?)
-        } else if input.peek(Token![try]) && input.peek2(token::Brace) {
-            Expr::TryBlock(input.parse()?)
-        } else if input.peek(Token![unsafe]) {
-            Expr::Unsafe(input.parse()?)
-        } else if input.peek(Token![const]) && input.peek2(token::Brace) {
-            Expr::Const(input.parse()?)
-        } else if input.peek(token::Brace) {
-            Expr::Block(input.parse()?)
-        } else if input.peek(Lifetime) {
-            atom_labeled(input)?
-        } else {
-            let allow_struct = AllowStruct(true);
-            unary_expr(input, allow_struct)?
-        };
-
-        if continue_parsing_early(&expr) {
-            attrs.extend(expr.replace_attrs(Vec::new()));
-            expr.replace_attrs(attrs);
-
-            let allow_struct = AllowStruct(true);
-            return parse_expr(input, expr, allow_struct, Precedence::Any);
-        }
-
-        if input.peek(Token![.]) && !input.peek(Token![..]) || input.peek(Token![?]) {
-            expr = trailer_helper(input, expr)?;
-
-            attrs.extend(expr.replace_attrs(Vec::new()));
-            expr.replace_attrs(attrs);
-
-            let allow_struct = AllowStruct(true);
-            return parse_expr(input, expr, allow_struct, Precedence::Any);
-        }
-
-        attrs.extend(expr.replace_attrs(Vec::new()));
-        expr.replace_attrs(attrs);
-        Ok(expr)
     }
 
     #[cfg(feature = "full")]
@@ -2847,7 +2955,7 @@ pub(crate) mod parsing {
                 },
                 fat_arrow_token: input.parse()?,
                 body: {
-                    let body = input.call(expr_early)?;
+                    let body = Expr::parse_with_earlier_boundary_rule(input)?;
                     requires_comma = requires_terminator(&body);
                     Box::new(body)
                 },
@@ -2948,10 +3056,25 @@ pub(crate) mod parsing {
 
 #[cfg(feature = "printing")]
 pub(crate) mod printing {
-    use super::*;
+    use crate::attr::Attribute;
     #[cfg(feature = "full")]
     use crate::attr::FilterAttrs;
-    use proc_macro2::{Literal, TokenStream};
+    #[cfg(feature = "full")]
+    use crate::expr::{
+        requires_terminator, Arm, Expr, ExprArray, ExprAssign, ExprAsync, ExprAwait, ExprBlock,
+        ExprBreak, ExprClosure, ExprConst, ExprContinue, ExprForLoop, ExprIf, ExprInfer, ExprLet,
+        ExprLoop, ExprMatch, ExprRange, ExprRepeat, ExprReturn, ExprTry, ExprTryBlock, ExprTuple,
+        ExprUnsafe, ExprWhile, ExprYield, Label, RangeLimits,
+    };
+    use crate::expr::{
+        ExprBinary, ExprCall, ExprCast, ExprField, ExprGroup, ExprIndex, ExprLit, ExprMacro,
+        ExprMethodCall, ExprParen, ExprPath, ExprReference, ExprStruct, ExprUnary, FieldValue,
+        Index, Member,
+    };
+    use crate::path;
+    #[cfg(feature = "full")]
+    use crate::token;
+    use proc_macro2::{Literal, Span, TokenStream};
     use quote::{ToTokens, TokenStreamExt};
 
     // If the given expression is a bare `ExprStruct`, wraps it in parenthesis

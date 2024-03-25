@@ -28,12 +28,12 @@
 //!
 //! # Progress Bars and Spinners
 //!
-//! indicatif comes with a `ProgressBar` type that supports both bounded
+//! indicatif comes with a [`ProgressBar`] type that supports both bounded
 //! progress bar uses as well as unbounded "spinner" type progress reports.
-//! Progress bars are `Sync` and `Send` objects which means that they are
+//! Progress bars are [`Sync`] and [`Send`] objects which means that they are
 //! internally locked and can be passed from thread to thread.
 //!
-//! Additionally a `MultiProgress` utility is provided that can manage
+//! Additionally a [`MultiProgress`] utility is provided that can manage
 //! rendering multiple progress bars at once (eg: from multiple threads).
 //!
 //! To whet your appetite, this is what this can look like:
@@ -56,14 +56,28 @@
 //! bar.finish();
 //! ```
 //!
+//! Spinners can be manually advanced with [`tick`](ProgressBar::tick), or you can set them up
+//! to spin automatically with [`enable_steady_tick`](ProgressBar::enable_steady_tick):
+//!
+//! ```rust
+//! use std::time::Duration;
+//! use indicatif::ProgressBar;
+//!
+//! let bar = ProgressBar::new_spinner();
+//! bar.enable_steady_tick(Duration::from_millis(100));
+//! // ... do some work
+//! bar.finish();
+//! ```
+//!
 //! General progress bar behaviors:
 //!
 //! * if a non terminal is detected the progress bar will be completely
 //!   hidden.  This makes piping programs to logfiles make sense out of
 //!   the box.
-//! * a progress bar only starts drawing when `set_message`, `inc`, `set_position`
-//!   or `tick` are called.  In some situations you might have to call `tick`
-//!   once to draw it.
+//! * a progress bar only starts drawing when [`set_message`](ProgressBar::set_message),
+//!   [`inc`](ProgressBar::inc), [`set_position`](ProgressBar::set_position)
+//!   or [`tick`](ProgressBar::tick) are called. In some situations you
+//!   might have to call [`tick`](ProgressBar::tick) once to draw it.
 //! * progress bars should be explicitly finished to reset the rendering
 //!   for others.  Either by also clearing them or by replacing them with
 //!   a new message / retaining the current message.
@@ -134,7 +148,7 @@
 //! ```
 //!
 //! For the style component see [`Style::from_dotted_str`](https://docs.rs/console/0.7.5/console/struct.Style.html#method.from_dotted_str)
-//! for more information.  Indicatif uses the `console` base crate for all
+//! for more information. Indicatif uses the `console` base crate for all
 //! colorization and formatting options.
 //!
 //! Some examples for templates:
@@ -164,7 +178,8 @@
 //!   style is used for the bar that is yet to render.
 //! * `wide_bar`: like `bar` but always fills the remaining space. It should not be used with
 //! `wide_msg`.
-//! * `spinner`: renders the spinner (current tick string).
+//! * `spinner`: renders the spinner (current tick string). Note that spinners do not automatically tick by default. You either
+//! need to call `enable_steady_tick` or manually call `tick`.
 //! * `prefix`: renders the prefix set on the progress bar.
 //! * `msg`: renders the currently set message on the progress bar.
 //! * `wide_msg`: like `msg` but always fills the remaining space and truncates. It should not be used
@@ -175,13 +190,24 @@
 //! * `len`: renders the amount of work to be done as an integer
 //! * `human_len`: renders the total length of the bar as an integer, with commas as the thousands
 //! separator.
-//! * `bytes`: renders the current position of the bar as bytes.
-//! * `percent`: renders the current position of the bar as a percentage of the total length.
-//! * `total_bytes`: renders the total length of the bar as bytes.
+//! * `percent`: renders the current position of the bar as a percentage of the total length (as an integer).
+//! * `percent_precise`: renders the current position of the bar as a percentage of the total length (with 3 fraction digits).
+//! * `bytes`: renders the current position of the bar as bytes (alias of `binary_bytes`).
+//! * `total_bytes`: renders the total length of the bar as bytes (alias of `binary_total_bytes`).
+//! * `decimal_bytes`: renders the current position of the bar as bytes using
+//!   power-of-10 units, i.e. `MB`, `kB`, etc.
+//! * `decimal_total_bytes`: renders the total length of the bar as bytes using
+//!   power-of-10 units, i.e. `MB`, `kB`, etc.
+//! * `binary_bytes`: renders the current position of the bar as bytes using
+//!   power-of-two units, i.e. `MiB`, `KiB`, etc.
+//! * `binary_total_bytes`: renders the total length of the bar as bytes using
+//!   power-of-two units, i.e. `MiB`, `KiB`, etc.
 //! * `elapsed_precise`: renders the elapsed time as `HH:MM:SS`.
 //! * `elapsed`: renders the elapsed time as `42s`, `1m` etc.
 //! * `per_sec`: renders the speed in steps per second.
-//! * `bytes_per_sec`: renders the speed in bytes per second.
+//! * `bytes_per_sec`: renders the speed in bytes per second (alias of `binary_bytes_per_sec`).
+//! * `decimal_bytes_per_sec`: renders the speed in bytes per second using
+//!   power-of-10 units, i.e. `MB`, `kB`, etc.
 //! * `binary_bytes_per_sec`: renders the speed in bytes per second using
 //!   power-of-two units, i.e. `MiB`, `KiB`, etc.
 //! * `eta_precise`: the remaining time (like `elapsed_precise`).
@@ -192,7 +218,7 @@
 //!
 //! The design of the progress bar can be altered with the integrated
 //! template functionality.  The template can be set by changing a
-//! `ProgressStyle` and attaching it to the progress bar.
+//! [`ProgressStyle`] and attaching it to the progress bar.
 //!
 //! # Human Readable Formatting
 //!

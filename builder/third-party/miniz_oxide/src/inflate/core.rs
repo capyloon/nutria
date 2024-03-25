@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::shared::{update_adler32, HUFFMAN_LENGTH_ORDER};
+use ::core::cell::Cell;
 
 use ::core::convert::TryInto;
 use ::core::{cmp, slice};
@@ -52,7 +53,12 @@ impl HuffmanTable {
         loop {
             // symbol here indicates the position of the left (0) node, if the next bit is 1
             // we add 1 to the lookup position to get the right node.
-            symbol = i32::from(self.tree[(!symbol + ((bit_buf >> code_len) & 1) as i32) as usize]);
+            let tree_index = (!symbol + ((bit_buf >> code_len) & 1) as i32) as usize;
+            debug_assert!(tree_index < self.tree.len());
+            if tree_index >= self.tree.len() {
+                break;
+            }
+            symbol = i32::from(self.tree[tree_index]);
             code_len += 1;
             if symbol >= 0 {
                 break;
@@ -574,14 +580,14 @@ where
     } else {
         let res = r.tables[table].tree_lookup(symbol, l.bit_buf, u32::from(FAST_LOOKUP_BITS));
         symbol = res.0;
-        code_len = res.1 as u32;
+        code_len = res.1;
     };
 
     if code_len == 0 {
         return Action::Jump(InvalidCodeLen);
     }
 
-    l.bit_buf >>= code_len as u32;
+    l.bit_buf >>= code_len;
     l.num_bits -= code_len;
     f(r, l, symbol)
 }
@@ -684,37 +690,53 @@ static REVERSED_BITS_LOOKUP: [u32; 1024] = {
     table
 };
 
-fn init_tree(r: &mut DecompressorOxide, l: &mut LocalVars) -> Action {
+fn init_tree(r: &mut DecompressorOxide, l: &mut LocalVars) -> Option<Action> {
     loop {
-        let table = &mut r.tables[r.block_type as usize];
-        let table_size = r.table_sizes[r.block_type as usize] as usize;
+        let bt = r.block_type as usize;
+        if bt >= r.tables.len() {
+            return None;
+        }
+        let table = &mut r.tables[bt];
+        let table_size = r.table_sizes[bt] as usize;
+        if table_size > table.code_size.len() {
+            return None;
+        }
         let mut total_symbols = [0u32; 16];
         let mut next_code = [0u32; 17];
         memset(&mut table.look_up[..], 0);
         memset(&mut table.tree[..], 0);
 
         for &code_size in &table.code_size[..table_size] {
-            total_symbols[code_size as usize] += 1;
+            let cs = code_size as usize;
+            if cs >= total_symbols.len() {
+                return None;
+            }
+            total_symbols[cs] += 1;
         }
 
         let mut used_symbols = 0;
         let mut total = 0;
-        for i in 1..16 {
-            used_symbols += total_symbols[i];
-            total += total_symbols[i];
+        for (ts, next) in total_symbols
+            .iter()
+            .copied()
+            .zip(next_code.iter_mut().skip(1))
+            .skip(1)
+        {
+            used_symbols += ts;
+            total += ts;
             total <<= 1;
-            next_code[i + 1] = total;
+            *next = total;
         }
 
         if total != 65_536 && used_symbols > 1 {
-            return Action::Jump(BadTotalSymbols);
+            return Some(Action::Jump(BadTotalSymbols));
         }
 
         let mut tree_next = -1;
         for symbol_index in 0..table_size {
             let mut rev_code = 0;
             let code_size = table.code_size[symbol_index];
-            if code_size == 0 {
+            if code_size == 0 || usize::from(code_size) >= next_code.len() {
                 continue;
             }
 
@@ -744,7 +766,7 @@ fn init_tree(r: &mut DecompressorOxide, l: &mut LocalVars) -> Action {
 
             let mut tree_cur = table.look_up[(rev_code & (FAST_LOOKUP_SIZE - 1)) as usize];
             if tree_cur == 0 {
-                table.look_up[(rev_code & (FAST_LOOKUP_SIZE - 1)) as usize] = tree_next as i16;
+                table.look_up[(rev_code & (FAST_LOOKUP_SIZE - 1)) as usize] = tree_next;
                 tree_cur = tree_next;
                 tree_next -= 2;
             }
@@ -753,23 +775,31 @@ fn init_tree(r: &mut DecompressorOxide, l: &mut LocalVars) -> Action {
             for _ in FAST_LOOKUP_BITS + 1..code_size {
                 rev_code >>= 1;
                 tree_cur -= (rev_code & 1) as i16;
-                if table.tree[(-tree_cur - 1) as usize] == 0 {
-                    table.tree[(-tree_cur - 1) as usize] = tree_next as i16;
+                let tree_index = (-tree_cur - 1) as usize;
+                if tree_index >= table.tree.len() {
+                    return None;
+                }
+                if table.tree[tree_index] == 0 {
+                    table.tree[tree_index] = tree_next;
                     tree_cur = tree_next;
                     tree_next -= 2;
                 } else {
-                    tree_cur = table.tree[(-tree_cur - 1) as usize];
+                    tree_cur = table.tree[tree_index];
                 }
             }
 
             rev_code >>= 1;
             tree_cur -= (rev_code & 1) as i16;
-            table.tree[(-tree_cur - 1) as usize] = symbol_index as i16;
+            let tree_index = (-tree_cur - 1) as usize;
+            if tree_index >= table.tree.len() {
+                return None;
+            }
+            table.tree[tree_index] = symbol_index as i16;
         }
 
         if r.block_type == 2 {
             l.counter = 0;
-            return Action::Jump(ReadLitlenDistTablesCodeSize);
+            return Some(Action::Jump(ReadLitlenDistTablesCodeSize));
         }
 
         if r.block_type == 0 {
@@ -779,7 +809,7 @@ fn init_tree(r: &mut DecompressorOxide, l: &mut LocalVars) -> Action {
     }
 
     l.counter = 0;
-    Action::Jump(DecodeLitlen)
+    Some(Action::Jump(DecodeLitlen))
 }
 
 // A helper macro for generating the state machine.
@@ -877,15 +907,27 @@ fn apply_match(
     match_len: usize,
     out_buf_size_mask: usize,
 ) {
-    debug_assert!(out_pos + match_len <= out_slice.len());
+    debug_assert!(out_pos.checked_add(match_len).unwrap() <= out_slice.len());
 
     let source_pos = out_pos.wrapping_sub(dist) & out_buf_size_mask;
 
     if match_len == 3 {
-        // Fast path for match len 3.
-        out_slice[out_pos] = out_slice[source_pos];
-        out_slice[out_pos + 1] = out_slice[(source_pos + 1) & out_buf_size_mask];
-        out_slice[out_pos + 2] = out_slice[(source_pos + 2) & out_buf_size_mask];
+        let out_slice = Cell::from_mut(out_slice).as_slice_of_cells();
+        if let Some(dst) = out_slice.get(out_pos..out_pos + 3) {
+            // Moving bounds checks before any memory mutation allows the optimizer
+            // combine them together.
+            let src = out_slice
+                .get(source_pos)
+                .zip(out_slice.get((source_pos + 1) & out_buf_size_mask))
+                .zip(out_slice.get((source_pos + 2) & out_buf_size_mask));
+            if let Some(((a, b), c)) = src {
+                // For correctness, the memory reads and writes have to be interleaved.
+                // Cells make it possible for read and write references to overlap.
+                dst[0].set(a.get());
+                dst[1].set(b.get());
+                dst[2].set(c.get());
+            }
+        }
         return;
     }
 
@@ -1192,7 +1234,7 @@ pub fn decompress(
                         0 => Action::Jump(BlockTypeNoCompression),
                         1 => {
                             start_static_table(r);
-                            init_tree(r, l)
+                            init_tree(r, l).unwrap_or(Action::End(TINFLStatus::Failed))
                         },
                         2 => {
                             l.counter = 0;
@@ -1305,7 +1347,7 @@ pub fn decompress(
 
                     out_buf.write_slice(&in_iter.as_slice()[..bytes_to_copy]);
 
-                    (&mut in_iter).nth(bytes_to_copy - 1);
+                    in_iter.nth(bytes_to_copy - 1);
                     l.counter -= bytes_to_copy as u32;
                     Action::Jump(RawMemcpy1)
                 } else {
@@ -1357,7 +1399,7 @@ pub fn decompress(
                     })
                 } else {
                     r.table_sizes[HUFFLEN_TABLE] = 19;
-                    init_tree(r, &mut l)
+                    init_tree(r, &mut l).unwrap_or(Action::End(TINFLStatus::Failed))
                 }
             }),
 
@@ -1392,7 +1434,7 @@ pub fn decompress(
                         .copy_from_slice(&r.len_codes[dist_table_start..dist_table_end]);
 
                     r.block_type -= 1;
-                    init_tree(r, &mut l)
+                    init_tree(r, &mut l).unwrap_or(Action::End(TINFLStatus::Failed))
                 }
             }),
 
@@ -1591,7 +1633,7 @@ pub fn decompress(
                     let source_pos = out_buf.position()
                         .wrapping_sub(l.dist as usize) & out_buf_size_mask;
 
-                    let out_len = out_buf.get_ref().len() as usize;
+                    let out_len = out_buf.get_ref().len();
                     let match_end_pos = out_buf.position() + l.counter as usize;
 
                     if match_end_pos > out_len ||
@@ -1784,10 +1826,10 @@ mod test {
 
         let mut b = DecompressorOxide::new();
         const LEN: usize = 32;
-        let mut b_buf = vec![0; LEN];
+        let mut b_buf = [0; LEN];
 
         // This should fail with the out buffer being to small.
-        let b_status = tinfl_decompress_oxide(&mut b, &encoded[..], b_buf.as_mut_slice(), flags);
+        let b_status = tinfl_decompress_oxide(&mut b, &encoded[..], &mut b_buf, flags);
 
         assert_eq!(b_status.0, TINFLStatus::Failed);
 
@@ -1796,12 +1838,13 @@ mod test {
         b = DecompressorOxide::new();
 
         // With TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF set this should no longer fail.
-        let b_status = tinfl_decompress_oxide(&mut b, &encoded[..], b_buf.as_mut_slice(), flags);
+        let b_status = tinfl_decompress_oxide(&mut b, &encoded[..], &mut b_buf, flags);
 
         assert_eq!(b_buf[..b_status.2], b"Hello, zlib!"[..]);
         assert_eq!(b_status.0, TINFLStatus::Done);
     }
 
+    #[cfg(feature = "with-alloc")]
     #[test]
     fn raw_block() {
         const LEN: usize = 64;
@@ -1826,9 +1869,9 @@ mod test {
 
         let mut b = DecompressorOxide::new();
 
-        let mut b_buf = vec![0; LEN];
+        let mut b_buf = [0; LEN];
 
-        let b_status = tinfl_decompress_oxide(&mut b, &encoded[..], b_buf.as_mut_slice(), flags);
+        let b_status = tinfl_decompress_oxide(&mut b, &encoded[..], &mut b_buf, flags);
         assert_eq!(b_buf[..b_status.2], text[..]);
         assert_eq!(b_status.0, TINFLStatus::Done);
     }
@@ -1850,7 +1893,7 @@ mod test {
             counter: d.counter,
             num_extra: d.num_extra,
         };
-        init_tree(&mut d, &mut l);
+        init_tree(&mut d, &mut l).unwrap();
         let llt = &d.tables[LITLEN_TABLE];
         let dt = &d.tables[DIST_TABLE];
         assert_eq!(masked_lookup(llt, 0b00001100), (0, 8));
@@ -1868,6 +1911,8 @@ mod test {
         assert_eq!(masked_lookup(dt, 20), (5, 5));
     }
 
+    // Only run this test with alloc enabled as it uses a larger buffer.
+    #[cfg(feature = "with-alloc")]
     fn check_result(input: &[u8], expected_status: TINFLStatus, expected_state: State, zlib: bool) {
         let mut r = DecompressorOxide::default();
         let mut output_buf = vec![0; 1024 * 32];
@@ -1883,6 +1928,7 @@ mod test {
         assert_eq!(expected_state, r.state);
     }
 
+    #[cfg(feature = "with-alloc")]
     #[test]
     fn bogus_input() {
         use self::check_result as cr;
@@ -1969,7 +2015,7 @@ mod test {
             | TINFL_FLAG_PARSE_ZLIB_HEADER
             | TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF;
         let mut r = DecompressorOxide::new();
-        let mut output_buf = vec![];
+        let mut output_buf: [u8; 0] = [];
         // Check that we handle an empty buffer properly and not panicking.
         // https://github.com/Frommi/miniz_oxide/issues/23
         let res = decompress(&mut r, &encoded, &mut output_buf, 0, flags);
@@ -1983,7 +2029,7 @@ mod test {
         ];
         let flags = TINFL_FLAG_COMPUTE_ADLER32;
         let mut r = DecompressorOxide::new();
-        let mut output_buf = vec![];
+        let mut output_buf: [u8; 0] = [];
         // Check that we handle an empty buffer properly and not panicking.
         // https://github.com/Frommi/miniz_oxide/issues/23
         let res = decompress(&mut r, &encoded, &mut output_buf, 0, flags);

@@ -1,7 +1,6 @@
 // We *mostly* avoid unsafe code, but `map::core::raw` allows it to use `RawTable` buckets.
 #![deny(unsafe_code)]
 #![warn(rust_2018_idioms)]
-#![doc(html_root_url = "https://docs.rs/indexmap/1/")]
 #![no_std]
 
 //! [`IndexMap`] is a hash table where the iteration order of the key-value
@@ -9,10 +8,6 @@
 //!
 //! [`IndexSet`] is a corresponding hash set using the same implementation and
 //! with similar properties.
-//!
-//! [`IndexMap`]: map/struct.IndexMap.html
-//! [`IndexSet`]: set/struct.IndexSet.html
-//!
 //!
 //! ### Highlights
 //!
@@ -24,7 +19,7 @@
 //! - The [`Equivalent`] trait, which offers more flexible equality definitions
 //!   between borrowed and owned versions of keys.
 //! - The [`MutableKeys`][map::MutableKeys] trait, which gives opt-in mutable
-//!   access to hash map keys.
+//!   access to map keys, and [`MutableValues`][set::MutableValues] for sets.
 //!
 //! ### Feature Flags
 //!
@@ -40,6 +35,8 @@
 //!   to [`IndexMap`] and [`IndexSet`]. Alternative implementations for
 //!   (de)serializing [`IndexMap`] as an ordered sequence are available in the
 //!   [`map::serde_seq`] module.
+//! * `borsh`: Adds implementations for [`BorshSerialize`] and [`BorshDeserialize`]
+//!   to [`IndexMap`] and [`IndexSet`].
 //! * `arbitrary`: Adds implementations for the [`arbitrary::Arbitrary`] trait
 //!   to [`IndexMap`] and [`IndexSet`].
 //! * `quickcheck`: Adds implementations for the [`quickcheck::Arbitrary`] trait
@@ -51,12 +48,15 @@
 //! [`no_std`]: #no-standard-library-targets
 //! [`Serialize`]: `::serde::Serialize`
 //! [`Deserialize`]: `::serde::Deserialize`
+//! [`BorshSerialize`]: `::borsh::BorshSerialize`
+//! [`BorshDeserialize`]: `::borsh::BorshDeserialize`
 //! [`arbitrary::Arbitrary`]: `::arbitrary::Arbitrary`
 //! [`quickcheck::Arbitrary`]: `::quickcheck::Arbitrary`
 //!
 //! ### Alternate Hashers
 //!
-//! [`IndexMap`] and [`IndexSet`] have a default hasher type `S = RandomState`,
+//! [`IndexMap`] and [`IndexSet`] have a default hasher type
+//! [`S = RandomState`][std::collections::hash_map::RandomState],
 //! just like the standard `HashMap` and `HashSet`, which is resistant to
 //! HashDoS attacks but not the most performant. Type aliases can make it easier
 //! to use alternate hashers:
@@ -95,14 +95,11 @@
 //!
 //! - Creating maps and sets using [`new`][IndexMap::new] and
 //! [`with_capacity`][IndexMap::with_capacity] is unavailable without `std`.
-//!   Use methods [`IndexMap::default`][def],
-//!   [`with_hasher`][IndexMap::with_hasher],
+//!   Use methods [`IndexMap::default`], [`with_hasher`][IndexMap::with_hasher],
 //!   [`with_capacity_and_hasher`][IndexMap::with_capacity_and_hasher] instead.
 //!   A no-std compatible hasher will be needed as well, for example
 //!   from the crate `twox-hash`.
 //! - Macros [`indexmap!`] and [`indexset!`] are unavailable without `std`.
-//!
-//! [def]: map/struct.IndexMap.html#impl-Default
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -117,9 +114,9 @@ use alloc::vec::{self, Vec};
 mod arbitrary;
 #[macro_use]
 mod macros;
-mod mutable_keys;
+#[cfg(feature = "borsh")]
+mod borsh;
 #[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 mod serde;
 mod util;
 
@@ -129,7 +126,6 @@ pub mod set;
 // Placed after `map` and `set` so new `rayon` methods on the types
 // are documented after the "normal" methods.
 #[cfg(feature = "rayon")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rayon")))]
 mod rayon;
 
 #[cfg(feature = "rustc-rayon")]
@@ -221,7 +217,7 @@ trait Entries {
         F: FnOnce(&mut [Self::Entry]);
 }
 
-/// The error type for `try_reserve` methods.
+/// The error type for [`try_reserve`][IndexMap::try_reserve] methods.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TryReserveError {
     kind: TryReserveErrorKind,

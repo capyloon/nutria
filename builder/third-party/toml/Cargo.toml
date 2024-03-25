@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.67"
+rust-version = "1.70"
 name = "toml"
-version = "0.8.8"
+version = "0.8.12"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 include = [
     "build.rs",
@@ -125,7 +125,7 @@ optional = true
 version = "1.0.145"
 
 [dependencies.serde_spanned]
-version = "0.6.4"
+version = "0.6.5"
 features = ["serde"]
 
 [dependencies.toml_datetime]
@@ -133,23 +133,23 @@ version = "0.6.5"
 features = ["serde"]
 
 [dependencies.toml_edit]
-version = "0.21.0"
+version = "0.22.8"
 features = ["serde"]
 optional = true
 default-features = false
 
 [dev-dependencies.serde]
-version = "1.0.160"
+version = "1.0.197"
 features = ["derive"]
 
 [dev-dependencies.serde_json]
-version = "1.0.96"
+version = "1.0.114"
 
 [dev-dependencies.snapbox]
-version = "0.4.11"
+version = "0.4.16"
 
 [dev-dependencies.toml-test-data]
-version = "1.4.0"
+version = "1.8.0"
 
 [dev-dependencies.toml-test-harness]
 version = "0.4.8"

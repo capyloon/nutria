@@ -12,20 +12,24 @@ use core::slice;
 pub(super) fn native_libraries() -> Vec<Library> {
     let mut ret = Vec::new();
     unsafe {
-        libc::dl_iterate_phdr(Some(callback), &mut ret as *mut Vec<_> as *mut _);
+        libc::dl_iterate_phdr(Some(callback), core::ptr::addr_of_mut!(ret).cast());
     }
     return ret;
 }
 
 fn infer_current_exe(base_addr: usize) -> OsString {
-    if let Ok(entries) = super::parse_running_mmaps::parse_maps() {
-        let opt_path = entries
-            .iter()
-            .find(|e| e.ip_matches(base_addr) && e.pathname().len() > 0)
-            .map(|e| e.pathname())
-            .cloned();
-        if let Some(path) = opt_path {
-            return path;
+    cfg_if::cfg_if! {
+        if #[cfg(not(target_os = "hurd"))] {
+                if let Ok(entries) = super::parse_running_mmaps::parse_maps() {
+                let opt_path = entries
+                    .iter()
+                    .find(|e| e.ip_matches(base_addr) && e.pathname().len() > 0)
+                    .map(|e| e.pathname())
+                    .cloned();
+                if let Some(path) = opt_path {
+                    return path;
+                }
+            }
         }
     }
     env::current_exe().map(|e| e.into()).unwrap_or_default()
@@ -39,7 +43,7 @@ unsafe extern "C" fn callback(
     vec: *mut libc::c_void,
 ) -> libc::c_int {
     let info = &*info;
-    let libs = &mut *(vec as *mut Vec<Library>);
+    let libs = &mut *vec.cast::<Vec<Library>>();
     let is_main_prog = info.dlpi_name.is_null() || *info.dlpi_name == 0;
     let name = if is_main_prog {
         // The man page for dl_iterate_phdr says that the first object visited by

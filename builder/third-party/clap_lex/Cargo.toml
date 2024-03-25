@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.70.0"
+rust-version = "1.74"
 name = "clap_lex"
-version = "0.6.0"
+version = "0.7.0"
 include = [
     "build.rs",
     "src/**/*",

@@ -25,12 +25,23 @@
 //!
 //! [`isatty`]: https://man7.org/linux/man-pages/man3/isatty.3.html
 
-#![cfg_attr(unix, no_std)]
+#![cfg_attr(
+    not(any(
+        unix,
+        windows,
+        target_os = "wasi",
+        target_os = "hermit",
+        target_os = "unknown"
+    )),
+    no_std
+)]
 
-#[cfg(not(any(windows, target_os = "hermit", target_os = "unknown")))]
-use rustix::fd::AsFd;
 #[cfg(target_os = "hermit")]
 use std::os::hermit::io::AsFd;
+#[cfg(unix)]
+use std::os::unix::io::{AsFd, AsRawFd};
+#[cfg(target_os = "wasi")]
+use std::os::wasi::io::{AsFd, AsRawFd};
 #[cfg(windows)]
 use std::os::windows::io::{AsHandle, AsRawHandle, BorrowedHandle};
 #[cfg(windows)]
@@ -75,7 +86,8 @@ impl<Stream: AsFd> IsTerminal for Stream {
     fn is_terminal(&self) -> bool {
         #[cfg(any(unix, target_os = "wasi"))]
         {
-            rustix::termios::isatty(self)
+            let fd = self.as_fd();
+            unsafe { libc::isatty(fd.as_raw_fd()) != 0 }
         }
 
         #[cfg(target_os = "hermit")]
@@ -95,14 +107,12 @@ impl<Stream: AsHandle> IsTerminal for Stream {
 }
 
 // The Windows implementation here is copied from `handle_is_console` in
-// std/src/sys/windows/io.rs in Rust at revision
-// d7b0bcb20f2f7d5f3ea3489d56ece630147e98f5.
+// library/std/src/sys/pal/windows/io.rs in Rust at revision
+// e74c667a53c6368579867a74494e6fb7a7f17d13.
 
 #[cfg(windows)]
 fn handle_is_console(handle: BorrowedHandle<'_>) -> bool {
-    use windows_sys::Win32::System::Console::{
-        GetConsoleMode, GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
-    };
+    use windows_sys::Win32::System::Console::GetConsoleMode;
 
     let handle = handle.as_raw_handle();
 
@@ -118,28 +128,12 @@ fn handle_is_console(handle: BorrowedHandle<'_>) -> bool {
             return true;
         }
 
-        // At this point, we *could* have a false negative. We can determine that this is a true
-        // negative if we can detect the presence of a console on any of the standard I/O streams. If
-        // another stream has a console, then we know we're in a Windows console and can therefore
-        // trust the negative.
-        for std_handle in [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
-            let std_handle = GetStdHandle(std_handle);
-            if std_handle != 0
-                && std_handle != handle as HANDLE
-                && GetConsoleMode(std_handle, &mut out) != 0
-            {
-                return false;
-            }
-        }
-
         // Otherwise, we fall back to an msys hack to see if we can detect the presence of a pty.
         msys_tty_on(handle as HANDLE)
     }
 }
 
 /// Returns true if there is an MSYS tty on the given handle.
-///
-/// This incoproates d7b0bcb20f2f7d5f3ea3489d56ece630147e98f5
 #[cfg(windows)]
 unsafe fn msys_tty_on(handle: HANDLE) -> bool {
     use std::ffi::c_void;

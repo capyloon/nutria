@@ -1,9 +1,12 @@
-use super::*;
+use crate::attr::Attribute;
+use crate::item::Item;
 
 ast_struct! {
     /// A complete file of Rust source code.
     ///
     /// Typically `File` objects are created with [`parse_file`].
+    ///
+    /// [`parse_file`]: crate::parse_file
     ///
     /// # Example
     ///
@@ -87,8 +90,10 @@ ast_struct! {
 
 #[cfg(feature = "parsing")]
 pub(crate) mod parsing {
-    use super::*;
-    use crate::parse::{Parse, ParseStream, Result};
+    use crate::attr::Attribute;
+    use crate::error::Result;
+    use crate::file::File;
+    use crate::parse::{Parse, ParseStream};
 
     #[cfg_attr(doc_cfg, doc(cfg(feature = "parsing")))]
     impl Parse for File {
@@ -110,8 +115,8 @@ pub(crate) mod parsing {
 
 #[cfg(feature = "printing")]
 mod printing {
-    use super::*;
     use crate::attr::FilterAttrs;
+    use crate::file::File;
     use proc_macro2::TokenStream;
     use quote::{ToTokens, TokenStreamExt};
 

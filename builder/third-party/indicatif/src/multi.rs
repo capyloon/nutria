@@ -5,7 +5,9 @@ use std::thread::panicking;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
-use crate::draw_target::{DrawState, DrawStateWrapper, LineAdjust, ProgressDrawTarget};
+use crate::draw_target::{
+    visual_line_count, DrawState, DrawStateWrapper, LineAdjust, ProgressDrawTarget, VisualLines,
+};
 use crate::progress_bar::ProgressBar;
 #[cfg(target_arch = "wasm32")]
 use instant::Instant;
@@ -26,8 +28,11 @@ impl MultiProgress {
     /// Creates a new multi progress object.
     ///
     /// Progress bars added to this object by default draw directly to stderr, and refresh
-    /// a maximum of 15 times a second. To change the refresh rate set the draw target to
+    /// a maximum of 15 times a second. To change the refresh rate [set] the [draw target] to
     /// one with a different refresh rate.
+    ///
+    /// [set]: MultiProgress::set_draw_target
+    /// [draw target]: ProgressDrawTarget
     pub fn new() -> Self {
         Self::default()
     }
@@ -40,6 +45,8 @@ impl MultiProgress {
     }
 
     /// Sets a different draw target for the multiprogress bar.
+    ///
+    /// Use [`MultiProgress::with_draw_target`] to set the draw target during creation.
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         let mut state = self.state.write().unwrap();
         state.draw_target.disconnect(Instant::now());
@@ -63,9 +70,12 @@ impl MultiProgress {
     ///
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
-    /// object overriding custom `ProgressDrawTarget` settings.
+    /// object overriding custom [`ProgressDrawTarget`] settings.
     ///
-    /// Adding a progress bar that is already a member of the `MultiProgress`
+    /// The progress bar will be positioned below all other bars currently
+    /// in the [`MultiProgress`].
+    ///
+    /// Adding a progress bar that is already a member of the [`MultiProgress`]
     /// will have no effect.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::End, pb)
@@ -75,12 +85,12 @@ impl MultiProgress {
     ///
     /// The progress bar inserted at position `index` will have the draw
     /// target changed to a remote draw target that is intercepted by the
-    /// multi progress object overriding custom `ProgressDrawTarget` settings.
+    /// multi progress object overriding custom [`ProgressDrawTarget`] settings.
     ///
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
     ///
-    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
     /// will have no effect.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::Index(index), pb)
@@ -91,12 +101,12 @@ impl MultiProgress {
     /// The progress bar inserted at position `MultiProgressState::objects.len() - index`
     /// will have the draw target changed to a remote draw target that is
     /// intercepted by the multi progress object overriding custom
-    /// `ProgressDrawTarget` settings.
+    /// [`ProgressDrawTarget`] settings.
     ///
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the start of the list.
     ///
-    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
     /// will have no effect.
     pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::IndexFromBack(index), pb)
@@ -106,9 +116,9 @@ impl MultiProgress {
     ///
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
-    /// object overriding custom `ProgressDrawTarget` settings.
+    /// object overriding custom [`ProgressDrawTarget`] settings.
     ///
-    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
     /// will have no effect.
     pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::Before(before.index().unwrap()), pb)
@@ -118,9 +128,9 @@ impl MultiProgress {
     ///
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
-    /// object overriding custom `ProgressDrawTarget` settings.
+    /// object overriding custom [`ProgressDrawTarget`] settings.
     ///
-    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
     /// will have no effect.
     pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::After(after.index().unwrap()), pb)
@@ -129,7 +139,7 @@ impl MultiProgress {
     /// Removes a progress bar.
     ///
     /// The progress bar is removed only if it was previously inserted or added
-    /// by the methods `MultiProgress::insert` or `MultiProgress::add`.
+    /// by the methods [`MultiProgress::insert`] or [`MultiProgress::add`].
     /// If the passed progress bar does not satisfy the condition above,
     /// the `remove` method does nothing.
     pub fn remove(&self, pb: &ProgressBar) {
@@ -207,7 +217,7 @@ pub(crate) struct MultiState {
     /// calling `ProgressBar::println` on a pb that is connected to a `MultiProgress`.
     orphan_lines: Vec<String>,
     /// The count of currently visible zombie lines.
-    zombie_lines_count: usize,
+    zombie_lines_count: VisualLines,
 }
 
 impl MultiState {
@@ -220,11 +230,13 @@ impl MultiState {
             move_cursor: false,
             alignment: MultiProgressAlignment::default(),
             orphan_lines: Vec::new(),
-            zombie_lines_count: 0,
+            zombie_lines_count: VisualLines::default(),
         }
     }
 
     pub(crate) fn mark_zombie(&mut self, index: usize) {
+        let width = self.width().map(usize::from);
+
         let member = &mut self.members[index];
 
         // If the zombie is the first visual bar then we can reap it right now instead of
@@ -237,7 +249,8 @@ impl MultiState {
         let line_count = member
             .draw_state
             .as_ref()
-            .map(|d| d.lines.len())
+            .zip(width)
+            .map(|(d, width)| d.visual_line_count(.., width))
             .unwrap_or_default();
 
         // Track the total number of zombie lines on the screen
@@ -259,14 +272,11 @@ impl MultiState {
         if panicking() {
             return Ok(());
         }
-        let width = self.width() as f64;
-        // Calculate real length based on terminal width
-        // This take in account linewrap from terminal
-        fn real_len(lines: &[String], width: f64) -> usize {
-            lines.iter().fold(0, |sum, val| {
-                sum + (console::measure_text_width(val) as f64 / width).ceil() as usize
-            })
-        }
+
+        let width = match self.width() {
+            Some(width) => width as usize,
+            None => return Ok(()),
+        };
 
         // Assumption: if extra_lines is not None, then it has at least one line
         debug_assert_eq!(
@@ -277,7 +287,7 @@ impl MultiState {
         let mut reap_indices = vec![];
 
         // Reap all consecutive 'zombie' progress bars from head of the list.
-        let mut adjust = 0;
+        let mut adjust = VisualLines::default();
         for &index in &self.ordering {
             let member = &self.members[index];
             if !member.is_zombie {
@@ -287,7 +297,7 @@ impl MultiState {
             let line_count = member
                 .draw_state
                 .as_ref()
-                .map(|d| real_len(&d.lines, width))
+                .map(|d| d.visual_line_count(.., width))
                 .unwrap_or_default();
             // Track the total number of zombie lines on the screen.
             self.zombie_lines_count += line_count;
@@ -304,23 +314,23 @@ impl MultiState {
         if extra_lines.is_some() {
             self.draw_target
                 .adjust_last_line_count(LineAdjust::Clear(self.zombie_lines_count));
-            self.zombie_lines_count = 0;
+            self.zombie_lines_count = VisualLines::default();
         }
 
-        let orphan_lines_count = real_len(&self.orphan_lines, width);
-        force_draw |= orphan_lines_count > 0;
+        let orphan_visual_line_count = visual_line_count(&self.orphan_lines, width);
+        force_draw |= orphan_visual_line_count > VisualLines::default();
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
             Some(drawable) => drawable,
             None => return Ok(()),
         };
 
         let mut draw_state = drawable.state();
-        draw_state.orphan_lines_count = orphan_lines_count;
+        draw_state.orphan_lines_count = self.orphan_lines.len();
         draw_state.alignment = self.alignment;
 
         if let Some(extra_lines) = &extra_lines {
             draw_state.lines.extend_from_slice(extra_lines.as_slice());
-            draw_state.orphan_lines_count += real_len(extra_lines, width);
+            draw_state.orphan_lines_count += extra_lines.len();
         }
 
         // Add lines from `ProgressBar::println` call.
@@ -385,7 +395,7 @@ impl MultiState {
         ret
     }
 
-    pub(crate) fn width(&self) -> u16 {
+    pub(crate) fn width(&self) -> Option<u16> {
         self.draw_target.width()
     }
 
@@ -432,7 +442,7 @@ impl MultiState {
             Some(mut drawable) => {
                 // Make the clear operation also wipe out zombie lines
                 drawable.adjust_last_line_count(LineAdjust::Clear(self.zombie_lines_count));
-                self.zombie_lines_count = 0;
+                self.zombie_lines_count = VisualLines::default();
                 drawable.clear()
             }
             None => Ok(()),
@@ -481,14 +491,14 @@ impl Debug for MultiStateMember {
 /// Vertical alignment of a multi progress.
 ///
 /// The alignment controls how the multi progress is aligned if some of its progress bars get removed.
-/// E.g. `Top` alignment (default), when _progress bar 2_ is removed:
+/// E.g. [`Top`](MultiProgressAlignment::Top) alignment (default), when _progress bar 2_ is removed:
 /// ```ignore
 /// [0/100] progress bar 1        [0/100] progress bar 1
 /// [0/100] progress bar 2   =>   [0/100] progress bar 3
 /// [0/100] progress bar 3
 /// ```
 ///
-/// `Bottom` alignment
+/// [`Bottom`](MultiProgressAlignment::Bottom) alignment
 /// ```ignore
 /// [0/100] progress bar 1
 /// [0/100] progress bar 2   =>   [0/100] progress bar 1

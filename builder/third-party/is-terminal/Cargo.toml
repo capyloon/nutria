@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.63"
 name = "is-terminal"
-version = "0.4.10"
+version = "0.4.12"
 authors = [
     "softprops <d.tangren@gmail.com>",
     "Dan Gohman <dev@sunfishcode.online>",
@@ -41,10 +41,13 @@ repository = "https://github.com/sunfishcode/is-terminal"
 [dev-dependencies.atty]
 version = "0.2.14"
 
+[target."cfg(any(unix, target_os = \"wasi\"))".dependencies.libc]
+version = "0.2"
+
 [target."cfg(any(unix, target_os = \"wasi\"))".dev-dependencies.libc]
 version = "0.2.110"
 
-[target."cfg(not(any(windows, target_os = \"hermit\", target_os = \"unknown\")))".dependencies.rustix]
+[target."cfg(any(unix, target_os = \"wasi\"))".dev-dependencies.rustix]
 version = "0.38.0"
 features = ["termios"]
 

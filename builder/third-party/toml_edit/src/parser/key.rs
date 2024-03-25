@@ -1,10 +1,10 @@
 use std::ops::RangeInclusive;
 
 use winnow::combinator::peek;
-use winnow::combinator::separated1;
+use winnow::combinator::separated;
+use winnow::combinator::trace;
 use winnow::token::any;
 use winnow::token::take_while;
-use winnow::trace::trace;
 
 use crate::key::Key;
 use crate::parser::error::CustomError;
@@ -18,13 +18,14 @@ use crate::RawString;
 // key = simple-key / dotted-key
 // dotted-key = simple-key 1*( dot-sep simple-key )
 pub(crate) fn key(input: &mut Input<'_>) -> PResult<Vec<Key>> {
-    trace(
+    let mut key_path = trace(
         "dotted-key",
-        separated1(
+        separated(
+            1..,
             (ws.span(), simple_key, ws.span()).map(|(pre, (raw, key), suffix)| {
                 Key::new(key)
                     .with_repr_unchecked(Repr::new_unchecked(raw))
-                    .with_decor(Decor::new(
+                    .with_dotted_decor(Decor::new(
                         RawString::with_span(pre),
                         RawString::with_span(suffix),
                     ))
@@ -38,7 +39,31 @@ pub(crate) fn key(input: &mut Input<'_>) -> PResult<Vec<Key>> {
             Ok::<_, CustomError>(k)
         }),
     )
-    .parse_next(input)
+    .parse_next(input)?;
+
+    let mut leaf_decor = Decor::new("", "");
+    {
+        let first_dotted_decor = key_path
+            .first_mut()
+            .expect("always at least one key")
+            .dotted_decor_mut();
+        if let Some(prefix) = first_dotted_decor.prefix().cloned() {
+            leaf_decor.set_prefix(prefix);
+            first_dotted_decor.set_prefix("");
+        }
+    }
+    let last_key = &mut key_path.last_mut().expect("always at least one key");
+    {
+        let last_dotted_decor = last_key.dotted_decor_mut();
+        if let Some(suffix) = last_dotted_decor.suffix().cloned() {
+            leaf_decor.set_suffix(suffix);
+            last_dotted_decor.set_suffix("");
+        }
+    }
+
+    *last_key.leaf_decor_mut() = leaf_decor;
+
+    Ok(key_path)
 }
 
 // simple-key = quoted-key / unquoted-key

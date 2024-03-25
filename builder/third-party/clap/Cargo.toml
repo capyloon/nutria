@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.70.0"
+rust-version = "1.74"
 name = "clap"
-version = "4.4.18"
+version = "4.5.3"
 include = [
     "build.rs",
     "src/**/*",
@@ -160,6 +160,11 @@ path = "examples/multicall-hostname.rs"
 name = "repl"
 path = "examples/repl.rs"
 required-features = ["help"]
+
+[[example]]
+name = "repl-derive"
+path = "examples/repl-derive.rs"
+required-features = ["derive"]
 
 [[example]]
 name = "01_quick"
@@ -373,11 +378,11 @@ path = "examples/derive_ref/flatten_hand_args.rs"
 required-features = ["derive"]
 
 [dependencies.clap_builder]
-version = "=4.4.18"
+version = "=4.5.2"
 default-features = false
 
 [dependencies.clap_derive]
-version = "=4.4.7"
+version = "=4.5.3"
 optional = true
 
 [dev-dependencies.humantime]
@@ -387,16 +392,16 @@ version = "2.1.0"
 version = "1.0.14"
 
 [dev-dependencies.shlex]
-version = "1.2.0"
+version = "1.3.0"
 
 [dev-dependencies.snapbox]
-version = "0.4.15"
+version = "0.5.7"
 
 [dev-dependencies.trybuild]
-version = "1.0.86"
+version = "1.0.89"
 
 [dev-dependencies.trycmd]
-version = "0.14.19"
+version = "0.15.0"
 features = [
     "color-auto",
     "diff",

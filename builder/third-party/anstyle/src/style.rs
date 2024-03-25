@@ -2,10 +2,17 @@ use crate::reset::RESET;
 
 /// ANSI Text styling
 ///
+/// You can print a `Style` to render the corresponding ANSI code.
+/// Using the alternate flag `#` will render the ANSI reset code, if needed.
+/// Together, this makes it convenient to render styles using inline format arguments.
+///
 /// # Examples
 ///
 /// ```rust
 /// let style = anstyle::Style::new().bold();
+///
+/// let value = 42;
+/// println!("{style}{value}{style:#}");
 /// ```
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Style {
@@ -91,9 +98,31 @@ impl Style {
     }
 
     /// Render the ANSI code
+    ///
+    /// `Style` also implements `Display` directly, so calling this method is optional.
     #[inline]
     pub fn render(self) -> impl core::fmt::Display + Copy + Clone {
         StyleDisplay(self)
+    }
+
+    fn fmt_to(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        use core::fmt::Display as _;
+
+        self.effects.render().fmt(f)?;
+
+        if let Some(fg) = self.fg {
+            fg.render_fg().fmt(f)?;
+        }
+
+        if let Some(bg) = self.bg {
+            bg.render_bg().fmt(f)?;
+        }
+
+        if let Some(underline) = self.underline {
+            underline.render_underline().fmt(f)?;
+        }
+
+        Ok(())
     }
 
     /// Write the ANSI code
@@ -374,25 +403,29 @@ impl core::cmp::PartialEq<crate::Effects> for Style {
     }
 }
 
+impl core::fmt::Display for Style {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        if f.alternate() {
+            self.render_reset().fmt(f)
+        } else {
+            self.fmt_to(f)
+        }
+    }
+}
+
 #[derive(Copy, Clone, Default, Debug)]
 struct StyleDisplay(Style);
 
 impl core::fmt::Display for StyleDisplay {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        self.0.effects.render().fmt(f)?;
-
-        if let Some(fg) = self.0.fg {
-            fg.render_fg().fmt(f)?;
-        }
-
-        if let Some(bg) = self.0.bg {
-            bg.render_bg().fmt(f)?;
-        }
-
-        if let Some(underline) = self.0.underline {
-            underline.render_underline().fmt(f)?;
-        }
-
-        Ok(())
+        self.0.fmt_to(f)
     }
+}
+
+#[test]
+fn print_size_of() {
+    use std::mem::size_of;
+    dbg!(size_of::<Style>());
+    dbg!(size_of::<StyleDisplay>());
 }
