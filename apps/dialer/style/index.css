@@ -6,14 +6,8 @@ body {
   overflow-x: hidden;
 }
 
-@font-face {
-  font-family: Readex-Pro;
-  src: url(ReadexPro-VariableFont_wght.ttf);
-}
-
 body {
   color: rgb(0, 0, 0);
-  font-family: Readex-Pro;
   background: #FFFFFF;
   padding: 1em;
   text-align: left;
