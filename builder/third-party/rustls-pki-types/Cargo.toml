@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.60"
 name = "rustls-pki-types"
-version = "1.4.0"
+version = "1.4.1"
 description = "Shared types for the rustls PKI ecosystem"
 homepage = "https://github.com/rustls/pki-types"
 documentation = "https://docs.rs/rustls-pki-types"

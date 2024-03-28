@@ -3438,6 +3438,7 @@ impl rustls::server::StoresServerSessions for ServerStorage {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // complete mock, but not 100% used in tests
 enum ClientStorageOp {
     SetKxHint(ServerName<'static>, rustls::NamedGroup),
     GetKxHint(ServerName<'static>, Option<rustls::NamedGroup>),
@@ -5119,6 +5120,56 @@ fn test_client_tls12_no_resume_after_server_downgrade() {
     );
 }
 
+#[cfg(feature = "tls12")]
+#[test]
+fn test_client_with_custom_verifier_can_accept_ecdsa_sha1_signatures() {
+    fn alter_server_signature_to_ecdsa_sha1(msg: &mut Message) -> Altered {
+        if let MessagePayload::Handshake {
+            parsed,
+            ref mut encoded,
+        } = &mut msg.payload
+        {
+            if let HandshakePayload::ServerKeyExchange(_) = &mut parsed.payload {
+                // nb. we don't care that this corrupts the signature, key exchange, etc.
+                let original = &encoded.0;
+                let offset = 40; // of signature scheme
+                assert_eq!(
+                    &original[offset..offset + 2],
+                    &SignatureScheme::ECDSA_NISTP256_SHA256
+                        .get_u16()
+                        .to_be_bytes(),
+                    "expected ecdsa-sha256"
+                );
+                let mut altered = original.to_vec();
+                altered[offset..offset + 2].copy_from_slice(
+                    &SignatureScheme::ECDSA_SHA1_Legacy
+                        .get_u16()
+                        .to_be_bytes(),
+                );
+
+                *encoded = Payload::new(altered);
+            }
+        }
+        Altered::InPlace
+    }
+
+    let client_config = client_config_builder_with_versions(&[&rustls::version::TLS12])
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(MockServerVerifier::accepts_anything()))
+        .with_no_client_auth();
+    let server_config = make_server_config(KeyType::EcdsaP256);
+    let (mut client, mut server) = make_pair_for_configs(client_config, server_config);
+    transfer(&mut client, &mut server);
+    server.process_new_packets().unwrap();
+    let (mut client, mut server) = (client.into(), server.into());
+    transfer_altered(
+        &mut server,
+        alter_server_signature_to_ecdsa_sha1,
+        &mut client,
+    );
+    client.process_new_packets().unwrap();
+}
+
 #[test]
 fn test_acceptor() {
     use rustls::server::Acceptor;
@@ -5365,6 +5416,75 @@ fn test_secret_extraction_enabled() {
         assert_secrets_equal(client_secrets.tx, server_secrets.rx);
         assert_secrets_equal(client_secrets.rx, server_secrets.tx);
     }
+}
+
+#[test]
+fn test_secret_extract_produces_correct_variant() {
+    fn check(suite: SupportedCipherSuite, f: impl Fn(ConnectionTrafficSecrets) -> bool) {
+        let kt = KeyType::Rsa;
+
+        let provider: Arc<CryptoProvider> = CryptoProvider {
+            cipher_suites: vec![suite],
+            ..provider::default_provider()
+        }
+        .into();
+
+        let mut server_config = finish_server_config(
+            kt,
+            ServerConfig::builder_with_provider(provider.clone())
+                .with_safe_default_protocol_versions()
+                .unwrap(),
+        );
+
+        server_config.enable_secret_extraction = true;
+        let server_config = Arc::new(server_config);
+
+        let mut client_config = finish_client_config(
+            kt,
+            ClientConfig::builder_with_provider(provider)
+                .with_safe_default_protocol_versions()
+                .unwrap(),
+        );
+        client_config.enable_secret_extraction = true;
+
+        let (mut client, mut server) =
+            make_pair_for_arc_configs(&Arc::new(client_config), &server_config);
+
+        do_handshake(&mut client, &mut server);
+
+        let client_secrets = client
+            .dangerous_extract_secrets()
+            .unwrap();
+        let server_secrets = server
+            .dangerous_extract_secrets()
+            .unwrap();
+
+        assert!(f(client_secrets.tx.1));
+        assert!(f(client_secrets.rx.1));
+        assert!(f(server_secrets.tx.1));
+        assert!(f(server_secrets.rx.1));
+    }
+
+    check(cipher_suite::TLS13_AES_128_GCM_SHA256, |sec| {
+        matches!(sec, ConnectionTrafficSecrets::Aes128Gcm { .. })
+    });
+    check(cipher_suite::TLS13_AES_256_GCM_SHA384, |sec| {
+        matches!(sec, ConnectionTrafficSecrets::Aes256Gcm { .. })
+    });
+    check(cipher_suite::TLS13_CHACHA20_POLY1305_SHA256, |sec| {
+        matches!(sec, ConnectionTrafficSecrets::Chacha20Poly1305 { .. })
+    });
+
+    check(cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, |sec| {
+        matches!(sec, ConnectionTrafficSecrets::Aes128Gcm { .. })
+    });
+    check(cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, |sec| {
+        matches!(sec, ConnectionTrafficSecrets::Aes256Gcm { .. })
+    });
+    check(
+        cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+        |sec| matches!(sec, ConnectionTrafficSecrets::Chacha20Poly1305 { .. }),
+    );
 }
 
 /// Test that secrets cannot be extracted unless explicitly enabled, and until

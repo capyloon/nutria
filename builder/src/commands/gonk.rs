@@ -387,10 +387,10 @@ pub fn detect_device() -> Result<String, AdbError> {
     if !devices.is_empty() {
         let device = &devices[0];
         let info = &device.info;
-        let desc = info.get("model").map(String::clone).unwrap_or_else(|| {
-            info.get("product").map(String::clone).unwrap_or_else(|| {
+        let desc = info.get("model").cloned().unwrap_or_else(|| {
+            info.get("product").cloned().unwrap_or_else(|| {
                 info.get("device")
-                    .map(String::clone)
+                    .cloned()
                     .unwrap_or_else(|| "<none>".to_owned())
             })
         });

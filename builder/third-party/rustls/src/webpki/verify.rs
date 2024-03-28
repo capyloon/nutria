@@ -119,7 +119,7 @@ pub struct ParsedCertificate<'a>(pub(crate) webpki::EndEntityCert<'a>);
 
 impl<'a> TryFrom<&'a CertificateDer<'a>> for ParsedCertificate<'a> {
     type Error = Error;
-    fn try_from(value: &'a CertificateDer<'a>) -> Result<ParsedCertificate<'a>, Self::Error> {
+    fn try_from(value: &'a CertificateDer<'a>) -> Result<Self, Self::Error> {
         webpki::EndEntityCert::try_from(value)
             .map_err(pki_error)
             .map(ParsedCertificate)
@@ -220,6 +220,7 @@ pub(crate) fn verify_server_cert_signed_by_trust_anchor_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::format;
 
     #[test]
     fn certificate_debug() {

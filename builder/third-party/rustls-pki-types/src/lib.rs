@@ -164,11 +164,10 @@ impl<'a> TryFrom<&'a [u8]> for PrivateKeyDer<'a> {
         // PKCS#5 (https://www.rfc-editor.org/rfc/rfc8018) describes the AlgorithmIdentifier
         // as a SEQUENCE.
         //
-        // Therefore, we consider the outer SEQUENCE, a Version of 0, and the start of
-        // an AlgorithmIdentifier to be enough to identify a PKCS#8 key. If it were PKCS#1,
-        // the version would not be followed by a SEQUENCE. If it were SEC1, the version would
-        // not have been 0.
-        if key_bytes.starts_with(&[TAG_INTEGER, 0x01, 0x00, TAG_SEQUENCE]) {
+        // Therefore, we consider the outer SEQUENCE, a version number, and the start of
+        // an AlgorithmIdentifier to be enough to identify a PKCS#8 key. If it were PKCS#1 or SEC1
+        // the version would not be followed by a SEQUENCE.
+        if matches!(key_bytes, [TAG_INTEGER, 0x01, _, TAG_SEQUENCE, ..]) {
             return Ok(Self::Pkcs8(key.into()));
         }
 
@@ -774,7 +773,7 @@ mod non_std_tests {
             matches!(key, PrivateKeyDer::Sec1(_))
         }
 
-        let test_cases: &[(&[u8], fn(&PrivateKeyDer<'_>) -> bool); 10] = &[
+        let test_cases: &[(&[u8], fn(&PrivateKeyDer<'_>) -> bool); 11] = &[
             (&include_bytes!("test_keys/eddsakey.der")[..], is_pkcs8),
             (&include_bytes!("test_keys/nistp256key.der")[..], is_sec1),
             (
@@ -803,6 +802,7 @@ mod non_std_tests {
                 &include_bytes!("test_keys/rsa4096key.pkcs8.der")[..],
                 is_pkcs8,
             ),
+            (&include_bytes!("test_keys/edd25519_v2.der")[..], is_pkcs8),
         ];
 
         for (key_bytes, expected_check_fn) in test_cases.iter() {

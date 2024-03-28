@@ -165,13 +165,13 @@ pub(crate) struct KeyBuilder(
     pub(crate) &'static aead::quic::Algorithm,
 );
 
-impl crate::quic::Algorithm for KeyBuilder {
+impl quic::Algorithm for KeyBuilder {
     fn packet_key(&self, key: AeadKey, iv: Iv) -> Box<dyn quic::PacketKey> {
-        Box::new(super::quic::PacketKey::new(key, iv, self.0))
+        Box::new(PacketKey::new(key, iv, self.0))
     }
 
     fn header_protection_key(&self, key: AeadKey) -> Box<dyn quic::HeaderProtectionKey> {
-        Box::new(super::quic::HeaderProtectionKey::new(key, self.1))
+        Box::new(HeaderProtectionKey::new(key, self.1))
     }
 
     fn aead_key_len(&self) -> usize {
@@ -187,6 +187,7 @@ mod tests {
     use crate::test_provider::tls13::{
         TLS13_AES_128_GCM_SHA256_INTERNAL, TLS13_CHACHA20_POLY1305_SHA256_INTERNAL,
     };
+    use std::dbg;
 
     fn test_short_packet(version: Version, expected: &[u8]) {
         const PN: u64 = 654360564;

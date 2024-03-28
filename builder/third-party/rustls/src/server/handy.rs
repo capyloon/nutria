@@ -193,7 +193,7 @@ impl ResolvesServerCertUsingSni {
 impl server::ResolvesServerCert for ResolvesServerCertUsingSni {
     fn resolve(&self, client_hello: ClientHello) -> Option<Arc<sign::CertifiedKey>> {
         if let Some(name) = client_hello.server_name() {
-            self.by_name.get(name).map(Arc::clone)
+            self.by_name.get(name).cloned()
         } else {
             // This kind of resolver requires SNI
             None
@@ -207,6 +207,7 @@ mod tests {
     use crate::server::ProducesTickets;
     use crate::server::ResolvesServerCert;
     use crate::server::StoresServerSessions;
+    use std::vec;
 
     #[test]
     fn test_noserversessionstorage_drops_put() {

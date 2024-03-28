@@ -236,12 +236,12 @@ impl Connector {
                 }
             }
             #[cfg(feature = "__rustls")]
-            Inner::RustlsTls { tls_proxy, .. } => {
+            Inner::RustlsTls { tls, .. } => {
                 if dst.scheme() == Some(&Scheme::HTTPS) {
                     use std::convert::TryFrom;
                     use tokio_rustls::TlsConnector as RustlsConnector;
 
-                    let tls = tls_proxy.clone();
+                    let tls = tls.clone();
                     let host = dst.host().ok_or("no host in url")?.to_string();
                     let conn = socks::connect(proxy, dst, dns).await?;
                     let conn = TokioIo::new(conn);
@@ -811,25 +811,41 @@ mod native_tls_conn {
 
     impl Connection for NativeTlsConn<TokioIo<TokioIo<TcpStream>>> {
         fn connected(&self) -> Connected {
-            self.inner
+            let connected = self
+                .inner
                 .inner()
                 .get_ref()
                 .get_ref()
                 .get_ref()
                 .inner()
-                .connected()
+                .connected();
+            #[cfg(feature = "native-tls-alpn")]
+            match self.inner.inner().get_ref().negotiated_alpn().ok() {
+                Some(Some(alpn_protocol)) if alpn_protocol == b"h2" => connected.negotiated_h2(),
+                _ => connected,
+            }
+            #[cfg(not(feature = "native-tls-alpn"))]
+            connected
         }
     }
 
     impl Connection for NativeTlsConn<TokioIo<MaybeHttpsStream<TokioIo<TcpStream>>>> {
         fn connected(&self) -> Connected {
-            self.inner
+            let connected = self
+                .inner
                 .inner()
                 .get_ref()
                 .get_ref()
                 .get_ref()
                 .inner()
-                .connected()
+                .connected();
+            #[cfg(feature = "native-tls-alpn")]
+            match self.inner.inner().get_ref().negotiated_alpn().ok() {
+                Some(Some(alpn_protocol)) if alpn_protocol == b"h2" => connected.negotiated_h2(),
+                _ => connected,
+            }
+            #[cfg(not(feature = "native-tls-alpn"))]
+            connected
         }
     }
 

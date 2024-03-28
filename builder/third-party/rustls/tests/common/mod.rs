@@ -2,21 +2,23 @@
 #![cfg(any(feature = "ring", feature = "aws_lc_rs"))]
 
 use std::io;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use std::sync::Arc;
 
-use pki_types::{CertificateDer, CertificateRevocationListDer, PrivateKeyDer, ServerName};
+use pki_types::{
+    CertificateDer, CertificateRevocationListDer, PrivateKeyDer, ServerName, UnixTime,
+};
 use webpki::anchor_from_trusted_cert;
 
+use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::client::{ServerCertVerifierBuilder, WebPkiServerVerifier};
 use rustls::internal::msgs::codec::Reader;
 use rustls::internal::msgs::message::{Message, OpaqueMessage, PlainMessage};
 use rustls::server::{ClientCertVerifierBuilder, WebPkiClientVerifier};
-use rustls::Connection;
-use rustls::Error;
-use rustls::RootCertStore;
-use rustls::{ClientConfig, ClientConnection};
-use rustls::{ConnectionCommon, ServerConfig, ServerConnection, SideData};
+use rustls::{
+    ClientConfig, ClientConnection, Connection, ConnectionCommon, DigitallySignedStruct, Error,
+    RootCertStore, ServerConfig, ServerConnection, SideData, SignatureScheme,
+};
 
 #[cfg(all(not(feature = "ring"), feature = "aws_lc_rs"))]
 pub use rustls::crypto::aws_lc_rs as provider;
@@ -151,8 +153,8 @@ embed_files! {
 }
 
 pub fn transfer(
-    left: &mut (impl DerefMut + Deref<Target = ConnectionCommon<impl SideData>>),
-    right: &mut (impl DerefMut + Deref<Target = ConnectionCommon<impl SideData>>),
+    left: &mut impl DerefMut<Target = ConnectionCommon<impl SideData>>,
+    right: &mut impl DerefMut<Target = ConnectionCommon<impl SideData>>,
 ) -> usize {
     let mut buf = [0u8; 262144];
     let mut total = 0;
@@ -180,7 +182,7 @@ pub fn transfer(
     total
 }
 
-pub fn transfer_eof(conn: &mut (impl DerefMut + Deref<Target = ConnectionCommon<impl SideData>>)) {
+pub fn transfer_eof(conn: &mut impl DerefMut<Target = ConnectionCommon<impl SideData>>) {
     let empty_buf = [0u8; 0];
     let empty_cursor: &mut dyn io::Read = &mut &empty_buf[..];
     let sz = conn.read_tls(empty_cursor).unwrap();
@@ -619,8 +621,8 @@ pub fn make_pair_for_arc_configs(
 }
 
 pub fn do_handshake(
-    client: &mut (impl DerefMut + Deref<Target = ConnectionCommon<impl SideData>>),
-    server: &mut (impl DerefMut + Deref<Target = ConnectionCommon<impl SideData>>),
+    client: &mut impl DerefMut<Target = ConnectionCommon<impl SideData>>,
+    server: &mut impl DerefMut<Target = ConnectionCommon<impl SideData>>,
 ) -> (usize, usize) {
     let (mut to_client, mut to_server) = (0, 0);
     while server.is_handshaking() || client.is_handshaking() {
@@ -704,5 +706,127 @@ impl FailsReads {
 impl io::Read for FailsReads {
     fn read(&mut self, _b: &mut [u8]) -> io::Result<usize> {
         Err(io::Error::from(self.errkind))
+    }
+}
+
+#[derive(Debug)]
+pub struct MockServerVerifier {
+    cert_rejection_error: Option<Error>,
+    tls12_signature_error: Option<Error>,
+    tls13_signature_error: Option<Error>,
+    signature_schemes: Vec<SignatureScheme>,
+}
+
+impl ServerCertVerifier for MockServerVerifier {
+    fn verify_server_cert(
+        &self,
+        end_entity: &CertificateDer<'_>,
+        intermediates: &[CertificateDer<'_>],
+        server_name: &ServerName<'_>,
+        oscp_response: &[u8],
+        now: UnixTime,
+    ) -> Result<ServerCertVerified, Error> {
+        println!(
+            "verify_server_cert({:?}, {:?}, {:?}, {:?}, {:?})",
+            end_entity, intermediates, server_name, oscp_response, now
+        );
+        if let Some(error) = &self.cert_rejection_error {
+            Err(error.clone())
+        } else {
+            Ok(ServerCertVerified::assertion())
+        }
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, Error> {
+        println!(
+            "verify_tls12_signature({:?}, {:?}, {:?})",
+            message, cert, dss
+        );
+        if let Some(error) = &self.tls12_signature_error {
+            Err(error.clone())
+        } else {
+            Ok(HandshakeSignatureValid::assertion())
+        }
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, Error> {
+        println!(
+            "verify_tls13_signature({:?}, {:?}, {:?})",
+            message, cert, dss
+        );
+        if let Some(error) = &self.tls13_signature_error {
+            Err(error.clone())
+        } else {
+            Ok(HandshakeSignatureValid::assertion())
+        }
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        self.signature_schemes.clone()
+    }
+}
+
+impl MockServerVerifier {
+    pub fn accepts_anything() -> Self {
+        MockServerVerifier {
+            cert_rejection_error: None,
+            ..Default::default()
+        }
+    }
+
+    pub fn rejects_certificate(err: Error) -> Self {
+        MockServerVerifier {
+            cert_rejection_error: Some(err),
+            ..Default::default()
+        }
+    }
+
+    pub fn rejects_tls12_signatures(err: Error) -> Self {
+        MockServerVerifier {
+            tls12_signature_error: Some(err),
+            ..Default::default()
+        }
+    }
+
+    pub fn rejects_tls13_signatures(err: Error) -> Self {
+        MockServerVerifier {
+            tls13_signature_error: Some(err),
+            ..Default::default()
+        }
+    }
+
+    pub fn offers_no_signature_schemes() -> Self {
+        MockServerVerifier {
+            signature_schemes: vec![],
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for MockServerVerifier {
+    fn default() -> Self {
+        MockServerVerifier {
+            cert_rejection_error: None,
+            tls12_signature_error: None,
+            tls13_signature_error: None,
+            signature_schemes: vec![
+                SignatureScheme::RSA_PSS_SHA256,
+                SignatureScheme::RSA_PKCS1_SHA256,
+                SignatureScheme::ED25519,
+                SignatureScheme::ECDSA_NISTP256_SHA256,
+                SignatureScheme::ECDSA_NISTP384_SHA384,
+                SignatureScheme::ECDSA_NISTP521_SHA512,
+            ],
+        }
     }
 }

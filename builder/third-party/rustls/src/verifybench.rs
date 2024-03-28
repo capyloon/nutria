@@ -7,6 +7,8 @@
 #![cfg(feature = "ring")]
 
 use core::time::Duration;
+use std::prelude::v1::*;
+use std::println;
 use std::time::Instant;
 
 use crate::crypto::ring;
@@ -14,7 +16,6 @@ use crate::verify::ServerCertVerifier;
 use crate::webpki::{RootCertStore, WebPkiServerVerifier};
 
 use pki_types::{CertificateDer, UnixTime};
-use webpki_roots;
 
 fn duration_nanos(d: Duration) -> u64 {
     ((d.as_secs() as f64) * 1e9 + (d.subsec_nanos() as f64)) as u64
