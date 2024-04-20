@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.61"
 name = "rustls"
-version = "0.22.3"
+version = "0.22.4"
 build = "build.rs"
 autobenches = false
 description = "Rustls is a modern TLS library written in Rust."
