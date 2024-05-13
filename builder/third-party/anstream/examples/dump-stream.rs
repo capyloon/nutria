@@ -1,3 +1,5 @@
+//! Write colored text, adapting to the terminals capabilities
+
 use std::io::Write;
 
 fn main() -> Result<(), lexopt::Error> {
@@ -6,7 +8,9 @@ fn main() -> Result<(), lexopt::Error> {
     let mut stdout = stdout.lock();
 
     for fixed in 0..16 {
-        let color = anstyle::Ansi256Color(fixed).into_ansi().unwrap();
+        let color = anstyle::Ansi256Color(fixed)
+            .into_ansi()
+            .expect("within 4-bit color range");
         let style = style(color, args.layer, args.effects);
         let _ = print_number(&mut stdout, fixed, style);
         if fixed == 7 || fixed == 15 {

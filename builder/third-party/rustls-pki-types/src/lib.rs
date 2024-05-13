@@ -249,14 +249,14 @@ impl PrivatePkcs1KeyDer<'_> {
 
 impl<'a> From<&'a [u8]> for PrivatePkcs1KeyDer<'a> {
     fn from(slice: &'a [u8]) -> Self {
-        Self(Der(DerInner::Borrowed(slice)))
+        Self(Der(BytesInner::Borrowed(slice)))
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<'a> From<Vec<u8>> for PrivatePkcs1KeyDer<'a> {
     fn from(vec: Vec<u8>) -> Self {
-        Self(Der(DerInner::Owned(vec)))
+        Self(Der(BytesInner::Owned(vec)))
     }
 }
 
@@ -291,14 +291,14 @@ impl PrivateSec1KeyDer<'_> {
 
 impl<'a> From<&'a [u8]> for PrivateSec1KeyDer<'a> {
     fn from(slice: &'a [u8]) -> Self {
-        Self(Der(DerInner::Borrowed(slice)))
+        Self(Der(BytesInner::Borrowed(slice)))
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<'a> From<Vec<u8>> for PrivateSec1KeyDer<'a> {
     fn from(vec: Vec<u8>) -> Self {
-        Self(Der(DerInner::Owned(vec)))
+        Self(Der(BytesInner::Owned(vec)))
     }
 }
 
@@ -333,14 +333,14 @@ impl PrivatePkcs8KeyDer<'_> {
 
 impl<'a> From<&'a [u8]> for PrivatePkcs8KeyDer<'a> {
     fn from(slice: &'a [u8]) -> Self {
-        Self(Der(DerInner::Borrowed(slice)))
+        Self(Der(BytesInner::Borrowed(slice)))
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<'a> From<Vec<u8>> for PrivatePkcs8KeyDer<'a> {
     fn from(vec: Vec<u8>) -> Self {
-        Self(Der(DerInner::Owned(vec)))
+        Self(Der(BytesInner::Owned(vec)))
     }
 }
 
@@ -497,6 +497,95 @@ impl CertificateDer<'_> {
     #[cfg(feature = "alloc")]
     pub fn into_owned(self) -> CertificateDer<'static> {
         CertificateDer(Der(self.0 .0.into_owned()))
+    }
+}
+
+/// A DER-encoded SubjectPublicKeyInfo (SPKI), as specified in RFC 5280.
+#[deprecated(since = "1.7.0", note = "Prefer `SubjectPublicKeyInfoDer` instead")]
+pub type SubjectPublicKeyInfo<'a> = SubjectPublicKeyInfoDer<'a>;
+
+/// A DER-encoded SubjectPublicKeyInfo (SPKI), as specified in RFC 5280.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SubjectPublicKeyInfoDer<'a>(Der<'a>);
+
+impl AsRef<[u8]> for SubjectPublicKeyInfoDer<'_> {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl Deref for SubjectPublicKeyInfoDer<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl<'a> From<&'a [u8]> for SubjectPublicKeyInfoDer<'a> {
+    fn from(slice: &'a [u8]) -> Self {
+        Self(Der::from(slice))
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<'a> From<Vec<u8>> for SubjectPublicKeyInfoDer<'a> {
+    fn from(vec: Vec<u8>) -> Self {
+        Self(Der::from(vec))
+    }
+}
+
+impl SubjectPublicKeyInfoDer<'_> {
+    /// Converts this SubjectPublicKeyInfo into its owned variant, unfreezing borrowed content (if any)
+    #[cfg(feature = "alloc")]
+    pub fn into_owned(self) -> SubjectPublicKeyInfoDer<'static> {
+        SubjectPublicKeyInfoDer(Der(self.0 .0.into_owned()))
+    }
+}
+
+/// A TLS-encoded Encrypted Client Hello (ECH) configuration list (`ECHConfigList`); as specified in
+/// [draft-ietf-tls-esni-18 §4](https://datatracker.ietf.org/doc/html/draft-ietf-tls-esni-18#section-4)
+#[derive(Clone, Eq, PartialEq)]
+pub struct EchConfigListBytes<'a>(BytesInner<'a>);
+
+impl EchConfigListBytes<'_> {
+    /// Converts this config into its owned variant, unfreezing borrowed content (if any)
+    #[cfg(feature = "alloc")]
+    pub fn into_owned(self) -> EchConfigListBytes<'static> {
+        EchConfigListBytes(self.0.into_owned())
+    }
+}
+
+impl fmt::Debug for EchConfigListBytes<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        hex(f, self.as_ref())
+    }
+}
+
+impl AsRef<[u8]> for EchConfigListBytes<'_> {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl Deref for EchConfigListBytes<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl<'a> From<&'a [u8]> for EchConfigListBytes<'a> {
+    fn from(slice: &'a [u8]) -> Self {
+        Self(BytesInner::Borrowed(slice))
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<'a> From<Vec<u8>> for EchConfigListBytes<'a> {
+    fn from(vec: Vec<u8>) -> Self {
+        Self(BytesInner::Owned(vec))
     }
 }
 
@@ -657,23 +746,19 @@ impl UnixTime {
 /// This wrapper type is used to represent DER-encoded data in a way that is agnostic to whether
 /// the data is owned (by a `Vec<u8>`) or borrowed (by a `&[u8]`). Support for the owned
 /// variant is only available when the `alloc` feature is enabled.
-#[derive(Clone)]
-pub struct Der<'a>(DerInner<'a>);
+#[derive(Clone, Eq, PartialEq)]
+pub struct Der<'a>(BytesInner<'a>);
 
 impl<'a> Der<'a> {
     /// A const constructor to create a `Der` from a borrowed slice
     pub const fn from_slice(der: &'a [u8]) -> Self {
-        Self(DerInner::Borrowed(der))
+        Self(BytesInner::Borrowed(der))
     }
 }
 
 impl AsRef<[u8]> for Der<'_> {
     fn as_ref(&self) -> &[u8] {
-        match &self.0 {
-            #[cfg(feature = "alloc")]
-            DerInner::Owned(vec) => vec.as_ref(),
-            DerInner::Borrowed(slice) => slice,
-        }
+        self.0.as_ref()
     }
 }
 
@@ -687,14 +772,14 @@ impl Deref for Der<'_> {
 
 impl<'a> From<&'a [u8]> for Der<'a> {
     fn from(slice: &'a [u8]) -> Self {
-        Self(DerInner::Borrowed(slice))
+        Self(BytesInner::Borrowed(slice))
     }
 }
 
 #[cfg(feature = "alloc")]
 impl From<Vec<u8>> for Der<'static> {
     fn from(vec: Vec<u8>) -> Self {
-        Self(DerInner::Owned(vec))
+        Self(BytesInner::Owned(vec))
     }
 }
 
@@ -704,30 +789,40 @@ impl fmt::Debug for Der<'_> {
     }
 }
 
-impl PartialEq for Der<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.as_ref().eq(other.as_ref())
-    }
-}
-
-impl Eq for Der<'_> {}
-
-#[derive(Clone)]
-enum DerInner<'a> {
+#[derive(Debug, Clone)]
+enum BytesInner<'a> {
     #[cfg(feature = "alloc")]
     Owned(Vec<u8>),
     Borrowed(&'a [u8]),
 }
 
 #[cfg(feature = "alloc")]
-impl DerInner<'_> {
-    fn into_owned(self) -> DerInner<'static> {
-        DerInner::Owned(match self {
+impl BytesInner<'_> {
+    fn into_owned(self) -> BytesInner<'static> {
+        BytesInner::Owned(match self {
             Self::Owned(vec) => vec,
             Self::Borrowed(slice) => slice.to_vec(),
         })
     }
 }
+
+impl AsRef<[u8]> for BytesInner<'_> {
+    fn as_ref(&self) -> &[u8] {
+        match &self {
+            #[cfg(feature = "alloc")]
+            BytesInner::Owned(vec) => vec.as_ref(),
+            BytesInner::Borrowed(slice) => slice,
+        }
+    }
+}
+
+impl PartialEq for BytesInner<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref() == other.as_ref()
+    }
+}
+
+impl Eq for BytesInner<'_> {}
 
 // Format an iterator of u8 into a hex string
 fn hex<'a>(f: &mut fmt::Formatter<'_>, payload: impl IntoIterator<Item = &'a u8>) -> fmt::Result {
@@ -755,60 +850,34 @@ mod tests {
         let alg_id = AlgorithmIdentifier::from_slice(&[0x01, 0x02, 0x03]);
         assert_eq!(format!("{:?}", alg_id), "0x010203");
     }
-}
-
-#[cfg(test)]
-mod non_std_tests {
-    use super::*;
 
     #[test]
-    fn test_private_key_from_der() {
-        fn is_pkcs8(key: &PrivateKeyDer<'_>) -> bool {
-            matches!(key, PrivateKeyDer::Pkcs8(_))
-        }
-        fn is_pkcs1(key: &PrivateKeyDer<'_>) -> bool {
-            matches!(key, PrivateKeyDer::Pkcs1(_))
-        }
-        fn is_sec1(key: &PrivateKeyDer<'_>) -> bool {
-            matches!(key, PrivateKeyDer::Sec1(_))
-        }
+    fn bytes_inner_equality() {
+        let owned_a = BytesInner::Owned(vec![1, 2, 3]);
+        let owned_b = BytesInner::Owned(vec![4, 5]);
+        let borrowed_a = BytesInner::Borrowed(&[1, 2, 3]);
+        let borrowed_b = BytesInner::Borrowed(&[99]);
 
-        let test_cases: &[(&[u8], fn(&PrivateKeyDer<'_>) -> bool); 11] = &[
-            (&include_bytes!("test_keys/eddsakey.der")[..], is_pkcs8),
-            (&include_bytes!("test_keys/nistp256key.der")[..], is_sec1),
-            (
-                &include_bytes!("test_keys/nistp256key.pkcs8.der")[..],
-                is_pkcs8,
-            ),
-            (&include_bytes!("test_keys/nistp384key.der")[..], is_sec1),
-            (
-                &include_bytes!("test_keys/nistp384key.pkcs8.der")[..],
-                is_pkcs8,
-            ),
-            (&include_bytes!("test_keys/nistp521key.der")[..], is_sec1),
-            (
-                &include_bytes!("test_keys/nistp521key.pkcs8.der")[..],
-                is_pkcs8,
-            ),
-            (
-                &include_bytes!("test_keys/rsa2048key.pkcs1.der")[..],
-                is_pkcs1,
-            ),
-            (
-                &include_bytes!("test_keys/rsa2048key.pkcs8.der")[..],
-                is_pkcs8,
-            ),
-            (
-                &include_bytes!("test_keys/rsa4096key.pkcs8.der")[..],
-                is_pkcs8,
-            ),
-            (&include_bytes!("test_keys/edd25519_v2.der")[..], is_pkcs8),
-        ];
+        // Self-equality.
+        assert_eq!(owned_a, owned_a);
+        assert_eq!(owned_b, owned_b);
+        assert_eq!(borrowed_a, borrowed_a);
+        assert_eq!(borrowed_b, borrowed_b);
 
-        for (key_bytes, expected_check_fn) in test_cases.iter() {
-            assert!(expected_check_fn(
-                &PrivateKeyDer::try_from(*key_bytes).unwrap()
-            ));
-        }
+        // Borrowed vs Owned equality
+        assert_eq!(owned_a, borrowed_a);
+        assert_eq!(borrowed_a, owned_a);
+
+        // Owned inequality
+        assert_ne!(owned_a, owned_b);
+        assert_ne!(owned_b, owned_a);
+
+        // Borrowed inequality
+        assert_ne!(borrowed_a, borrowed_b);
+        assert_ne!(borrowed_b, borrowed_a);
+
+        // Borrowed vs Owned inequality
+        assert_ne!(owned_a, borrowed_b);
+        assert_ne!(borrowed_b, owned_a);
     }
 }

@@ -29,6 +29,10 @@
 //!
 //! [Paul Williams' ANSI parser state machine]: https://vt100.net/emu/dec_ansi_parser
 #![cfg_attr(not(test), no_std)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![allow(missing_docs)]
+#![warn(clippy::print_stderr)]
+#![warn(clippy::print_stdout)]
 
 #[cfg(not(feature = "core"))]
 extern crate alloc;
@@ -53,6 +57,7 @@ const MAX_OSC_PARAMS: usize = 16;
 const MAX_OSC_RAW: usize = 1024;
 
 /// Parser for raw _VTE_ protocol which delegates actions to a [`Perform`]
+#[allow(unused_qualifications)]
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
 pub struct Parser<C = DefaultCharAccumulator> {
     state: State,
@@ -162,9 +167,9 @@ where
         }
     }
 
-    /// Separate method for osc_dispatch that borrows self as read-only
+    /// Separate method for `osc_dispatch` that borrows self as read-only
     ///
-    /// The aliasing is needed here for multiple slices into self.osc_raw
+    /// The aliasing is needed here for multiple slices into `self.osc_raw`
     #[inline]
     fn osc_dispatch<P: Perform>(&self, performer: &mut P, byte: u8) {
         let mut slices: [MaybeUninit<&[u8]>; MAX_OSC_PARAMS] =
@@ -322,12 +327,14 @@ pub trait CharAccumulator: Default {
     fn add(&mut self, byte: u8) -> Option<char>;
 }
 
+/// Most flexible [`CharAccumulator`] for [`Parser`] based on active features
 #[cfg(feature = "utf8")]
 pub type DefaultCharAccumulator = Utf8Parser;
 #[cfg(not(feature = "utf8"))]
 pub type DefaultCharAccumulator = AsciiParser;
 
 /// Only allow parsing 7-bit ASCII
+#[allow(clippy::exhaustive_structs)]
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
 pub struct AsciiParser;
 

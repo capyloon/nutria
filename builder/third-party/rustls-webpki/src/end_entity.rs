@@ -186,6 +186,8 @@ impl<'a> Deref for EndEntityCert<'a> {
 mod tests {
     use super::*;
     use crate::test_utils;
+    use crate::test_utils::RCGEN_SIGNATURE_ALG;
+    use std::prelude::v1::*;
 
     // This test reproduces https://github.com/rustls/webpki/issues/167 --- an
     // end-entity cert where the common name is a `PrintableString` rather than
@@ -196,23 +198,26 @@ mod tests {
 
         let issuer = test_utils::make_issuer("Test");
 
-        let ee_cert_der = {
+        let ee_cert = {
             let mut params = test_utils::end_entity_params(vec![DNS_NAME.to_string()]);
             // construct a certificate that uses `PrintableString` as the
             // common name value, rather than `UTF8String`.
             params.distinguished_name.push(
                 rcgen::DnType::CommonName,
-                rcgen::DnValue::PrintableString("example.com".to_string()),
+                rcgen::DnValue::PrintableString(
+                    rcgen::PrintableString::try_from("example.com").unwrap(),
+                ),
             );
-            let cert = rcgen::Certificate::from_params(params)
-                .expect("failed to make ee cert (this is a test bug)");
-            let bytes = cert
-                .serialize_der_with_signer(&issuer)
-                .expect("failed to serialize signed ee cert (this is a test bug)");
-            CertificateDer::from(bytes)
+            params
+                .signed_by(
+                    &rcgen::KeyPair::generate_for(RCGEN_SIGNATURE_ALG).unwrap(),
+                    &issuer.cert,
+                    &issuer.key_pair,
+                )
+                .expect("failed to make ee cert (this is a test bug)")
         };
 
-        expect_dns_name(&ee_cert_der, DNS_NAME);
+        expect_dns_name(ee_cert.der(), DNS_NAME);
     }
 
     // This test reproduces https://github.com/rustls/webpki/issues/167 --- an

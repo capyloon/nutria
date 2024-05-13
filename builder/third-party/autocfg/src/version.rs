@@ -1,4 +1,3 @@
-use std::path::Path;
 use std::process::Command;
 use std::str;
 
@@ -22,9 +21,9 @@ impl Version {
         }
     }
 
-    pub fn from_rustc(rustc: &Path) -> Result<Self, Error> {
+    pub fn from_command(command: &mut Command) -> Result<Self, Error> {
         // Get rustc's verbose version
-        let output = try!(Command::new(rustc)
+        let output = try!(command
             .args(&["--version", "--verbose"])
             .output()
             .map_err(error::from_io));

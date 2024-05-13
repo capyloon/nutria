@@ -13,11 +13,8 @@
 edition = "2018"
 rust-version = "1.48.0"
 name = "base64"
-version = "0.21.7"
-authors = [
-    "Alice Maz <alice@alicemaz.com>",
-    "Marshall Pierce <marshall@mpierce.org>",
-]
+version = "0.22.1"
+authors = ["Marshall Pierce <marshall@mpierce.org>"]
 description = "encodes and decodes base64 as bytes or utf8"
 documentation = "https://docs.rs/base64"
 readme = "README.md"

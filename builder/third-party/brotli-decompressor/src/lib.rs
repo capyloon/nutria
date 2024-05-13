@@ -44,6 +44,7 @@ pub mod reader;
 pub mod writer;
 pub use huffman::{HuffmanCode, HuffmanTreeGroup};
 pub use state::BrotliState;
+#[cfg(feature="ffi-api")]
 pub mod ffi;
 pub use reader::{DecompressorCustomIo};
 

@@ -132,3 +132,29 @@ fn test_serialization_all() {
         assert_eq!(v2, v1);
     });
 }
+
+#[test]
+fn test_serialization_some_transacted() {
+    let v1 = AllFields::test_val();
+
+    with_key!(key, "SerializationSomeTransacted" => {
+        let transaction = winreg::transaction::Transaction::new().unwrap();
+        key.encode_transacted(&v1, &transaction).unwrap();
+        transaction.commit().unwrap();
+        let v2: SomeFields = key.decode().unwrap();
+        assert_eq!(v2, v1);
+    });
+}
+
+#[test]
+fn test_serialization_all_transacted() {
+    let v1 = AllFields::test_val();
+
+    with_key!(key, "SerializationAllTransacted" => {
+        let transaction = winreg::transaction::Transaction::new().unwrap();
+        key.encode_transacted(&v1, &transaction).unwrap();
+        transaction.commit().unwrap();
+        let v2: AllFields = key.decode().unwrap();
+        assert_eq!(v2, v1);
+    });
+}

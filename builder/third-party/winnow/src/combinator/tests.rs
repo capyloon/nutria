@@ -9,6 +9,8 @@ use crate::error::ErrorKind;
 use crate::error::InputError;
 use crate::error::Needed;
 use crate::error::ParserError;
+#[cfg(feature = "alloc")]
+use crate::lib::std::borrow::ToOwned;
 use crate::stream::Stream;
 use crate::token::take;
 use crate::unpeek;
@@ -518,15 +520,12 @@ fn alt_test() {
     #[cfg(feature = "alloc")]
     use crate::{
         error::ParserError,
-        lib::std::{
-            fmt::Debug,
-            string::{String, ToString},
-        },
+        lib::std::{fmt::Debug, string::String},
     };
 
     #[cfg(feature = "alloc")]
     #[derive(Debug, Clone, Eq, PartialEq)]
-    pub struct ErrorStr(String);
+    struct ErrorStr(String);
 
     #[cfg(feature = "alloc")]
     impl From<u32> for ErrorStr {
@@ -562,7 +561,7 @@ fn alt_test() {
 
     #[allow(unused_variables)]
     fn dont_work(input: &[u8]) -> IResult<&[u8], &[u8], ErrorStr> {
-        Err(ErrMode::Backtrack(ErrorStr("abcd".to_string())))
+        Err(ErrMode::Backtrack(ErrorStr("abcd".to_owned())))
     }
 
     fn work2(input: &[u8]) -> IResult<&[u8], &[u8], ErrorStr> {
@@ -594,7 +593,7 @@ fn alt_test() {
         Err(ErrMode::Backtrack(error_node_position!(
             &a,
             ErrorKind::Alt,
-            ErrorStr("abcd".to_string())
+            ErrorStr("abcd".to_owned())
         )))
     );
     assert_eq!(alt2(a), Ok((&b""[..], a)));
@@ -669,6 +668,22 @@ fn alt_array() {
         alt1.parse_peek(i),
         Err(ErrMode::Backtrack(error_position!(&i, ErrorKind::Tag)))
     );
+}
+
+#[test]
+fn alt_dynamic_array() {
+    fn alt1<'i>(i: &mut &'i [u8]) -> PResult<&'i [u8]> {
+        alt(&mut ["a", "bc", "def"][..]).parse_next(i)
+    }
+
+    let a = &b"a"[..];
+    assert_eq!(alt1.parse_peek(a), Ok((&b""[..], (&b"a"[..]))));
+
+    let bc = &b"bc"[..];
+    assert_eq!(alt1.parse_peek(bc), Ok((&b""[..], (&b"bc"[..]))));
+
+    let defg = &b"defg"[..];
+    assert_eq!(alt1.parse_peek(defg), Ok((&b"g"[..], (&b"def"[..]))));
 }
 
 #[test]
@@ -1176,7 +1191,7 @@ fn count_zero() {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct NilError;
+struct NilError;
 
 impl<I> From<(I, ErrorKind)> for NilError {
     fn from(_: (I, ErrorKind)) -> Self {

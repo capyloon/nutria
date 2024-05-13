@@ -1,4 +1,3 @@
-use super::super::alloc;
 use super::super::alloc::{Allocator, SliceWrapper, SliceWrapperMut};
 use super::backward_references::BrotliEncoderParams;
 use super::input_pair::{InputPair, InputReference, InputReferenceMut};
@@ -6,13 +5,12 @@ use super::interface;
 use super::ir_interpret::{push_base, IRInterpreter};
 use super::prior_eval::DEFAULT_SPEED;
 use super::util::{floatX, FastLog2u16};
-use core;
 const NIBBLE_PRIOR_SIZE: usize = 16;
 pub const STRIDE_PRIOR_SIZE: usize = 256 * 256 * NIBBLE_PRIOR_SIZE * 2;
 
 pub fn local_init_cdfs(cdfs: &mut [u16]) {
     for (index, item) in cdfs.iter_mut().enumerate() {
-        *item = 4 + 4 * (index as u16 & 0xf);
+        *item = 4 + 4 * (index as u16 & 0x0f);
     }
 }
 #[allow(unused_variables)]

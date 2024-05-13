@@ -68,7 +68,7 @@ impl Transaction {
         }
     }
 
-    pub fn commit(&self) -> io::Result<()> {
+    pub fn commit(self) -> io::Result<()> {
         unsafe {
             match FileSystem::CommitTransaction(self.handle) {
                 0 => Err(io::Error::last_os_error()),
@@ -77,7 +77,7 @@ impl Transaction {
         }
     }
 
-    pub fn rollback(&self) -> io::Result<()> {
+    pub fn rollback(self) -> io::Result<()> {
         unsafe {
             match FileSystem::RollbackTransaction(self.handle) {
                 0 => Err(io::Error::last_os_error()),
@@ -99,5 +99,11 @@ impl Transaction {
 impl Drop for Transaction {
     fn drop(&mut self) {
         self.close_().unwrap_or(());
+    }
+}
+
+impl AsRef<Transaction> for Transaction {
+    fn as_ref(&self) -> &Transaction {
+        self
     }
 }

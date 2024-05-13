@@ -250,6 +250,13 @@ bitflags! {
         /// `O_DIRECT`
         const DIRECT = linux_raw_sys::general::O_DIRECT;
 
+        /// `O_LARGEFILE`
+        ///
+        /// Note that rustix and/or libc will automatically set this flag when appropriate on
+        /// `open(2)` and friends, thus typical users do not need to care about it.
+        /// It will may be reported in return of `fcntl_getfl`, though.
+        const LARGEFILE = linux_raw_sys::general::O_LARGEFILE;
+
         /// <https://docs.rs/bitflags/*/bitflags/#externally-defined-flags>
         const _ = !0;
     }
@@ -435,7 +442,7 @@ bitflags! {
 
         /// `MFD_HUGE_64KB`
         const HUGE_64KB = linux_raw_sys::general::MFD_HUGE_64KB;
-        /// `MFD_HUGE_512JB`
+        /// `MFD_HUGE_512KB`
         const HUGE_512KB = linux_raw_sys::general::MFD_HUGE_512KB;
         /// `MFD_HUGE_1MB`
         const HUGE_1MB = linux_raw_sys::general::MFD_HUGE_1MB;

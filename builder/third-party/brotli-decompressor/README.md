@@ -3,6 +3,12 @@
 [![crates.io](https://img.shields.io/crates/v/brotli-decompressor.svg)](https://crates.io/crates/brotli-decompressor)
 [![Build Status](https://travis-ci.org/dropbox/rust-brotli-decompressor.svg?branch=master)](https://travis-ci.org/dropbox/rust-brotli-decompressor)
 
+## What's new in version 4.0.0
+* The FFI is no longer active by default to avoid ODR issues if multiple versions of brotli are included in several dependent crates.
+
+## What's new in version 3.0.0
+* The FFI is feature gated behind the ffi-api feature flag (on-by-default)
+
 ## What's new in version 2.5.0
 * If you call write with extra bytes it will only return the bytes consumed
 * Further calls to write will return Ok(0)

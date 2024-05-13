@@ -125,18 +125,10 @@ where
     ///
     /// Returns a future that if successful, yields the `Response`.
     ///
-    /// # Note
+    /// `req` must have a `Host` header.
     ///
-    /// There are some key differences in what automatic things the `Client`
-    /// does for you that will not be done here:
-    ///
-    /// - `Client` requires absolute-form `Uri`s, since the scheme and
-    ///   authority are needed to connect. They aren't required here.
-    /// - Since the `Client` requires absolute-form `Uri`s, it can add
-    ///   the `Host` header based on it. You must add a `Host` header yourself
-    ///   before calling this method.
-    /// - Since absolute-form `Uri`s are not required, if received, they will
-    ///   be serialized as-is.
+    /// Absolute-form `Uri`s are not required. If received, they will be serialized
+    /// as-is.
     pub fn send_request(
         &mut self,
         req: Request<B>,
@@ -310,11 +302,15 @@ where
     /// This value will be overwritten by the value included in the initial
     /// SETTINGS frame received from the peer as part of a [connection preface].
     ///
-    /// The default value is determined by the `h2` crate, but may change.
+    /// Passing `None` will do nothing.
+    ///
+    /// If not set, hyper will use a default.
     ///
     /// [connection preface]: https://httpwg.org/specs/rfc9113.html#preface
     pub fn initial_max_send_streams(&mut self, initial: impl Into<Option<usize>>) -> &mut Self {
-        self.h2_builder.initial_max_send_streams = initial.into();
+        if let Some(initial) = initial.into() {
+            self.h2_builder.initial_max_send_streams = initial;
+        }
         self
     }
 
@@ -343,6 +339,14 @@ where
         if let Some(sz) = sz.into() {
             self.h2_builder.max_frame_size = sz;
         }
+        self
+    }
+
+    /// Sets the max size of received header frames.
+    ///
+    /// Default is currently 16KB, but can change.
+    pub fn max_header_list_size(&mut self, max: u32) -> &mut Self {
+        self.h2_builder.max_header_list_size = max;
         self
     }
 
@@ -404,6 +408,17 @@ where
     pub fn max_send_buf_size(&mut self, max: usize) -> &mut Self {
         assert!(max <= std::u32::MAX as usize);
         self.h2_builder.max_send_buffer_size = max;
+        self
+    }
+
+    /// Configures the maximum number of pending reset streams allowed before a GOAWAY will be sent.
+    ///
+    /// This will default to the default value set by the [`h2` crate](https://crates.io/crates/h2).
+    /// As of v0.4.0, it is 20.
+    ///
+    /// See <https://github.com/hyperium/hyper/issues/2877> for more information.
+    pub fn max_pending_accept_reset_streams(&mut self, max: impl Into<Option<usize>>) -> &mut Self {
+        self.h2_builder.max_pending_accept_reset_streams = max.into();
         self
     }
 

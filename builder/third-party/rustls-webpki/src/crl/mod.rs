@@ -250,7 +250,7 @@ mod tests {
         #[cfg(feature = "alloc")]
         {
             let err = result.unwrap_err();
-            println!("{:?}", err.clone());
+            std::println!("{:?}", err.clone());
         }
 
         // It should be possible to build a revocation options builder with defaults.
@@ -263,7 +263,7 @@ mod tests {
         #[cfg(feature = "alloc")]
         {
             // The builder should be debug, and clone when alloc is enabled
-            println!("{:?}", builder);
+            std::println!("{:?}", builder);
             _ = builder.clone();
         }
         let opts = builder.build();
@@ -313,7 +313,7 @@ mod tests {
         // Built revocation options should be debug and clone when alloc is enabled.
         #[cfg(feature = "alloc")]
         {
-            println!("{:?}", opts.clone());
+            std::println!("{:?}", opts.clone());
         }
     }
 }

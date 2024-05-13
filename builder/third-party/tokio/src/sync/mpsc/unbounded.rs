@@ -330,6 +330,73 @@ impl<T> UnboundedReceiver<T> {
         self.chan.close();
     }
 
+    /// Checks if a channel is closed.
+    ///
+    /// This method returns `true` if the channel has been closed. The channel is closed
+    /// when all [`UnboundedSender`] have been dropped, or when [`UnboundedReceiver::close`] is called.
+    ///
+    /// [`UnboundedSender`]: crate::sync::mpsc::UnboundedSender
+    /// [`UnboundedReceiver::close`]: crate::sync::mpsc::UnboundedReceiver::close
+    ///
+    /// # Examples
+    /// ```
+    /// use tokio::sync::mpsc;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let (_tx, mut rx) = mpsc::unbounded_channel::<()>();
+    ///     assert!(!rx.is_closed());
+    ///
+    ///     rx.close();
+    ///     
+    ///     assert!(rx.is_closed());
+    /// }
+    /// ```
+    pub fn is_closed(&self) -> bool {
+        self.chan.is_closed()
+    }
+
+    /// Checks if a channel is empty.
+    ///
+    /// This method returns `true` if the channel has no messages.
+    ///
+    /// # Examples
+    /// ```
+    /// use tokio::sync::mpsc;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let (tx, rx) = mpsc::unbounded_channel();
+    ///     assert!(rx.is_empty());
+    ///
+    ///     tx.send(0).unwrap();
+    ///     assert!(!rx.is_empty());
+    /// }
+    ///
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.chan.is_empty()
+    }
+
+    /// Returns the number of messages in the channel.
+    ///
+    /// # Examples
+    /// ```
+    /// use tokio::sync::mpsc;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let (tx, rx) = mpsc::unbounded_channel();
+    ///     assert_eq!(0, rx.len());
+    ///
+    ///     tx.send(0).unwrap();
+    ///     assert_eq!(1, rx.len());
+    /// }
+    /// ```
+    pub fn len(&self) -> usize {
+        self.chan.len()
+    }
+
     /// Polls to receive the next message on this channel.
     ///
     /// This method returns:
@@ -572,18 +639,37 @@ impl<T> UnboundedSender<T> {
     /// towards RAII semantics, i.e. if all `UnboundedSender` instances of the
     /// channel were dropped and only `WeakUnboundedSender` instances remain,
     /// the channel is closed.
+    #[must_use = "Downgrade creates a WeakSender without destroying the original non-weak sender."]
     pub fn downgrade(&self) -> WeakUnboundedSender<T> {
         WeakUnboundedSender {
             chan: self.chan.downgrade(),
         }
     }
+
+    /// Returns the number of [`UnboundedSender`] handles.
+    pub fn strong_count(&self) -> usize {
+        self.chan.strong_count()
+    }
+
+    /// Returns the number of [`WeakUnboundedSender`] handles.
+    pub fn weak_count(&self) -> usize {
+        self.chan.weak_count()
+    }
 }
 
 impl<T> Clone for WeakUnboundedSender<T> {
     fn clone(&self) -> Self {
+        self.chan.increment_weak_count();
+
         WeakUnboundedSender {
             chan: self.chan.clone(),
         }
+    }
+}
+
+impl<T> Drop for WeakUnboundedSender<T> {
+    fn drop(&mut self) {
+        self.chan.decrement_weak_count();
     }
 }
 
@@ -593,6 +679,16 @@ impl<T> WeakUnboundedSender<T> {
     /// the channel wasn't previously dropped, otherwise `None` is returned.
     pub fn upgrade(&self) -> Option<UnboundedSender<T>> {
         chan::Tx::upgrade(self.chan.clone()).map(UnboundedSender::new)
+    }
+
+    /// Returns the number of [`UnboundedSender`] handles.
+    pub fn strong_count(&self) -> usize {
+        self.chan.strong_count()
+    }
+
+    /// Returns the number of [`WeakUnboundedSender`] handles.
+    pub fn weak_count(&self) -> usize {
+        self.chan.weak_count()
     }
 }
 

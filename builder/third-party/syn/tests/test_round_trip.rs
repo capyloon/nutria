@@ -27,8 +27,9 @@ use rustc_ast::ast::{
     AngleBracketedArg, AngleBracketedArgs, Crate, GenericArg, GenericParamKind, Generics,
     WhereClause,
 };
-use rustc_ast::mut_visit::{self, MutVisitor};
+use rustc_ast::mut_visit::MutVisitor;
 use rustc_ast_pretty::pprust;
+use rustc_data_structures::flat_map_in_place::FlatMapInPlace;
 use rustc_error_messages::{DiagMessage, LazyFallbackBundle};
 use rustc_errors::{translation, Diag, PResult};
 use rustc_session::parse::ParseSess;
@@ -44,9 +45,7 @@ use std::time::Instant;
 #[macro_use]
 mod macros;
 
-#[allow(dead_code)]
 mod common;
-
 mod repo;
 
 #[test]
@@ -55,7 +54,7 @@ fn test_round_trip() {
     repo::clone_rust();
     let abort_after = common::abort_after();
     if abort_after == 0 {
-        panic!("Skipping all round_trip tests");
+        panic!("skipping all round_trip tests");
     }
 
     let failed = AtomicUsize::new(0);
@@ -208,7 +207,12 @@ fn normalize(krate: &mut Crate) {
                 },
                 AngleBracketedArg::Constraint(_) => Group::Constraints,
             });
-            mut_visit::noop_visit_angle_bracketed_parameter_data(e, self);
+            for arg in &mut e.args {
+                match arg {
+                    AngleBracketedArg::Arg(arg) => self.visit_generic_arg(arg),
+                    AngleBracketedArg::Constraint(constraint) => self.visit_constraint(constraint),
+                }
+            }
         }
 
         fn visit_generics(&mut self, e: &mut Generics) {
@@ -223,7 +227,9 @@ fn normalize(krate: &mut Crate) {
                     Group::TypesAndConsts
                 }
             });
-            mut_visit::noop_visit_generics(e, self);
+            e.params
+                .flat_map_in_place(|param| self.flat_map_generic_param(param));
+            self.visit_where_clause(&mut e.where_clause);
         }
 
         fn visit_where_clause(&mut self, e: &mut WhereClause) {

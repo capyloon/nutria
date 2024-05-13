@@ -8,11 +8,12 @@
 //! | Windows           | `*‑windows‑*`      | [`BCryptGenRandom`]
 //! | macOS             | `*‑apple‑darwin`   | [`getentropy`][3]
 //! | iOS, tvOS, watchOS | `*‑apple‑ios`, `*-apple-tvos`, `*-apple-watchos` | [`CCRandomGenerateBytes`]
-//! | FreeBSD           | `*‑freebsd`        | [`getrandom`][5] if available, otherwise [`kern.arandom`][6]
+//! | FreeBSD           | `*‑freebsd`        | [`getrandom`][5]
 //! | OpenBSD           | `*‑openbsd`        | [`getentropy`][7]
 //! | NetBSD            | `*‑netbsd`         | [`getrandom`][16] if available, otherwise [`kern.arandom`][8]
-//! | Dragonfly BSD     | `*‑dragonfly`      | [`getrandom`][9] if available, otherwise [`/dev/urandom`][10] (identical to `/dev/random`)
-//! | Solaris, illumos  | `*‑solaris`, `*‑illumos` | [`getrandom`][11] if available, otherwise [`/dev/random`][12]
+//! | Dragonfly BSD     | `*‑dragonfly`      | [`getrandom`][9]
+//! | Solaris           | `*‑solaris`        | [`getrandom`][11] (with `GRND_RANDOM`)
+//! | illumos           | `*‑illumos`        | [`getrandom`][12]
 //! | Fuchsia OS        | `*‑fuchsia`        | [`cprng_draw`]
 //! | Redox             | `*‑redox`          | `/dev/urandom`
 //! | Haiku             | `*‑haiku`          | `/dev/urandom` (identical to `/dev/random`)
@@ -25,14 +26,10 @@
 //! | WASI              | `wasm32‑wasi`      | [`random_get`]
 //! | Web Browser and Node.js | `wasm*‑*‑unknown` | [`Crypto.getRandomValues`] if available, then [`crypto.randomFillSync`] if on Node.js, see [WebAssembly support]
 //! | SOLID             | `*-kmc-solid_*`    | `SOLID_RNG_SampleRandomBytes`
-//! | Nintendo 3DS      | `armv6k-nintendo-3ds` | [`getrandom`][1]
-//! | PS Vita           | `armv7-sony-vita-newlibeabihf` | [`getentropy`][13]
-//! | QNX Neutrino      | `*‑nto-qnx*`          | [`/dev/urandom`][14] (identical to `/dev/random`)
+//! | Nintendo 3DS      | `*-nintendo-3ds`   | [`getrandom`][18]
+//! | PS Vita           | `*-vita-*`         | [`getentropy`][13]
+//! | QNX Neutrino      | `*‑nto-qnx*`       | [`/dev/urandom`][14] (identical to `/dev/random`)
 //! | AIX               | `*-ibm-aix`        | [`/dev/urandom`][15]
-//!
-//! There is no blanket implementation on `unix` targets that reads from
-//! `/dev/urandom`. This ensures all supported targets are using the recommended
-//! interface and respect maximum buffer sizes.
 //!
 //! Pull Requests that add support for new targets to `getrandom` are always welcome.
 //!
@@ -46,6 +43,21 @@
 //! targets. Supported targets will _always_ use their supported implementations.
 //! This prevents a crate from overriding a secure source of randomness
 //! (either accidentally or intentionally).
+//!
+//! ## `/dev/urandom` fallback on Linux and Android
+//!
+//! On Linux targets the fallback is present only if either `target_env` is `musl`,
+//! or `target_arch` is one of the following: `aarch64`, `arm`, `powerpc`, `powerpc64`,
+//! `s390x`, `x86`, `x86_64`. Other supported targets [require][platform-support]
+//! kernel versions which support `getrandom` system call, so fallback is not needed.
+//!
+//! On Android targets the fallback is present only for the following `target_arch`es:
+//! `aarch64`, `arm`, `x86`, `x86_64`. Other `target_arch`es (e.g. RISC-V) require
+//! sufficiently high API levels.
+//!
+//! The fallback can be disabled by enabling the `linux_disable_fallback` crate feature.
+//! Note that doing so will bump minimum supported Linux kernel version to 3.17 and
+//! Android API level to 23 (Marshmallow).
 //!
 //! ### RDRAND on x86
 //!
@@ -99,11 +111,14 @@
 //! This crate will then use the provided `webcrypto` implementation.
 //!
 //! ### Platform Support
-//! This crate generally supports the same operating system and platform versions that the Rust standard library does.
-//! Additional targets may be supported using pluggable custom implementations.
+//! This crate generally supports the same operating system and platform versions
+//! that the Rust standard library does. Additional targets may be supported using
+//! pluggable custom implementations.
 //!
-//! This means that as Rust drops support for old versions of operating systems (such as old Linux kernel versions, Android API levels, etc)
-//! in stable releases, `getrandom` may create new patch releases (`0.N.x`) that remove support for outdated platform versions.
+//! This means that as Rust drops support for old versions of operating systems
+//! (such as old Linux kernel versions, Android API levels, etc) in stable releases,
+//! `getrandom` may create new patch releases (`0.N.x`) that remove support for
+//! outdated platform versions.
 //!
 //! ### Custom implementations
 //!
@@ -150,23 +165,22 @@
 //! on every call to `getrandom`, hence after the first successful call one
 //! can be reasonably confident that no errors will occur.
 //!
-//! [1]: http://man7.org/linux/man-pages/man2/getrandom.2.html
-//! [2]: http://man7.org/linux/man-pages/man4/urandom.4.html
+//! [1]: https://manned.org/getrandom.2
+//! [2]: https://manned.org/urandom.4
 //! [3]: https://www.unix.com/man-page/mojave/2/getentropy/
 //! [4]: https://www.unix.com/man-page/mojave/4/urandom/
 //! [5]: https://www.freebsd.org/cgi/man.cgi?query=getrandom&manpath=FreeBSD+12.0-stable
-//! [6]: https://www.freebsd.org/cgi/man.cgi?query=random&sektion=4
 //! [7]: https://man.openbsd.org/getentropy.2
 //! [8]: https://man.netbsd.org/sysctl.7
 //! [9]: https://leaf.dragonflybsd.org/cgi/web-man?command=getrandom
-//! [10]: https://leaf.dragonflybsd.org/cgi/web-man?command=random&section=4
 //! [11]: https://docs.oracle.com/cd/E88353_01/html/E37841/getrandom-2.html
-//! [12]: https://docs.oracle.com/cd/E86824_01/html/E54777/random-7d.html
+//! [12]: https://illumos.org/man/2/getrandom
 //! [13]: https://github.com/emscripten-core/emscripten/pull/12240
 //! [14]: https://www.qnx.com/developers/docs/7.1/index.html#com.qnx.doc.neutrino.utilities/topic/r/random.html
 //! [15]: https://www.ibm.com/docs/en/aix/7.3?topic=files-random-urandom-devices
 //! [16]: https://man.netbsd.org/getrandom.2
 //! [17]: https://www.gnu.org/software/libc/manual/html_mono/libc.html#index-getrandom
+//! [18]: https://github.com/rust3ds/shim-3ds/commit/b01d2568836dea2a65d05d662f8e5f805c64389d
 //!
 //! [`BCryptGenRandom`]: https://docs.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptgenrandom
 //! [`Crypto.getRandomValues`]: https://www.w3.org/TR/WebCryptoAPI/#Crypto-method-getRandomValues
@@ -182,15 +196,16 @@
 //! [CommonJS modules]: https://nodejs.org/api/modules.html
 //! [ES modules]: https://nodejs.org/api/esm.html
 //! [`sys_read_entropy`]: https://github.com/hermit-os/kernel/blob/315f58ff5efc81d9bf0618af85a59963ff55f8b1/src/syscalls/entropy.rs#L47-L55
+//! [platform-support]: https://doc.rust-lang.org/stable/rustc/platform-support.html
 
 #![doc(
     html_logo_url = "https://www.rust-lang.org/logos/rust-logo-128x128-blk.png",
     html_favicon_url = "https://www.rust-lang.org/favicon.ico",
-    html_root_url = "https://docs.rs/getrandom/0.2.12"
+    html_root_url = "https://docs.rs/getrandom/0.2.15"
 )]
 #![no_std]
 #![warn(rust_2018_idioms, unused_lifetimes, missing_docs)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 #[macro_use]
 extern crate cfg_if;
@@ -220,32 +235,82 @@ cfg_if! {
     if #[cfg(any(target_os = "haiku", target_os = "redox", target_os = "nto", target_os = "aix"))] {
         mod util_libc;
         #[path = "use_file.rs"] mod imp;
-    } else if #[cfg(any(target_os = "android", target_os = "linux"))] {
+    } else if #[cfg(any(
+        target_os = "macos",
+        target_os = "openbsd",
+        target_os = "vita",
+        target_os = "emscripten",
+    ))] {
+        mod util_libc;
+        #[path = "getentropy.rs"] mod imp;
+    } else if #[cfg(any(
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "hurd",
+        target_os = "illumos",
+        // Check for target_arch = "arm" to only include the 3DS. Does not
+        // include the Nintendo Switch (which is target_arch = "aarch64").
+        all(target_os = "horizon", target_arch = "arm"),
+    ))] {
+        mod util_libc;
+        #[path = "getrandom.rs"] mod imp;
+    } else if #[cfg(all(
+        not(feature = "linux_disable_fallback"),
+        any(
+            // Rust supports Android API level 19 (KitKat) [0] and the next upgrade targets
+            // level 21 (Lollipop) [1], while `getrandom(2)` was added only in
+            // level 23 (Marshmallow). Note that it applies only to the "old" `target_arch`es,
+            // RISC-V Android targets sufficiently new API level, same will apply for potential
+            // new Android `target_arch`es.
+            // [0]: https://blog.rust-lang.org/2023/01/09/android-ndk-update-r25.html
+            // [1]: https://github.com/rust-lang/rust/pull/120593
+            all(
+                target_os = "android",
+                any(
+                    target_arch = "aarch64",
+                    target_arch = "arm",
+                    target_arch = "x86",
+                    target_arch = "x86_64",
+                ),
+            ),
+            // Only on these `target_arch`es Rust supports Linux kernel versions (3.2+)
+            // that precede the version (3.17) in which `getrandom(2)` was added:
+            // https://doc.rust-lang.org/stable/rustc/platform-support.html
+            all(
+                target_os = "linux",
+                any(
+                    target_arch = "aarch64",
+                    target_arch = "arm",
+                    target_arch = "powerpc",
+                    target_arch = "powerpc64",
+                    target_arch = "s390x",
+                    target_arch = "x86",
+                    target_arch = "x86_64",
+                    // Minimum supported Linux kernel version for MUSL targets
+                    // is not specified explicitly (as of Rust 1.77) and they
+                    // are used in practice to target pre-3.17 kernels.
+                    target_env = "musl",
+                ),
+            )
+        ),
+    ))] {
         mod util_libc;
         mod use_file;
         mod lazy;
+        #[path = "linux_android_with_fallback.rs"] mod imp;
+    } else if #[cfg(any(target_os = "android", target_os = "linux"))] {
+        mod util_libc;
         #[path = "linux_android.rs"] mod imp;
-    } else if #[cfg(any(target_os = "illumos", target_os = "solaris"))] {
+    } else if #[cfg(target_os = "solaris")] {
         mod util_libc;
-        mod use_file;
-        #[path = "solaris_illumos.rs"] mod imp;
-    } else if #[cfg(any(target_os = "freebsd", target_os = "netbsd"))] {
+        #[path = "solaris.rs"] mod imp;
+    } else if #[cfg(target_os = "netbsd")] {
         mod util_libc;
-        #[path = "bsd_arandom.rs"] mod imp;
-    } else if #[cfg(target_os = "dragonfly")] {
-        mod util_libc;
-        mod use_file;
-        #[path = "dragonfly.rs"] mod imp;
+        #[path = "netbsd.rs"] mod imp;
     } else if #[cfg(target_os = "fuchsia")] {
         #[path = "fuchsia.rs"] mod imp;
-    } else if #[cfg(any(target_os = "ios", target_os = "watchos", target_os = "tvos"))] {
+    } else if #[cfg(any(target_os = "ios", target_os = "visionos", target_os = "watchos", target_os = "tvos"))] {
         #[path = "apple-other.rs"] mod imp;
-    } else if #[cfg(target_os = "macos")] {
-        mod util_libc;
-        #[path = "macos.rs"] mod imp;
-    } else if #[cfg(target_os = "openbsd")] {
-        mod util_libc;
-        #[path = "openbsd.rs"] mod imp;
     } else if #[cfg(all(target_arch = "wasm32", target_os = "wasi"))] {
         #[path = "wasi.rs"] mod imp;
     } else if #[cfg(target_os = "hermit")] {
@@ -259,17 +324,6 @@ cfg_if! {
         #[path = "espidf.rs"] mod imp;
     } else if #[cfg(windows)] {
         #[path = "windows.rs"] mod imp;
-    } else if #[cfg(all(target_os = "horizon", target_arch = "arm"))] {
-        // We check for target_arch = "arm" because the Nintendo Switch also
-        // uses Horizon OS (it is aarch64).
-        mod util_libc;
-        #[path = "3ds.rs"] mod imp;
-    } else if #[cfg(target_os = "vita")] {
-        mod util_libc;
-        #[path = "vita.rs"] mod imp;
-    } else if #[cfg(target_os = "emscripten")] {
-        mod util_libc;
-        #[path = "emscripten.rs"] mod imp;
     } else if #[cfg(all(target_arch = "x86_64", target_env = "sgx"))] {
         mod lazy;
         #[path = "rdrand.rs"] mod imp;
@@ -281,9 +335,6 @@ cfg_if! {
                         any(target_arch = "wasm32", target_arch = "wasm64"),
                         target_os = "unknown"))] {
         #[path = "js.rs"] mod imp;
-    } else if #[cfg(target_os = "hurd")] {
-        mod util_libc;
-        #[path = "hurd.rs"] mod imp;
     } else if #[cfg(feature = "custom")] {
         use custom as imp;
     } else if #[cfg(all(any(target_arch = "wasm32", target_arch = "wasm64"),

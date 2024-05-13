@@ -1,3 +1,5 @@
+//! Interactively manipulate wincon colors
+
 #![cfg_attr(not(windows), allow(dead_code))]
 
 #[cfg(not(windows))]

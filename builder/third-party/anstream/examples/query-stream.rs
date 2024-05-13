@@ -1,3 +1,5 @@
+//! Report a terminal's capabilities
+
 fn main() {
     println!("stdout:");
     println!(

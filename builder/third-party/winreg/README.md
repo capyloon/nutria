@@ -15,7 +15,7 @@ Rust bindings to MS Windows Registry API. Work in progress.
 
 Current features:
 * Basic registry operations:
-    * open/create/delete keys
+    * open/create/delete/rename keys
     * load application hive from a file
     * read and write values
     * seamless conversion between `REG_*` types and rust primitives
@@ -36,7 +36,7 @@ Current features:
 ```toml
 # Cargo.toml
 [dependencies]
-winreg = "0.50"
+winreg = "0.52"
 ```
 
 ```rust
@@ -138,7 +138,7 @@ fn main() -> io::Result<()> {
 ```toml
 # Cargo.toml
 [dependencies]
-winreg = { version = "0.50", features = ["transactions"] }
+winreg = { version = "0.52", features = ["transactions"] }
 ```
 
 ```rust
@@ -179,7 +179,7 @@ fn main() -> io::Result<()> {
 ```toml
 # Cargo.toml
 [dependencies]
-winreg = { version = "0.50", features = ["serialization-serde"] }
+winreg = { version = "0.52", features = ["serialization-serde"] }
 serde = "1"
 serde_derive = "1"
 ```

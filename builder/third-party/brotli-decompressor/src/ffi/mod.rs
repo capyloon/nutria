@@ -1,5 +1,3 @@
-#![cfg(not(feature="safe"))]
-
 #[cfg(feature="std")]
 use std::{thread,panic, io, boxed, any, string};
 #[cfg(feature="std")]

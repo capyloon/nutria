@@ -423,6 +423,7 @@ macro_rules! oid {
 #[cfg(test)]
 mod tests {
     use super::DerTypeId;
+    use std::prelude::v1::*;
 
     #[test]
     fn test_optional_boolean() {

@@ -942,7 +942,7 @@ where
     trace("space0", take_while(0.., AsChar::is_space)).parse_next(input)
 }
 
-/// Recognizes zero or more spaces and tabs.
+/// Recognizes one or more spaces and tabs.
 ///
 /// *Complete version*: Will return the whole input if no terminating token is found (a non space
 /// character).
@@ -1589,13 +1589,13 @@ where
 /// assert_eq!(esc(Partial::new("12\\\"34;")), Ok((Partial::new(";"), "12\\\"34")));
 /// ```
 #[inline(always)]
-pub fn take_escaped<'i, Input: 'i, Error, Normal, Escapable, NormalOutput, EscapableOutput>(
+pub fn take_escaped<'i, Input, Error, Normal, Escapable, NormalOutput, EscapableOutput>(
     mut normal: Normal,
     control_char: char,
     mut escapable: Escapable,
 ) -> impl Parser<Input, <Input as Stream>::Slice, Error>
 where
-    Input: StreamIsPartial + Stream + Compare<char>,
+    Input: StreamIsPartial + Stream + Compare<char> + 'i,
     Normal: Parser<Input, NormalOutput, Error>,
     Escapable: Parser<Input, EscapableOutput, Error>,
     Error: ParserError<Input>,
@@ -1612,13 +1612,13 @@ where
 /// Deprecated, replaced with [`take_escaped`]
 #[deprecated(since = "0.6.4", note = "Replaced with `take_escaped`")]
 #[inline(always)]
-pub fn escaped<'i, Input: 'i, Error, Normal, Escapable, NormalOutput, EscapableOutput>(
+pub fn escaped<'i, Input, Error, Normal, Escapable, NormalOutput, EscapableOutput>(
     normal: Normal,
     control_char: char,
     escapable: Escapable,
 ) -> impl Parser<Input, <Input as Stream>::Slice, Error>
 where
-    Input: StreamIsPartial + Stream + Compare<char>,
+    Input: StreamIsPartial + Stream + Compare<char> + 'i,
     Normal: Parser<Input, NormalOutput, Error>,
     Escapable: Parser<Input, EscapableOutput, Error>,
     Error: ParserError<Input>,
@@ -1668,7 +1668,7 @@ where
     Err(ErrMode::Incomplete(Needed::Unknown))
 }
 
-fn complete_escaped_internal<'a, I: 'a, Error, F, G, O1, O2>(
+fn complete_escaped_internal<'a, I, Error, F, G, O1, O2>(
     input: &mut I,
     normal: &mut F,
     control_char: char,
@@ -1678,6 +1678,7 @@ where
     I: StreamIsPartial,
     I: Stream,
     I: Compare<char>,
+    I: 'a,
     F: Parser<I, O1, Error>,
     G: Parser<I, O2, Error>,
     Error: ParserError<I>,
@@ -1718,6 +1719,7 @@ where
 /// # Example
 ///
 /// ```rust
+/// # #[cfg(feature = "std")] {
 /// # use winnow::prelude::*;
 /// # use winnow::{error::ErrMode, error::ErrorKind, error::InputError, error::Needed};
 /// # use std::str::from_utf8;
@@ -1740,9 +1742,11 @@ where
 ///
 /// assert_eq!(parser.parse_peek("ab\\\"cd"), Ok(("", String::from("ab\"cd"))));
 /// assert_eq!(parser.parse_peek("ab\\ncd"), Ok(("", String::from("ab\ncd"))));
+/// # }
 /// ```
 ///
 /// ```
+/// # #[cfg(feature = "std")] {
 /// # use winnow::prelude::*;
 /// # use winnow::{error::ErrMode, error::ErrorKind, error::InputError, error::Needed};
 /// # use std::str::from_utf8;
@@ -1765,6 +1769,7 @@ where
 /// }
 ///
 /// assert_eq!(parser.parse_peek(Partial::new("ab\\\"cd\"")), Ok((Partial::new("\""), String::from("ab\"cd"))));
+/// # }
 /// ```
 #[inline(always)]
 pub fn escaped_transform<Input, Error, Normal, Escape, Output>(

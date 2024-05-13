@@ -1,6 +1,54 @@
-use criterion::{black_box, Criterion};
+use std::hint::black_box;
 
-use anstyle_parse::*;
+use anstyle_parse::DefaultCharAccumulator;
+use anstyle_parse::Params;
+use anstyle_parse::Parser;
+use anstyle_parse::Perform;
+
+#[divan::bench(args = DATA)]
+fn advance(data: &Data) {
+    let mut dispatcher = BenchDispatcher;
+    let mut parser = Parser::<DefaultCharAccumulator>::new();
+
+    for byte in data.content() {
+        parser.advance(&mut dispatcher, *byte);
+    }
+}
+
+#[divan::bench(args = DATA)]
+fn advance_strip(data: &Data) -> String {
+    let mut stripped = Strip::with_capacity(data.content().len());
+    let mut parser = Parser::<DefaultCharAccumulator>::new();
+
+    for byte in data.content() {
+        parser.advance(&mut stripped, *byte);
+    }
+
+    black_box(stripped.0)
+}
+
+#[divan::bench(args = DATA)]
+fn state_change(data: &Data) {
+    let mut state = anstyle_parse::state::State::default();
+    for byte in data.content() {
+        let (next_state, action) = anstyle_parse::state::state_change(state, *byte);
+        state = next_state;
+        black_box(action);
+    }
+}
+
+#[divan::bench(args = DATA)]
+fn state_change_strip_str(bencher: divan::Bencher<'_, '_>, data: &Data) {
+    if let Ok(content) = std::str::from_utf8(data.content()) {
+        bencher
+            .with_inputs(|| content)
+            .bench_local_values(|content| {
+                let stripped = strip_str(content);
+
+                black_box(stripped)
+            });
+    }
+}
 
 struct BenchDispatcher;
 impl Perform for BenchDispatcher {
@@ -96,20 +144,50 @@ fn strip_str(content: &str) -> String {
         bytes = next;
     }
 
+    #[allow(clippy::unwrap_used)]
     String::from_utf8(stripped).unwrap()
 }
 
-fn parse(c: &mut Criterion) {
-    for (name, content) in [
-        #[cfg(feature = "utf8")]
-        ("demo.vte", &include_bytes!("../tests/demo.vte")[..]),
-        ("rg_help.vte", &include_bytes!("../tests/rg_help.vte")[..]),
-        ("rg_linus.vte", &include_bytes!("../tests/rg_linus.vte")[..]),
-        (
-            "state_changes",
-            &b"\x1b]2;X\x1b\\ \x1b[0m \x1bP0@\x1b\\"[..],
-        ),
-    ] {
+const DATA: &[Data] = &[
+    Data(
+        "0-state_changes",
+        b"\x1b]2;X\x1b\\ \x1b[0m \x1bP0@\x1b\\".as_slice(),
+    ),
+    #[cfg(feature = "utf8")]
+    Data("1-demo.vte", include_bytes!("../tests/demo.vte").as_slice()),
+    Data(
+        "2-rg_help.vte",
+        include_bytes!("../tests/rg_help.vte").as_slice(),
+    ),
+    Data(
+        "3-rg_linus.vte",
+        include_bytes!("../tests/rg_linus.vte").as_slice(),
+    ),
+];
+
+#[derive(Debug)]
+struct Data(&'static str, &'static [u8]);
+
+impl Data {
+    const fn name(&self) -> &'static str {
+        self.0
+    }
+
+    const fn content(&self) -> &'static [u8] {
+        self.1
+    }
+}
+
+impl std::fmt::Display for Data {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.name().fmt(f)
+    }
+}
+
+#[test]
+fn verify_data() {
+    for data in DATA {
+        let Data(name, content) = data;
         // Make sure the comparison is fair
         if let Ok(content) = std::str::from_utf8(content) {
             let mut stripped = Strip::with_capacity(content.len());
@@ -119,51 +197,9 @@ fn parse(c: &mut Criterion) {
             }
             assert_eq!(stripped.0, strip_str(content));
         }
-
-        let mut group = c.benchmark_group(name);
-        group.bench_function("advance", |b| {
-            b.iter(|| {
-                let mut dispatcher = BenchDispatcher;
-                let mut parser = Parser::<DefaultCharAccumulator>::new();
-
-                for byte in content {
-                    parser.advance(&mut dispatcher, *byte);
-                }
-            })
-        });
-        group.bench_function("advance_strip", |b| {
-            b.iter(|| {
-                let mut stripped = Strip::with_capacity(content.len());
-                let mut parser = Parser::<DefaultCharAccumulator>::new();
-
-                for byte in content {
-                    parser.advance(&mut stripped, *byte);
-                }
-
-                black_box(stripped.0)
-            })
-        });
-        group.bench_function("state_change", |b| {
-            b.iter(|| {
-                let mut state = anstyle_parse::state::State::default();
-                for byte in content {
-                    let (next_state, action) = anstyle_parse::state::state_change(state, *byte);
-                    state = next_state;
-                    black_box(action);
-                }
-            })
-        });
-        if let Ok(content) = std::str::from_utf8(content) {
-            group.bench_function("state_change_strip_str", |b| {
-                b.iter(|| {
-                    let stripped = strip_str(content);
-
-                    black_box(stripped)
-                })
-            });
-        }
     }
 }
 
-criterion::criterion_group!(benches, parse);
-criterion::criterion_main!(benches);
+fn main() {
+    divan::main();
+}

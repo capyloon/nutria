@@ -209,3 +209,30 @@ dotted key `k1` attempted to extend non-table type (integer)
     let err = toml_input.parse::<toml_edit::DocumentMut>().unwrap_err();
     snapbox::assert_eq(expected_err, err.to_string());
 }
+
+#[test]
+fn emoji_error_span() {
+    let input = "😀";
+    let err = input.parse::<toml_edit::DocumentMut>().unwrap_err();
+    dbg!(err.span());
+    let actual = &input[err.span().unwrap()];
+    assert_eq!(actual, input);
+}
+
+#[test]
+fn text_error_span() {
+    let input = "asdf";
+    let err = input.parse::<toml_edit::DocumentMut>().unwrap_err();
+    dbg!(err.span());
+    let actual = &input[err.span().unwrap()];
+    assert_eq!(actual, "");
+}
+
+#[test]
+fn fuzzed_68144_error_span() {
+    let input = "\"\\ᾂr\"";
+    let err = input.parse::<toml_edit::DocumentMut>().unwrap_err();
+    dbg!(err.span());
+    let actual = &input[err.span().unwrap()];
+    assert_eq!(actual, "ᾂ");
+}

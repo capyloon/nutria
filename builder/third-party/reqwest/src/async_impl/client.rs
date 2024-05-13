@@ -108,11 +108,16 @@ struct Config {
     auto_sys_proxy: bool,
     redirect_policy: redirect::Policy,
     referer: bool,
+    read_timeout: Option<Duration>,
     timeout: Option<Duration>,
     #[cfg(feature = "__tls")]
     root_certs: Vec<Certificate>,
     #[cfg(feature = "__tls")]
     tls_built_in_root_certs: bool,
+    #[cfg(feature = "rustls-tls-webpki-roots")]
+    tls_built_in_certs_webpki: bool,
+    #[cfg(feature = "rustls-tls-native-roots")]
+    tls_built_in_certs_native: bool,
     #[cfg(feature = "__tls")]
     min_tls_version: Option<tls::Version>,
     #[cfg(feature = "__tls")]
@@ -200,11 +205,16 @@ impl ClientBuilder {
                 auto_sys_proxy: true,
                 redirect_policy: redirect::Policy::default(),
                 referer: true,
+                read_timeout: None,
                 timeout: None,
                 #[cfg(feature = "__tls")]
                 root_certs: Vec::new(),
                 #[cfg(feature = "__tls")]
                 tls_built_in_root_certs: true,
+                #[cfg(feature = "rustls-tls-webpki-roots")]
+                tls_built_in_certs_webpki: true,
+                #[cfg(feature = "rustls-tls-native-roots")]
+                tls_built_in_certs_native: true,
                 #[cfg(any(feature = "native-tls", feature = "__rustls"))]
                 identity: None,
                 #[cfg(feature = "__tls")]
@@ -499,12 +509,12 @@ impl ClientBuilder {
                     }
 
                     #[cfg(feature = "rustls-tls-webpki-roots")]
-                    if config.tls_built_in_root_certs {
+                    if config.tls_built_in_certs_webpki {
                         root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
                     }
 
                     #[cfg(feature = "rustls-tls-native-roots")]
-                    if config.tls_built_in_root_certs {
+                    if config.tls_built_in_certs_native {
                         let mut valid_count = 0;
                         let mut invalid_count = 0;
                         for cert in rustls_native_certs::load_native_certs()
@@ -731,6 +741,7 @@ impl ClientBuilder {
                 headers: config.headers,
                 redirect_policy: config.redirect_policy,
                 referer: config.referer,
+                read_timeout: config.read_timeout,
                 request_timeout: config.timeout,
                 proxies,
                 proxies_maybe_http_auth,
@@ -796,27 +807,6 @@ impl ClientBuilder {
     ///     .default_headers(headers)
     ///     .build()?;
     /// let res = client.get("https://www.rust-lang.org").send().await?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// Override the default headers:
-    ///
-    /// ```rust
-    /// use reqwest::header;
-    /// # async fn doc() -> Result<(), reqwest::Error> {
-    /// let mut headers = header::HeaderMap::new();
-    /// headers.insert("X-MY-HEADER", header::HeaderValue::from_static("value"));
-    ///
-    /// // get a client builder
-    /// let client = reqwest::Client::builder()
-    ///     .default_headers(headers)
-    ///     .build()?;
-    /// let res = client
-    ///     .get("https://www.rust-lang.org")
-    ///     .header("X-MY-HEADER", "new_value")
-    ///     .send()
-    ///     .await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -921,6 +911,29 @@ impl ClientBuilder {
         self
     }
 
+    /// Enable auto zstd decompression by checking the `Content-Encoding` response header.
+    ///
+    /// If auto zstd decompression is turned on:
+    ///
+    /// - When sending a request and if the request's headers do not already contain
+    ///   an `Accept-Encoding` **and** `Range` values, the `Accept-Encoding` header is set to `zstd`.
+    ///   The request body is **not** automatically compressed.
+    /// - When receiving a response, if its headers contain a `Content-Encoding` value of
+    ///   `zstd`, both `Content-Encoding` and `Content-Length` are removed from the
+    ///   headers' set. The response body is automatically decompressed.
+    ///
+    /// If the `zstd` feature is turned on, the default option is enabled.
+    ///
+    /// # Optional
+    ///
+    /// This requires the optional `zstd` feature to be enabled
+    #[cfg(feature = "zstd")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "zstd")))]
+    pub fn zstd(mut self, enable: bool) -> ClientBuilder {
+        self.config.accepts.zstd = enable;
+        self
+    }
+
     /// Enable auto deflate decompression by checking the `Content-Encoding` response header.
     ///
     /// If auto deflate decompression is turned on:
@@ -973,6 +986,23 @@ impl ClientBuilder {
         }
 
         #[cfg(not(feature = "brotli"))]
+        {
+            self
+        }
+    }
+
+    /// Disable auto response body zstd decompression.
+    ///
+    /// This method exists even if the optional `zstd` feature is not enabled.
+    /// This can be used to ensure a `Client` doesn't use zstd decompression
+    /// even if another dependency were to enable the optional `zstd` feature.
+    pub fn no_zstd(self) -> ClientBuilder {
+        #[cfg(feature = "zstd")]
+        {
+            self.zstd(false)
+        }
+
+        #[cfg(not(feature = "zstd"))]
         {
             self
         }
@@ -1041,14 +1071,26 @@ impl ClientBuilder {
 
     // Timeout options
 
-    /// Enables a request timeout.
+    /// Enables a total request timeout.
     ///
     /// The timeout is applied from when the request starts connecting until the
-    /// response body has finished.
+    /// response body has finished. Also considered a total deadline.
     ///
     /// Default is no timeout.
     pub fn timeout(mut self, timeout: Duration) -> ClientBuilder {
         self.config.timeout = Some(timeout);
+        self
+    }
+
+    /// Enables a read timeout.
+    ///
+    /// The timeout applies to each read operation, and resets after a
+    /// successful read. This is more appropriate for detecting stalled
+    /// connections when the size isn't known beforehand.
+    ///
+    /// Default is no timeout.
+    pub fn read_timeout(mut self, timeout: Duration) -> ClientBuilder {
+        self.config.read_timeout = Some(timeout);
         self
     }
 
@@ -1333,6 +1375,15 @@ impl ClientBuilder {
     ///
     /// Defaults to `true` -- built-in system certs will be used.
     ///
+    /// # Bulk Option
+    ///
+    /// If this value is `true`, _all_ enabled system certs configured with Cargo
+    /// features will be loaded.
+    ///
+    /// You can set this to `false`, and enable only a specific source with
+    /// individual methods. Do that will prevent other sources from being loaded
+    /// even if their feature Cargo feature is enabled.
+    ///
     /// # Optional
     ///
     /// This requires the optional `default-tls`, `native-tls`, or `rustls-tls(-...)`
@@ -1348,6 +1399,37 @@ impl ClientBuilder {
     )]
     pub fn tls_built_in_root_certs(mut self, tls_built_in_root_certs: bool) -> ClientBuilder {
         self.config.tls_built_in_root_certs = tls_built_in_root_certs;
+
+        #[cfg(feature = "rustls-tls-webpki-roots")]
+        {
+            self.config.tls_built_in_certs_webpki = tls_built_in_root_certs;
+        }
+
+        #[cfg(feature = "rustls-tls-native-roots")]
+        {
+            self.config.tls_built_in_certs_native = tls_built_in_root_certs;
+        }
+
+        self
+    }
+
+    /// Sets whether to load webpki root certs with rustls.
+    ///
+    /// If the feature is enabled, this value is `true` by default.
+    #[cfg(feature = "rustls-tls-webpki-roots")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rustls-tls-webpki-roots")))]
+    pub fn tls_built_in_webpki_certs(mut self, enabled: bool) -> ClientBuilder {
+        self.config.tls_built_in_certs_webpki = enabled;
+        self
+    }
+
+    /// Sets whether to load native root certs with rustls.
+    ///
+    /// If the feature is enabled, this value is `true` by default.
+    #[cfg(feature = "rustls-tls-native-roots")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rustls-tls-native-roots")))]
+    pub fn tls_built_in_native_certs(mut self, enabled: bool) -> ClientBuilder {
+        self.config.tls_built_in_certs_native = enabled;
         self
     }
 
@@ -1696,7 +1778,7 @@ impl ClientBuilder {
     pub fn resolve_to_addrs(mut self, domain: &str, addrs: &[SocketAddr]) -> ClientBuilder {
         self.config
             .dns_overrides
-            .insert(domain.to_string(), addrs.to_vec());
+            .insert(domain.to_ascii_lowercase(), addrs.to_vec());
         self
     }
 
@@ -1958,8 +2040,14 @@ impl Client {
             }
         };
 
-        let timeout = timeout
+        let total_timeout = timeout
             .or(self.inner.request_timeout)
+            .map(tokio::time::sleep)
+            .map(Box::pin);
+
+        let read_timeout_fut = self
+            .inner
+            .read_timeout
             .map(tokio::time::sleep)
             .map(Box::pin);
 
@@ -1977,7 +2065,9 @@ impl Client {
                 client: self.inner.clone(),
 
                 in_flight,
-                timeout,
+                total_timeout,
+                read_timeout_fut,
+                read_timeout: self.inner.read_timeout,
             }),
         }
     }
@@ -2183,6 +2273,7 @@ struct ClientRef {
     redirect_policy: redirect::Policy,
     referer: bool,
     request_timeout: Option<Duration>,
+    read_timeout: Option<Duration>,
     proxies: Arc<Vec<Proxy>>,
     proxies_maybe_http_auth: bool,
     https_only: bool,
@@ -2219,6 +2310,10 @@ impl ClientRef {
         if let Some(ref d) = self.request_timeout {
             f.field("timeout", d);
         }
+
+        if let Some(ref d) = self.read_timeout {
+            f.field("read_timeout", d);
+        }
     }
 }
 
@@ -2250,7 +2345,10 @@ pin_project! {
         #[pin]
         in_flight: ResponseFuture,
         #[pin]
-        timeout: Option<Pin<Box<Sleep>>>,
+        total_timeout: Option<Pin<Box<Sleep>>>,
+        #[pin]
+        read_timeout_fut: Option<Pin<Box<Sleep>>>,
+        read_timeout: Option<Duration>,
     }
 }
 
@@ -2265,8 +2363,12 @@ impl PendingRequest {
         self.project().in_flight
     }
 
-    fn timeout(self: Pin<&mut Self>) -> Pin<&mut Option<Pin<Box<Sleep>>>> {
-        self.project().timeout
+    fn total_timeout(self: Pin<&mut Self>) -> Pin<&mut Option<Pin<Box<Sleep>>>> {
+        self.project().total_timeout
+    }
+
+    fn read_timeout(self: Pin<&mut Self>) -> Pin<&mut Option<Pin<Box<Sleep>>>> {
+        self.project().read_timeout_fut
     }
 
     fn urls(self: Pin<&mut Self>) -> &mut Vec<Url> {
@@ -2403,7 +2505,15 @@ impl Future for PendingRequest {
     type Output = Result<Response, crate::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if let Some(delay) = self.as_mut().timeout().as_mut().as_pin_mut() {
+        if let Some(delay) = self.as_mut().total_timeout().as_mut().as_pin_mut() {
+            if let Poll::Ready(()) = delay.poll(cx) {
+                return Poll::Ready(Err(
+                    crate::error::request(crate::error::TimedOut).with_url(self.url.clone())
+                ));
+            }
+        }
+
+        if let Some(delay) = self.as_mut().read_timeout().as_mut().as_pin_mut() {
             if let Poll::Ready(()) = delay.poll(cx) {
                 return Poll::Ready(Err(
                     crate::error::request(crate::error::TimedOut).with_url(self.url.clone())
@@ -2595,7 +2705,8 @@ impl Future for PendingRequest {
                 res,
                 self.url.clone(),
                 self.client.accepts,
-                self.timeout.take(),
+                self.total_timeout.take(),
+                self.read_timeout,
             );
             return Poll::Ready(Ok(res));
         }

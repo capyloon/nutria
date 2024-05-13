@@ -150,7 +150,7 @@ impl anstyle_parse::Perform for WinconCapture {
                         break;
                     }
                     (State::Normal, 30..=37) => {
-                        let color = to_ansi_color(value - 30).unwrap();
+                        let color = to_ansi_color(value - 30).expect("within 4-bit range");
                         style = style.fg_color(Some(color.into()));
                         break;
                     }
@@ -163,7 +163,7 @@ impl anstyle_parse::Perform for WinconCapture {
                         break;
                     }
                     (State::Normal, 40..=47) => {
-                        let color = to_ansi_color(value - 40).unwrap();
+                        let color = to_ansi_color(value - 40).expect("within 4-bit range");
                         style = style.bg_color(Some(color.into()));
                         break;
                     }
@@ -180,12 +180,16 @@ impl anstyle_parse::Perform for WinconCapture {
                         state = State::PrepareCustomColor;
                     }
                     (State::Normal, 90..=97) => {
-                        let color = to_ansi_color(value - 90).unwrap().bright(true);
+                        let color = to_ansi_color(value - 90)
+                            .expect("within 4-bit range")
+                            .bright(true);
                         style = style.fg_color(Some(color.into()));
                         break;
                     }
                     (State::Normal, 100..=107) => {
-                        let color = to_ansi_color(value - 100).unwrap().bright(true);
+                        let color = to_ansi_color(value - 100)
+                            .expect("within 4-bit range")
+                            .bright(true);
                         style = style.bg_color(Some(color.into()));
                         break;
                     }

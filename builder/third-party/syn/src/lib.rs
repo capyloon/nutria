@@ -249,10 +249,11 @@
 //!   dynamic library libproc_macro from rustc toolchain.
 
 // Syn types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/syn/2.0.55")]
+#![doc(html_root_url = "https://docs.rs/syn/2.0.63")]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(non_camel_case_types)]
+#![cfg_attr(not(check_cfg), allow(unexpected_cfgs))]
 #![allow(
     clippy::bool_to_int_with_if,
     clippy::cast_lossless,
@@ -418,7 +419,9 @@ mod lit;
 #[doc(hidden)] // https://github.com/dtolnay/syn/issues/1566
 pub use crate::lit::StrStyle;
 #[doc(inline)]
-pub use crate::lit::{Lit, LitBool, LitByte, LitByteStr, LitChar, LitFloat, LitInt, LitStr};
+pub use crate::lit::{
+    Lit, LitBool, LitByte, LitByteStr, LitCStr, LitChar, LitFloat, LitInt, LitStr,
+};
 
 #[cfg(feature = "parsing")]
 mod lookahead;

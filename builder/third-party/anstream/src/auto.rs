@@ -157,6 +157,7 @@ where
         }
     }
 
+    /// Returns `true` if the descriptor/handle refers to a terminal/tty.
     #[inline]
     pub fn is_terminal(&self) -> bool {
         match &self.inner {

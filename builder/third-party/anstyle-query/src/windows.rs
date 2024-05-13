@@ -64,7 +64,7 @@ mod windows_console {
     }
 }
 
-/// Enable ANSI escape codes (ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+/// Enable ANSI escape codes ([`ENABLE_VIRTUAL_TERMINAL_PROCESSING`](https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#output-sequences))
 ///
 /// For non-windows systems, returns `None`
 pub fn enable_ansi_colors() -> Option<bool> {

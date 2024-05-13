@@ -44,8 +44,6 @@ use std::marker::PhantomData;
 use std::mem;
 use std::str::FromStr;
 use std::{f32, f64};
-use std::{i16, i32, i64, i8};
-use std::{u16, u32, u64, u8};
 
 macro_rules! treemap {
     () => {
@@ -158,28 +156,28 @@ fn test_write_f64() {
 
 #[test]
 fn test_encode_nonfinite_float_yields_null() {
-    let v = to_value(::std::f64::NAN.copysign(1.0)).unwrap();
+    let v = to_value(f64::NAN.copysign(1.0)).unwrap();
     assert!(v.is_null());
 
-    let v = to_value(::std::f64::NAN.copysign(-1.0)).unwrap();
+    let v = to_value(f64::NAN.copysign(-1.0)).unwrap();
     assert!(v.is_null());
 
-    let v = to_value(::std::f64::INFINITY).unwrap();
+    let v = to_value(f64::INFINITY).unwrap();
     assert!(v.is_null());
 
-    let v = to_value(-::std::f64::INFINITY).unwrap();
+    let v = to_value(-f64::INFINITY).unwrap();
     assert!(v.is_null());
 
-    let v = to_value(::std::f32::NAN.copysign(1.0)).unwrap();
+    let v = to_value(f32::NAN.copysign(1.0)).unwrap();
     assert!(v.is_null());
 
-    let v = to_value(::std::f32::NAN.copysign(-1.0)).unwrap();
+    let v = to_value(f32::NAN.copysign(-1.0)).unwrap();
     assert!(v.is_null());
 
-    let v = to_value(::std::f32::INFINITY).unwrap();
+    let v = to_value(f32::INFINITY).unwrap();
     assert!(v.is_null());
 
-    let v = to_value(-::std::f32::INFINITY).unwrap();
+    let v = to_value(-f32::INFINITY).unwrap();
     assert!(v.is_null());
 }
 
@@ -2102,20 +2100,20 @@ fn issue_220() {
     assert_eq!(from_str::<E>(r#"{"V": 0}"#).unwrap(), E::V(0));
 }
 
-macro_rules! number_partialeq_ok {
-    ($($n:expr)*) => {
-        $(
-            let value = to_value($n).unwrap();
-            let s = $n.to_string();
-            assert_eq!(value, $n);
-            assert_eq!($n, value);
-            assert_ne!(value, s);
-        )*
-    }
-}
-
 #[test]
 fn test_partialeq_number() {
+    macro_rules! number_partialeq_ok {
+        ($($n:expr)*) => {
+            $(
+                let value = to_value($n).unwrap();
+                let s = $n.to_string();
+                assert_eq!(value, $n);
+                assert_eq!($n, value);
+                assert_ne!(value, s);
+            )*
+        };
+    }
+
     number_partialeq_ok!(0 1 100
         i8::MIN i8::MAX i16::MIN i16::MAX i32::MIN i32::MAX i64::MIN i64::MAX
         u8::MIN u8::MAX u16::MIN u16::MAX u32::MIN u32::MAX u64::MIN u64::MAX
@@ -2124,13 +2122,6 @@ fn test_partialeq_number() {
         f32::consts::E f32::consts::PI f32::consts::LN_2 f32::consts::LOG2_E
         f64::consts::E f64::consts::PI f64::consts::LN_2 f64::consts::LOG2_E
     );
-}
-
-#[test]
-#[cfg(integer128)]
-#[cfg(feature = "arbitrary_precision")]
-fn test_partialeq_integer128() {
-    number_partialeq_ok!(i128::MIN i128::MAX u128::MIN u128::MAX)
 }
 
 #[test]
@@ -2240,8 +2231,8 @@ fn null_invalid_type() {
 
 #[test]
 fn test_integer128() {
-    let signed = &[i128::min_value(), -1, 0, 1, i128::max_value()];
-    let unsigned = &[0, 1, u128::max_value()];
+    let signed = &[i128::MIN, -1, 0, 1, i128::MAX];
+    let unsigned = &[0, 1, u128::MAX];
 
     for integer128 in signed {
         let expected = integer128.to_string();
@@ -2277,8 +2268,8 @@ fn test_integer128() {
 
 #[test]
 fn test_integer128_to_value() {
-    let signed = &[i128::from(i64::min_value()), i128::from(u64::max_value())];
-    let unsigned = &[0, u128::from(u64::max_value())];
+    let signed = &[i128::from(i64::MIN), i128::from(u64::MAX)];
+    let unsigned = &[0, u128::from(u64::MAX)];
 
     for integer128 in signed {
         let expected = integer128.to_string();
@@ -2291,7 +2282,7 @@ fn test_integer128_to_value() {
     }
 
     if !cfg!(feature = "arbitrary_precision") {
-        let err = to_value(u128::from(u64::max_value()) + 1).unwrap_err();
+        let err = to_value(u128::from(u64::MAX) + 1).unwrap_err();
         assert_eq!(err.to_string(), "number out of range");
     }
 }

@@ -7,9 +7,10 @@ use super::{
 use alloc;
 use alloc::{Allocator, SliceWrapper, SliceWrapperMut};
 use core;
+use core::cmp::{max, min};
 use enc::command::{
-    CombineLengthCodes, Command, CommandCopyLen, ComputeDistanceCode, GetCopyLengthCode,
-    GetInsertLengthCode, InitCommand, PrefixEncodeCopyDistance,
+    CombineLengthCodes, Command, ComputeDistanceCode, GetCopyLengthCode, GetInsertLengthCode,
+    PrefixEncodeCopyDistance,
 };
 use enc::constants::{kCopyExtra, kInsExtra};
 use enc::dictionary_hash::kStaticDictionaryHash;
@@ -20,7 +21,7 @@ use enc::static_dict::{
 use enc::static_dict::{
     FindMatchLengthWithLimit, BROTLI_UNALIGNED_LOAD32, BROTLI_UNALIGNED_LOAD64,
 };
-use enc::util::{brotli_max_size_t, floatX, FastLog2, Log2FloorNonZero};
+use enc::util::{floatX, FastLog2, Log2FloorNonZero};
 
 pub const kInfinity: floatX = 1.7e38 as floatX;
 #[derive(Clone, Copy, Debug)]
@@ -376,12 +377,16 @@ impl<'a> BackwardMatchMut<'a> {
     pub fn set_length_and_code(&mut self, data: u32) {
         *self.0 = u64::from((*self.0) as u32) | (u64::from(data) << 32);
     }
-}
-
-#[inline(always)]
-pub fn InitBackwardMatch(xself: &mut BackwardMatchMut, dist: usize, len: usize) {
-    xself.set_distance(dist as u32);
-    xself.set_length_and_code((len << 5) as u32);
+    #[inline(always)]
+    pub fn init(&mut self, dist: usize, len: usize) {
+        self.set_distance(dist as u32);
+        self.set_length_and_code((len << 5) as u32);
+    }
+    #[inline(always)]
+    pub(crate) fn init_dictionary(&mut self, dist: usize, len: usize, len_code: usize) {
+        self.set_distance(dist as u32);
+        self.set_length_and_code((len << 5 | if len == len_code { 0 } else { len_code }) as u32);
+    }
 }
 
 macro_rules! LeftChildIndexH10 {
@@ -437,7 +442,7 @@ where
 {
     let mut matches_offset = 0usize;
     let cur_ix_masked: usize = cur_ix & ring_buffer_mask;
-    let max_comp_len: usize = core::cmp::min(max_length, 128usize);
+    let max_comp_len: usize = min(max_length, 128usize);
     let should_reroot_tree = max_length >= 128;
     let key = xself.HashBytes(&data[cur_ix_masked..]);
     let forest: &mut [u32] = xself.forest.slice_mut();
@@ -463,7 +468,7 @@ where
                 break 'break16;
             }
             {
-                let cur_len: usize = core::cmp::min(best_len_left, best_len_right);
+                let cur_len: usize = min(best_len_left, best_len_right);
 
                 let len: usize = cur_len.wrapping_add(FindMatchLengthWithLimit(
                     &data[cur_ix_masked.wrapping_add(cur_len)..],
@@ -472,11 +477,7 @@ where
                 ));
                 if matches_offset != matches.len() && (len > *best_len) {
                     *best_len = len;
-                    InitBackwardMatch(
-                        &mut BackwardMatchMut(&mut matches[matches_offset]),
-                        backward,
-                        len,
-                    );
+                    BackwardMatchMut(&mut matches[matches_offset]).init(backward, len);
                     matches_offset += 1;
                 }
                 if len >= max_comp_len {

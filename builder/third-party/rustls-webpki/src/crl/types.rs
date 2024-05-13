@@ -900,6 +900,8 @@ impl TryFrom<u8> for RevocationReason {
 #[cfg(test)]
 mod tests {
     use pki_types::CertificateDer;
+    use std::prelude::v1::*;
+    use std::println;
 
     use super::*;
     use crate::cert::Cert;

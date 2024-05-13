@@ -1,15 +1,10 @@
 use std::{io, mem};
 
-use winapi::{
-    shared::{minwindef::FILETIME, winerror::NO_ERROR},
-    um::{
-        errhandlingapi::GetLastError,
-        fileapi::{
-            GetFileInformationByHandle, GetFileType,
-            BY_HANDLE_FILE_INFORMATION,
-        },
-        winnt,
-    },
+use windows_sys::Win32::Foundation::HANDLE;
+use windows_sys::Win32::Foundation::{GetLastError, FILETIME, NO_ERROR};
+use windows_sys::Win32::Storage::FileSystem::{
+    GetFileInformationByHandle, GetFileType, BY_HANDLE_FILE_INFORMATION,
+    FILE_ATTRIBUTE_HIDDEN,
 };
 
 use crate::AsHandleRef;
@@ -25,7 +20,7 @@ use crate::AsHandleRef;
 pub fn information<H: AsHandleRef>(h: H) -> io::Result<Information> {
     unsafe {
         let mut info: BY_HANDLE_FILE_INFORMATION = mem::zeroed();
-        let rc = GetFileInformationByHandle(h.as_raw(), &mut info);
+        let rc = GetFileInformationByHandle(h.as_raw() as HANDLE, &mut info);
         if rc == 0 {
             return Err(io::Error::last_os_error());
         };
@@ -42,7 +37,7 @@ pub fn information<H: AsHandleRef>(h: H) -> io::Result<Information> {
 /// [`GetFileType`]: https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-getfiletype
 pub fn typ<H: AsHandleRef>(h: H) -> io::Result<Type> {
     unsafe {
-        let rc = GetFileType(h.as_raw());
+        let rc = GetFileType(h.as_raw() as HANDLE);
         if rc == 0 && GetLastError() != NO_ERROR {
             return Err(io::Error::last_os_error());
         }
@@ -53,7 +48,7 @@ pub fn typ<H: AsHandleRef>(h: H) -> io::Result<Type> {
 /// Returns true if and only if the given file attributes contain the
 /// `FILE_ATTRIBUTE_HIDDEN` attribute.
 pub fn is_hidden(file_attributes: u64) -> bool {
-    file_attributes & (winnt::FILE_ATTRIBUTE_HIDDEN as u64) > 0
+    file_attributes & (FILE_ATTRIBUTE_HIDDEN as u64) > 0
 }
 
 /// Represents file information such as creation time, file size, etc.
@@ -139,25 +134,25 @@ impl Type {
     /// Returns true if this type represents a character file, which is
     /// typically an LPT device or a console.
     pub fn is_char(&self) -> bool {
-        self.0 == ::winapi::um::winbase::FILE_TYPE_CHAR
+        self.0 == ::windows_sys::Win32::Storage::FileSystem::FILE_TYPE_CHAR
     }
 
     /// Returns true if this type represents a disk file.
     pub fn is_disk(&self) -> bool {
-        self.0 == ::winapi::um::winbase::FILE_TYPE_DISK
+        self.0 == ::windows_sys::Win32::Storage::FileSystem::FILE_TYPE_DISK
     }
 
     /// Returns true if this type represents a sock, named pipe or an
     /// anonymous pipe.
     pub fn is_pipe(&self) -> bool {
-        self.0 == ::winapi::um::winbase::FILE_TYPE_PIPE
+        self.0 == ::windows_sys::Win32::Storage::FileSystem::FILE_TYPE_PIPE
     }
 
     /// Returns true if this type is not known.
     ///
     /// Note that this never corresponds to a failure.
     pub fn is_unknown(&self) -> bool {
-        self.0 == ::winapi::um::winbase::FILE_TYPE_UNKNOWN
+        self.0 == ::windows_sys::Win32::Storage::FileSystem::FILE_TYPE_UNKNOWN
     }
 }
 

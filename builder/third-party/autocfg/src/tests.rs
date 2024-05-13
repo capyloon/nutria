@@ -134,6 +134,22 @@ fn probe_constant() {
 }
 
 #[test]
+fn probe_raw() {
+    let ac = AutoCfg::for_test().unwrap();
+    let prefix = if ac.no_std { "#![no_std]\n" } else { "" };
+    let f = |s| format!("{}{}", prefix, s);
+
+    // This attribute **must** be used at the crate level.
+    assert!(ac.probe_raw(&f("#![no_builtins]")).is_ok());
+
+    assert!(ac.probe_raw(&f("#![deny(dead_code)] fn x() {}")).is_err());
+    assert!(ac.probe_raw(&f("#![allow(dead_code)] fn x() {}")).is_ok());
+    assert!(ac
+        .probe_raw(&f("#![deny(dead_code)] pub fn x() {}"))
+        .is_ok());
+}
+
+#[test]
 fn dir_does_not_contain_target() {
     assert!(!super::dir_contains_target(
         &Some("x86_64-unknown-linux-gnu".into()),

@@ -99,6 +99,17 @@ fn test_delete_subkey_with_flags() {
 }
 
 #[test]
+fn test_rename_subkey() {
+    with_key!(key, "RenameSubkey" => {
+        let old_name = "SubkeyA";
+        let new_name = "SubkeyB";
+        key.create_subkey(old_name).unwrap();
+        assert!(key.rename_subkey(old_name, new_name).is_ok());
+        assert!(key.open_subkey(new_name).is_ok());
+    });
+}
+
+#[test]
 fn test_copy_tree() {
     with_key!(key, "CopyTree" => {
         let (sub_tree, _sub_tree_disp) = key.create_subkey("Src\\Sub\\Tree").unwrap();

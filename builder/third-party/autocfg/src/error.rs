@@ -2,6 +2,7 @@ use std::error;
 use std::fmt;
 use std::io;
 use std::num;
+use std::process;
 use std::str;
 
 /// A common error type for the `autocfg` crate.
@@ -20,7 +21,7 @@ impl error::Error for Error {
             ErrorKind::Io(ref e) => Some(e),
             ErrorKind::Num(ref e) => Some(e),
             ErrorKind::Utf8(ref e) => Some(e),
-            ErrorKind::Other(_) => None,
+            ErrorKind::Process(_) | ErrorKind::Other(_) => None,
         }
     }
 }
@@ -31,6 +32,10 @@ impl fmt::Display for Error {
             ErrorKind::Io(ref e) => e.fmt(f),
             ErrorKind::Num(ref e) => e.fmt(f),
             ErrorKind::Utf8(ref e) => e.fmt(f),
+            ErrorKind::Process(ref status) => {
+                // Same message as the newer `ExitStatusError`
+                write!(f, "process exited unsuccessfully: {}", status)
+            }
             ErrorKind::Other(s) => s.fmt(f),
         }
     }
@@ -40,8 +45,15 @@ impl fmt::Display for Error {
 enum ErrorKind {
     Io(io::Error),
     Num(num::ParseIntError),
+    Process(process::ExitStatus),
     Utf8(str::Utf8Error),
     Other(&'static str),
+}
+
+pub fn from_exit(status: process::ExitStatus) -> Error {
+    Error {
+        kind: ErrorKind::Process(status),
+    }
 }
 
 pub fn from_io(e: io::Error) -> Error {

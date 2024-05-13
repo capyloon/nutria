@@ -172,6 +172,8 @@ pub(crate) use libc::SO_LINGER;
     target_os = "watchos",
 ))]
 pub(crate) use libc::SO_LINGER_SEC as SO_LINGER;
+#[cfg(target_os = "linux")]
+pub(crate) use libc::SO_PASSCRED;
 pub(crate) use libc::{
     ip_mreq as IpMreq, linger, IPPROTO_IP, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, IPV6_MULTICAST_IF,
     IPV6_MULTICAST_LOOP, IPV6_UNICAST_HOPS, IPV6_V6ONLY, IP_ADD_MEMBERSHIP, IP_DROP_MEMBERSHIP,
@@ -573,6 +575,37 @@ impl RecvFlags {
     pub const fn is_out_of_band(self) -> bool {
         self.0 & libc::MSG_OOB != 0
     }
+
+    /// Check if the confirm flag is set.
+    ///
+    /// This is used by SocketCAN to indicate a frame was sent via the
+    /// socket it is received on. This flag can be interpreted as a
+    /// 'transmission confirmation'.
+    ///
+    /// On Unix this corresponds to the `MSG_CONFIRM` flag.
+    #[cfg(all(feature = "all", any(target_os = "android", target_os = "linux")))]
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(all(feature = "all", any(target_os = "android", target_os = "linux"))))
+    )]
+    pub const fn is_confirm(self) -> bool {
+        self.0 & libc::MSG_CONFIRM != 0
+    }
+
+    /// Check if the don't route flag is set.
+    ///
+    /// This is used by SocketCAN to indicate a frame was created
+    /// on the local host.
+    ///
+    /// On Unix this corresponds to the `MSG_DONTROUTE` flag.
+    #[cfg(all(feature = "all", any(target_os = "android", target_os = "linux")))]
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(all(feature = "all", any(target_os = "android", target_os = "linux"))))
+    )]
+    pub const fn is_dontroute(self) -> bool {
+        self.0 & libc::MSG_DONTROUTE != 0
+    }
 }
 
 #[cfg(not(target_os = "redox"))]
@@ -584,6 +617,10 @@ impl std::fmt::Debug for RecvFlags {
         s.field("is_out_of_band", &self.is_out_of_band());
         #[cfg(not(target_os = "espidf"))]
         s.field("is_truncated", &self.is_truncated());
+        #[cfg(all(feature = "all", any(target_os = "android", target_os = "linux")))]
+        s.field("is_confirm", &self.is_confirm());
+        #[cfg(all(feature = "all", any(target_os = "android", target_os = "linux")))]
+        s.field("is_dontroute", &self.is_dontroute());
         s.finish()
     }
 }
@@ -701,6 +738,11 @@ pub(crate) fn set_msghdr_flags(msg: &mut msghdr, flags: libc::c_int) {
 #[cfg(not(target_os = "redox"))]
 pub(crate) fn msghdr_flags(msg: &msghdr) -> RecvFlags {
     RecvFlags(msg.msg_flags)
+}
+
+#[cfg(not(target_os = "redox"))]
+pub(crate) fn msghdr_control_len(msg: &msghdr) -> usize {
+    msg.msg_controllen as _
 }
 
 /// Unix only API.

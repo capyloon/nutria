@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.70"
 name = "toml_edit"
-version = "0.22.9"
+version = "0.22.12"
 authors = [
     "Andronik Ordian <write@reusable.software>",
     "Ed Page <eopage@gmail.com>",
@@ -152,7 +152,7 @@ optional = true
 version = "0.7.0"
 
 [dev-dependencies.serde_json]
-version = "1.0.114"
+version = "1.0.115"
 
 [dev-dependencies.snapbox]
 version = "0.4.16"

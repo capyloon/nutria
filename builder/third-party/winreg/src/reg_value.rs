@@ -17,7 +17,7 @@ pub struct RegValue {
 macro_rules! format_reg_value {
     ($e:expr => $t:ident) => {
         match $t::from_reg_value($e) {
-            Ok(val) => format!("{:?}", val),
+            Ok(val) => format!("{}", val),
             Err(_) => return Err(fmt::Error),
         }
     };

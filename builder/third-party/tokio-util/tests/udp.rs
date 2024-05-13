@@ -14,7 +14,13 @@ use std::io;
 use std::sync::Arc;
 
 #[cfg_attr(
-    any(target_os = "macos", target_os = "ios", target_os = "tvos"),
+    any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "tvos",
+        target_os = "watchos",
+        target_os = "visionos"
+    ),
     allow(unused_assignments)
 )]
 #[tokio::test]
@@ -44,7 +50,13 @@ async fn send_framed_byte_codec() -> std::io::Result<()> {
         b_soc = b.into_inner();
     }
 
-    #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "tvos")))]
+    #[cfg(not(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "tvos",
+        target_os = "watchos",
+        target_os = "visionos"
+    )))]
     // test sending & receiving an empty message
     {
         let mut a = UdpFramed::new(a_soc, ByteCodec);

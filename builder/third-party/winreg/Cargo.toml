@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "winreg"
-version = "0.50.0"
+version = "0.52.0"
 authors = ["Igor Shaula <gentoo90@gmail.com>"]
 description = "Rust bindings to MS Windows Registry API"
 documentation = "https://docs.rs/winreg"
@@ -55,6 +55,14 @@ name = "serialization"
 required-features = ["serialization-serde"]
 
 [[example]]
+name = "transacted_serialization"
+required-features = ["serialization-serde"]
+
+[[example]]
+name = "reg2json"
+required-features = ["serialization-serde"]
+
+[[example]]
 name = "map_key_serialization"
 required-features = ["serialization-serde"]
 
@@ -87,10 +95,16 @@ features = [
 [dev-dependencies.rand]
 version = "0.3"
 
+[dev-dependencies.serde-transcode]
+version = "1"
+
 [dev-dependencies.serde_bytes]
 version = "0.11"
 
 [dev-dependencies.serde_derive]
+version = "1"
+
+[dev-dependencies.serde_json]
 version = "1"
 
 [dev-dependencies.tempfile]

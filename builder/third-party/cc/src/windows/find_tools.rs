@@ -198,9 +198,13 @@ mod impl_ {
         }
 
         /// Get a function pointer to a function in the library.
-        /// SAFETY: The caller must ensure that the function signature matches the actual function.
+        /// # SAFETY
+        ///
+        /// The caller must ensure that the function signature matches the actual function.
         /// The easiest way to do this is to add an entry to windows_sys_no_link.list and use the
         /// generated function for `func_signature`.
+        ///
+        /// The function returned cannot be used after the handle is dropped.
         unsafe fn get_proc_address<F>(&self, name: &[u8]) -> Option<F> {
             let symbol = unsafe { GetProcAddress(self.0, name.as_ptr() as _) };
             symbol.map(|symbol| unsafe { mem::transmute_copy(&symbol) })
@@ -571,8 +575,13 @@ mod impl_ {
         // architecture, because it contains dlls like mspdb140.dll compiled for
         // the host architecture.
         let host_dylib_path = host_path.join(host.to_lowercase());
-        let lib_path = path.join("lib").join(target);
-        let alt_lib_path = (target == "arm64ec").then(|| path.join("lib").join("arm64ec"));
+        let lib_fragment = if use_spectre_mitigated_libs() {
+            r"lib\spectre"
+        } else {
+            "lib"
+        };
+        let lib_path = path.join(lib_fragment).join(target);
+        let alt_lib_path = (target == "arm64ec").then(|| path.join(lib_fragment).join("arm64ec"));
         let include_path = path.join("include");
         Some((
             path,
@@ -619,6 +628,10 @@ mod impl_ {
         version_file.read_to_string(&mut version).ok()?;
         version.truncate(version.trim_end().len());
         Some(version)
+    }
+
+    fn use_spectre_mitigated_libs() -> bool {
+        env::var("VSCMD_ARG_VCVARS_SPECTRE").as_deref() == Ok("spectre")
     }
 
     fn atl_paths(target: TargetArch<'_>, path: &Path) -> Option<(PathBuf, PathBuf)> {

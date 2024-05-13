@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.63"
 name = "tokio-util"
-version = "0.7.10"
+version = "0.7.11"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = """
 Additional utilities for working with Tokio.
@@ -100,7 +100,7 @@ version = "0.4.0"
 
 [features]
 __docs_rs = ["futures-util"]
-codec = ["tracing"]
+codec = []
 compat = ["futures-io"]
 default = []
 full = [

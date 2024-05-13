@@ -1,7 +1,7 @@
 winapi-util
 ===========
 This crate provides a smattering of safe wrappers around various parts of the
-[winapi](https://crates.io/crates/winapi) crate.
+[windows-sys](https://crates.io/crates/windows-sys) crate.
 
 [![Build status](https://github.com/BurntSushi/winapi-util/workflows/ci/badge.svg)](https://github.com/BurntSushi/winapi-util/actions)
 [![](http://meritbadge.herokuapp.com/winapi-util)](https://crates.io/crates/winapi-util)
@@ -37,6 +37,17 @@ PRs that add more high level routines/types on an as-needed basis.
 
 **WARNING:** I am not a Windows developer, so extra review to make sure I've
 got things right is most appreciated.
+
+
+### Naming
+
+This crate was originally born on top of `winapi`, and thus, it is called
+`winapi-util`. As time passed, Microsoft eventually started providing their
+own official `windows` and `windows-sys` crates. As a result, [`winapi` itself
+got less activity](https://github.com/BurntSushi/winapi-util/pull/13#issuecomment-1991282893).
+As the ecosystem moved on to `windows-sys`, it became clear that `winapi-util`
+should too. Thus, its name is now officially historical and not reflective
+of what it actually does.
 
 
 ### Minimum Rust version policy

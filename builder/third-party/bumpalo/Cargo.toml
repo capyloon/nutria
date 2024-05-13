@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.73.0"
 name = "bumpalo"
-version = "3.15.4"
+version = "3.16.0"
 authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
 exclude = [
     "/.github/*",
@@ -56,6 +56,10 @@ version = "0.2.8"
 optional = true
 default-features = false
 
+[dependencies.serde]
+version = "1.0.171"
+optional = true
+
 [dev-dependencies.criterion]
 version = "0.3.6"
 
@@ -65,9 +69,17 @@ version = "1.0.3"
 [dev-dependencies.rand]
 version = "0.8.5"
 
+[dev-dependencies.serde]
+version = "1.0.197"
+features = ["derive"]
+
+[dev-dependencies.serde_json]
+version = "1.0.115"
+
 [features]
 allocator_api = []
 boxed = []
 collections = []
 default = []
+serde = ["dep:serde"]
 std = []

@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.63"
 name = "hyper"
-version = "1.2.0"
+version = "1.3.1"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 include = [
     "Cargo.toml",
@@ -179,7 +179,7 @@ path = "benches/server.rs"
 required-features = ["full"]
 
 [dependencies.bytes]
-version = "1"
+version = "1.2"
 
 [dependencies.futures-channel]
 version = "0.3"
@@ -255,7 +255,10 @@ features = ["sink"]
 
 [dev-dependencies.futures-util]
 version = "0.3"
-features = ["sink"]
+features = [
+    "alloc",
+    "sink",
+]
 default-features = false
 
 [dev-dependencies.http-body-util]
@@ -305,6 +308,7 @@ default = []
 ffi = [
     "dep:libc",
     "dep:http-body-util",
+    "futures-util?/alloc",
 ]
 full = [
     "client",

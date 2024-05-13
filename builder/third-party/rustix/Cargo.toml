@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.63"
 name = "rustix"
-version = "0.38.32"
+version = "0.38.34"
 authors = [
     "Dan Gohman <dev@sunfishcode.online>",
     "Jakub Konka <kubkon@jakubkonka.com>",
@@ -154,6 +154,7 @@ io_uring = [
     "net",
     "linux-raw-sys/io_uring",
 ]
+libc-extra-traits = ["libc?/extra_traits"]
 linux_4_11 = []
 linux_latest = ["linux_4_11"]
 mm = []
@@ -192,6 +193,7 @@ std = [
     "alloc",
     "libc?/std",
     "libc_errno?/std",
+    "libc-extra-traits",
 ]
 stdio = []
 system = ["linux-raw-sys/system"]
@@ -202,6 +204,7 @@ use-explicitly-provided-auxv = []
 use-libc = [
     "libc_errno",
     "libc",
+    "libc-extra-traits",
 ]
 use-libc-auxv = []
 
@@ -219,7 +222,6 @@ version = "0.4"
 
 [target."cfg(all(not(rustix_use_libc), not(miri), target_os = \"linux\", target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"riscv64\", all(rustix_use_experimental_asm, target_arch = \"powerpc64\"), all(rustix_use_experimental_asm, target_arch = \"mips\"), all(rustix_use_experimental_asm, target_arch = \"mips32r6\"), all(rustix_use_experimental_asm, target_arch = \"mips64\"), all(rustix_use_experimental_asm, target_arch = \"mips64r6\"), target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\"))))".dependencies.libc]
 version = "0.2.153"
-features = ["extra_traits"]
 optional = true
 default-features = false
 
@@ -242,7 +244,6 @@ default-features = false
 
 [target."cfg(all(not(windows), any(rustix_use_libc, miri, not(all(target_os = \"linux\", target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"riscv64\", all(rustix_use_experimental_asm, target_arch = \"powerpc64\"), all(rustix_use_experimental_asm, target_arch = \"mips\"), all(rustix_use_experimental_asm, target_arch = \"mips32r6\"), all(rustix_use_experimental_asm, target_arch = \"mips64\"), all(rustix_use_experimental_asm, target_arch = \"mips64r6\"), target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\")))))))".dependencies.libc]
 version = "0.2.153"
-features = ["extra_traits"]
 default-features = false
 
 [target."cfg(all(not(windows), any(rustix_use_libc, miri, not(all(target_os = \"linux\", target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"riscv64\", all(rustix_use_experimental_asm, target_arch = \"powerpc64\"), all(rustix_use_experimental_asm, target_arch = \"mips\"), all(rustix_use_experimental_asm, target_arch = \"mips32r6\"), all(rustix_use_experimental_asm, target_arch = \"mips64\"), all(rustix_use_experimental_asm, target_arch = \"mips64r6\"), target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\")))))))".dependencies.libc_errno]

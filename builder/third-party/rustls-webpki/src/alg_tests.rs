@@ -14,12 +14,13 @@
 
 #![allow(clippy::duplicate_mod)]
 
+use std::prelude::v1::*;
+
 use base64::{engine::general_purpose, Engine as _};
 
 use crate::error::{DerTypeId, Error};
 use crate::verify_cert::Budget;
 use crate::{der, signed_data};
-use alloc::{string::String, vec::Vec};
 
 use super::{
     INVALID_SIGNATURE_FOR_RSA_KEY, OK_IF_RSA_AVAILABLE, SUPPORTED_ALGORITHMS_IN_TESTS,

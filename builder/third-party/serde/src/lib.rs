@@ -95,7 +95,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Serde types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/serde/1.0.197")]
+#![doc(html_root_url = "https://docs.rs/serde/1.0.201")]
 // Support using Serde without the standard library!
 #![cfg_attr(not(feature = "std"), no_std)]
 // Show which crate feature enables conditionally compiled APIs in documentation.
@@ -118,6 +118,7 @@
     // integer and float ser/de requires these sorts of casts
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
     clippy::cast_sign_loss,
     // things are often more readable this way
     clippy::cast_lossless,
@@ -274,6 +275,9 @@ mod lib {
     pub use std::sync::atomic::{AtomicI64, AtomicU64};
     #[cfg(all(feature = "std", not(no_target_has_atomic), target_has_atomic = "ptr"))]
     pub use std::sync::atomic::{AtomicIsize, AtomicUsize};
+
+    #[cfg(not(no_core_num_saturating))]
+    pub use self::core::num::Saturating;
 }
 
 // None of this crate's error handling needs the `From::from` error conversion

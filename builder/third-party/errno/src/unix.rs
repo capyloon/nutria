@@ -66,6 +66,7 @@ extern "C" {
             target_os = "ios",
             target_os = "tvos",
             target_os = "watchos",
+            target_os = "visionos",
             target_os = "freebsd"
         ),
         link_name = "__error"

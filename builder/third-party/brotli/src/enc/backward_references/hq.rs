@@ -1,7 +1,7 @@
 #![allow(dead_code, unused_imports)]
 use super::hash_to_binary_tree::{
-    kInfinity, Allocable, BackwardMatch, BackwardMatchMut, H10Params, InitBackwardMatch,
-    StoreAndFindMatchesH10, Union1, ZopfliNode, H10,
+    kInfinity, Allocable, BackwardMatch, BackwardMatchMut, H10Params, StoreAndFindMatchesH10,
+    Union1, ZopfliNode, H10,
 };
 use super::{
     kDistanceCacheIndex, kDistanceCacheOffset, kHashMul32, kHashMul64, kHashMul64Long,
@@ -10,9 +10,10 @@ use super::{
 use alloc;
 use alloc::{Allocator, SliceWrapper, SliceWrapperMut};
 use core;
+use core::cmp::{max, min};
 use enc::command::{
-    BrotliDistanceParams, CombineLengthCodes, Command, CommandCopyLen, ComputeDistanceCode,
-    GetCopyLengthCode, GetInsertLengthCode, InitCommand, PrefixEncodeCopyDistance,
+    BrotliDistanceParams, CombineLengthCodes, Command, ComputeDistanceCode, GetCopyLengthCode,
+    GetInsertLengthCode, PrefixEncodeCopyDistance,
 };
 use enc::constants::{kCopyExtra, kInsExtra};
 use enc::dictionary_hash::kStaticDictionaryHash;
@@ -24,7 +25,7 @@ use enc::static_dict::{
 use enc::static_dict::{
     FindMatchLengthWithLimit, BROTLI_UNALIGNED_LOAD32, BROTLI_UNALIGNED_LOAD64,
 };
-use enc::util::{brotli_max_size_t, floatX, FastLog2, FastLog2f64, Log2FloorNonZero};
+use enc::util::{floatX, FastLog2, FastLog2f64, Log2FloorNonZero};
 
 const BROTLI_WINDOW_GAP: usize = 16;
 const BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN: usize = 37;
@@ -55,6 +56,8 @@ pub const BROTLI_SIMPLE_DISTANCE_ALPHABET_SIZE: usize = encode::BROTLI_NUM_DISTA
     as usize
     + (2 * encode::BROTLI_LARGE_MAX_DISTANCE_BITS as usize);
 
+const STORE_LOOKAHEAD_H_10: usize = 128;
+
 #[inline(always)]
 pub fn BrotliInitZopfliNodes(array: &mut [ZopfliNode], length: usize) {
     let stub = ZopfliNode::default();
@@ -66,38 +69,32 @@ pub fn BrotliInitZopfliNodes(array: &mut [ZopfliNode], length: usize) {
     }
 }
 
-#[inline(always)]
-fn ZopfliNodeCopyLength(xself: &ZopfliNode) -> u32 {
-    xself.length & 0x1ffffffu32
-}
+impl ZopfliNode {
+    #[inline(always)]
+    fn copy_length(&self) -> u32 {
+        self.length & 0x01ff_ffff
+    }
 
-#[inline(always)]
-fn ZopfliNodeCopyDistance(xself: &ZopfliNode) -> u32 {
-    xself.distance
-}
+    #[inline(always)]
+    fn copy_distance(&self) -> u32 {
+        self.distance
+    }
 
-#[inline(always)]
-fn ZopfliNodeLengthCode(xself: &ZopfliNode) -> u32 {
-    let modifier: u32 = xself.length >> 25;
-    ZopfliNodeCopyLength(xself)
-        .wrapping_add(9)
-        .wrapping_sub(modifier)
-}
+    #[inline(always)]
+    fn length_code(&self) -> u32 {
+        self.copy_length()
+            .wrapping_add(9)
+            .wrapping_sub(self.length >> 25)
+    }
 
-#[inline(always)]
-fn brotli_min_size_t(a: usize, b: usize) -> usize {
-    core::cmp::min(a, b)
-}
-
-#[inline(always)]
-fn ZopfliNodeDistanceCode(xself: &ZopfliNode) -> u32 {
-    let short_code: u32 = xself.dcode_insert_length >> 27;
-    if short_code == 0u32 {
-        ZopfliNodeCopyDistance(xself)
-            .wrapping_add(16)
-            .wrapping_sub(1)
-    } else {
-        short_code.wrapping_sub(1)
+    #[inline(always)]
+    fn distance_code(&self) -> u32 {
+        let short_code: u32 = self.dcode_insert_length >> 27;
+        if short_code == 0u32 {
+            self.copy_distance().wrapping_add(16).wrapping_sub(1)
+        } else {
+            short_code.wrapping_sub(1)
+        }
     }
 }
 
@@ -123,8 +120,8 @@ pub fn BrotliZopfliCreateCommands(
     while offset != !(0u32) {
         {
             let next: &ZopfliNode = &nodes[pos.wrapping_add(offset as usize)];
-            let copy_length: usize = ZopfliNodeCopyLength(next) as usize;
-            let mut insert_length: usize = (next.dcode_insert_length & 0x7ffffff) as usize;
+            let copy_length = next.copy_length() as usize;
+            let mut insert_length: usize = (next.dcode_insert_length & 0x07ff_ffff) as usize;
             pos = pos.wrapping_add(insert_length);
             offset = match next.u {
                 Union1::next(off) => off,
@@ -135,14 +132,12 @@ pub fn BrotliZopfliCreateCommands(
                 *last_insert_len = 0usize;
             }
             {
-                let distance: usize = ZopfliNodeCopyDistance(next) as usize;
-                let len_code: usize = ZopfliNodeLengthCode(next) as usize;
-                let max_distance: usize =
-                    brotli_min_size_t(block_start.wrapping_add(pos), max_backward_limit);
+                let distance: usize = next.copy_distance() as usize;
+                let len_code: usize = next.length_code() as usize;
+                let max_distance: usize = min(block_start.wrapping_add(pos), max_backward_limit);
                 let is_dictionary = distance > max_distance.wrapping_add(gap);
-                let dist_code: usize = ZopfliNodeDistanceCode(next) as usize;
-                InitCommand(
-                    &mut commands[i],
+                let dist_code: usize = next.distance_code() as usize;
+                commands[i].init(
                     &params.dist,
                     insert_length,
                     copy_length,
@@ -210,102 +205,66 @@ impl Default for StartPosQueue {
     }
 }
 
-#[inline(always)]
-fn StoreLookaheadH10() -> usize {
-    128usize
-}
-
-fn InitZopfliCostModel<AllocF: alloc::Allocator<floatX>>(
-    m: &mut AllocF,
-    dist: &BrotliDistanceParams,
-    num_bytes: usize,
-) -> ZopfliCostModel<AllocF> {
-    ZopfliCostModel::<AllocF> {
-        num_bytes_: num_bytes,
-        cost_cmd_: [0.0; 704],
-        min_cost_cmd_: 0.0,
-        literal_costs_: if num_bytes.wrapping_add(2) > 0usize {
-            m.alloc_cell(num_bytes.wrapping_add(2))
-        } else {
-            AllocF::AllocatedMemory::default()
-        },
-        cost_dist_: if dist.alphabet_size > 0u32 {
-            m.alloc_cell(num_bytes.wrapping_add(dist.alphabet_size as usize))
-        } else {
-            AllocF::AllocatedMemory::default()
-        },
-        distance_histogram_size: core::cmp::min(dist.alphabet_size, 544),
+impl<AllocF: Allocator<floatX>> ZopfliCostModel<AllocF> {
+    fn init(m: &mut AllocF, dist: &BrotliDistanceParams, num_bytes: usize) -> Self {
+        Self {
+            num_bytes_: num_bytes,
+            cost_cmd_: [0.0; 704],
+            min_cost_cmd_: 0.0,
+            literal_costs_: if num_bytes.wrapping_add(2) > 0usize {
+                m.alloc_cell(num_bytes.wrapping_add(2))
+            } else {
+                AllocF::AllocatedMemory::default()
+            },
+            cost_dist_: if dist.alphabet_size > 0u32 {
+                m.alloc_cell(num_bytes.wrapping_add(dist.alphabet_size as usize))
+            } else {
+                AllocF::AllocatedMemory::default()
+            },
+            distance_histogram_size: min(dist.alphabet_size, 544),
+        }
     }
-}
-fn ZopfliCostModelSetFromLiteralCosts<AllocF: Allocator<floatX>>(
-    xself: &mut ZopfliCostModel<AllocF>,
-    position: usize,
-    ringbuffer: &[u8],
-    ringbuffer_mask: usize,
-) {
-    let literal_costs = xself.literal_costs_.slice_mut();
-    let mut literal_carry: floatX = 0.0;
-    let cost_dist = xself.cost_dist_.slice_mut();
-    let cost_cmd = &mut xself.cost_cmd_[..];
-    let num_bytes: usize = xself.num_bytes_;
-    let mut i: usize;
-    BrotliEstimateBitCostsForLiterals(
-        position,
-        num_bytes,
-        ringbuffer_mask,
-        ringbuffer,
-        &mut literal_costs[1..],
-    );
-    literal_costs[0] = 0.0 as (floatX);
-    i = 0usize;
-    while i < num_bytes {
-        {
+
+    fn set_from_literal_costs(
+        &mut self,
+        position: usize,
+        ringbuffer: &[u8],
+        ringbuffer_mask: usize,
+    ) {
+        let literal_costs = self.literal_costs_.slice_mut();
+        let mut literal_carry: floatX = 0.0;
+        let cost_dist = self.cost_dist_.slice_mut();
+        let cost_cmd = &mut self.cost_cmd_[..];
+        let num_bytes: usize = self.num_bytes_;
+        BrotliEstimateBitCostsForLiterals(
+            position,
+            num_bytes,
+            ringbuffer_mask,
+            ringbuffer,
+            &mut literal_costs[1..],
+        );
+        literal_costs[0] = 0.0 as (floatX);
+        for i in 0usize..num_bytes {
             literal_carry = literal_carry as floatX + literal_costs[i.wrapping_add(1)] as floatX;
             literal_costs[i.wrapping_add(1)] =
                 (literal_costs[i] as floatX + literal_carry) as floatX;
             literal_carry -=
                 (literal_costs[i.wrapping_add(1)] as floatX - literal_costs[i] as floatX);
         }
-        i = i.wrapping_add(1);
-    }
-    i = 0usize;
-    while i < BROTLI_NUM_COMMAND_SYMBOLS {
-        {
-            cost_cmd[i] = FastLog2((11u64).wrapping_add(i as (u64))) as (floatX);
+        for i in 0..BROTLI_NUM_COMMAND_SYMBOLS {
+            cost_cmd[i] = FastLog2(11 + i as u64);
         }
-        i = i.wrapping_add(1);
-    }
-    i = 0usize;
-    while i < xself.distance_histogram_size as usize {
-        {
+        for i in 0usize..self.distance_histogram_size as usize {
             cost_dist[i] = FastLog2((20u64).wrapping_add(i as (u64))) as (floatX);
         }
-        i = i.wrapping_add(1);
+        self.min_cost_cmd_ = FastLog2(11) as (floatX);
     }
-    xself.min_cost_cmd_ = FastLog2(11) as (floatX);
-}
-
-#[inline(always)]
-fn InitStartPosQueue() -> StartPosQueue {
-    StartPosQueue::default()
 }
 
 #[inline(always)]
 fn HashBytesH10(data: &[u8]) -> u32 {
     let h: u32 = BROTLI_UNALIGNED_LOAD32(data).wrapping_mul(kHashMul32);
     h >> (32i32 - 17i32)
-}
-
-#[inline(always)]
-fn InitDictionaryBackwardMatch(
-    xself: &mut BackwardMatchMut,
-    dist: usize,
-    len: usize,
-    len_code: usize,
-) {
-    xself.set_distance(dist as u32);
-    (*xself)
-        .set_length_and_code((len << 5 | if len == len_code { 0usize } else { len_code }) as u32);
 }
 
 pub fn StitchToPreviousBlockH10<
@@ -328,14 +287,13 @@ pub fn StitchToPreviousBlockH10<
         These could not be calculated before, since they require knowledge
         of both the previous and the current block. */
         let i_start = position - Params::max_tree_comp_length() as usize;
-        let i_end = core::cmp::min(position, i_start.wrapping_add(num_bytes));
+        let i_end = min(position, i_start.wrapping_add(num_bytes));
         for i in i_start..i_end {
             /* Maximum distance is window size - 16, see section 9.1. of the spec.
             Furthermore, we have to make sure that we don't look further back
             from the start of the next block than the window size, otherwise we
             could access already overwritten areas of the ring-buffer. */
-            let max_backward =
-                handle.window_mask_ - core::cmp::max(BROTLI_WINDOW_GAP - 1, position - i);
+            let max_backward = handle.window_mask_ - max(BROTLI_WINDOW_GAP - 1, position - i);
             let mut _best_len = 0;
             /* We know that i + MAX_TREE_COMP_LENGTH <= position + num_bytes, i.e. the
             end of the current block and that we have at least
@@ -410,11 +368,7 @@ where
                     );
                     if len > best_len {
                         best_len = len;
-                        InitBackwardMatch(
-                            &mut BackwardMatchMut(&mut matches[matches_offset]),
-                            backward,
-                            len,
-                        );
+                        BackwardMatchMut(&mut matches[matches_offset]).init(backward, len);
                         matches_offset += 1;
                     }
                 }
@@ -436,15 +390,11 @@ where
         );
         matches_offset += loc_offset;
     }
-    i = 0usize;
-    while i <= 37usize {
-        {
-            dict_matches[i] = kInvalidMatch;
-        }
-        i = i.wrapping_add(1);
+    for i in 0..=37 {
+        dict_matches[i] = kInvalidMatch
     }
     {
-        let minlen: usize = brotli_max_size_t(4usize, best_len.wrapping_add(1));
+        let minlen = max(4, best_len.wrapping_add(1));
         if dictionary.is_some()
             && BrotliFindAllStaticDictionaryMatches(
                 dictionary.unwrap(),
@@ -455,38 +405,34 @@ where
             ) != 0
         {
             assert!(params.use_dictionary);
-            let maxlen: usize = brotli_min_size_t(37usize, max_length);
-            let mut l: usize;
-            l = minlen;
-            while l <= maxlen {
-                {
-                    let dict_id: u32 = dict_matches[l];
-                    if dict_id < kInvalidMatch {
-                        let distance: usize = max_backward
-                            .wrapping_add(gap)
-                            .wrapping_add((dict_id >> 5) as usize)
-                            .wrapping_add(1);
-                        if distance <= params.dist.max_distance {
-                            InitDictionaryBackwardMatch(
-                                &mut BackwardMatchMut(&mut matches[matches_offset]),
-                                distance,
-                                l,
-                                (dict_id & 31u32) as usize,
-                            );
-                            matches_offset += 1;
-                        }
+            let maxlen = min(37, max_length);
+            for l in minlen..=maxlen {
+                let dict_id: u32 = dict_matches[l];
+                if dict_id < kInvalidMatch {
+                    let distance: usize = max_backward
+                        .wrapping_add(gap)
+                        .wrapping_add((dict_id >> 5) as usize)
+                        .wrapping_add(1);
+                    if distance <= params.dist.max_distance {
+                        BackwardMatchMut(&mut matches[matches_offset]).init_dictionary(
+                            distance,
+                            l,
+                            (dict_id & 31u32) as usize,
+                        );
+                        matches_offset += 1;
                     }
                 }
-                l = l.wrapping_add(1);
             }
         }
     }
     matches_offset
 }
 
-#[inline(always)]
-fn BackwardMatchLength(xself: &BackwardMatch) -> usize {
-    (xself.length_and_code() >> 5) as usize
+impl BackwardMatch {
+    #[inline(always)]
+    fn length(&self) -> usize {
+        (self.length_and_code() >> 5) as usize
+    }
 }
 
 #[inline(always)]
@@ -502,14 +448,14 @@ fn ComputeDistanceShortcut(
     gap: usize,
     nodes: &[ZopfliNode],
 ) -> u32 {
-    let clen: usize = ZopfliNodeCopyLength(&nodes[pos]) as usize;
-    let ilen: usize = ((nodes[pos]).dcode_insert_length) as usize & 0x7ffffff;
-    let dist: usize = ZopfliNodeCopyDistance(&nodes[pos]) as usize;
+    let clen: usize = nodes[pos].copy_length() as usize;
+    let ilen: usize = ((nodes[pos]).dcode_insert_length) as usize & 0x07ff_ffff;
+    let dist: usize = nodes[pos].copy_distance() as usize;
     if pos == 0usize {
         0u32
     } else if dist.wrapping_add(clen) <= block_start.wrapping_add(pos).wrapping_add(gap)
-        && (dist <= max_backward.wrapping_add(gap))
-        && (ZopfliNodeDistanceCode(&nodes[pos]) > 0u32)
+        && dist <= max_backward.wrapping_add(gap)
+        && nodes[pos].distance_code() > 0
     {
         pos as u32
     } else {
@@ -520,14 +466,13 @@ fn ComputeDistanceShortcut(
     }
 }
 
-#[inline(always)]
-fn ZopfliCostModelGetLiteralCosts<AllocF: Allocator<floatX>>(
-    xself: &ZopfliCostModel<AllocF>,
-    from: usize,
-    to: usize,
-) -> floatX {
-    xself.literal_costs_.slice()[to] - xself.literal_costs_.slice()[from]
+impl<AllocF: Allocator<floatX>> ZopfliCostModel<AllocF> {
+    #[inline(always)]
+    fn get_literal_costs(&self, from: usize, to: usize) -> floatX {
+        self.literal_costs_.slice()[to] - self.literal_costs_.slice()[from]
+    }
 }
+
 fn ComputeDistanceCache(
     pos: usize,
     mut starting_dist_cache: &[i32],
@@ -540,9 +485,9 @@ fn ComputeDistanceCache(
         _ => 0,
     } as usize;
     while idx < 4i32 && (p > 0usize) {
-        let ilen: usize = ((nodes[p]).dcode_insert_length) as usize & 0x7ffffff;
-        let clen: usize = ZopfliNodeCopyLength(&nodes[p]) as usize;
-        let dist: usize = ZopfliNodeCopyDistance(&nodes[p]) as usize;
+        let ilen: usize = ((nodes[p]).dcode_insert_length) as usize & 0x07ff_ffff;
+        let clen = nodes[p].copy_length() as usize;
+        let dist = nodes[p].copy_distance() as usize;
         dist_cache[({
             let _old = idx;
             idx += 1;
@@ -565,29 +510,24 @@ fn ComputeDistanceCache(
     }
 }
 
-#[inline(always)]
-fn StartPosQueueSize(xself: &StartPosQueue) -> usize {
-    brotli_min_size_t(xself.idx_, 8usize)
-}
+impl StartPosQueue {
+    #[inline(always)]
+    fn size(&self) -> usize {
+        min(self.idx_, 8)
+    }
 
-fn StartPosQueuePush(xself: &mut StartPosQueue, posdata: &PosData) {
-    let mut offset: usize = !xself.idx_ & 7usize;
-    xself.idx_ = xself.idx_.wrapping_add(1);
-    let len: usize = StartPosQueueSize(xself);
-    let mut i: usize;
-    let q: &mut [PosData; 8] = &mut xself.q_;
-    q[offset] = *posdata;
-    i = 1usize;
-    while i < len {
-        {
-            if (q[(offset & 7usize)]).costdiff > (q[(offset.wrapping_add(1) & 7usize)]).costdiff {
-                let mut __brotli_swap_tmp: PosData = q[(offset & 7usize)];
-                q[(offset & 7usize)] = q[(offset.wrapping_add(1) & 7usize)];
-                q[(offset.wrapping_add(1) & 7usize)] = __brotli_swap_tmp;
+    fn push(&mut self, posdata: &PosData) {
+        let mut offset: usize = !self.idx_ & 7usize;
+        self.idx_ = self.idx_.wrapping_add(1);
+        let len: usize = self.size();
+        let q: &mut [PosData; 8] = &mut self.q_;
+        q[offset] = *posdata;
+        for _i in 1..len {
+            if q[offset & 7].costdiff > q[(offset + 1) & 7].costdiff {
+                q.swap(offset & 7, (offset + 1) & 7);
             }
             offset = offset.wrapping_add(1);
         }
-        i = i.wrapping_add(1);
     }
 }
 
@@ -612,11 +552,11 @@ fn EvaluateNode<AllocF: Allocator<floatX>>(
         gap,
         nodes,
     ));
-    if node_cost <= ZopfliCostModelGetLiteralCosts(model, 0usize, pos) {
+    if node_cost <= model.get_literal_costs(0, pos) {
         let mut posdata = PosData {
             pos,
             cost: node_cost,
-            costdiff: node_cost - ZopfliCostModelGetLiteralCosts(model, 0usize, pos),
+            costdiff: node_cost - model.get_literal_costs(0, pos),
             distance_cache: [0; 4],
         };
         ComputeDistanceCache(
@@ -625,20 +565,22 @@ fn EvaluateNode<AllocF: Allocator<floatX>>(
             nodes,
             &mut posdata.distance_cache[..],
         );
-        StartPosQueuePush(queue, &mut posdata);
+        queue.push(&mut posdata);
     }
 }
 
-#[inline(always)]
-fn StartPosQueueAt(xself: &StartPosQueue, k: usize) -> &PosData {
-    &xself.q_[(k.wrapping_sub(xself.idx_) & 7usize)]
+impl StartPosQueue {
+    #[inline(always)]
+    fn at(&self, k: usize) -> &PosData {
+        &self.q_[k.wrapping_sub(self.idx_) & 7usize]
+    }
 }
 
-#[inline(always)]
-fn ZopfliCostModelGetMinCostCmd<AllocF: Allocator<floatX>>(
-    xself: &ZopfliCostModel<AllocF>,
-) -> floatX {
-    xself.min_cost_cmd_
+impl<AllocF: Allocator<floatX>> ZopfliCostModel<AllocF> {
+    #[inline(always)]
+    fn get_min_cost_cmd(&self) -> floatX {
+        self.min_cost_cmd_
+    }
 }
 
 #[inline(always)]
@@ -672,12 +614,11 @@ fn GetInsertExtra(inscode: u16) -> u32 {
     kInsExtra[(inscode as usize)]
 }
 
-#[inline(always)]
-fn ZopfliCostModelGetDistanceCost<AllocF: Allocator<floatX>>(
-    xself: &ZopfliCostModel<AllocF>,
-    distcode: usize,
-) -> floatX {
-    xself.cost_dist_.slice()[distcode]
+impl<AllocF: Allocator<floatX>> ZopfliCostModel<AllocF> {
+    #[inline(always)]
+    fn get_distance_cost(&self, distcode: usize) -> floatX {
+        self.cost_dist_.slice()[distcode]
+    }
 }
 
 #[inline(always)]
@@ -685,12 +626,11 @@ fn GetCopyExtra(copycode: u16) -> u32 {
     kCopyExtra[(copycode as usize)]
 }
 
-#[inline(always)]
-fn ZopfliCostModelGetCommandCost<AllocF: Allocator<floatX>>(
-    xself: &ZopfliCostModel<AllocF>,
-    cmdcode: u16,
-) -> floatX {
-    xself.cost_cmd_[(cmdcode as usize)]
+impl<AllocF: Allocator<floatX>> ZopfliCostModel<AllocF> {
+    #[inline(always)]
+    fn get_command_cost(&self, cmdcode: u16) -> floatX {
+        self.cost_cmd_[cmdcode as usize]
+    }
 }
 
 #[inline(always)]
@@ -711,13 +651,15 @@ fn UpdateZopfliNode(
     next.u = Union1::cost(cost);
 }
 
-#[inline(always)]
-fn BackwardMatchLengthCode(xself: &BackwardMatch) -> usize {
-    let code: usize = (xself.length_and_code() & 31u32) as usize;
-    if code != 0 {
-        code
-    } else {
-        BackwardMatchLength(xself)
+impl BackwardMatch {
+    #[inline(always)]
+    fn length_code(&self) -> usize {
+        let code = (self.length_and_code() & 31u32) as usize;
+        if code != 0 {
+            code
+        } else {
+            self.length()
+        }
     }
 }
 
@@ -738,7 +680,7 @@ fn UpdateNodes<AllocF: Allocator<floatX>>(
 ) -> usize {
     let cur_ix: usize = block_start.wrapping_add(pos);
     let cur_ix_masked: usize = cur_ix & ringbuffer_mask;
-    let max_distance: usize = brotli_min_size_t(cur_ix, max_backward_limit);
+    let max_distance: usize = min(cur_ix, max_backward_limit);
     let max_len: usize = num_bytes.wrapping_sub(pos);
     let max_zopfli_len: usize = MaxZopfliLen(params);
     let max_iters: usize = MaxZopfliCandidates(params);
@@ -757,23 +699,22 @@ fn UpdateNodes<AllocF: Allocator<floatX>>(
         nodes,
     );
     {
-        let posdata = StartPosQueueAt(queue, 0usize);
-        let min_cost: floatX = posdata.cost
-            + ZopfliCostModelGetMinCostCmd(model)
-            + ZopfliCostModelGetLiteralCosts(model, posdata.pos, pos);
+        let posdata = queue.at(0);
+        let min_cost =
+            posdata.cost + model.get_min_cost_cmd() + model.get_literal_costs(posdata.pos, pos);
         min_len = ComputeMinimumCopyLength(min_cost, nodes, num_bytes, pos);
     }
     k = 0usize;
-    while k < max_iters && (k < StartPosQueueSize(queue)) {
+    while k < max_iters && k < queue.size() {
         'continue28: loop {
             {
-                let posdata = StartPosQueueAt(queue, k);
+                let posdata = queue.at(k);
                 let start: usize = posdata.pos;
                 let inscode: u16 = GetInsertLengthCode(pos.wrapping_sub(start));
                 let start_costdiff: floatX = posdata.costdiff;
                 let base_cost: floatX = start_costdiff
                     + GetInsertExtra(inscode) as (floatX)
-                    + ZopfliCostModelGetLiteralCosts(model, 0usize, pos);
+                    + model.get_literal_costs(0, pos);
                 let mut best_len: usize = min_len.wrapping_sub(1);
                 let mut j: usize = 0usize;
                 'break29: while j < 16usize && (best_len < max_len) {
@@ -819,45 +760,34 @@ fn UpdateNodes<AllocF: Allocator<floatX>>(
                                 break 'continue30;
                             }
                             {
-                                let dist_cost: floatX =
-                                    base_cost + ZopfliCostModelGetDistanceCost(model, j);
-                                let mut l: usize;
-                                l = best_len.wrapping_add(1);
-                                while l <= len {
-                                    {
-                                        let copycode: u16 = GetCopyLengthCode(l);
-                                        let cmdcode: u16 = CombineLengthCodes(
-                                            inscode,
-                                            copycode,
-                                            (j == 0usize) as i32,
-                                        );
-                                        let cost: floatX = (if (cmdcode as i32) < 128i32 {
-                                            base_cost
-                                        } else {
-                                            dist_cost
-                                        }) + GetCopyExtra(copycode) as (floatX)
-                                            + ZopfliCostModelGetCommandCost(model, cmdcode);
-                                        if cost
-                                            < match (nodes[pos.wrapping_add(l)]).u {
-                                                Union1::cost(cost) => cost,
-                                                _ => 0.0,
-                                            }
-                                        {
-                                            UpdateZopfliNode(
-                                                nodes,
-                                                pos,
-                                                start,
-                                                l,
-                                                l,
-                                                backward,
-                                                j.wrapping_add(1),
-                                                cost,
-                                            );
-                                            result = brotli_max_size_t(result, l);
+                                let dist_cost = base_cost + model.get_distance_cost(j);
+                                for l in best_len.wrapping_add(1)..=len {
+                                    let copycode: u16 = GetCopyLengthCode(l);
+                                    let cmdcode: u16 =
+                                        CombineLengthCodes(inscode, copycode, (j == 0usize) as i32);
+                                    let cost: floatX =
+                                        (if cmdcode < 128 { base_cost } else { dist_cost })
+                                            + (GetCopyExtra(copycode) as floatX)
+                                            + model.get_command_cost(cmdcode);
+                                    if cost
+                                        < match (nodes[pos.wrapping_add(l)]).u {
+                                            Union1::cost(cost) => cost,
+                                            _ => 0.0,
                                         }
-                                        best_len = l;
+                                    {
+                                        UpdateZopfliNode(
+                                            nodes,
+                                            pos,
+                                            start,
+                                            l,
+                                            l,
+                                            backward,
+                                            j.wrapping_add(1),
+                                            cost,
+                                        );
+                                        result = max(result, l);
                                     }
-                                    l = l.wrapping_add(1);
+                                    best_len = l;
                                 }
                             }
                         }
@@ -870,63 +800,54 @@ fn UpdateNodes<AllocF: Allocator<floatX>>(
                 }
                 {
                     let mut len: usize = min_len;
-                    j = 0usize;
-                    while j < num_matches {
-                        {
-                            let mut match_: BackwardMatch = BackwardMatch(matches[j]);
-                            let dist: usize = match_.distance() as usize;
-                            let is_dictionary_match = dist > max_distance.wrapping_add(gap);
-                            let dist_code: usize = dist.wrapping_add(16).wrapping_sub(1);
-                            let mut dist_symbol: u16 = 0;
-                            let mut distextra: u32 = 0;
+                    for j in 0usize..num_matches {
+                        let match_ = BackwardMatch(matches[j]);
+                        let dist: usize = match_.distance() as usize;
+                        let is_dictionary_match = dist > max_distance.wrapping_add(gap);
+                        let dist_code: usize = dist.wrapping_add(16).wrapping_sub(1);
+                        let mut dist_symbol: u16 = 0;
+                        let mut distextra: u32 = 0;
 
-                            PrefixEncodeCopyDistance(
-                                dist_code,
-                                params.dist.num_direct_distance_codes as usize,
-                                u64::from(params.dist.distance_postfix_bits),
-                                &mut dist_symbol,
-                                &mut distextra,
-                            );
-                            let distnumextra: u32 = u32::from(dist_symbol) >> 10;
-                            let dist_cost: floatX = base_cost
-                                + distnumextra as (floatX)
-                                + ZopfliCostModelGetDistanceCost(
-                                    model,
-                                    (dist_symbol as i32 & 0x3ff) as usize,
-                                );
-                            let max_match_len: usize = BackwardMatchLength(&mut match_);
-                            if len < max_match_len
-                                && (is_dictionary_match || max_match_len > max_zopfli_len)
+                        PrefixEncodeCopyDistance(
+                            dist_code,
+                            params.dist.num_direct_distance_codes as usize,
+                            u64::from(params.dist.distance_postfix_bits),
+                            &mut dist_symbol,
+                            &mut distextra,
+                        );
+                        let distnumextra: u32 = u32::from(dist_symbol) >> 10;
+                        let dist_cost = base_cost
+                            + (distnumextra as floatX)
+                            + model.get_distance_cost((dist_symbol as i32 & 0x03ff) as usize);
+                        let max_match_len = match_.length();
+                        if len < max_match_len
+                            && (is_dictionary_match || max_match_len > max_zopfli_len)
+                        {
+                            len = max_match_len;
+                        }
+                        while len <= max_match_len {
                             {
-                                len = max_match_len;
-                            }
-                            while len <= max_match_len {
-                                {
-                                    let len_code: usize = if is_dictionary_match {
-                                        BackwardMatchLengthCode(&mut match_)
-                                    } else {
-                                        len
-                                    };
-                                    let copycode: u16 = GetCopyLengthCode(len_code);
-                                    let cmdcode: u16 = CombineLengthCodes(inscode, copycode, 0i32);
-                                    let cost: floatX = dist_cost
-                                        + GetCopyExtra(copycode) as (floatX)
-                                        + ZopfliCostModelGetCommandCost(model, cmdcode);
-                                    if let Union1::cost(nodeCost) = (nodes[pos.wrapping_add(len)]).u
-                                    {
-                                        if cost < nodeCost {
-                                            UpdateZopfliNode(
-                                                nodes, pos, start, len, len_code, dist, 0usize,
-                                                cost,
-                                            );
-                                            result = brotli_max_size_t(result, len);
-                                        }
+                                let len_code: usize = if is_dictionary_match {
+                                    match_.length_code()
+                                } else {
+                                    len
+                                };
+                                let copycode: u16 = GetCopyLengthCode(len_code);
+                                let cmdcode: u16 = CombineLengthCodes(inscode, copycode, 0i32);
+                                let cost: floatX = dist_cost
+                                    + GetCopyExtra(copycode) as (floatX)
+                                    + model.get_command_cost(cmdcode);
+                                if let Union1::cost(nodeCost) = (nodes[pos.wrapping_add(len)]).u {
+                                    if cost < nodeCost {
+                                        UpdateZopfliNode(
+                                            nodes, pos, start, len, len_code, dist, 0usize, cost,
+                                        );
+                                        result = max(result, len);
                                     }
                                 }
-                                len = len.wrapping_add(1);
                             }
+                            len = len.wrapping_add(1);
                         }
-                        j = j.wrapping_add(1);
                     }
                 }
             }
@@ -937,34 +858,32 @@ fn UpdateNodes<AllocF: Allocator<floatX>>(
     result
 }
 
-#[inline(always)]
-fn CleanupZopfliCostModel<AllocF: Allocator<floatX>>(
-    m: &mut AllocF,
-    xself: &mut ZopfliCostModel<AllocF>,
-) {
-    {
-        m.free_cell(core::mem::take(&mut xself.literal_costs_));
-    }
-    {
-        m.free_cell(core::mem::take(&mut xself.cost_dist_));
+impl<AllocF: Allocator<floatX>> ZopfliCostModel<AllocF> {
+    #[inline(always)]
+    fn cleanup(&mut self, m: &mut AllocF) {
+        m.free_cell(core::mem::take(&mut self.literal_costs_));
+        m.free_cell(core::mem::take(&mut self.cost_dist_));
     }
 }
 
-#[inline(always)]
-fn ZopfliNodeCommandLength(xself: &ZopfliNode) -> u32 {
-    ZopfliNodeCopyLength(xself).wrapping_add(xself.dcode_insert_length & 0x7ffffff)
+impl ZopfliNode {
+    #[inline(always)]
+    fn command_length(&self) -> u32 {
+        self.copy_length()
+            .wrapping_add(self.dcode_insert_length & 0x07ff_ffff)
+    }
 }
 
 #[inline(always)]
 fn ComputeShortestPathFromNodes(num_bytes: usize, nodes: &mut [ZopfliNode]) -> usize {
     let mut index: usize = num_bytes;
     let mut num_commands: usize = 0usize;
-    while ((nodes[index]).dcode_insert_length & 0x7ffffff) == 0 && ((nodes[index]).length == 1u32) {
+    while (nodes[index].dcode_insert_length & 0x07ff_ffff) == 0 && nodes[index].length == 1 {
         index = index.wrapping_sub(1);
     }
     nodes[index].u = Union1::next(!(0u32));
-    while index != 0usize {
-        let len: usize = ZopfliNodeCommandLength(&mut nodes[index]) as usize;
+    while index != 0 {
+        let len = nodes[index].command_length() as usize;
         index = index.wrapping_sub(len);
         (nodes[index]).u = Union1::next(len as u32);
         num_commands = num_commands.wrapping_add(1);
@@ -998,10 +917,10 @@ where
     let mut model: ZopfliCostModel<AllocF>;
     let mut queue: StartPosQueue;
     let mut matches = [0; MAX_NUM_MATCHES_H10];
-    let store_end: usize = if num_bytes >= StoreLookaheadH10() {
+    let store_end: usize = if num_bytes >= STORE_LOOKAHEAD_H_10 {
         position
             .wrapping_add(num_bytes)
-            .wrapping_sub(StoreLookaheadH10())
+            .wrapping_sub(STORE_LOOKAHEAD_H_10)
             .wrapping_add(1)
     } else {
         position
@@ -1011,17 +930,17 @@ where
     let lz_matches_offset: usize = 0usize;
     (nodes[0]).length = 0u32;
     (nodes[0]).u = Union1::cost(0.0);
-    model = InitZopfliCostModel(m, &params.dist, num_bytes);
+    model = ZopfliCostModel::init(m, &params.dist, num_bytes);
     if !(0i32 == 0) {
         return 0usize;
     }
-    ZopfliCostModelSetFromLiteralCosts(&mut model, position, ringbuffer, ringbuffer_mask);
-    queue = InitStartPosQueue();
+    model.set_from_literal_costs(position, ringbuffer, ringbuffer_mask);
+    queue = StartPosQueue::default();
     i = 0usize;
     while i.wrapping_add(handle.HashTypeLength()).wrapping_sub(1) < num_bytes {
         {
             let pos: usize = position.wrapping_add(i);
-            let max_distance: usize = brotli_min_size_t(pos, max_backward_limit);
+            let max_distance: usize = min(pos, max_backward_limit);
             let mut skip: usize;
             let mut num_matches: usize = FindAllMatchesH10(
                 handle,
@@ -1035,9 +954,8 @@ where
                 params,
                 &mut matches[lz_matches_offset..],
             );
-            if num_matches > 0usize
-                && (BackwardMatchLength(&BackwardMatch(matches[num_matches.wrapping_sub(1)]))
-                    > max_zopfli_len)
+            if num_matches > 0
+                && BackwardMatch(matches[num_matches.wrapping_sub(1)]).length() > max_zopfli_len
             {
                 matches[0] = matches[num_matches.wrapping_sub(1)];
                 num_matches = 1usize;
@@ -1060,17 +978,15 @@ where
             if skip < 16384usize {
                 skip = 0usize;
             }
-            if num_matches == 1usize
-                && (BackwardMatchLength(&BackwardMatch(matches[0])) > max_zopfli_len)
-            {
-                skip = brotli_max_size_t(BackwardMatchLength(&BackwardMatch(matches[0])), skip);
+            if num_matches == 1 && BackwardMatch(matches[0]).length() > max_zopfli_len {
+                skip = max(BackwardMatch(matches[0]).length(), skip);
             }
             if skip > 1usize {
                 handle.StoreRange(
                     ringbuffer,
                     ringbuffer_mask,
                     pos.wrapping_add(1),
-                    brotli_min_size_t(pos.wrapping_add(skip), store_end),
+                    min(pos.wrapping_add(skip), store_end),
                 );
                 skip = skip.wrapping_sub(1);
                 while skip != 0 {
@@ -1095,7 +1011,7 @@ where
         i = i.wrapping_add(1);
     }
 
-    CleanupZopfliCostModel(m, &mut model);
+    model.cleanup(m);
 
     ComputeShortestPathFromNodes(num_bytes, nodes)
 }
@@ -1169,24 +1085,16 @@ fn SetCost(histogram: &[u32], histogram_size: usize, literal_histogram: i32, cos
     let mut missing_symbol_sum: u64;
 
     let mut i: usize;
-    i = 0usize;
-    while i < histogram_size {
-        {
-            sum = sum.wrapping_add(u64::from(histogram[i]));
-        }
-        i = i.wrapping_add(1);
+    for i in 0usize..histogram_size {
+        sum = sum.wrapping_add(u64::from(histogram[i]));
     }
     let log2sum: floatX = FastLog2(sum) as (floatX);
     missing_symbol_sum = sum;
     if literal_histogram == 0 {
-        i = 0usize;
-        while i < histogram_size {
-            {
-                if histogram[i] == 0u32 {
-                    missing_symbol_sum = missing_symbol_sum.wrapping_add(1);
-                }
+        for i in 0usize..histogram_size {
+            if histogram[i] == 0u32 {
+                missing_symbol_sum = missing_symbol_sum.wrapping_add(1);
             }
-            i = i.wrapping_add(1);
         }
     }
     let missing_symbol_cost: floatX =
@@ -1210,98 +1118,79 @@ fn SetCost(histogram: &[u32], histogram_size: usize, literal_histogram: i32, cos
     }
 }
 
-#[inline(always)]
-fn brotli_min_float(a: floatX, b: floatX) -> floatX {
-    if a < b {
-        a
-    } else {
-        b
-    }
-}
-
-fn ZopfliCostModelSetFromCommands<AllocF: Allocator<floatX>>(
-    xself: &mut ZopfliCostModel<AllocF>,
-    position: usize,
-    ringbuffer: &[u8],
-    ringbuffer_mask: usize,
-    commands: &[Command],
-    num_commands: usize,
-    last_insert_len: usize,
-) {
-    let mut histogram_literal = [0u32; BROTLI_NUM_LITERAL_SYMBOLS];
-    let mut histogram_cmd = [0u32; BROTLI_NUM_COMMAND_SYMBOLS];
-    let mut histogram_dist = [0u32; BROTLI_SIMPLE_DISTANCE_ALPHABET_SIZE];
-    let mut cost_literal = [0.0 as floatX; BROTLI_NUM_LITERAL_SYMBOLS];
-    let mut pos: usize = position.wrapping_sub(last_insert_len);
-    let mut min_cost_cmd: floatX = kInfinity;
-    let mut i: usize;
-    let cost_cmd: &mut [floatX] = &mut xself.cost_cmd_[..];
-    i = 0usize;
-    while i < num_commands {
-        {
-            let inslength: usize = (commands[i]).insert_len_ as usize;
-            let copylength: usize = CommandCopyLen(&commands[i]) as usize;
-            let distcode: usize = ((commands[i]).dist_prefix_ as i32 & 0x3ff) as usize;
-            let cmdcode: usize = (commands[i]).cmd_prefix_ as usize;
-            let mut j: usize;
+impl<AllocF: Allocator<floatX>> ZopfliCostModel<AllocF> {
+    fn set_from_commands(
+        &mut self,
+        position: usize,
+        ringbuffer: &[u8],
+        ringbuffer_mask: usize,
+        commands: &[Command],
+        num_commands: usize,
+        last_insert_len: usize,
+    ) {
+        let mut histogram_literal = [0u32; BROTLI_NUM_LITERAL_SYMBOLS];
+        let mut histogram_cmd = [0u32; BROTLI_NUM_COMMAND_SYMBOLS];
+        let mut histogram_dist = [0u32; BROTLI_SIMPLE_DISTANCE_ALPHABET_SIZE];
+        let mut cost_literal = [0.0 as floatX; BROTLI_NUM_LITERAL_SYMBOLS];
+        let mut pos: usize = position.wrapping_sub(last_insert_len);
+        let mut min_cost_cmd: floatX = kInfinity;
+        let mut i: usize;
+        let cost_cmd: &mut [floatX] = &mut self.cost_cmd_[..];
+        i = 0usize;
+        while i < num_commands {
             {
-                let _rhs = 1;
-                let _lhs = &mut histogram_cmd[cmdcode];
-                *_lhs = (*_lhs).wrapping_add(_rhs as u32);
-            }
-            if cmdcode >= 128usize {
-                let _rhs = 1;
-                let _lhs = &mut histogram_dist[distcode];
-                *_lhs = (*_lhs).wrapping_add(_rhs as u32);
-            }
-            j = 0usize;
-            while j < inslength {
+                let inslength: usize = (commands[i]).insert_len_ as usize;
+                let copylength: usize = commands[i].copy_len() as usize;
+                let distcode: usize = (commands[i].dist_prefix_ as i32 & 0x03ff) as usize;
+                let cmdcode: usize = (commands[i]).cmd_prefix_ as usize;
                 {
+                    let _rhs = 1;
+                    let _lhs = &mut histogram_cmd[cmdcode];
+                    *_lhs = (*_lhs).wrapping_add(_rhs as u32);
+                }
+                if cmdcode >= 128usize {
+                    let _rhs = 1;
+                    let _lhs = &mut histogram_dist[distcode];
+                    *_lhs = (*_lhs).wrapping_add(_rhs as u32);
+                }
+                for j in 0usize..inslength {
                     let _rhs = 1;
                     let _lhs = &mut histogram_literal
                         [(ringbuffer[(pos.wrapping_add(j) & ringbuffer_mask)] as usize)];
                     *_lhs = (*_lhs).wrapping_add(_rhs as u32);
                 }
-                j = j.wrapping_add(1);
+                pos = pos.wrapping_add(inslength.wrapping_add(copylength));
             }
-            pos = pos.wrapping_add(inslength.wrapping_add(copylength));
+            i = i.wrapping_add(1);
         }
-        i = i.wrapping_add(1);
-    }
-    SetCost(
-        &histogram_literal[..],
-        BROTLI_NUM_LITERAL_SYMBOLS,
-        1i32,
-        &mut cost_literal,
-    );
-    SetCost(
-        &histogram_cmd[..],
-        BROTLI_NUM_COMMAND_SYMBOLS,
-        0i32,
-        &mut cost_cmd[..],
-    );
-    SetCost(
-        &histogram_dist[..],
-        xself.distance_histogram_size as usize,
-        0i32,
-        xself.cost_dist_.slice_mut(),
-    );
-    i = 0usize;
-    while i < 704usize {
+        SetCost(
+            &histogram_literal[..],
+            BROTLI_NUM_LITERAL_SYMBOLS,
+            1i32,
+            &mut cost_literal,
+        );
+        SetCost(
+            &histogram_cmd[..],
+            BROTLI_NUM_COMMAND_SYMBOLS,
+            0i32,
+            &mut cost_cmd[..],
+        );
+        SetCost(
+            &histogram_dist[..],
+            self.distance_histogram_size as usize,
+            0i32,
+            self.cost_dist_.slice_mut(),
+        );
+        for i in 0usize..704usize {
+            min_cost_cmd = min_cost_cmd.min(cost_cmd[i]);
+        }
+        self.min_cost_cmd_ = min_cost_cmd;
         {
-            min_cost_cmd = brotli_min_float(min_cost_cmd, cost_cmd[i]);
-        }
-        i = i.wrapping_add(1);
-    }
-    xself.min_cost_cmd_ = min_cost_cmd;
-    {
-        let literal_costs: &mut [floatX] = xself.literal_costs_.slice_mut();
-        let mut literal_carry: floatX = 0.0;
-        let num_bytes: usize = xself.num_bytes_;
-        literal_costs[0] = 0.0 as (floatX);
-        i = 0usize;
-        while i < num_bytes {
-            {
+            let literal_costs: &mut [floatX] = self.literal_costs_.slice_mut();
+            let mut literal_carry: floatX = 0.0;
+            let num_bytes: usize = self.num_bytes_;
+            literal_costs[0] = 0.0 as (floatX);
+            for i in 0usize..num_bytes {
                 literal_carry += cost_literal
                     [(ringbuffer[(position.wrapping_add(i) & ringbuffer_mask)] as usize)]
                     as floatX;
@@ -1310,7 +1199,6 @@ fn ZopfliCostModelSetFromCommands<AllocF: Allocator<floatX>>(
                 literal_carry -=
                     (literal_costs[i.wrapping_add(1)] as floatX - literal_costs[i] as floatX);
             }
-            i = i.wrapping_add(1);
         }
     }
 }
@@ -1335,7 +1223,7 @@ fn ZopfliIterate<AllocF: Allocator<floatX>>(
     let mut i: usize;
     (nodes[0]).length = 0u32;
     (nodes[0]).u = Union1::cost(0.0);
-    queue = InitStartPosQueue();
+    queue = StartPosQueue::default();
     i = 0usize;
     while i.wrapping_add(3) < num_bytes {
         {
@@ -1358,12 +1246,11 @@ fn ZopfliIterate<AllocF: Allocator<floatX>>(
                 skip = 0usize;
             }
             cur_match_pos = cur_match_pos.wrapping_add(num_matches[i] as usize);
-            if num_matches[i] == 1u32
-                && (BackwardMatchLength(&BackwardMatch(matches[cur_match_pos.wrapping_sub(1)]))
-                    > max_zopfli_len)
+            if num_matches[i] == 1
+                && BackwardMatch(matches[cur_match_pos.wrapping_sub(1)]).length() > max_zopfli_len
             {
-                skip = brotli_max_size_t(
-                    BackwardMatchLength(&BackwardMatch(matches[cur_match_pos.wrapping_sub(1)])),
+                skip = max(
+                    BackwardMatch(matches[cur_match_pos.wrapping_sub(1)]).length(),
                     skip,
                 );
             }
@@ -1422,10 +1309,10 @@ pub fn BrotliCreateHqZopfliBackwardReferences<
         <Alloc as Allocator<u32>>::AllocatedMemory::default()
     };
     let mut matches_size: usize = (4usize).wrapping_mul(num_bytes);
-    let store_end: usize = if num_bytes >= StoreLookaheadH10() {
+    let store_end: usize = if num_bytes >= STORE_LOOKAHEAD_H_10 {
         position
             .wrapping_add(num_bytes)
-            .wrapping_sub(StoreLookaheadH10())
+            .wrapping_sub(STORE_LOOKAHEAD_H_10)
             .wrapping_add(1)
     } else {
         position
@@ -1448,7 +1335,7 @@ pub fn BrotliCreateHqZopfliBackwardReferences<
     while i.wrapping_add(hasher.HashTypeLength()).wrapping_sub(1) < num_bytes {
         {
             let pos: usize = position.wrapping_add(i);
-            let max_distance: usize = brotli_min_size_t(pos, max_backward_limit);
+            let max_distance: usize = min(pos, max_backward_limit);
             let max_length: usize = num_bytes.wrapping_sub(i);
 
             let mut j: usize;
@@ -1509,9 +1396,8 @@ pub fn BrotliCreateHqZopfliBackwardReferences<
             }
             num_matches.slice_mut()[i] = num_found_matches as u32;
             if num_found_matches > 0usize {
-                let match_len: usize = BackwardMatchLength(&BackwardMatch(
-                    matches.slice()[(cur_match_end.wrapping_sub(1) as usize)],
-                ));
+                let match_len =
+                    BackwardMatch(matches.slice()[cur_match_end.wrapping_sub(1)]).length();
                 if match_len > 325usize {
                     let skip: usize = match_len.wrapping_sub(1);
                     let tmp = matches.slice()[(cur_match_end.wrapping_sub(1) as usize)];
@@ -1522,7 +1408,7 @@ pub fn BrotliCreateHqZopfliBackwardReferences<
                         ringbuffer,
                         ringbuffer_mask,
                         pos.wrapping_add(1),
-                        brotli_min_size_t(pos.wrapping_add(match_len), store_end),
+                        min(pos.wrapping_add(match_len), store_end),
                     );
                     for item in num_matches
                         .slice_mut()
@@ -1561,79 +1447,63 @@ pub fn BrotliCreateHqZopfliBackwardReferences<
     if !(0i32 == 0) {
         return;
     }
-    model = InitZopfliCostModel(alloc, &params.dist, num_bytes);
+    model = ZopfliCostModel::init(alloc, &params.dist, num_bytes);
     if !(0i32 == 0) {
         return;
     }
-    i = 0usize;
-    while i < 2usize {
-        {
-            BrotliInitZopfliNodes(nodes.slice_mut(), num_bytes.wrapping_add(1));
-            if i == 0usize {
-                ZopfliCostModelSetFromLiteralCosts(
-                    &mut model,
-                    position,
-                    ringbuffer,
-                    ringbuffer_mask,
-                );
-            } else {
-                ZopfliCostModelSetFromCommands(
-                    &mut model,
-                    position,
-                    ringbuffer,
-                    ringbuffer_mask,
-                    commands,
-                    num_commands.wrapping_sub(orig_num_commands),
-                    orig_last_insert_len,
-                );
-            }
-            *num_commands = orig_num_commands;
-            *num_literals = orig_num_literals;
-            *last_insert_len = orig_last_insert_len;
-            for (i, j) in dist_cache
-                .split_at_mut(4)
-                .0
-                .iter_mut()
-                .zip(orig_dist_cache.split_at(4).0)
-            {
-                *i = *j;
-            }
-            *num_commands = num_commands.wrapping_add(ZopfliIterate(
-                num_bytes,
+    for i in 0usize..2usize {
+        BrotliInitZopfliNodes(nodes.slice_mut(), num_bytes.wrapping_add(1));
+        if i == 0usize {
+            model.set_from_literal_costs(position, ringbuffer, ringbuffer_mask);
+        } else {
+            model.set_from_commands(
                 position,
                 ringbuffer,
                 ringbuffer_mask,
-                params,
-                max_backward_limit,
-                gap,
-                dist_cache,
-                &mut model,
-                num_matches.slice(),
-                matches.slice(),
-                nodes.slice_mut(),
-            ));
-            BrotliZopfliCreateCommands(
-                num_bytes,
-                position,
-                max_backward_limit,
-                nodes.slice(),
-                dist_cache,
-                last_insert_len,
-                params,
                 commands,
-                num_literals,
+                num_commands.wrapping_sub(orig_num_commands),
+                orig_last_insert_len,
             );
         }
-        i = i.wrapping_add(1);
+        *num_commands = orig_num_commands;
+        *num_literals = orig_num_literals;
+        *last_insert_len = orig_last_insert_len;
+        for (i, j) in dist_cache
+            .split_at_mut(4)
+            .0
+            .iter_mut()
+            .zip(orig_dist_cache.split_at(4).0)
+        {
+            *i = *j;
+        }
+        *num_commands = num_commands.wrapping_add(ZopfliIterate(
+            num_bytes,
+            position,
+            ringbuffer,
+            ringbuffer_mask,
+            params,
+            max_backward_limit,
+            gap,
+            dist_cache,
+            &mut model,
+            num_matches.slice(),
+            matches.slice(),
+            nodes.slice_mut(),
+        ));
+        BrotliZopfliCreateCommands(
+            num_bytes,
+            position,
+            max_backward_limit,
+            nodes.slice(),
+            dist_cache,
+            last_insert_len,
+            params,
+            commands,
+            num_literals,
+        );
     }
-    CleanupZopfliCostModel(alloc, &mut model);
-    {
-        <Alloc as Allocator<ZopfliNode>>::free_cell(alloc, nodes);
-    }
-    {
-        <Alloc as Allocator<u64>>::free_cell(alloc, matches);
-    }
-    {
-        <Alloc as Allocator<u32>>::free_cell(alloc, num_matches);
-    }
+    model.cleanup(alloc);
+    <Alloc as Allocator<ZopfliNode>>::free_cell(alloc, nodes);
+    <Alloc as Allocator<u64>>::free_cell(alloc, matches);
+    <Alloc as Allocator<u32>>::free_cell(alloc, num_matches);
 }

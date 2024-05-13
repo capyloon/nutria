@@ -1,5 +1,6 @@
-#![warn(rust_2018_idioms, single_use_lifetimes)]
-#![allow(dead_code)]
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+#![allow(dead_code, unreachable_pub, clippy::no_effect_underscore_binding)]
 
 #[macro_use]
 mod auxiliary;

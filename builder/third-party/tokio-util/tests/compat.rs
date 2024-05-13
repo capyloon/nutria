@@ -1,4 +1,4 @@
-#![cfg(all(feature = "compat"))]
+#![cfg(feature = "compat")]
 #![cfg(not(target_os = "wasi"))] // WASI does not support all fs operations
 #![warn(rust_2018_idioms)]
 
@@ -15,6 +15,7 @@ async fn compat_file_seek() -> futures_util::io::Result<()> {
         .read(true)
         .write(true)
         .create(true)
+        .truncate(true)
         .open(temp_file)
         .await?
         .compat_write();

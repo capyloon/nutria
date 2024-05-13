@@ -26,7 +26,7 @@
 //! | `ring` | Enable use of the *ring* crate for cryptography. |
 //! | `aws_lc_rs` | Enable use of the aws-lc-rs crate for cryptography. |
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 #![warn(unreachable_pub)]
 #![deny(missing_docs, clippy::as_conversions)]
 #![allow(
@@ -39,6 +39,9 @@
 )]
 // Enable documentation for all features on docs.rs
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+
+#[cfg(any(feature = "std", test))]
+extern crate std;
 
 #[cfg(any(test, feature = "alloc"))]
 #[cfg_attr(test, macro_use)]

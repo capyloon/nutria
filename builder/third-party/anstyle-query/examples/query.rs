@@ -1,3 +1,5 @@
+//! Report a terminal's capabilities
+
 fn main() {
     println!("clicolor: {:?}", anstyle_query::clicolor());
     println!("clicolor_force: {}", anstyle_query::clicolor_force());

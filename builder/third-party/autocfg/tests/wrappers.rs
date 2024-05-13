@@ -39,13 +39,18 @@ fn test_wrappers() {
                 assert!(ac.probe_type("usize"));
                 assert!(!ac.probe_type("mesize"));
             }
+            // Either way, we should have found the inner rustc version.
+            assert!(ac.probe_rustc_version(1, 0));
         }
     }
 
     // Finally, make sure that `RUSTC_WRAPPER` is applied outermost
     // by using something that doesn't pass through at all.
-    env::set_var("RUSTC_WRAPPER", "/bin/true");
+    env::set_var("RUSTC_WRAPPER", "./tests/wrap_ignored");
     env::set_var("RUSTC_WORKSPACE_WRAPPER", "/bin/false");
     let ac = autocfg::AutoCfg::new().unwrap();
     assert!(ac.probe_type("mesize")); // anything goes!
+
+    // Make sure we also got the version from that wrapper.
+    assert!(ac.probe_rustc_version(12345, 6789));
 }

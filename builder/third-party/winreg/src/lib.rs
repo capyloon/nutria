@@ -13,7 +13,7 @@
 //!```toml,ignore
 //!# Cargo.toml
 //![dependencies]
-//!winreg = "0.50"
+//!winreg = "0.52"
 //!```
 //!
 //!```no_run
@@ -120,9 +120,9 @@ cfg_if::cfg_if! {
 
         mod common;
         #[cfg(feature = "serialization-serde")]
-        mod decoder;
+        pub mod decoder;
         #[cfg(feature = "serialization-serde")]
-        mod encoder;
+        pub mod encoder;
         pub mod enums;
         pub mod reg_key;
         pub mod reg_key_metadata;

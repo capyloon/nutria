@@ -33,6 +33,9 @@
 //! And this will correctly handle piping to a file, etc
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![warn(missing_docs)]
+#![warn(clippy::print_stderr)]
+#![warn(clippy::print_stdout)]
 
 pub mod adapter;
 pub mod stream;
@@ -54,7 +57,9 @@ pub use wincon::WinconStream;
 #[allow(deprecated)]
 pub use buffer::Buffer;
 
+/// An adaptive wrapper around the global standard output stream of the current process
 pub type Stdout = AutoStream<std::io::Stdout>;
+/// An adaptive wrapper around the global standard error stream of the current process
 pub type Stderr = AutoStream<std::io::Stderr>;
 
 /// Create an ANSI escape code compatible stdout

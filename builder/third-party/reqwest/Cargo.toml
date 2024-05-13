@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.63.0"
 name = "reqwest"
-version = "0.12.2"
+version = "0.12.4"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 autotests = true
 description = "higher level HTTP client library"
@@ -107,6 +107,14 @@ required-features = [
 ]
 
 [[test]]
+name = "zstd"
+path = "tests/zstd.rs"
+required-features = [
+    "zstd",
+    "stream",
+]
+
+[[test]]
 name = "deflate"
 path = "tests/deflate.rs"
 required-features = [
@@ -120,7 +128,7 @@ path = "tests/multipart.rs"
 required-features = ["multipart"]
 
 [dependencies.base64]
-version = "0.21"
+version = "0.22"
 
 [dependencies.bytes]
 version = "1.0"
@@ -249,6 +257,11 @@ stream = [
     "dep:wasm-streams",
 ]
 trust-dns = []
+zstd = [
+    "dep:async-compression",
+    "async-compression?/zstd",
+    "dep:tokio-util",
+]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.async-compression]
 version = "0.4.0"
@@ -363,7 +376,7 @@ version = "0.7"
 optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.rustls-pemfile]
-version = "1.0"
+version = "2"
 optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.rustls-pki-types]
@@ -458,6 +471,10 @@ features = [
 ]
 default-features = false
 
+[target."cfg(not(target_arch = \"wasm32\"))".dev-dependencies.zstd_crate]
+version = "0.13"
+package = "zstd"
+
 [target."cfg(target_arch = \"wasm32\")".dependencies.js-sys]
 version = "0.3.45"
 
@@ -506,4 +523,4 @@ version = "0.5.1"
 optional = true
 
 [target."cfg(windows)".dependencies.winreg]
-version = "0.50.0"
+version = "0.52.0"

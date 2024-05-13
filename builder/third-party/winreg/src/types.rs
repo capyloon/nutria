@@ -8,6 +8,7 @@
 use crate::common::*;
 use crate::enums::*;
 use crate::RegValue;
+use std::convert::TryInto;
 use std::ffi::{OsStr, OsString};
 use std::io;
 use std::os::windows::ffi::OsStringExt;
@@ -107,11 +108,21 @@ impl FromRegValue for Vec<OsString> {
     }
 }
 
+macro_rules! try_from_reg_value_int {
+    ($val:expr, $map:expr) => {
+        $val.bytes
+            .as_slice()
+            .try_into()
+            .map($map)
+            .map_err(|_| io::Error::from_raw_os_error(Foundation::ERROR_INVALID_DATA as i32))
+    };
+}
+
 impl FromRegValue for u32 {
     fn from_reg_value(val: &RegValue) -> io::Result<u32> {
         match val.vtype {
-            #[allow(clippy::cast_ptr_alignment)]
-            REG_DWORD => Ok(unsafe { *(val.bytes.as_ptr() as *const u32) }),
+            REG_DWORD => try_from_reg_value_int!(val, u32::from_ne_bytes),
+            REG_DWORD_BIG_ENDIAN => try_from_reg_value_int!(val, u32::from_be_bytes),
             _ => werr!(Foundation::ERROR_BAD_FILE_TYPE),
         }
     }
@@ -120,8 +131,7 @@ impl FromRegValue for u32 {
 impl FromRegValue for u64 {
     fn from_reg_value(val: &RegValue) -> io::Result<u64> {
         match val.vtype {
-            #[allow(clippy::cast_ptr_alignment)]
-            REG_QWORD => Ok(unsafe { *(val.bytes.as_ptr() as *const u64) }),
+            REG_QWORD => try_from_reg_value_int!(val, u64::from_ne_bytes),
             _ => werr!(Foundation::ERROR_BAD_FILE_TYPE),
         }
     }

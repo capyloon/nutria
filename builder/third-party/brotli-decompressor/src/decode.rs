@@ -2182,6 +2182,7 @@ pub fn BrotliDecoderTakeOutput<'a,
   return result;
 }
 
+#[cfg(feature="ffi-api")]
 pub fn BrotliDecoderIsUsed<AllocU8: alloc::Allocator<u8>,
                            AllocU32: alloc::Allocator<u32>,
                            AllocHC: alloc::Allocator<HuffmanCode>>(

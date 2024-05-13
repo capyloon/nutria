@@ -13,7 +13,12 @@
 edition = "2021"
 rust-version = "1.60"
 name = "rustls-pki-types"
-version = "1.4.1"
+version = "1.7.0"
+build = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "Shared types for the rustls PKI ecosystem"
 homepage = "https://github.com/rustls/pki-types"
 documentation = "https://docs.rs/rustls-pki-types"
@@ -32,6 +37,22 @@ rustdoc-args = [
     "--cfg",
     "docsrs",
 ]
+
+[lib]
+name = "rustls_pki_types"
+path = "src/lib.rs"
+
+[[test]]
+name = "server_name"
+path = "tests/server_name.rs"
+
+[[test]]
+name = "dns_name"
+path = "tests/dns_name.rs"
+
+[[test]]
+name = "key_type"
+path = "tests/key_type.rs"
 
 [features]
 alloc = []

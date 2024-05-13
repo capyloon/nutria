@@ -29,6 +29,7 @@ pub struct SendRequest<B> {
 /// This allows taking apart a `Connection` at a later time, in order to
 /// reclaim the IO object, and additional related pieces.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct Parts<T> {
     /// The original IO object used in the handshake.
     pub io: T,
@@ -41,7 +42,6 @@ pub struct Parts<T> {
     /// You will want to check for any existing bytes if you plan to continue
     /// communicating on the IO object.
     pub read_buf: Bytes,
-    _inner: (),
 }
 
 /// A future that processes all HTTP state for the IO object.
@@ -68,11 +68,7 @@ where
     /// Only works for HTTP/1 connections. HTTP/2 connections will panic.
     pub fn into_parts(self) -> Parts<T> {
         let (io, read_buf, _) = self.inner.into_inner();
-        Parts {
-            io,
-            read_buf,
-            _inner: (),
-        }
+        Parts { io, read_buf }
     }
 
     /// Poll the connection for completion, but without calling `shutdown`
@@ -178,18 +174,10 @@ where
     ///
     /// Returns a future that if successful, yields the `Response`.
     ///
-    /// # Note
+    /// `req` must have a `Host` header.
     ///
-    /// There are some key differences in what automatic things the `Client`
-    /// does for you that will not be done here:
-    ///
-    /// - `Client` requires absolute-form `Uri`s, since the scheme and
-    ///   authority are needed to connect. They aren't required here.
-    /// - Since the `Client` requires absolute-form `Uri`s, it can add
-    ///   the `Host` header based on it. You must add a `Host` header yourself
-    ///   before calling this method.
-    /// - Since absolute-form `Uri`s are not required, if received, they will
-    ///   be serialized as-is.
+    /// Absolute-form `Uri`s are not required. If received, they will be serialized
+    /// as-is.
     pub fn send_request(
         &mut self,
         req: Request<B>,
@@ -597,11 +585,7 @@ mod upgrades {
             match ready!(Pin::new(&mut self.inner.as_mut().unwrap().inner).poll(cx)) {
                 Ok(proto::Dispatched::Shutdown) => Poll::Ready(Ok(())),
                 Ok(proto::Dispatched::Upgrade(pending)) => {
-                    let Parts {
-                        io,
-                        read_buf,
-                        _inner,
-                    } = self.inner.take().unwrap().into_parts();
+                    let Parts { io, read_buf } = self.inner.take().unwrap().into_parts();
                     pending.fulfill(Upgraded::new(io, read_buf));
                     Poll::Ready(Ok(()))
                 }

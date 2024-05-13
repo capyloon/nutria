@@ -1,4 +1,3 @@
-use super::super::alloc;
 use super::super::alloc::{Allocator, SliceWrapper, SliceWrapperMut};
 use super::backward_references::BrotliEncoderParams;
 use super::find_stride;
@@ -7,7 +6,7 @@ use super::interface;
 use super::ir_interpret::{push_base, IRInterpreter};
 use super::util::{floatX, FastLog2u16};
 use super::{s16, v8};
-use core;
+use core::cmp::min;
 #[cfg(feature = "simd")]
 use core::simd::prelude::SimdPartialOrd;
 
@@ -107,7 +106,7 @@ fn stride_lookup_lin(
     high_nibble: Option<u8>,
 ) -> usize {
     if let Some(nibble) = high_nibble {
-        1 + 2 * (actual_context | ((stride_byte as usize & 0xf) << 8) | ((nibble as usize) << 12))
+        1 + 2 * (actual_context | ((stride_byte as usize & 0x0f) << 8) | ((nibble as usize) << 12))
     } else {
         2 * (actual_context | ((stride_byte as usize) << 8))
     }
@@ -514,13 +513,13 @@ impl<'a, Alloc: alloc::Allocator<s16> + alloc::Allocator<u32> + alloc::Allocator
             let stride4_score = score[WhichPrior::STRIDE4 as usize];
             //let stride8_score = score[WhichPrior::STRIDE8] * 1.125 + 16.0;
             let stride8_score = stride4_score + 1.0; // FIXME: never lowest -- ignore stride 8
-            let stride_score = core::cmp::min(
+            let stride_score = min(
                 stride1_score as u64,
-                core::cmp::min(
+                min(
                     stride2_score as u64,
-                    core::cmp::min(
+                    min(
                         stride3_score as u64,
-                        core::cmp::min(stride4_score as u64, stride8_score as u64),
+                        min(stride4_score as u64, stride8_score as u64),
                     ),
                 ),
             );

@@ -66,7 +66,7 @@ impl Handle {
     pub fn from_path_any<P: AsRef<Path>>(path: P) -> io::Result<Handle> {
         use std::fs::OpenOptions;
         use std::os::windows::fs::OpenOptionsExt;
-        use winapi::um::winbase::FILE_FLAG_BACKUP_SEMANTICS;
+        use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_BACKUP_SEMANTICS;
 
         let file = OpenOptions::new()
             .read(true)

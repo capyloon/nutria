@@ -6,6 +6,7 @@
 use super::EncoderState::*;
 use super::{EncodeResult, Encoder, EncoderError, ENCODER_SAM};
 use crate::enums::RegType;
+use crate::transaction::Transaction;
 use crate::RegValue;
 use serde::ser::*;
 use std::fmt;
@@ -17,7 +18,7 @@ impl Error for EncoderError {
     }
 }
 
-impl<'a> Serializer for &'a mut Encoder {
+impl<'a, Tr: AsRef<Transaction>> Serializer for &'a mut Encoder<Tr> {
     type Ok = ();
     type Error = EncoderError;
 
@@ -25,8 +26,8 @@ impl<'a> Serializer for &'a mut Encoder {
     type SerializeTuple = TupleEncoder;
     type SerializeTupleStruct = TupleStructEncoder;
     type SerializeTupleVariant = TupleVariantEncoder;
-    type SerializeMap = StructMapEncoder<'a>;
-    type SerializeStruct = StructMapEncoder<'a>;
+    type SerializeMap = StructMapEncoder<'a, Tr>;
+    type SerializeStruct = StructMapEncoder<'a, Tr>;
     type SerializeStructVariant = StructVariantEncoder;
 
     fn serialize_bool(self, value: bool) -> EncodeResult<Self::Ok> {
@@ -187,7 +188,7 @@ impl<'a> Serializer for &'a mut Encoder {
                 // nested structure
                 match self.keys[self.keys.len() - 1].create_subkey_transacted_with_flags(
                     s,
-                    &self.tr,
+                    self.tr.as_ref(),
                     ENCODER_SAM,
                 ) {
                     Ok((subkey, _disp)) => {
@@ -462,12 +463,12 @@ impl serde::Serializer for MapKeySerializer {
     }
 }
 
-pub struct StructMapEncoder<'a> {
-    enc: &'a mut Encoder,
+pub struct StructMapEncoder<'a, Tr: AsRef<Transaction>> {
+    enc: &'a mut Encoder<Tr>,
     is_root: bool,
 }
 
-impl<'a> SerializeStruct for StructMapEncoder<'a> {
+impl<'a, Tr: AsRef<Transaction>> SerializeStruct for StructMapEncoder<'a, Tr> {
     type Ok = ();
     type Error = EncoderError;
 
@@ -488,7 +489,7 @@ impl<'a> SerializeStruct for StructMapEncoder<'a> {
     }
 }
 
-impl<'a> SerializeMap for StructMapEncoder<'a> {
+impl<'a, Tr: AsRef<Transaction>> SerializeMap for StructMapEncoder<'a, Tr> {
     type Ok = ();
     type Error = EncoderError;
 

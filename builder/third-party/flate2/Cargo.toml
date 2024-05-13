@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "flate2"
-version = "1.0.28"
+version = "1.0.30"
 authors = [
     "Alex Crichton <alex@alexcrichton.com>",
     "Josh Triplett <josh@joshtriplett.org>",
@@ -56,6 +56,15 @@ version = "1.2.0"
 [dependencies.libz-ng-sys]
 version = "1.1.8"
 optional = true
+
+[dependencies.libz-rs-sys]
+version = "0.1.1"
+features = [
+    "std",
+    "rust-allocator",
+]
+optional = true
+default-features = false
 
 [dependencies.libz-sys]
 version = "1.1.8"
@@ -103,6 +112,10 @@ zlib-ng = [
 zlib-ng-compat = [
     "zlib",
     "libz-sys/zlib-ng",
+]
+zlib-rs = [
+    "any_zlib",
+    "libz-rs-sys",
 ]
 
 [target."cfg(all(target_arch = \"wasm32\", not(target_os = \"emscripten\")))".dependencies.miniz_oxide]

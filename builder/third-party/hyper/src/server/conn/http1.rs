@@ -57,7 +57,7 @@ pin_project_lite::pin_project! {
 /// # fn main() {
 /// let mut http = Builder::new();
 /// // Set options one at a time
-/// http.header_read_timeout(Duration::from_millis(200));
+/// http.half_close(false);
 ///
 /// // Or, chain multiple options
 /// http.keep_alive(false).title_case_headers(true).max_buf_size(8192);
@@ -86,6 +86,7 @@ pub struct Builder {
 /// This allows taking apart a `Connection` at a later time, in order to
 /// reclaim the IO object, and additional related pieces.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct Parts<T, S> {
     /// The original IO object used in the handshake.
     pub io: T,
@@ -100,7 +101,6 @@ pub struct Parts<T, S> {
     pub read_buf: Bytes,
     /// The `Service` used to serve this connection.
     pub service: S,
-    _inner: (),
 }
 
 // ===== impl Connection =====
@@ -151,7 +151,6 @@ where
             io,
             read_buf,
             service: dispatch.into_service(),
-            _inner: (),
         }
     }
 
@@ -205,7 +204,7 @@ impl<I, B, S> Future for Connection<I, S>
 where
     S: HttpService<IncomingBody, ResBody = B>,
     S::Error: Into<Box<dyn StdError + Send + Sync>>,
-    I: Read + Write + Unpin + 'static,
+    I: Read + Write + Unpin,
     B: Body + 'static,
     B::Error: Into<Box<dyn StdError + Send + Sync>>,
 {
@@ -315,6 +314,9 @@ impl Builder {
 
     /// Set a timeout for reading client request headers. If a client does not
     /// transmit the entire header within this time, the connection is closed.
+    ///
+    /// Requires a [`Timer`] set by [`Builder::timer`] to take effect. Panics if `header_read_timeout` is configured
+    /// without a [`Timer`].
     ///
     /// Pass `None` to disable.
     ///
@@ -480,7 +482,11 @@ where
     /// This `Connection` should continue to be polled until shutdown
     /// can finish.
     pub fn graceful_shutdown(mut self: Pin<&mut Self>) {
-        Pin::new(self.inner.as_mut().unwrap()).graceful_shutdown()
+        // Connection (`inner`) is `None` if it was upgraded (and `poll` is `Ready`).
+        // In that case, we don't need to call `graceful_shutdown`.
+        if let Some(conn) = self.inner.as_mut() {
+            Pin::new(conn).graceful_shutdown()
+        }
     }
 }
 
@@ -495,14 +501,19 @@ where
     type Output = crate::Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match ready!(Pin::new(&mut self.inner.as_mut().unwrap().conn).poll(cx)) {
-            Ok(proto::Dispatched::Shutdown) => Poll::Ready(Ok(())),
-            Ok(proto::Dispatched::Upgrade(pending)) => {
-                let (io, buf, _) = self.inner.take().unwrap().conn.into_inner();
-                pending.fulfill(Upgraded::new(io, buf));
-                Poll::Ready(Ok(()))
+        if let Some(conn) = self.inner.as_mut() {
+            match ready!(Pin::new(&mut conn.conn).poll(cx)) {
+                Ok(proto::Dispatched::Shutdown) => Poll::Ready(Ok(())),
+                Ok(proto::Dispatched::Upgrade(pending)) => {
+                    let (io, buf, _) = self.inner.take().unwrap().conn.into_inner();
+                    pending.fulfill(Upgraded::new(io, buf));
+                    Poll::Ready(Ok(()))
+                }
+                Err(e) => Poll::Ready(Err(e)),
             }
-            Err(e) => Poll::Ready(Err(e)),
+        } else {
+            // inner is `None`, meaning the connection was upgraded, thus it's `Poll::Ready(Ok(()))`
+            Poll::Ready(Ok(()))
         }
     }
 }

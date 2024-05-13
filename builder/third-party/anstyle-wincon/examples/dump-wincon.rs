@@ -1,3 +1,5 @@
+//! Write colored text using wincon API calls
+
 use anstyle_wincon::WinconStream as _;
 
 fn main() -> Result<(), lexopt::Error> {
@@ -13,32 +15,33 @@ fn main() -> Result<(), lexopt::Error> {
         }
     }
 
-    for r in 0..6 {
-        let _ = stdout.write_colored(None, None, &b"\n"[..]);
-        for g in 0..6 {
-            for b in 0..6 {
-                let fixed = r * 36 + g * 6 + b + 16;
-                let style = style(fixed, args.layer, args.effects);
-                let _ = print_number(&mut stdout, fixed, style);
-            }
+    for fixed in 16..232 {
+        let col = (fixed - 16) % 36;
+        if col == 0 {
             let _ = stdout.write_colored(None, None, &b"\n"[..]);
         }
-    }
-
-    for c in 0..24 {
-        if 0 == c % 8 {
-            let _ = stdout.write_colored(None, None, &b"\n"[..]);
-        }
-        let fixed = 232 + c;
         let style = style(fixed, args.layer, args.effects);
         let _ = print_number(&mut stdout, fixed, style);
     }
 
+    let _ = stdout.write_colored(None, None, &b"\n"[..]);
+    let _ = stdout.write_colored(None, None, &b"\n"[..]);
+    for fixed in 232..=255 {
+        let style = style(fixed, args.layer, args.effects);
+        let _ = print_number(&mut stdout, fixed, style);
+    }
+
+    let _ = stdout.write_colored(None, None, &b"\n"[..]);
+
     Ok(())
 }
 
-fn style(fixed: u8, layer: Layer, effects: anstyle::Effects) -> anstyle::Style {
-    let color = anstyle::Ansi256Color(fixed).into();
+fn style(
+    color: impl Into<anstyle::Color>,
+    layer: Layer,
+    effects: anstyle::Effects,
+) -> anstyle::Style {
+    let color = color.into();
     (match layer {
         Layer::Fg => anstyle::Style::new().fg_color(Some(color)),
         Layer::Bg => anstyle::Style::new().bg_color(Some(color)),
@@ -63,7 +66,7 @@ fn print_number(
     });
 
     stdout
-        .write_colored(fg, bg, format!("{:>4}", fixed).as_bytes())
+        .write_colored(fg, bg, format!("{:>3X}", fixed).as_bytes())
         .map(|_| ())
 }
 

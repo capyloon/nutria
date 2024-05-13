@@ -145,11 +145,13 @@ fn next_str<'s>(bytes: &mut &'s [u8], state: &mut State) -> Option<&'s str> {
 
 #[inline]
 unsafe fn from_utf8_unchecked<'b>(bytes: &'b [u8], safety_justification: &'static str) -> &'b str {
-    if cfg!(debug_assertions) {
-        // Catch problems more quickly when testing
-        std::str::from_utf8(bytes).expect(safety_justification)
-    } else {
-        std::str::from_utf8_unchecked(bytes)
+    unsafe {
+        if cfg!(debug_assertions) {
+            // Catch problems more quickly when testing
+            std::str::from_utf8(bytes).expect(safety_justification)
+        } else {
+            std::str::from_utf8_unchecked(bytes)
+        }
     }
 }
 
@@ -327,7 +329,7 @@ fn next_bytes<'s>(
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
-pub struct Utf8Parser {
+pub(crate) struct Utf8Parser {
     utf8_parser: utf8parse::Parser,
 }
 
@@ -440,7 +442,7 @@ mod test {
     fn test_strip_byte_multibyte() {
         let bytes = [240, 145, 141, 139];
         let expected = parser_strip(&bytes);
-        let actual = String::from_utf8(strip_byte(&bytes).to_vec()).unwrap();
+        let actual = String::from_utf8(strip_byte(&bytes).clone()).unwrap();
         assert_eq!(expected, actual);
     }
 
@@ -456,7 +458,7 @@ mod test {
     fn test_strip_byte_del() {
         let bytes = [0x7f];
         let expected = "";
-        let actual = String::from_utf8(strip_byte(&bytes).to_vec()).unwrap();
+        let actual = String::from_utf8(strip_byte(&bytes).clone()).unwrap();
         assert_eq!(expected, actual);
     }
 
@@ -502,7 +504,7 @@ mod test {
             dbg!(&s);
             dbg!(s.as_bytes());
             let expected = parser_strip(s.as_bytes());
-            let actual = String::from_utf8(strip_byte(s.as_bytes()).to_vec()).unwrap();
+            let actual = String::from_utf8(strip_byte(s.as_bytes()).clone()).unwrap();
             assert_eq!(expected, actual);
         }
     }

@@ -61,3 +61,18 @@ pub fn verify_custom_eku_client() {
     check_cert(ee, ca, KeyUsage::client_auth(), time, Ok(()));
     check_cert(ee, ca, KeyUsage::server_auth(), time, Ok(()));
 }
+
+#[test]
+pub fn verify_custom_eku_required_if_present() {
+    let time = UnixTime::since_unix_epoch(Duration::from_secs(0x1fed_f00d));
+
+    let eku = KeyUsage::required_if_present(&[43, 6, 1, 5, 5, 7, 3, 2]);
+
+    let ee = include_bytes!("client_auth/cert_with_no_eku_accepted_for_client_auth.ee.der");
+    let ca = include_bytes!("client_auth/cert_with_no_eku_accepted_for_client_auth.ca.der");
+    check_cert(ee, ca, eku, time, Ok(()));
+
+    let ee = include_bytes!("client_auth/cert_with_both_ekus_accepted_for_client_auth.ee.der");
+    let ca = include_bytes!("client_auth/cert_with_both_ekus_accepted_for_client_auth.ca.der");
+    check_cert(ee, ca, eku, time, Ok(()));
+}

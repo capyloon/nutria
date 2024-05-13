@@ -37,6 +37,7 @@ where
     S: std::io::Write,
     S: IsTerminal,
 {
+    /// Returns `true` if the descriptor/handle refers to a terminal/tty.
     #[inline]
     pub fn is_terminal(&self) -> bool {
         self.raw.is_terminal()

@@ -1,5 +1,10 @@
 # [Unreleased]
 
+# [0.3.9] - 2024-05-07
+
+- Add visionOS support
+  [#95](https://github.com/lambda-fairy/rust-errno/pull/95)
+
 # [0.3.8] - 2023-11-27
 
 - Update to windows-sys 0.52.
@@ -83,7 +88,8 @@
 - Optionally support no_std
   [#31](https://github.com/lambda-fairy/rust-errno/pull/31)
 
-[Unreleased]: https://github.com/lambda-fairy/rust-errno/compare/v0.3.8...HEAD
+[Unreleased]: https://github.com/lambda-fairy/rust-errno/compare/v0.3.9...HEAD
+[0.3.9]: https://github.com/lambda-fairy/rust-errno/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/lambda-fairy/rust-errno/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/lambda-fairy/rust-errno/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/lambda-fairy/rust-errno/compare/v0.3.5...v0.3.6

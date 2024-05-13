@@ -34,15 +34,34 @@
 //     macro API and catching a panic if it isn't available. Enabled on Rust
 //     1.57+.
 
+#![allow(unknown_lints)]
+#![allow(unexpected_cfgs)]
+
 use std::env;
 use std::ffi::OsString;
+use std::iter;
 use std::path::Path;
 use std::process::{self, Command, Stdio};
 use std::str;
-use std::u32;
 
 fn main() {
     let rustc = rustc_minor_version().unwrap_or(u32::MAX);
+
+    if rustc >= 80 {
+        println!("cargo:rustc-check-cfg=cfg(doc_cfg)");
+        println!("cargo:rustc-check-cfg=cfg(fuzzing)");
+        println!("cargo:rustc-check-cfg=cfg(no_is_available)");
+        println!("cargo:rustc-check-cfg=cfg(no_literal_byte_character)");
+        println!("cargo:rustc-check-cfg=cfg(no_literal_c_string)");
+        println!("cargo:rustc-check-cfg=cfg(no_source_text)");
+        println!("cargo:rustc-check-cfg=cfg(proc_macro_span)");
+        println!("cargo:rustc-check-cfg=cfg(procmacro2_backtrace)");
+        println!("cargo:rustc-check-cfg=cfg(procmacro2_nightly_testing)");
+        println!("cargo:rustc-check-cfg=cfg(procmacro2_semver_exempt)");
+        println!("cargo:rustc-check-cfg=cfg(span_locations)");
+        println!("cargo:rustc-check-cfg=cfg(super_unstable)");
+        println!("cargo:rustc-check-cfg=cfg(wrap_proc_macro)");
+    }
 
     let docs_rs = env::var_os("DOCS_RS").is_some();
     let semver_exempt = cfg!(procmacro2_semver_exempt) || docs_rs;
@@ -61,6 +80,11 @@ fn main() {
 
     if rustc < 66 {
         println!("cargo:rustc-cfg=no_source_text");
+    }
+
+    if rustc < 79 {
+        println!("cargo:rustc-cfg=no_literal_byte_character");
+        println!("cargo:rustc-cfg=no_literal_c_string");
     }
 
     if !cfg!(feature = "proc-macro") {
@@ -138,15 +162,15 @@ fn compile_probe(rustc_bootstrap: bool) -> bool {
     let out_dir = cargo_env_var("OUT_DIR");
     let probefile = Path::new("build").join("probe.rs");
 
-    // Make sure to pick up Cargo rustc configuration.
-    let mut cmd = if let Some(wrapper) = env::var_os("RUSTC_WRAPPER") {
-        let mut cmd = Command::new(wrapper);
-        // The wrapper's first argument is supposed to be the path to rustc.
-        cmd.arg(rustc);
-        cmd
-    } else {
-        Command::new(rustc)
-    };
+    let rustc_wrapper = env::var_os("RUSTC_WRAPPER").filter(|wrapper| !wrapper.is_empty());
+    let rustc_workspace_wrapper =
+        env::var_os("RUSTC_WORKSPACE_WRAPPER").filter(|wrapper| !wrapper.is_empty());
+    let mut rustc = rustc_wrapper
+        .into_iter()
+        .chain(rustc_workspace_wrapper)
+        .chain(iter::once(rustc));
+    let mut cmd = Command::new(rustc.next().unwrap());
+    cmd.args(rustc);
 
     if !rustc_bootstrap {
         cmd.env_remove("RUSTC_BOOTSTRAP");

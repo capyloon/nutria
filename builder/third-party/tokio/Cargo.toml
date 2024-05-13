@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.63"
 name = "tokio"
-version = "1.36.0"
+version = "1.37.0"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = """
 An event-driven, non-blocking I/O platform for writing asynchronous I/O
