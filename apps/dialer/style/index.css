@@ -4,23 +4,19 @@ body {
   height: 100%;
   margin: 0;
   overflow-x: hidden;
-  color: lightgrey;
+}
+
+body {
+  color: rgb(0, 0, 0);
+  background: #FFFFFF;
+  padding: 1em;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
 }
 
 * {
   box-sizing: border-box;
-}
-
-body {
-  background: linear-gradient(
-    0deg,
-    rgba(50, 50, 50, 1) 0%,
-    rgba(10, 10, 10, 1) 100%
-  );
-  padding: 1em;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
 }
 
 .filler {
@@ -44,7 +40,19 @@ body button {
 
 #btn-accept,
 #btn-dial {
-  background-color: darkgreen;
+  background-image: linear-gradient(#00ff40, #65c98f);
+  border-radius: 80px;
+  border: none;
+  height: 80px;
+  width: 80px;
+  align-items: center;
+  color: white;
+  margin-bottom: 13%;
+  transition: all 0.2s ease;
+}
+
+#btn-dial:active {
+  transform: scale(0.90);
 }
 
 #btn-dial {
@@ -108,6 +116,7 @@ body button {
   text-align: center;
   font-size: 2rem;
   padding-bottom: 1em;
+  color: black;
 }
 
 .number-display {
@@ -117,6 +126,8 @@ body button {
   flex-direction: row;
   align-items: center;
   font-size: 1.25em;
+  color: black;
+  margin-bottom: 15%;
 }
 
 .value {
@@ -130,6 +141,10 @@ body button {
   flex-direction: column;
   align-items: center;
   padding-top: 0.3em;
+  padding-bottom: 0.3em;
+  margin-bottom: 20%;
+  border-radius: 90px;
+  transition: all 0.2s ease;
 }
 
 .digit lucide-icon {
@@ -140,6 +155,7 @@ body button {
 .delete-key:active {
   background-color: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
+  transform: scale(0.90);
 }
 
 .letters {
